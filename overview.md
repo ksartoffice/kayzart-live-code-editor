@@ -92,6 +92,24 @@ postMessage プロトコル
   `CODELLIA_EXTERNAL_SCRIPTS`, `CODELLIA_EXTERNAL_STYLES`, `CODELLIA_SET_HIGHLIGHT`, `CODELLIA_SET_ELEMENTS_TAB_OPEN`
 - iframe -> 親: `CODELLIA_READY`, `CODELLIA_RENDERED`, `CODELLIA_SELECT`, `CODELLIA_OPEN_ELEMENTS_TAB`, `CODELLIA_MISSING_MARKERS`
 
+拡張タブ API (Pro/Addon 向け)
+-----------------------------
+- エディタ画面専用アセット注入フック: `codellia_editor_enqueue_assets`
+  - 引数 `$context`: `post_id`, `hook_suffix`, `admin_script_handle`, `admin_style_handle`
+
+- 管理画面 JS から設定パネルタブを追加する API
+  - `window.CODELLIA_EXTENSION_API.registerSettingsTab(tab)`
+  - `tab` の型:
+    - `id: string`（`settings` / `elements` は予約済みで使用不可）
+    - `label: string`
+    - `order?: number`（小さいほど左に表示、既定値 100）
+    - `mount(container): void | cleanupFn`
+  - 戻り値: `unregister()`（登録タブを解除）
+
+- 読み込み順不同対応
+  - Codellia 本体より先に読み込まれる場合は `window.CODELLIA_SETTINGS_TAB_QUEUE` に積む。
+  - 本体初期化時にキューを自動取り込みしてタブ登録する。
+
 権限/セキュリティ
 -----------------
 - Codellia 投稿かつ `edit_post` を満たす場合のみ編集可能。

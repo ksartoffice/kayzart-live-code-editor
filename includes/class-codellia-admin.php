@@ -685,6 +685,21 @@ class Admin {
 			) . ';',
 			'before'
 		);
+
+		/**
+		 * Allow addon plugins to enqueue editor-specific assets.
+		 *
+		 * @param array $context Editor asset context.
+		 */
+		do_action(
+			'codellia_editor_enqueue_assets',
+			array(
+				'post_id'             => $post_id,
+				'hook_suffix'         => $hook_suffix,
+				'admin_script_handle' => 'codellia-admin',
+				'admin_style_handle'  => 'codellia-admin',
+			)
+		);
 	}
 
 	/**

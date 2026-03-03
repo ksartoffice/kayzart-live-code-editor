@@ -15,6 +15,11 @@ import { renderLucideIcon } from '../lucide-icons';
 import { SettingsPanel } from './settings-panel';
 import { ElementPanel, type ElementPanelApi } from './element-panel';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from '../logic/template-mode';
+import {
+  getExternalSettingsTabs,
+  subscribeExternalSettingsTabs,
+  type ResolvedExternalSettingsTab,
+} from '../extensions/settings-tab-registry';
 
 export type SettingsData = {
   title: string;
@@ -59,7 +64,7 @@ type SettingsConfig = {
   onApiReady?: (api: SettingsApi) => void;
 };
 
-type SettingsTab = 'settings' | 'elements';
+type SettingsTab = string;
 
 export type SettingsApi = {
   applySettings: (next: Partial<SettingsData>) => void;
@@ -109,6 +114,11 @@ function SettingsSidebar({
   const settingsRef = useRef<SettingsData>({ ...data });
   const [settings, setSettings] = useState<SettingsData>({ ...data });
   const [activeTab, setActiveTab] = useState<SettingsTab>('settings');
+  const [externalTabs, setExternalTabs] = useState<ResolvedExternalSettingsTab[]>(() =>
+    getExternalSettingsTabs()
+  );
+  const externalTabHostRef = useRef<HTMLDivElement | null>(null);
+  const externalTabCleanupRef = useRef<(() => void) | null>(null);
   const resolveSinglePageEnabled = (value?: boolean) =>
     value === undefined ? true : Boolean(value);
   const resolveLiveHighlightEnabled = (value?: boolean) =>
@@ -164,6 +174,79 @@ function SettingsSidebar({
       },
     });
   }, [onApiReady]);
+
+  useEffect(() => {
+    const syncTabs = () => {
+      setExternalTabs(getExternalSettingsTabs());
+    };
+    const unsubscribe = subscribeExternalSettingsTabs(syncTabs);
+    syncTabs();
+    return unsubscribe;
+  }, []);
+
+  const tabItems = useMemo(
+    () => [
+      {
+        id: 'settings',
+        label: __( 'Settings', 'codellia' ),
+      },
+      {
+        id: 'elements',
+        label: __( 'Elements', 'codellia' ),
+      },
+      ...externalTabs.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+      })),
+    ],
+    [externalTabs]
+  );
+
+  useEffect(() => {
+    if (!tabItems.some((tab) => tab.id === activeTab)) {
+      setActiveTab('settings');
+    }
+  }, [activeTab, tabItems]);
+
+  const activeExternalTab = useMemo(
+    () => externalTabs.find((tab) => tab.id === activeTab) || null,
+    [activeTab, externalTabs]
+  );
+
+  useEffect(() => {
+    const host = externalTabHostRef.current;
+
+    externalTabCleanupRef.current?.();
+    externalTabCleanupRef.current = null;
+    if (host) {
+      host.textContent = '';
+    }
+
+    if (!activeExternalTab || !host) {
+      return;
+    }
+
+    try {
+      const cleanup = activeExternalTab.mount(host);
+      if (typeof cleanup === 'function') {
+        externalTabCleanupRef.current = cleanup;
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[Codellia] Failed to mount external settings tab "${activeExternalTab.id}".`,
+        error
+      );
+    }
+
+    return () => {
+      externalTabCleanupRef.current?.();
+      externalTabCleanupRef.current = null;
+      if (host) {
+        host.textContent = '';
+      }
+    };
+  }, [activeExternalTab]);
 
   const canEditJs = Boolean(settings.canEditJs);
 
@@ -386,24 +469,18 @@ function SettingsSidebar({
         role="tablist"
         aria-label={__( 'Settings tabs', 'codellia' )}
       >
-        <button
-          className={`cd-settingsTab${activeTab === 'settings' ? ' is-active' : ''}`}
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'settings'}
-          onClick={() => handleTabChange('settings')}
-        >
-          {__( 'Settings', 'codellia' )}
-        </button>
-        <button
-          className={`cd-settingsTab${activeTab === 'elements' ? ' is-active' : ''}`}
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'elements'}
-          onClick={() => handleTabChange('elements')}
-        >
-          {__( 'Elements', 'codellia' )}
-        </button>
+        {tabItems.map((tab) => (
+          <button
+            key={tab.id}
+            className={`cd-settingsTab${activeTab === tab.id ? ' is-active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => handleTabChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
       <button
         className="cd-settingsClose"
@@ -456,6 +533,10 @@ function SettingsSidebar({
       ) : null}
 
       {activeTab === 'elements' ? <ElementPanel api={elementsApi} /> : null}
+
+      {activeExternalTab ? (
+        <div className="cd-settingsExternalPanel" ref={externalTabHostRef} />
+      ) : null}
     </Fragment>
   );
 }

@@ -954,7 +954,12 @@ body.admin_page_codellia #wpbody-content {
 
 .cd-settingsTabs {
   display: flex;
+  min-width: 0;
   gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
 }
 
 .cd-settingsClose {
@@ -985,6 +990,7 @@ body.admin_page_codellia #wpbody-content {
 }
 
 .cd-settingsTab {
+  flex: 0 0 auto;
   border: 0;
   padding: 12px 4px 8px;
   background: transparent;
@@ -1009,6 +1015,10 @@ body.admin_page_codellia #wpbody-content {
   outline: 2px solid #4c84ff;
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.cd-settingsExternalPanel {
+  width: 100%;
 }
 
 .cd-settingsSection {

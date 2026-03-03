@@ -143,5 +143,49 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'codellia-admin', 'enqueued' ) );
 		$this->assertSame( $before + 1, did_action( 'wp_enqueue_media' ) );
 	}
+
+	public function test_enqueue_assets_fires_editor_extension_hook_with_context(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		$captured_context = null;
+		$listener         = static function ( $context ) use ( &$captured_context ): void {
+			$captured_context = $context;
+		};
+		add_action( 'codellia_editor_enqueue_assets', $listener, 10, 1 );
+
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
+
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+
+		$_GET = $original_get;
+		remove_action( 'codellia_editor_enqueue_assets', $listener, 10 );
+
+		$this->assertIsArray( $captured_context );
+		$this->assertSame( $post_id, $captured_context['post_id'] ?? null );
+		$this->assertSame( 'admin_page_' . Admin::MENU_SLUG, $captured_context['hook_suffix'] ?? null );
+		$this->assertSame( 'codellia-admin', $captured_context['admin_script_handle'] ?? null );
+		$this->assertSame( 'codellia-admin', $captured_context['admin_style_handle'] ?? null );
+	}
+
+	public function test_enqueue_assets_does_not_fire_editor_extension_hook_on_other_pages(): void {
+		$fired    = false;
+		$listener = static function () use ( &$fired ): void {
+			$fired = true;
+		};
+		add_action( 'codellia_editor_enqueue_assets', $listener, 10, 0 );
+
+		Admin::enqueue_assets( 'settings_page_codellia-settings' );
+
+		remove_action( 'codellia_editor_enqueue_assets', $listener, 10 );
+		$this->assertFalse( $fired );
+	}
 }
 

@@ -47,14 +47,17 @@ function updateReadmeChangelog(readmeText, version) {
   }
 
   let firstHeadingIndex = -1;
+  let firstHeadingVersion = '';
   for (let index = changelogIndex + 1; index < lines.length; index += 1) {
     const trimmed = lines[index].trim();
     if (trimmed === '') {
       continue;
     }
 
-    if (/^=\s*\d+\.\d+\.\d+\s*=$/.test(trimmed)) {
+    const headingMatch = trimmed.match(/^=\s*(\d+\.\d+\.\d+)\s*=$/);
+    if (headingMatch) {
       firstHeadingIndex = index;
+      firstHeadingVersion = headingMatch[1];
       break;
     }
 
@@ -64,11 +67,15 @@ function updateReadmeChangelog(readmeText, version) {
   }
 
   if (firstHeadingIndex === -1) {
-    lines.splice(changelogIndex + 1, 0, `= ${version} =`, '* TBD');
+    lines.splice(changelogIndex + 1, 0, `= ${version} =`, '* TBD', '');
     return lines.join('\n');
   }
 
-  lines[firstHeadingIndex] = `= ${version} =`;
+  if (firstHeadingVersion === version) {
+    return lines.join('\n');
+  }
+
+  lines.splice(firstHeadingIndex, 0, `= ${version} =`, '* TBD', '');
   return lines.join('\n');
 }
 

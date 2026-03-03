@@ -148,7 +148,7 @@ async function main() {
   let jsEditor: import('monaco-editor').editor.IStandaloneCodeEditor;
   let tailwindCss = initialState.importedGeneratedCss;
   let settingsOpen = false;
-  let activeSettingsTab: 'settings' | 'elements' = 'settings';
+  let activeSettingsTab = 'settings';
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let shadowDomEnabled = Boolean(initialState.settingsData?.shadowDomEnabled);

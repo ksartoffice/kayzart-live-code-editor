@@ -3,7 +3,7 @@
  * Plugin Name: Codellia
  * Plugin URI: https://wordpress.org/plugins/codellia/
  * Description: Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 6.6
  * Tested up to: 6.9
  * Requires PHP: 8.2
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'CODELLIA_VERSION', '1.0.0' );
+define( 'CODELLIA_VERSION', '1.0.1' );
 define( 'CODELLIA_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CODELLIA_URL', plugin_dir_url( __FILE__ ) );
 

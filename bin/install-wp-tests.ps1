@@ -156,7 +156,7 @@ function Install-TestSuite {
 			Show-DownloadPreview -Path $testsZip
 			Remove-Item -Force $testsZip -ErrorAction SilentlyContinue
 		} catch {
-			Write-Warning "Download failed from $url: $($_.Exception.Message)"
+			Write-Warning "Download failed from ${url}: $($_.Exception.Message)"
 			$downloaded = $false
 		}
 	}

@@ -1,6 +1,6 @@
 {
   "name": "codellia",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Live HTML/CSS/JS editor with a custom Codellia post type, Monaco Editor, and live preview.",
   "license": "GPL-2.0-or-later",
   "scripts": {

@@ -688,9 +688,9 @@ class Admin {
 
 		/**
 		 * Allow addon plugins to enqueue editor-specific assets.
-		 *
-		 * @param array $context Editor asset context.
-		 */
+		*
+	 * @param array $context Editor asset context.
+	 */
 		do_action(
 			'codellia_editor_enqueue_assets',
 			array(
@@ -701,7 +701,6 @@ class Admin {
 			)
 		);
 	}
-
 	/**
 	 * Resolve asset version with filemtime fallback.
 	 *

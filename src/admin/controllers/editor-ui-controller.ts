@@ -195,10 +195,27 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     updateJsUi();
   };
 
+  const isMonacoWidgetClick = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return false;
+    }
+    const targetElement = target instanceof Element ? target : target.parentElement;
+    return Boolean(targetElement?.closest('.editor-widget'));
+  };
+
   const initialize = () => {
     setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
-    deps.ui.htmlPane.addEventListener('click', () => deps.htmlEditor.focus());
-    deps.ui.cssPane.addEventListener('click', () => {
+    deps.ui.htmlPane.addEventListener('click', (event) => {
+      if (isMonacoWidgetClick(event)) {
+        return;
+      }
+      deps.htmlEditor.focus();
+    });
+    deps.ui.cssPane.addEventListener('click', (event) => {
+      if (isMonacoWidgetClick(event)) {
+        return;
+      }
       if (activeCssTab === 'js') {
         deps.jsEditor.focus();
       } else {

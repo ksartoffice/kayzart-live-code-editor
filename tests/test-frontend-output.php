@@ -56,8 +56,8 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $output );
 		$this->assertStringContainsString( '<template shadowrootmode="open">', $output );
-		$this->assertStringContainsString( '<link rel="stylesheet" href="https://example.com/app.css">', $output );
-		$this->assertStringContainsString( '<style id="cd-style">body{color:red;}</style>', $output );
+		$this->assertStringContainsString( 'https://example.com/app.css', $output );
+		$this->assertStringContainsString( 'body{color:red;}', $output );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
 		$this->assertStringNotContainsString( '<script id="cd-script">console.log("x");</script>', $output );
@@ -87,14 +87,21 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 
 		wp_set_current_user( $admin_id );
 
-		$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
+		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
+		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $output );
-		$this->assertStringContainsString( '<link rel="stylesheet" href="https://example.com/shortcode.css">', $output );
-		$this->assertStringContainsString( 'id="cd-style-' . $post_id . '-1"', $output );
-		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
-		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $output );
-		$this->assertStringNotContainsString( 'id="cd-script-' . $post_id . '-1"', $output );
+		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $first );
+		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $second );
+		$this->assertStringContainsString( 'https://example.com/shortcode.css', $first );
+		$this->assertStringContainsString( 'https://example.com/shortcode.css', $second );
+		$this->assertStringContainsString( 'body{background:#000;}', $first );
+		$this->assertStringContainsString( 'body{background:#000;}', $second );
+		$this->assertStringContainsString( 'id="cd-script-data-' . $post_id . '-1"', $first );
+		$this->assertStringContainsString( 'id="cd-script-data-' . $post_id . '-2"', $second );
+		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $first );
+		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $second );
+		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
 	}
 
 	public function test_shortcode_non_shadow_inlines_assets_once(): void {
@@ -120,17 +127,29 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		$this->assertStringContainsString( '<link rel="stylesheet" href="https://example.com/inline.css">', $first );
-		$this->assertStringContainsString( 'id="cd-style-' . $post_id . '"', $first );
+		$this->assertStringContainsString( 'https://example.com/inline.css', $first );
+		$this->assertStringContainsString( 'body{font-size:16px;}', $first );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $first );
-		$this->assertStringContainsString( '<script src="https://example.com/inline.js"></script>', $first );
-		$this->assertStringContainsString( 'id="cd-script-' . $post_id . '"', $first );
+		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $first );
+		$this->assertStringNotContainsString( 'id="cd-script-' . $post_id . '"', $first );
 
-		$this->assertStringNotContainsString( '<link rel="stylesheet" href="https://example.com/inline.css">', $second );
-		$this->assertStringNotContainsString( 'id="cd-style-' . $post_id . '"', $second );
+		$this->assertStringNotContainsString( 'https://example.com/inline.css', $second );
+		$this->assertStringNotContainsString( 'body{font-size:16px;}', $second );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $second );
 		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $second );
 		$this->assertStringNotContainsString( 'id="cd-script-' . $post_id . '"', $second );
+
+		$external_handle = 'kayzart-ext-' . $post_id . '-0';
+		$shortcode_js    = 'kayzart-shortcode-js-' . $post_id;
+		$this->assertTrue( wp_script_is( $external_handle, 'enqueued' ) );
+		$this->assertTrue( wp_script_is( $shortcode_js, 'enqueued' ) );
+
+		$scripts = wp_scripts();
+		$this->assertArrayHasKey( $shortcode_js, $scripts->registered );
+		$this->assertContains( $external_handle, $scripts->registered[ $shortcode_js ]->deps );
+		$inline_scripts = $scripts->get_data( $shortcode_js, 'after' );
+		$this->assertIsArray( $inline_scripts );
+		$this->assertStringContainsString( 'console.log("inline");', implode( "\n", $inline_scripts ) );
 	}
 
 	public function test_enqueue_css_preserves_tailwind_escaped_arbitrary_values(): void {
@@ -202,5 +221,17 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$assets_property = new ReflectionProperty( Frontend::class, 'shortcode_assets_loaded' );
 		$assets_property->setAccessible( true );
 		$assets_property->setValue( null, array() );
+
+		$external_property = new ReflectionProperty( Frontend::class, 'external_script_handles' );
+		$external_property->setAccessible( true );
+		$external_property->setValue( null, array() );
+
+		$runtime_property = new ReflectionProperty( Frontend::class, 'shadow_runtime_enqueued' );
+		$runtime_property->setAccessible( true );
+		$runtime_property->setValue( null, false );
+
+		$style_count_property = new ReflectionProperty( Frontend::class, 'shadow_style_render_count' );
+		$style_count_property->setAccessible( true );
+		$style_count_property->setValue( null, 0 );
 	}
 }

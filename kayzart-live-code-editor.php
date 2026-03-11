@@ -49,6 +49,12 @@ require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
 add_action(
 	'plugins_loaded',
 	function () {
+		load_plugin_textdomain(
+			'kayzart-live-code-editor',
+			false,
+			dirname( plugin_basename( __FILE__ ) ) . '/languages'
+		);
+
 		// Custom post type used exclusively by KayzArt.
 		\KayzArt\Post_Type::init();
 

@@ -295,15 +295,15 @@ msgstr "フレーム"
 
 #: includes/class-kayzart-admin.php:562
 msgid "KayzArt Live Code Editor Settings"
-msgstr ""
+msgstr "KayzArt Live Code Editor 設定"
 
 #: includes/rest/class-kayzart-rest-import.php:96
 msgid "Invalid tailwindEnabled value."
-msgstr ""
+msgstr "tailwindEnabled の値が不正です。"
 
 #: includes/class-kayzart-admin.php:113
 msgid "Untitled"
-msgstr ""
+msgstr "無題"
 
 #. translators: %s: post title.
 #: includes/class-kayzart-admin.php:88
@@ -317,29 +317,38 @@ msgstr "ページテンプレート"
 
 #: includes/class-kayzart-admin.php:378
 msgid "Default template mode"
-msgstr ""
+msgstr "デフォルトのテンプレートモード"
 
 #: includes/class-kayzart-admin.php:482
 msgid "Choose the default page template mode used by KayzArt previews."
-msgstr ""
+msgstr "KayzArt プレビューで使用するデフォルトのページテンプレートモードを選択します。"
 
 #: includes/class-kayzart-admin.php:510
 msgid "Applies when template mode is set to Use admin default."
-msgstr ""
+msgstr "テンプレートモードが「管理画面のデフォルトを使用」に設定されている場合に適用されます。"
 
 #: includes/class-kayzart-post-type.php:54
 msgctxt "kayzart"
 msgid "Add New"
-msgstr ""
+msgstr "新規追加"
 
 #: includes/rest/class-kayzart-rest-preview.php:43
 msgid "Too many shortcodes requested."
-msgstr ""
+msgstr "要求されたショートコードが多すぎます。"
 
 #: includes/rest/class-kayzart-rest-save.php:296
 msgid "Tailwind HTML input exceeds the maximum size."
-msgstr ""
+msgstr "Tailwind の HTML 入力が最大サイズを超えています。"
 
 #: includes/rest/class-kayzart-rest-save.php:304
 msgid "Tailwind CSS input exceeds the maximum size."
-msgstr ""
+msgstr "Tailwind の CSS 入力が最大サイズを超えています。"
+
+#: assets/admin/editor-bridge.js:56
+msgid "Saving..."
+msgstr "保存中..."
+
+#: assets/admin/editor-bridge.js:87
+#: assets/admin/editor-bridge.js:135
+msgid "Edit with KayzArt"
+msgstr "KayzArtで編集"

@@ -413,14 +413,14 @@ class Admin {
 
 		add_settings_section(
 			'kayzart_shortcode',
-			__( 'Shortcode', 'kayzart-live-code-editor' ),
+			__( 'External embed', 'kayzart-live-code-editor' ),
 			array( __CLASS__, 'render_shortcode_section' ),
 			self::SETTINGS_SLUG
 		);
 
 		add_settings_field(
 			self::OPTION_SHORTCODE_ALLOWLIST,
-			__( 'Shortcode allowlist', 'kayzart-live-code-editor' ),
+			__( 'Allowed shortcode tags', 'kayzart-live-code-editor' ),
 			array( __CLASS__, 'render_shortcode_allowlist_field' ),
 			self::SETTINGS_SLUG,
 			'kayzart_shortcode'
@@ -560,7 +560,7 @@ class Admin {
 	 */
 	public static function render_shortcode_section(): void {
 
-		echo '<p>' . esc_html__( 'Control which shortcodes are allowed to execute inside KayzArt shortcode embeds.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html__( 'Control which shortcode tags are allowed to execute inside external embeds.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 	/**
 	 * Render post slug input field.
@@ -604,7 +604,7 @@ class Admin {
 		echo '<textarea class="large-text code" rows="6" name="' . esc_attr( self::OPTION_SHORTCODE_ALLOWLIST ) . '">' . esc_textarea( $value ) . '</textarea>';
 		echo '<p class="description">' .
 			esc_html__(
-				'One shortcode tag per line. Only these tags run inside [kayzart post_id="..."] embeds (up to 2 passes). Other tags stay as plain text.',
+				'One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id="..."], up to 2 passes). Other tags stay as plain text.',
 				'kayzart-live-code-editor'
 			) .
 		'</p>';

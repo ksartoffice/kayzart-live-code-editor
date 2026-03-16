@@ -684,7 +684,6 @@ class Admin {
 			'monacoVsPath'         => KAYZART_URL . 'assets/monaco/vs',
 			'restUrl'              => rest_url( 'kayzart/v1/save' ),
 			'restCompileUrl'       => rest_url( 'kayzart/v1/compile-tailwind' ),
-			'renderShortcodesUrl'  => rest_url( 'kayzart/v1/render-shortcodes' ),
 			'setupRestUrl'         => rest_url( 'kayzart/v1/setup' ),
 			'importRestUrl'        => rest_url( 'kayzart/v1/import' ),
 			'backUrl'              => $back_url,

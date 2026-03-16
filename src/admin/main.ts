@@ -843,29 +843,6 @@ async function main() {
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
     isTailwindEnabled: () => tailwindEnabled,
-    renderShortcodes: async (items, contextHtml) => {
-      if (!cfg.renderShortcodesUrl || !wp?.apiFetch) {
-        return {};
-      }
-      try {
-        const res = await wp.apiFetch({
-          url: cfg.renderShortcodesUrl,
-          method: 'POST',
-          data: {
-            post_id: postId,
-            context_html: contextHtml,
-            shortcodes: items.map((item) => ({ id: item.id, shortcode: item.shortcode })),
-          },
-        });
-        if (res?.ok && res.results && typeof res.results === 'object') {
-          return res.results as Record<string, string>;
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[KayzArt] Shortcode render failed', error);
-      }
-      return {};
-    },
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();

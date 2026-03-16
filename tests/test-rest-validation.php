@@ -447,43 +447,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should accept exact-limit HTML/CSS.' );
 	}
 
-	public function test_render_shortcodes_accepts_max_items_boundary(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/render-shortcodes',
-			array(
-				'post_id'    => $post_id,
-				'shortcodes' => $this->build_shortcode_items( Limits::MAX_RENDER_SHORTCODES ),
-			)
-		);
-
-		$this->assertSame( 200, $response->get_status(), 'Shortcode rendering should accept the max item count.' );
-		$data = $response->get_data();
-		$this->assertSame( true, $data['ok'] ?? false );
-		$this->assertCount( Limits::MAX_RENDER_SHORTCODES, $data['results'] ?? array() );
-	}
-
-	public function test_render_shortcodes_rejects_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/render-shortcodes',
-			array(
-				'post_id'    => $post_id,
-				'shortcodes' => $this->build_shortcode_items( Limits::MAX_RENDER_SHORTCODES + 1 ),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Shortcode rendering should reject too many items.' );
-	}
-
 	public function test_save_rejects_invalid_settings_updates_and_preserves_content(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -671,16 +634,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		return $base . '/*' . str_repeat( 'a', $pad - 4 ) . '*/';
 	}
 
-	private function build_shortcode_items( int $count ): array {
-		$items = array();
-		for ( $index = 1; $index <= $count; $index++ ) {
-			$items[] = array(
-				'id'        => 'item-' . $index,
-				'shortcode' => '',
-			);
-		}
-		return $items;
-	}
 }
 
 

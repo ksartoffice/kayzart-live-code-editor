@@ -38,32 +38,6 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
-			'/render-shortcodes',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( Rest_Preview::class, 'render_shortcodes' ),
-				'permission_callback' => array( __CLASS__, 'permission_check' ),
-				'args'                => array(
-					'post_id'      => array(
-						'type'     => 'integer',
-						'required' => true,
-					),
-					'context_html' => array(
-						'type'      => 'string',
-						'required'  => false,
-						'maxLength' => Limits::MAX_TAILWIND_HTML_BYTES,
-					),
-					'shortcodes'   => array(
-						'type'     => 'array',
-						'required' => true,
-						'maxItems' => Limits::MAX_RENDER_SHORTCODES,
-					),
-				),
-			)
-		);
-
-		register_rest_route(
-			'kayzart/v1',
 			'/compile-tailwind',
 			array(
 				'methods'             => 'POST',

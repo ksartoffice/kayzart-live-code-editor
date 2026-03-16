@@ -18,6 +18,7 @@ import {
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml } from './logic/media-html';
+import { buildStatusUpdates } from './logic/status-updates';
 import { createSaveExportController } from './controllers/save-export-controller';
 import { createModalController } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
@@ -536,10 +537,7 @@ async function main() {
         if (!cfg.settingsRestUrl || !wp?.apiFetch) {
           return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };
         }
-        const updates =
-          nextStatus === 'private'
-            ? { status: 'private', visibility: 'private' }
-            : { status: nextStatus, visibility: 'public' };
+        const updates = buildStatusUpdates(nextStatus);
         try {
           const response = await wp.apiFetch({
             url: cfg.settingsRestUrl,

@@ -24,6 +24,7 @@ class Admin {
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
+	const OPTION_SHORTCODE_ALLOWLIST   = 'kayzart_shortcode_allowlist';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const OPTION_DELETE_ON_UNINSTALL   = 'kayzart_delete_on_uninstall';
 	const ADMIN_TITLE_SEPARATORS       = array(
@@ -371,6 +372,16 @@ class Admin {
 			)
 		);
 
+		register_setting(
+			self::SETTINGS_GROUP,
+			self::OPTION_SHORTCODE_ALLOWLIST,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_shortcode_allowlist' ),
+				'default'           => '',
+			)
+		);
+
 		add_settings_section(
 			'kayzart_permalink',
 			__( 'Permalink', 'kayzart-live-code-editor' ),
@@ -399,6 +410,21 @@ class Admin {
 			array( __CLASS__, 'render_default_template_mode_field' ),
 			self::SETTINGS_SLUG,
 			'kayzart_template_mode'
+		);
+
+		add_settings_section(
+			'kayzart_shortcode',
+			__( 'Shortcode', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_shortcode_section' ),
+			self::SETTINGS_SLUG
+		);
+
+		add_settings_field(
+			self::OPTION_SHORTCODE_ALLOWLIST,
+			__( 'Shortcode allowlist', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_shortcode_allowlist_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_shortcode'
 		);
 
 		add_settings_section(
@@ -449,6 +475,33 @@ class Admin {
 		$template_mode = is_string( $value ) ? sanitize_key( $value ) : '';
 		$valid         = array( 'standalone', 'frame', 'theme' );
 		return in_array( $template_mode, $valid, true ) ? $template_mode : 'theme';
+	}
+
+	/**
+	 * Sanitize shortcode allowlist value.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	public static function sanitize_shortcode_allowlist( $value ): string {
+		$raw = is_string( $value ) ? $value : '';
+		if ( '' === $raw ) {
+			return '';
+		}
+
+		$normalized = str_replace( array( "\r\n", "\r" ), "\n", $raw );
+		$entries    = explode( "\n", $normalized );
+		$unique     = array();
+
+		foreach ( $entries as $entry ) {
+			$tag = sanitize_key( trim( $entry ) );
+			if ( '' === $tag ) {
+				continue;
+			}
+			$unique[ $tag ] = true;
+		}
+
+		return implode( "\n", array_keys( $unique ) );
 	}
 
 	/**
@@ -503,6 +556,13 @@ class Admin {
 	}
 
 	/**
+	 * Render shortcode section description.
+	 */
+	public static function render_shortcode_section(): void {
+		echo '<p>' . esc_html__( 'Control which shortcodes are allowed to execute inside KayzArt shortcode embeds.', 'kayzart-live-code-editor' ) . '</p>';
+	}
+
+	/**
 	 * Render post slug input field.
 	 */
 	public static function render_post_slug_field(): void {
@@ -528,6 +588,24 @@ class Admin {
 		}
 		echo '</select>';
 		echo '<p class="description">' . esc_html__( 'Applies when template mode is set to Use admin default.', 'kayzart-live-code-editor' ) . '</p>';
+	}
+
+	/**
+	 * Render shortcode allowlist textarea field.
+	 */
+	public static function render_shortcode_allowlist_field(): void {
+		$value = get_option( self::OPTION_SHORTCODE_ALLOWLIST, '' );
+		if ( ! is_string( $value ) ) {
+			$value = '';
+		}
+
+		echo '<textarea class="large-text code" rows="6" name="' . esc_attr( self::OPTION_SHORTCODE_ALLOWLIST ) . '">' . esc_textarea( $value ) . '</textarea>';
+		echo '<p class="description">' .
+			esc_html__(
+				'One shortcode tag per line. Only these tags run inside [kayzart post_id="..."] embeds (up to 2 passes). Other tags stay as plain text.',
+				'kayzart-live-code-editor'
+			) .
+		'</p>';
 	}
 
 	/**

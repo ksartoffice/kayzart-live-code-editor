@@ -54,6 +54,7 @@ class Frontend {
 	private const TEMPLATE_MODE_META_KEY         = '_kayzart_template_mode';
 	private const TEMPLATE_MODE_VALUES           = array( 'default', 'standalone', 'frame', 'theme' );
 	private const DEFAULT_TEMPLATE_MODE_VALUES   = array( 'standalone', 'frame', 'theme' );
+	private const SHORTCODE_RENDER_MAX_PASSES    = 2;
 
 	/**
 	 * Register front-end hooks.
@@ -437,7 +438,7 @@ class Frontend {
 		}
 
 		$content = (string) $post->post_content;
-		$content = do_shortcode( $content );
+		$content = self::render_allowed_embed_shortcodes( $content );
 
 		if ( self::is_shadow_dom_enabled( $post_id ) ) {
 			++self::$shortcode_instance;
@@ -450,6 +451,89 @@ class Frontend {
 
 		$style_html = self::prepare_non_shadow_shortcode_assets( $post_id );
 		return $style_html . $content;
+	}
+
+	/**
+	 * Resolve shortcode allowlist configured in admin settings.
+	 *
+	 * @return array<int,string>
+	 */
+	private static function get_shortcode_allowlist(): array {
+		$raw = get_option( Admin::OPTION_SHORTCODE_ALLOWLIST, '' );
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return array();
+		}
+
+		$normalized = str_replace( array( "\r\n", "\r" ), "\n", $raw );
+		$entries    = explode( "\n", $normalized );
+		$unique     = array();
+
+		foreach ( $entries as $entry ) {
+			$tag = sanitize_key( trim( $entry ) );
+			if ( '' === $tag ) {
+				continue;
+			}
+			$unique[ $tag ] = true;
+		}
+
+		return array_keys( $unique );
+	}
+
+	/**
+	 * Render only allowlisted shortcodes for [kayzart] embed content.
+	 *
+	 * @param string $content Post content.
+	 * @return string
+	 */
+	private static function render_allowed_embed_shortcodes( string $content ): string {
+		if ( '' === $content ) {
+			return '';
+		}
+
+		$allowlist = self::get_shortcode_allowlist();
+		if ( empty( $allowlist ) ) {
+			return $content;
+		}
+
+		$had_original_shortcode_tags = array_key_exists( 'shortcode_tags', $GLOBALS );
+		$original_shortcode_tags     = $had_original_shortcode_tags ? $GLOBALS['shortcode_tags'] : null;
+		if ( ! is_array( $original_shortcode_tags ) || empty( $original_shortcode_tags ) ) {
+			return $content;
+		}
+
+		$allowed_shortcode_tags = array();
+		foreach ( $allowlist as $tag ) {
+			if ( isset( $original_shortcode_tags[ $tag ] ) ) {
+				$allowed_shortcode_tags[ $tag ] = $original_shortcode_tags[ $tag ];
+			}
+		}
+
+		if ( empty( $allowed_shortcode_tags ) ) {
+			return $content;
+		}
+
+		$rendered = $content;
+		try {
+			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Temporarily scope shortcode execution to the allowlist.
+			$GLOBALS['shortcode_tags'] = $allowed_shortcode_tags;
+
+			for ( $pass = 0; $pass < self::SHORTCODE_RENDER_MAX_PASSES; $pass++ ) {
+				$previous = $rendered;
+				$rendered = do_shortcode( $previous );
+				if ( $rendered === $previous ) {
+					break;
+				}
+			}
+		} finally {
+			if ( $had_original_shortcode_tags ) {
+				// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore previous global state.
+				$GLOBALS['shortcode_tags'] = $original_shortcode_tags;
+			} else {
+				unset( $GLOBALS['shortcode_tags'] );
+			}
+		}
+
+		return $rendered;
 	}
 
 	/**

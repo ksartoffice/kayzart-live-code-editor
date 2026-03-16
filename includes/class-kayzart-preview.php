@@ -282,7 +282,6 @@ class Preview {
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
-
 		wp_add_inline_script(
 			'kayzart-preview',
 			'window.KAYZART_PREVIEW = ' . wp_json_encode( $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ';',

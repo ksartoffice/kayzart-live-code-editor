@@ -51,11 +51,10 @@ class Frontend {
 	 * @var int
 	 */
 	private static int $shadow_style_render_count = 0;
-	private const TEMPLATE_MODE_META_KEY         = '_kayzart_template_mode';
-	private const TEMPLATE_MODE_VALUES           = array( 'default', 'standalone', 'frame', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES   = array( 'standalone', 'frame', 'theme' );
-	private const SHORTCODE_RENDER_MAX_PASSES    = 2;
-
+	private const TEMPLATE_MODE_META_KEY          = '_kayzart_template_mode';
+	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'frame', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'frame', 'theme' );
+	private const SHORTCODE_RENDER_MAX_PASSES     = 2;
 	/**
 	 * Register front-end hooks.
 	 */
@@ -409,6 +408,7 @@ class Frontend {
 	 * @return string
 	 */
 	public static function shortcode( $atts = array() ): string {
+
 		$atts    = shortcode_atts(
 			array(
 				'post_id' => 0,
@@ -439,7 +439,6 @@ class Frontend {
 
 		$content = (string) $post->post_content;
 		$content = self::render_allowed_embed_shortcodes( $content );
-
 		if ( self::is_shadow_dom_enabled( $post_id ) ) {
 			++self::$shortcode_instance;
 			$instance    = self::$shortcode_instance;
@@ -459,6 +458,7 @@ class Frontend {
 	 * @return array<int,string>
 	 */
 	private static function get_shortcode_allowlist(): array {
+
 		$raw = get_option( Admin::OPTION_SHORTCODE_ALLOWLIST, '' );
 		if ( ! is_string( $raw ) || '' === $raw ) {
 			return array();
@@ -471,7 +471,7 @@ class Frontend {
 		foreach ( $entries as $entry ) {
 			$tag = sanitize_key( trim( $entry ) );
 			if ( '' === $tag ) {
-				continue;
+					continue;
 			}
 			$unique[ $tag ] = true;
 		}
@@ -486,6 +486,7 @@ class Frontend {
 	 * @return string
 	 */
 	private static function render_allowed_embed_shortcodes( string $content ): string {
+
 		if ( '' === $content ) {
 			return '';
 		}
@@ -526,7 +527,7 @@ class Frontend {
 			}
 		} finally {
 			if ( $had_original_shortcode_tags ) {
-				// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore previous global state.
+              // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore previous global state.
 				$GLOBALS['shortcode_tags'] = $original_shortcode_tags;
 			} else {
 				unset( $GLOBALS['shortcode_tags'] );
@@ -535,7 +536,6 @@ class Frontend {
 
 		return $rendered;
 	}
-
 	/**
 	 * Build stylesheet HTML for Shadow DOM rendering via WordPress style APIs.
 	 *

@@ -25,6 +25,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_FLUSH_REWRITE );
 		delete_option( Admin::OPTION_POST_SLUG );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
+		delete_option( Admin::OPTION_SHORTCODE_ALLOWLIST );
 		delete_option( Admin::OPTION_DELETE_ON_UNINSTALL );
 		parent::tearDown();
 	}
@@ -44,6 +45,14 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( '1', Admin::sanitize_delete_on_uninstall( '1' ) );
 		$this->assertSame( '0', Admin::sanitize_delete_on_uninstall( '0' ) );
 		$this->assertSame( '0', Admin::sanitize_delete_on_uninstall( 1 ) );
+	}
+
+	public function test_sanitize_shortcode_allowlist_normalizes_and_deduplicates(): void {
+		$input = " Gallery \r\ncontact-form-7\r\nCONTACT-FORM-7\r\n\r\ninvalid tag\r\n";
+		$this->assertSame(
+			"gallery\ncontact-form-7\ninvalidtag",
+			Admin::sanitize_shortcode_allowlist( $input )
+		);
 	}
 
 	public function test_filter_admin_url_rewrites_kayzart_add_new_url_with_nonce(): void {

@@ -199,13 +199,13 @@ export function SettingsPanel({
         </div>
         <div className="cd-settingsItem cd-settingsToggle">
           <div className="cd-settingsItemLabel">
-            {__( 'Enable shortcode', 'kayzart-live-code-editor')}
+            {__( 'Enable external embedding', 'kayzart-live-code-editor')}
           </div>
           <label className="cd-toggle">
             <input
               type="checkbox"
               checked={shortcodeEnabled}
-              aria-label={__( 'Enable shortcode', 'kayzart-live-code-editor')}
+              aria-label={__( 'Enable external embedding', 'kayzart-live-code-editor')}
               onChange={(event) => onToggleShortcode(event.target.checked)}
               disabled={disabled}
             />
@@ -221,13 +221,13 @@ export function SettingsPanel({
                 className="cd-formInput cd-settingsScriptInput"
                 value={shortcodeText}
                 readOnly
-                aria-label={__( 'KayzArt shortcode', 'kayzart-live-code-editor')}
+                aria-label={__( 'KayzArt embed code', 'kayzart-live-code-editor')}
               />
               <button
                 className="cd-btn cd-btn-secondary"
                 type="button"
                 onClick={handleCopyShortcode}
-                aria-label={__( 'Copy shortcode', 'kayzart-live-code-editor')}
+                aria-label={__( 'Copy embed code', 'kayzart-live-code-editor')}
               >
                 {copyState === 'copied'
                   ? __( 'Copied', 'kayzart-live-code-editor')
@@ -257,7 +257,7 @@ export function SettingsPanel({
             </div>
             <div className="cd-settingsHelp">
               {__(
-                'You can paste this into a shortcode block in Gutenberg or Elementor.', 'kayzart-live-code-editor')}
+                'You can paste this embed code into a Shortcode block in Gutenberg or Elementor.', 'kayzart-live-code-editor')}
             </div>
           </Fragment>
         ) : null}

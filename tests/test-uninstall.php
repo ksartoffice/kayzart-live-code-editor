@@ -19,6 +19,7 @@ class Test_Uninstall extends WP_UnitTestCase {
 	protected function tearDown(): void {
 		delete_option( 'kayzart_delete_on_uninstall' );
 		delete_option( 'kayzart_post_slug' );
+		delete_option( 'kayzart_shortcode_allowlist' );
 		delete_option( 'kayzart_flush_rewrite' );
 		parent::tearDown();
 	}
@@ -28,6 +29,7 @@ class Test_Uninstall extends WP_UnitTestCase {
 
 		update_option( 'kayzart_delete_on_uninstall', '0' );
 		update_option( 'kayzart_post_slug', 'kayzart-custom' );
+		update_option( 'kayzart_shortcode_allowlist', "gallery\ncontact-form-7" );
 		update_option( 'kayzart_flush_rewrite', '1' );
 
 		$this->run_uninstall_script();
@@ -35,6 +37,7 @@ class Test_Uninstall extends WP_UnitTestCase {
 		$this->assertInstanceOf( WP_Post::class, get_post( $kayzart_post_id ) );
 		$this->assertSame( '0', get_option( 'kayzart_delete_on_uninstall', '' ) );
 		$this->assertSame( 'kayzart-custom', get_option( 'kayzart_post_slug', '' ) );
+		$this->assertSame( "gallery\ncontact-form-7", get_option( 'kayzart_shortcode_allowlist', '' ) );
 		$this->assertSame( '1', get_option( 'kayzart_flush_rewrite', '' ) );
 	}
 
@@ -44,6 +47,7 @@ class Test_Uninstall extends WP_UnitTestCase {
 
 		update_option( 'kayzart_delete_on_uninstall', '1' );
 		update_option( 'kayzart_post_slug', 'kayzart-custom' );
+		update_option( 'kayzart_shortcode_allowlist', "gallery\ncontact-form-7" );
 		update_option( 'kayzart_flush_rewrite', '1' );
 
 		$this->run_uninstall_script();
@@ -52,6 +56,7 @@ class Test_Uninstall extends WP_UnitTestCase {
 		$this->assertInstanceOf( WP_Post::class, get_post( $normal_post_id ), 'Non-KayzArt posts must remain.' );
 		$this->assertFalse( get_option( 'kayzart_delete_on_uninstall', false ) );
 		$this->assertFalse( get_option( 'kayzart_post_slug', false ) );
+		$this->assertFalse( get_option( 'kayzart_shortcode_allowlist', false ) );
 		$this->assertFalse( get_option( 'kayzart_flush_rewrite', false ) );
 	}
 

@@ -280,10 +280,8 @@ class Preview {
 				'start'    => self::MARKER_START,
 				'end'      => self::MARKER_END,
 			),
-			'renderRestUrl'        => rest_url( 'kayzart/v1/render-shortcodes' ),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
-
 		wp_add_inline_script(
 			'kayzart-preview',
 			'window.KAYZART_PREVIEW = ' . wp_json_encode( $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ';',

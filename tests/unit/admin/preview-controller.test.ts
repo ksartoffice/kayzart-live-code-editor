@@ -13,10 +13,9 @@ function createModel(value: string) {
   };
 }
 
-describe('preview shortcode rendering', () => {
-  it('re-renders shortcodes on every render request even when HTML is unchanged', async () => {
+describe('preview shortcode handling', () => {
+  it('sends shortcode text as-is to the preview iframe', async () => {
     const postMessage = vi.fn();
-    const renderShortcodes = vi.fn().mockResolvedValue({ 'sc-1': '<div>rendered</div>' });
     const htmlModel = createModel('<div>[ez-toc]</div>');
     const cssModel = createModel('');
     const jsModel = createModel('');
@@ -39,7 +38,6 @@ describe('preview shortcode rendering', () => {
       getExternalScripts: () => [],
       getExternalStyles: () => [],
       isTailwindEnabled: () => false,
-      renderShortcodes,
     });
 
     controller.handleMessage({
@@ -47,14 +45,14 @@ describe('preview shortcode rendering', () => {
       data: { type: 'KAYZART_READY' },
     } as MessageEvent);
     await flushAsync();
-    renderShortcodes.mockClear();
+    postMessage.mockClear();
 
     controller.sendRender();
-    await flushAsync();
-    controller.sendRender();
-    await flushAsync();
 
-    expect(renderShortcodes).toHaveBeenCalledTimes(2);
+    const renderCall = postMessage.mock.calls.find((entry) => entry?.[0]?.type === 'KAYZART_RENDER');
+    expect(renderCall).toBeTruthy();
+    const payload = renderCall?.[0] as { canonicalHTML?: string };
+    expect(payload.canonicalHTML).toContain('[ez-toc]');
   });
 });
 

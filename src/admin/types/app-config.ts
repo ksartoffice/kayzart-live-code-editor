@@ -11,7 +11,6 @@ export type AppConfig = {
   monacoVsPath: string;
   restUrl: string;
   restCompileUrl: string;
-  renderShortcodesUrl: string;
   setupRestUrl: string;
   importRestUrl: string;
   settingsRestUrl: string;

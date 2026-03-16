@@ -13,17 +13,9 @@ type SourceRange = {
   endOffset: number;
 };
 
-type ShortcodePlaceholder = {
-  id: string;
-  shortcode: string;
-  startOffset: number;
-  endOffset: number;
-};
-
 type CanonicalResult = {
   canonicalHTML: string;
   map: Record<string, SourceRange>;
-  shortcodes: ShortcodePlaceholder[];
   error?: string;
 };
 
@@ -63,21 +55,12 @@ type PreviewControllerDeps = {
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
   isTailwindEnabled: () => boolean;
-  renderShortcodes?: (
-    items: ShortcodePlaceholder[],
-    contextHtml: string
-  ) => Promise<Record<string, string>>;
   onSelect?: (lcId: string) => void;
   onOpenElementsTab?: () => void;
   onMissingMarkers?: () => void;
 };
 
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
-const SC_PLACEHOLDER_ATTR = 'data-cd-sc-placeholder';
-const SHORTCODE_REGEX =
-  /\[(\[?)([\w-]+)(?![\w-])([^\]\/]*(?:\/(?!\])|[^\]])*?)(?:(\/)\]|](?:([^\[]*?(?:\[(?!\/\2\])[^\[]*?)*?)\[\/\2\])?)(\]?)/g;
-const HTML_NS = 'http://www.w3.org/1999/xhtml';
-const SKIP_SHORTCODE_TAGS = new Set(['script', 'style', 'textarea']);
 
 function isElement(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAdapterTypes.Element {
   return (node as DefaultTreeAdapterTypes.Element).tagName !== undefined;
@@ -89,19 +72,6 @@ function isParentNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAd
 
 function isTemplateElement(node: DefaultTreeAdapterTypes.Element): node is DefaultTreeAdapterTypes.Template {
   return node.tagName === 'template' && Boolean((node as DefaultTreeAdapterTypes.Template).content);
-}
-
-function isTextNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAdapterTypes.TextNode {
-  return (node as DefaultTreeAdapterTypes.TextNode).nodeName === '#text';
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 function upsertLcAttr(el: DefaultTreeAdapterTypes.Element, lcId: string) {
@@ -170,146 +140,7 @@ function walkCanonicalTree(
   }
 }
 
-function createTextNode(value: string): DefaultTreeAdapterTypes.TextNode {
-  return {
-    nodeName: '#text',
-    value,
-    parentNode: null,
-  };
-}
-
-function createPlaceholderNode(id: string): DefaultTreeAdapterTypes.Element {
-  return {
-    nodeName: 'span',
-    tagName: 'span',
-    attrs: [{ name: SC_PLACEHOLDER_ATTR, value: id }],
-    namespaceURI: HTML_NS,
-    childNodes: [],
-    parentNode: null,
-  };
-}
-
-function splitTextWithShortcodes(
-  text: string,
-  nextId: () => string,
-  shortcodes: ShortcodePlaceholder[]
-): DefaultTreeAdapterTypes.Node[] | null {
-  if (!text.includes('[')) {
-    return null;
-  }
-  SHORTCODE_REGEX.lastIndex = 0;
-  let match: RegExpExecArray | null = null;
-  let lastIndex = 0;
-  let changed = false;
-  const nodes: DefaultTreeAdapterTypes.Node[] = [];
-
-  while ((match = SHORTCODE_REGEX.exec(text))) {
-    const full = match[0];
-    const matchIndex = match.index ?? 0;
-    if (matchIndex > lastIndex) {
-      nodes.push(createTextNode(text.slice(lastIndex, matchIndex)));
-    }
-    const isEscaped = match[1] === '[' && match[6] === ']';
-    if (isEscaped) {
-      const unescaped = full.slice(1, -1);
-      nodes.push(createTextNode(unescaped));
-    } else {
-      const id = nextId();
-      nodes.push(createPlaceholderNode(id));
-      shortcodes.push({
-        id,
-        shortcode: full,
-        startOffset: matchIndex,
-        endOffset: matchIndex + full.length,
-      });
-    }
-    lastIndex = matchIndex + full.length;
-    changed = true;
-  }
-
-  if (!changed) {
-    return null;
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(createTextNode(text.slice(lastIndex)));
-  }
-
-  return nodes;
-}
-
-function replaceShortcodesWithPlaceholders(html: string): {
-  htmlWithPlaceholders: string;
-  shortcodes: ShortcodePlaceholder[];
-} {
-  if (!html.includes('[')) {
-    return { htmlWithPlaceholders: html, shortcodes: [] };
-  }
-
-  const fragment = parse5.parseFragment(html);
-  const shortcodes: ShortcodePlaceholder[] = [];
-  let seq = 0;
-  const nextId = () => `sc-${++seq}`;
-
-  const walk = (node: DefaultTreeAdapterTypes.ParentNode) => {
-    const children = node.childNodes || [];
-    for (let i = 0; i < children.length; i += 1) {
-      const child = children[i];
-      if (isElement(child)) {
-        if (SKIP_SHORTCODE_TAGS.has(child.tagName)) {
-          continue;
-        }
-        walk(child);
-        if (isTemplateElement(child)) {
-          walk(child.content);
-        }
-        continue;
-      }
-      if (isTextNode(child)) {
-        const replacementNodes = splitTextWithShortcodes(child.value, nextId, shortcodes);
-        if (replacementNodes) {
-          children.splice(i, 1, ...replacementNodes);
-          replacementNodes.forEach((nodeItem) => {
-            nodeItem.parentNode = node;
-          });
-          i += replacementNodes.length - 1;
-        }
-        continue;
-      }
-      if (isParentNode(child)) {
-        walk(child);
-      }
-    }
-  };
-
-  walk(fragment);
-
-  return {
-    htmlWithPlaceholders: parse5.serialize(fragment),
-    shortcodes,
-  };
-}
-
-function applyShortcodeResults(
-  html: string,
-  shortcodes: ShortcodePlaceholder[],
-  results: Record<string, string>
-): string {
-  if (!shortcodes.length) {
-    return html;
-  }
-  let output = html;
-  shortcodes.forEach((entry) => {
-    const placeholder = `<span ${SC_PLACEHOLDER_ATTR}="${entry.id}"></span>`;
-    const replacement = Object.prototype.hasOwnProperty.call(results, entry.id)
-      ? results[entry.id]
-      : entry.shortcode;
-    output = output.split(placeholder).join(replacement ?? '');
-  });
-  return output;
-}
-
-// canonical HTML を生成しつつ data-kayzart-id とソース位置のマッピングを保持
+// Build canonical HTML and keep data-kayzart-id plus source-location mapping.
 function canonicalizeHtml(html: string): CanonicalResult {
   try {
     const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
@@ -319,13 +150,12 @@ function canonicalizeHtml(html: string): CanonicalResult {
 
     walkCanonicalTree(fragment, null, map, nextId);
 
-    return { canonicalHTML: parse5.serialize(fragment), map, shortcodes: [] };
+    return { canonicalHTML: parse5.serialize(fragment), map };
   } catch (error: any) {
     console.error('[KayzArt] canonicalizeHtml failed', error);
     return {
       canonicalHTML: html,
       map: {},
-      shortcodes: [],
       error: error?.message ?? String(error),
     };
   }
@@ -343,7 +173,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let canonicalDomRoot: HTMLElement | null = null;
   let lcSourceMap: Record<string, SourceRange> = {};
   let lastCanonicalError: string | null = null;
-  let renderToken = 0;
   let selectionDecorations: string[] = [];
   let cssSelectionDecorations: string[] = [];
   let lastSelectedLcId: string | null = null;
@@ -365,28 +194,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     canonicalCacheHtml = '';
     canonicalDomCacheHtml = '';
     canonicalDomRoot = null;
-  };
-
-  const renderShortcodesIfNeeded = async (html: string, token: number) => {
-    if (!deps.renderShortcodes) {
-      return html;
-    }
-    const { htmlWithPlaceholders, shortcodes } = replaceShortcodesWithPlaceholders(html);
-    if (!shortcodes.length) {
-      return htmlWithPlaceholders;
-    }
-    try {
-      const results = await deps.renderShortcodes(shortcodes, html);
-      if (token !== renderToken) {
-        return html;
-      }
-      const resolved = applyShortcodeResults(htmlWithPlaceholders, shortcodes, results || {});
-      return resolved;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[KayzArt] Shortcode render failed', error);
-      return htmlWithPlaceholders;
-    }
   };
 
   const getCanonicalDomRoot = () => {
@@ -418,7 +225,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     lcSourceMap = canonical.map;
 
     if (canonical.error && canonical.error !== lastCanonicalError) {
-    console.error('[KayzArt] Falling back to raw HTML for preview:', canonical.error);
+      console.error('[KayzArt] Falling back to raw HTML for preview:', canonical.error);
       lastCanonicalError = canonical.error;
     } else if (!canonical.error) {
       lastCanonicalError = null;
@@ -434,22 +241,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       pendingRender = true;
       return;
     }
-    const currentToken = ++renderToken;
-    const dispatch = async () => {
-      const html = await renderShortcodesIfNeeded(canonical.canonicalHTML, currentToken);
-      if (currentToken !== renderToken) {
-        return;
-      }
-      if (!previewReady) {
-        pendingRender = true;
-        return;
-      }
-      deps.iframe.contentWindow?.postMessage(
-        { ...payload, canonicalHTML: html },
-        deps.targetOrigin
-      );
-    };
-    void dispatch();
+    deps.iframe.contentWindow?.postMessage(
+      { ...payload, canonicalHTML: canonical.canonicalHTML },
+      deps.targetOrigin
+    );
   };
 
   const sendCssUpdate = (cssText: string) => {

@@ -70,7 +70,6 @@ REST API
 - `/kayzart/v1/setup`: セットアップモード決定。
 - `/kayzart/v1/import`: JSON インポート。
 - `/kayzart/v1/settings`: 各種設定の更新。
-- `/kayzart/v1/render-shortcodes`: ショートコードのサーバレンダリング。
 
 保存データ (post_meta)
 ----------------------

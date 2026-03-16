@@ -277,15 +277,6 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'post_id' => $post_id,
 				'updates' => array(),
 			),
-			'/kayzart/v1/render-shortcodes' => array(
-				'post_id'    => $post_id,
-				'shortcodes' => array(
-					array(
-						'id'        => 'item-1',
-						'shortcode' => '',
-					),
-				),
-			),
 			'/kayzart/v1/import' => $this->get_import_params( $post_id ),
 		);
 	}

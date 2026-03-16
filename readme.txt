@@ -4,7 +4,7 @@ Tags: live preview, code editor, monaco, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -89,6 +89,9 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.1.1 =
+* Security: Implemented security-related improvements and hardening updates.
+
 = 1.1.0 =
 * Add allowlist settings for shortcode execution in external embeds.
 * Other: Internal improvements and maintenance updates.

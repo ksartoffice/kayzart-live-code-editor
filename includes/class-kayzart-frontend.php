@@ -436,6 +436,9 @@ class Frontend {
 		if ( 'publish' !== $post->post_status && ! current_user_can( 'read_post', $post_id ) ) {
 			return '';
 		}
+		if ( post_password_required( $post ) ) {
+			return '';
+		}
 
 		$content = (string) $post->post_content;
 		$content = self::render_allowed_embed_shortcodes( $content );

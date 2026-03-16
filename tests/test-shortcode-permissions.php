@@ -65,6 +65,25 @@ class Test_Shortcode_Permissions extends WP_UnitTestCase {
 		$this->assertSame( '', $output, 'Shortcode should not render when disabled.' );
 	}
 
+	public function test_shortcode_returns_empty_for_protected_publish_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_password' => 'secret-pass',
+			)
+		);
+		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
+
+		wp_set_current_user( 0 );
+
+		$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
+
+		$this->assertSame( '', $output, 'Shortcode should return empty output for password-protected posts.' );
+	}
+
 	private function create_kayzart_post( int $author_id, string $status ): int {
 		return (int) self::factory()->post->create(
 			array(

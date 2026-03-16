@@ -248,6 +248,71 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( array( 'https://example.com/app.css' ), $data['settings']['externalStyles'] ?? null );
 	}
 
+	public function test_settings_update_with_public_visibility_keeps_existing_password(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_password' => 'secret-pass',
+			)
+		);
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/settings',
+			array(
+				'post_id' => $post_id,
+				'updates' => array(
+					'status'     => 'publish',
+					'visibility' => 'public',
+				),
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status(), 'Public visibility updates should succeed.' );
+
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( 'publish', (string) $post->post_status );
+		$this->assertSame( 'secret-pass', (string) $post->post_password );
+	}
+
+	public function test_settings_update_with_private_visibility_clears_password_and_sets_private_status(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_password' => 'secret-pass',
+			)
+		);
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/settings',
+			array(
+				'post_id' => $post_id,
+				'updates' => array(
+					'visibility' => 'private',
+				),
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status(), 'Private visibility updates should succeed.' );
+
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( 'private', (string) $post->post_status );
+		$this->assertSame( '', (string) $post->post_password );
+	}
+
 	public function test_build_settings_payload_returns_minimal_keys_only(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );

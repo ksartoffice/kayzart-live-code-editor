@@ -169,9 +169,6 @@ class Rest_Settings {
 			$prepared['post_update']['post_status']   = 'private';
 			$prepared['post_update']['post_password'] = '';
 		} else {
-			if ( 'public' === $visibility ) {
-				$prepared['post_update']['post_password'] = '';
-			}
 			if ( $status ) {
 				$prepared['post_update']['post_status'] = $status;
 			}

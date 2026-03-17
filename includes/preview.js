@@ -45,15 +45,14 @@
     config.liveHighlightEnabled === undefined ? true : Boolean(config.liveHighlightEnabled);
 
   function getAllowedOrigin() {
-    if (config.allowedOrigin) return config.allowedOrigin;
-    if (document.referrer) {
-      try {
-        return new URL(document.referrer).origin;
-      } catch (e) {
-        return '';
-      }
+    if (!config.allowedOrigin) {
+      return '';
     }
-    return '';
+    try {
+      return new URL(String(config.allowedOrigin)).origin;
+    } catch (e) {
+      return '';
+    }
   }
 
   function clearShadowHost() {
@@ -830,11 +829,11 @@
   }
 
   function reply(type, payload) {
-    if (!window.parent) return;
+    if (!window.parent || !allowedOrigin) return;
     try {
       window.parent.postMessage(
         Object.assign({ type: type }, payload || {}),
-        allowedOrigin || '*'
+        allowedOrigin
       );
     } catch (e) {
       // noop
@@ -848,7 +847,9 @@
   }
 
   window.addEventListener('message', (event) => {
-    if (allowedOrigin && event.origin !== allowedOrigin) return;
+    if (!allowedOrigin) return;
+    if (event.origin !== allowedOrigin) return;
+    if (event.source !== window.parent) return;
     const data = event.data || {};
     if (data.type === 'KAYZART_INIT') {
       isReady = true;

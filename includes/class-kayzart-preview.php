@@ -98,10 +98,12 @@ class Preview {
 
 		self::$post_id    = $post_id;
 		self::$is_preview = true;
+		if ( false === has_filter( 'wp_headers', array( __CLASS__, 'filter_preview_headers' ) ) ) {
+			add_filter( 'wp_headers', array( __CLASS__, 'filter_preview_headers' ) );
+		}
 		add_filter( 'show_admin_bar', '__return_false' );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'disable_admin_bar_assets' ), 100 );
 		remove_action( 'wp_head', '_admin_bar_bump_cb' );
-
 		// Disable auto formatting so markers are not wrapped in <p> tags.
 		if ( has_filter( 'the_content', 'wpautop' ) ) {
 			remove_filter( 'the_content', 'wpautop' );
@@ -116,6 +118,28 @@ class Preview {
 		nocache_headers();
 	}
 
+	/**
+	 * Inject security headers for preview requests.
+	 *
+	 * @param array $headers Existing headers.
+	 * @return array
+	 */
+	public static function filter_preview_headers( array $headers ): array {
+
+		if ( ! self::$is_preview ) {
+			return $headers;
+		}
+
+		$admin_origin = self::build_admin_origin();
+		$sources      = array( "'self'" );
+		if ( '' !== $admin_origin ) {
+			$sources[] = $admin_origin;
+		}
+		$sources = array_values( array_unique( $sources ) );
+
+		$headers['Content-Security-Policy'] = 'frame-ancestors ' . implode( ' ', $sources );
+		return $headers;
+	}
 	/**
 	 * Remove admin bar assets and bump styles on preview requests.
 	 */
@@ -296,18 +320,36 @@ class Preview {
 	 */
 	private static function build_admin_origin(): string {
 
-		$admin_url = admin_url();
-		$parts     = wp_parse_url( $admin_url );
-		if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
-			return home_url();
+		$admin_origin = self::build_origin_from_url( admin_url() );
+		if ( '' !== $admin_origin ) {
+			return $admin_origin;
 		}
-		$origin = $parts['scheme'] . '://' . $parts['host'];
+		return self::build_origin_from_url( home_url() );
+	}
+
+	/**
+	 * Build a strict origin (scheme://host[:port]) from a URL.
+	 *
+	 * @param string $url URL to parse.
+	 * @return string
+	 */
+	private static function build_origin_from_url( string $url ): string {
+
+		$parts  = wp_parse_url( $url );
+		$scheme = isset( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : '';
+		$host   = isset( $parts['host'] ) ? (string) $parts['host'] : '';
+		if ( '' === $scheme || '' === $host ) {
+			return '';
+		}
+		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+			return '';
+		}
+		$origin = $scheme . '://' . $host;
 		if ( ! empty( $parts['port'] ) ) {
-			$origin .= ':' . $parts['port'];
+			$origin .= ':' . (string) $parts['port'];
 		}
 		return $origin;
 	}
-
 	/**
 	 * Resolve preview script version for cache busting in development.
 	 *

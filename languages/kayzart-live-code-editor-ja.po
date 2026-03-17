@@ -866,6 +866,14 @@ msgid "Note: root can be Document or ShadowRoot; create* APIs are only on Docume
 msgstr "注: root は Document または ShadowRoot です。create* API は Document でのみ利用できます。"
 
 #: assets/dist/main.js:125
+msgid "In module mode, use the default export function to receive runtime context."
+msgstr "module モードでは、default export 関数を使ってランタイムコンテキストを受け取ってください。"
+
+#: assets/dist/main.js:125
+msgid "Shadow DOM ON: root is ShadowRoot. Shadow DOM OFF: root is document."
+msgstr "Shadow DOM ON: root は ShadowRoot です。Shadow DOM OFF: root は document です。"
+
+#: assets/dist/main.js:125
 msgid "To disable Tailwind CSS preflight (reset CSS), replace `@import \"tailwindcss\";` with the imports below."
 msgstr "Tailwind CSS の preflight（リセット CSS）を無効にするには、`@import \"tailwindcss\";` を下記の import に置き換えてください。"
 

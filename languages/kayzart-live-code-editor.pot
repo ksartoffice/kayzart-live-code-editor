@@ -898,6 +898,14 @@ msgid "Note: root can be Document or ShadowRoot; create* APIs are only on Docume
 msgstr ""
 
 #: assets/dist/main.js:125
+msgid "In module mode, use the default export function to receive runtime context."
+msgstr ""
+
+#: assets/dist/main.js:125
+msgid "Shadow DOM ON: root is ShadowRoot. Shadow DOM OFF: root is document."
+msgstr ""
+
+#: assets/dist/main.js:125
 msgid "To disable Tailwind CSS preflight (reset CSS), replace `@import \"tailwindcss\";` with the imports below."
 msgstr ""
 

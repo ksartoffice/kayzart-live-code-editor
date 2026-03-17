@@ -3,7 +3,7 @@
  * Plugin Name: KayzArt Live Code Editor
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Requires at least: 6.6
  * Tested up to: 6.9
  * Requires PHP: 8.2
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '1.2.0' );
+define( 'KAYZART_VERSION', '1.2.1' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 
@@ -48,12 +48,6 @@ require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
 add_action(
 	'plugins_loaded',
 	function () {
-		load_plugin_textdomain(
-			'kayzart-live-code-editor',
-			false,
-			dirname( plugin_basename( __FILE__ ) ) . '/languages'
-		);
-
 		// Custom post type used exclusively by KayzArt.
 		\KayzArt\Post_Type::init();
 

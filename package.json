@@ -1,6 +1,6 @@
 {
   "name": "kayzart-live-code-editor",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Live HTML/CSS/JS editor with a custom KayzArt post type, Monaco Editor, and live preview.",
   "license": "GPL-2.0-or-later",
   "scripts": {

@@ -104,7 +104,6 @@ class Preview {
 		add_filter( 'show_admin_bar', '__return_false' );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'disable_admin_bar_assets' ), 100 );
 		remove_action( 'wp_head', '_admin_bar_bump_cb' );
-
 		// Disable auto formatting so markers are not wrapped in <p> tags.
 		if ( has_filter( 'the_content', 'wpautop' ) ) {
 			remove_filter( 'the_content', 'wpautop' );
@@ -126,6 +125,7 @@ class Preview {
 	 * @return array
 	 */
 	public static function filter_preview_headers( array $headers ): array {
+
 		if ( ! self::$is_preview ) {
 			return $headers;
 		}
@@ -140,7 +140,6 @@ class Preview {
 		$headers['Content-Security-Policy'] = 'frame-ancestors ' . implode( ' ', $sources );
 		return $headers;
 	}
-
 	/**
 	 * Remove admin bar assets and bump styles on preview requests.
 	 */
@@ -320,6 +319,7 @@ class Preview {
 	 * @return string
 	 */
 	private static function build_admin_origin(): string {
+
 		$admin_origin = self::build_origin_from_url( admin_url() );
 		if ( '' !== $admin_origin ) {
 			return $admin_origin;
@@ -334,6 +334,7 @@ class Preview {
 	 * @return string
 	 */
 	private static function build_origin_from_url( string $url ): string {
+
 		$parts  = wp_parse_url( $url );
 		$scheme = isset( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : '';
 		$host   = isset( $parts['host'] ) ? (string) $parts['host'] : '';
@@ -349,7 +350,6 @@ class Preview {
 		}
 		return $origin;
 	}
-
 	/**
 	 * Resolve preview script version for cache busting in development.
 	 *

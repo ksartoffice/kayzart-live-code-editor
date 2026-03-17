@@ -332,7 +332,9 @@ async function main() {
     },
     onSaveSuccess: () => {
       preview?.resetCanonicalCache();
-      preview?.sendRender();
+      if (!preview?.isRunJsPending()) {
+        preview?.sendRender();
+      }
     },
   });
 
@@ -902,10 +904,10 @@ async function main() {
     if (!shadowDomEnabled) {
       closeShadowHintModal();
     }
-    preview?.sendRender();
     preview?.sendExternalScripts(jsEnabled ? externalScripts : []);
     preview?.sendExternalStyles(externalStyles);
     if (!jsEnabled) {
+      preview?.sendRender();
       preview?.requestDisableJs();
       return;
     }

@@ -33,7 +33,9 @@
   let shadowEnabled = false;
   let shadowHost = null;
   let shadowRoot = null;
-  let lastJsText = '';
+  let jsRunToken = 0;
+  let jsCleanupCallbacks = [];
+  let activeModuleUrl = '';
   let jsEnabled = false;
   let missingMarkersNotified = false;
   let pendingRenderPayload = null;
@@ -164,9 +166,9 @@
   function setShadowDomEnabled(enabled) {
     const next = Boolean(enabled);
     if (shadowEnabled === next) return;
+    stopJsRuntime();
     shadowEnabled = next;
     removeStyleElement();
-    removeScriptElement();
     clearExternalScripts();
     clearExternalStyles();
     if (!shadowEnabled) {
@@ -457,33 +459,149 @@
     });
   }
 
-  function runJs(jsText) {
-    lastJsText = jsText || '';
-    if (!jsText) {
-      removeScriptElement();
+  function normalizeJsMode(mode) {
+    const value = String(mode || '').trim().toLowerCase();
+    if (value === 'module') {
+      return 'module';
+    }
+    if (value === 'classic' || value === 'auto') {
+      return 'classic';
+    }
+    return 'classic';
+  }
+
+  function getRuntimeHost() {
+    if (shadowEnabled) {
+      const host = ensureShadowHost();
+      if (host) {
+        return host;
+      }
+    }
+    const existing = document.querySelector('kayzart-output');
+    return existing instanceof HTMLElement ? existing : null;
+  }
+
+  function buildModuleRuntimeContext() {
+    const host = getRuntimeHost();
+    const root = shadowEnabled ? ensureShadowRoot() || document : document;
+    return {
+      root: root,
+      document: document,
+      host: host,
+      onCleanup: (fn) => {
+        if (typeof fn === 'function') {
+          jsCleanupCallbacks.push(fn);
+        }
+      },
+    };
+  }
+
+  function runRegisteredJsCleanup() {
+    if (!jsCleanupCallbacks.length) {
       return;
     }
-    const runInline = () => {
-      removeScriptElement();
-      const restoreDomReadyShim =
-        document.readyState !== 'loading' ? applyDomReadyShim() : null;
+    const callbacks = jsCleanupCallbacks.slice();
+    jsCleanupCallbacks = [];
+    callbacks.forEach((cleanup) => {
       try {
-        const scriptEl = document.createElement('script');
-        scriptEl.id = scriptId;
-        scriptEl.type = 'text/javascript';
-        scriptEl.text = String(jsText);
-        getInlineScriptHost().appendChild(scriptEl);
-      } finally {
-        if (restoreDomReadyShim) {
-          restoreDomReadyShim();
-        }
+        cleanup();
+      } catch (error) {
+        console.error('[KayzArt] onCleanup callback failed.', error);
       }
-    };
+    });
+  }
+
+  function revokeActiveModuleUrl() {
+    if (!activeModuleUrl) {
+      return;
+    }
+    try {
+      URL.revokeObjectURL(activeModuleUrl);
+    } catch (error) {
+      // noop
+    }
+    activeModuleUrl = '';
+  }
+
+  function resetJsRuntime() {
+    runRegisteredJsCleanup();
+    removeScriptElement();
+    revokeActiveModuleUrl();
+  }
+
+  function stopJsRuntime() {
+    jsRunToken += 1;
+    resetJsRuntime();
+  }
+
+  function runClassicJs(jsText) {
+    const restoreDomReadyShim = document.readyState !== 'loading' ? applyDomReadyShim() : null;
+    try {
+      const scriptEl = document.createElement('script');
+      scriptEl.id = scriptId;
+      scriptEl.type = 'text/javascript';
+      scriptEl.text = String(jsText);
+      getInlineScriptHost().appendChild(scriptEl);
+    } finally {
+      if (restoreDomReadyShim) {
+        restoreDomReadyShim();
+      }
+    }
+  }
+
+  async function runModuleJs(jsText, runToken) {
+    const moduleUrl = URL.createObjectURL(
+      new Blob([String(jsText)], { type: 'text/javascript' })
+    );
+    activeModuleUrl = moduleUrl;
+    try {
+      const moduleExports = await import(moduleUrl);
+      if (runToken !== jsRunToken) {
+        return;
+      }
+      const entry = moduleExports && moduleExports.default;
+      if (typeof entry !== 'function') {
+        console.error('[KayzArt] Module JS default export must be a function.');
+        return;
+      }
+      const context = buildModuleRuntimeContext();
+      const maybeCleanup = entry(context);
+      if (typeof maybeCleanup === 'function') {
+        jsCleanupCallbacks.push(maybeCleanup);
+      }
+    } catch (error) {
+      if (runToken === jsRunToken) {
+        console.error('[KayzArt] Module JS execution failed.', error);
+      }
+    } finally {
+      if (activeModuleUrl === moduleUrl) {
+        activeModuleUrl = '';
+      }
+      try {
+        URL.revokeObjectURL(moduleUrl);
+      } catch (error) {
+        // noop
+      }
+    }
+  }
+
+  function runJs(jsText, jsMode) {
+    const nextJsText = String(jsText || '');
+    const runToken = ++jsRunToken;
+    resetJsRuntime();
+    if (!nextJsText.trim()) {
+      return;
+    }
+    const resolvedMode = normalizeJsMode(jsMode);
 
     const currentReady = externalScriptsReady;
     currentReady.then(() => {
-      if (currentReady !== externalScriptsReady) return;
-      runInline();
+      if (runToken !== jsRunToken || currentReady !== externalScriptsReady) return;
+      if (resolvedMode === 'module') {
+        void runModuleJs(nextJsText, runToken);
+        return;
+      }
+      runClassicJs(nextJsText);
     });
   }
 
@@ -879,12 +997,12 @@
     if (data.type === 'KAYZART_RUN_JS') {
       if (!isReady) return;
       jsEnabled = true;
-      runJs(data.jsText || '');
+      runJs(data.jsText || '', data.jsMode);
     }
     if (data.type === 'KAYZART_DISABLE_JS') {
       if (!isReady) return;
       jsEnabled = false;
-      removeScriptElement();
+      stopJsRuntime();
     }
     if (data.type === 'KAYZART_EXTERNAL_SCRIPTS') {
       if (!isReady) return;
@@ -896,6 +1014,8 @@
     }
   });
 
+  window.addEventListener('beforeunload', stopJsRuntime);
+  window.addEventListener('pagehide', stopJsRuntime);
   attachDomSelector();
 })();
 

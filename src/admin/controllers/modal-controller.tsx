@@ -1,13 +1,16 @@
 import { createElement, Fragment, createRoot, render } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { X } from 'lucide';
 import {
   resolveDefaultTemplateMode,
   resolveTemplateMode,
   type DefaultTemplateMode,
   type TemplateMode,
 } from '../logic/template-mode';
+import { renderLucideIcon } from '../lucide-icons';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
+import type { JsMode } from '../types/js-mode';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -16,6 +19,7 @@ type ModalControllerDeps = {
   settingsRestUrl?: string;
   postId: number;
   getShadowDomEnabled: () => boolean;
+  getJsMode: () => JsMode;
   getTailwindEnabled: () => boolean;
   isThemeTemplateModeActive: () => boolean;
   getDefaultTemplateMode: () => DefaultTemplateMode;
@@ -54,6 +58,10 @@ type MissingMarkersModalProps = {
   onConfirm: () => void;
 };
 
+const closeIcon = renderLucideIcon(X, {
+  class: 'lucide lucide-x-icon lucide-x',
+});
+
 function ShadowHintModal({
   title,
   lead,
@@ -77,7 +85,7 @@ function ShadowHintModal({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            x
+            <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: closeIcon }} />
           </button>
         </div>
         <div className="cd-modalBody">
@@ -135,14 +143,19 @@ function MissingMarkersModal({
 
 export function createModalController(deps: ModalControllerDeps) {
   const shadowHintTitle = __('Shadow DOM Hint', 'kayzart-live-code-editor');
-  const shadowHintLead = __(
+  const shadowHintClassicLead = __(
     'When Shadow DOM is enabled, HTML is rendered inside the Shadow Root.', 'kayzart-live-code-editor');
-  const shadowHintDetail = __(
+  const shadowHintClassicDetail = __(
     'Use the root below (scoped to this script) instead of document to query elements.', 'kayzart-live-code-editor');
-  const shadowHintCode =
+  const shadowHintClassicCode =
     "const root = document.currentScript?.closest('kayzart-output')?.shadowRoot || document;";
-  const shadowHintNote = __(
+  const shadowHintClassicNote = __(
     'Note: root can be Document or ShadowRoot; create* APIs are only on Document.', 'kayzart-live-code-editor');
+  const shadowHintModuleLead = __(
+    'In module mode, use the default export function to receive runtime context.', 'kayzart-live-code-editor');
+  const shadowHintModuleDetail = __(
+    'Shadow DOM ON: root is ShadowRoot. Shadow DOM OFF: root is document.', 'kayzart-live-code-editor');
+  const shadowHintModuleCode = 'export default ({ root }) => { // write code here };';
   const tailwindHintTitle = __('Tailwind CSS Hint', 'kayzart-live-code-editor');
   const tailwindHintLead = __(
     'To disable Tailwind CSS preflight (reset CSS), replace `@import "tailwindcss";` with the imports below.', 'kayzart-live-code-editor');
@@ -174,6 +187,23 @@ export function createModalController(deps: ModalControllerDeps) {
   let missingMarkersInFlight = false;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
+
+  const getShadowHintContent = () => {
+    if (deps.getJsMode() === 'module') {
+      return {
+        lead: shadowHintModuleLead,
+        detail: shadowHintModuleDetail,
+        note: '',
+        code: shadowHintModuleCode,
+      };
+    }
+    return {
+      lead: shadowHintClassicLead,
+      detail: shadowHintClassicDetail,
+      note: shadowHintClassicNote,
+      code: shadowHintClassicCode,
+    };
+  };
 
   const ensureMounted = () => {
     if (modalHost) {
@@ -213,15 +243,16 @@ export function createModalController(deps: ModalControllerDeps) {
     if (!modalHost) {
       return;
     }
+    const shadowHintContent = getShadowHintContent();
     const node = (
       <Fragment>
         {shadowHintOpen ? (
           <ShadowHintModal
             title={shadowHintTitle}
-            lead={shadowHintLead}
-            detail={shadowHintDetail}
-            note={shadowHintNote}
-            code={shadowHintCode}
+            lead={shadowHintContent.lead}
+            detail={shadowHintContent.detail}
+            note={shadowHintContent.note}
+            code={shadowHintContent.code}
             closeLabel={closeLabel}
             copyLabel={shadowHintCopied ? copiedLabel : copyLabel}
             onClose={closeShadowHintModal}
@@ -305,7 +336,7 @@ export function createModalController(deps: ModalControllerDeps) {
   };
 
   const copyShadowHintCode = async () => {
-    const ok = await copyToClipboard(shadowHintCode);
+    const ok = await copyToClipboard(getShadowHintContent().code);
     if (!ok || !shadowHintOpen) {
       return;
     }

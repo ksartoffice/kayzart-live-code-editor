@@ -41,6 +41,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.htmlPane.classList.toggle('is-compact-visible', compactEditorTab === 'html');
     deps.ui.cssPane.classList.toggle('is-compact-visible', compactEditorTab !== 'html');
     deps.ui.compactAddMediaButton.style.display = isHtmlTab ? '' : 'none';
+    deps.ui.compactJsModeSelect.style.display = isJsTab && deps.canEditJs ? '' : 'none';
     deps.ui.compactRunButton.style.display = isJsTab && deps.canEditJs ? '' : 'none';
     deps.ui.compactTailwindHintButton.style.display = isCssTab && tailwindEnabled ? '' : 'none';
     deps.ui.compactShadowHintButton.style.display =
@@ -59,8 +60,12 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     const showHeaderActions = (deps.canEditJs && isJsTab) || (tailwindEnabled && isCssTab);
     deps.ui.jsTab.style.display = deps.canEditJs ? '' : 'none';
     deps.ui.jsTab.disabled = !deps.canEditJs;
+    deps.ui.jsModeSelect.style.display = deps.canEditJs && isJsTab ? '' : 'none';
+    deps.ui.jsModeSelect.disabled = !deps.canEditJs || !isJsTab;
     deps.ui.compactJsTab.style.display = deps.canEditJs ? '' : 'none';
     deps.ui.compactJsTab.disabled = !deps.canEditJs;
+    deps.ui.compactJsModeSelect.style.display = isCompactJsTab && deps.canEditJs ? '' : 'none';
+    deps.ui.compactJsModeSelect.disabled = !deps.canEditJs;
     deps.ui.jsControls.style.display = showHeaderActions ? '' : 'none';
     deps.ui.runButton.style.display = deps.canEditJs && isJsTab ? '' : 'none';
     deps.ui.runButton.disabled = !jsEnabled || !deps.canEditJs;
@@ -69,7 +74,8 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactRunButton.disabled = !jsEnabled || !deps.canEditJs;
     deps.ui.tailwindHintButton.style.display = tailwindEnabled && isCssTab ? '' : 'none';
     deps.ui.tailwindHintButton.disabled = !tailwindEnabled || !isCssTab;
-    deps.ui.shadowHintButton.style.display = shadowDomEnabled && isJsTab ? '' : 'none';
+    deps.ui.shadowHintButton.style.display =
+      shadowDomEnabled && deps.canEditJs && isJsTab ? '' : 'none';
     deps.ui.shadowHintButton.disabled = !shadowDomEnabled || !deps.canEditJs || !isJsTab;
     deps.ui.compactTailwindHintButton.style.display =
       isCompactCssTab && tailwindEnabled ? '' : 'none';
@@ -204,16 +210,32 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     return Boolean(targetElement?.closest('.editor-widget'));
   };
 
+  const isInteractiveControlClick = (event: MouseEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return false;
+    }
+    const targetElement = target instanceof Element ? target : target.parentElement;
+    if (!targetElement) {
+      return false;
+    }
+    return Boolean(
+      targetElement.closest(
+        'select, option, input, textarea, button, a, [contenteditable="true"], [role="button"]'
+      )
+    );
+  };
+
   const initialize = () => {
     setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
     deps.ui.htmlPane.addEventListener('click', (event) => {
-      if (isMonacoWidgetClick(event)) {
+      if (isMonacoWidgetClick(event) || isInteractiveControlClick(event)) {
         return;
       }
       deps.htmlEditor.focus();
     });
     deps.ui.cssPane.addEventListener('click', (event) => {
-      if (isMonacoWidgetClick(event)) {
+      if (isMonacoWidgetClick(event) || isInteractiveControlClick(event)) {
         return;
       }
       if (activeCssTab === 'js') {

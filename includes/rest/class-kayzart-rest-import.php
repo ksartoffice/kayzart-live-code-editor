@@ -112,6 +112,30 @@ class Rest_Import {
 			$js_input = $payload['js'];
 		}
 
+		$js_mode = 'classic';
+		if ( array_key_exists( 'jsMode', $payload ) ) {
+			if ( ! is_string( $payload['jsMode'] ) ) {
+				return new \WP_REST_Response(
+					array(
+						'ok'    => false,
+						'error' => __( 'Invalid jsMode value.', 'kayzart-live-code-editor' ),
+					),
+					400
+				);
+			}
+			$raw_js_mode = strtolower( trim( $payload['jsMode'] ) );
+			if ( ! in_array( $raw_js_mode, array( 'classic', 'module', 'auto' ), true ) ) {
+				return new \WP_REST_Response(
+					array(
+						'ok'    => false,
+						'error' => __( 'Invalid jsMode value.', 'kayzart-live-code-editor' ),
+					),
+					400
+				);
+			}
+			$js_mode = Rest_Save::normalize_js_mode( $raw_js_mode );
+		}
+
 		$shadow_dom_enabled = false;
 		if ( array_key_exists( 'shadowDomEnabled', $payload ) ) {
 			if ( ! is_bool( $payload['shadowDomEnabled'] ) ) {
@@ -292,6 +316,7 @@ class Rest_Import {
 
 		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
 		update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
+		update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
 		delete_post_meta( $post_id, '_kayzart_js_enabled' );
 		update_post_meta( $post_id, '_kayzart_shadow_dom', $shadow_dom_enabled ? '1' : '0' );
 		update_post_meta( $post_id, '_kayzart_shortcode_enabled', $shortcode_enabled ? '1' : '0' );

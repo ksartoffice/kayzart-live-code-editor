@@ -1,4 +1,5 @@
 import type { SettingsData } from './settings';
+import type { JsMode } from './types/js-mode';
 
 export type ImportPayload = {
   version: number;
@@ -7,6 +8,7 @@ export type ImportPayload = {
   tailwindEnabled: boolean;
   generatedCss?: string;
   js?: string;
+  jsMode?: JsMode;
   externalScripts?: string[];
   externalStyles?: string[];
   shadowDomEnabled?: boolean;
@@ -27,6 +29,7 @@ export type ExportPayload = {
   tailwindEnabled: boolean;
   generatedCss: string;
   js: string;
+  jsMode: JsMode;
   externalScripts: string[];
   externalStyles: string[];
   shadowDomEnabled: boolean;

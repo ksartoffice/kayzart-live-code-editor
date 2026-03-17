@@ -770,6 +770,7 @@ body.admin_page_kayzart #wpbody-content {
 .cd-editorTabs {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .cd-editorTab {
@@ -802,6 +803,14 @@ body.admin_page_kayzart #wpbody-content {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.cd-jsModeSelect {
+  min-width: 142px;
+}
+
+.cd-compactJsModeSelect {
+  min-width: 132px;
 }
 
 .cd-editorAction {
@@ -1514,6 +1523,25 @@ body.admin_page_kayzart #wpbody-content {
   outline-offset: 1px;
 }
 
+.cd-editorActions .cd-jsModeSelect,
+.cd-compactEditorActions .cd-jsModeSelect {
+  height: 24px;
+  padding: 1px 8px;
+  border-radius: 4px;
+  border-color: #323844;
+  background: #0f1116;
+  color: #e6e8ea;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.wp-core-ui .cd-editorActions .cd-jsModeSelect:hover,
+.wp-core-ui .cd-compactEditorActions .cd-jsModeSelect:hover,
+.wp-core-ui .cd-editorActions .cd-jsModeSelect:focus,
+.wp-core-ui .cd-compactEditorActions .cd-jsModeSelect:focus {
+  color: #e6e8ea;
+}
+
 .cd-formHint {
   font-size: 11px;
   color: #6c7480;
@@ -1674,6 +1702,10 @@ body.admin_page_kayzart #wpbody-content {
 }
 
 @media (max-width: 560px) {
+  .cd-compactJsModeSelect {
+    min-width: 84px;
+  }
+
   .cd-compactEditorAction {
     padding: 4px 6px;
     min-width: 30px;

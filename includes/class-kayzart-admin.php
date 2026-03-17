@@ -31,6 +31,7 @@ class Admin {
 		' ' . "\xE2\x80\xB9" . ' ',
 		' &lsaquo; ',
 	);
+	private const JS_MODE_VALUES       = array( 'classic', 'module' );
 	/**
 	 * Register admin hooks.
 	 */
@@ -736,6 +737,7 @@ class Admin {
 		$html     = $post ? (string) $post->post_content : '';
 		$css      = $post_id ? (string) get_post_meta( $post_id, '_kayzart_css', true ) : '';
 		$js       = $post_id ? (string) get_post_meta( $post_id, '_kayzart_js', true ) : '';
+		$js_mode  = self::normalize_js_mode( $post_id ? get_post_meta( $post_id, '_kayzart_js_mode', true ) : '' );
 		$back_url = $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
 		$list_url = admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
 
@@ -757,6 +759,7 @@ class Admin {
 			'initialHtml'          => $html,
 			'initialCss'           => $css,
 			'initialJs'            => $js,
+			'initialJsMode'        => $js_mode,
 			'canEditJs'            => current_user_can( 'unfiltered_html' ),
 			'previewUrl'           => $preview_url,
 			'iframePreviewUrl'     => $iframe_preview_url,
@@ -812,5 +815,22 @@ class Admin {
 			return KAYZART_VERSION;
 		}
 		return (string) $mtime;
+	}
+
+	/**
+	 * Normalize JavaScript execution mode.
+	 *
+	 * @param mixed $value Raw mode value.
+	 * @return string
+	 */
+	private static function normalize_js_mode( $value ): string {
+		$mode = is_string( $value ) ? strtolower( trim( $value ) ) : '';
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return 'classic';
 	}
 }

@@ -4,7 +4,7 @@ Tags: live preview, code editor, monaco, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.1.3
+Stable tag: 1.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,6 +16,7 @@ KayzArt Live Code Editor provides a dedicated editor for building HTML, CSS, and
 Features:
 * Custom KayzArt post type and dedicated editor
 * Monaco Editor with HTML/CSS/JS tabs and live iframe preview
+* JavaScript ES Module support with execution type switch (Classic / Module)
 * Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
 * Tailwind mode with on-demand Tailwind CSS v4 compilation
 * Import/export JSON projects
@@ -89,6 +90,10 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.2.0 =
+* Add JavaScript execution mode selector (Classic script / Module) in the JavaScript tab.
+* Add ES Module runtime contract support with context injection (`root`, `document`, `host`, `onCleanup`).
+
 = 1.1.3 =
 * Fix: Bug fixes and stability improvements.
 

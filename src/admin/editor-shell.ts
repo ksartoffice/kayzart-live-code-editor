@@ -11,6 +11,7 @@ type EditorShellRefs = {
   compactHtmlTab: HTMLButtonElement;
   compactCssTab: HTMLButtonElement;
   compactJsTab: HTMLButtonElement;
+  compactJsModeSelect: HTMLSelectElement;
   compactAddMediaButton: HTMLButtonElement;
   compactRunButton: HTMLButtonElement;
   compactShadowHintButton: HTMLButtonElement;
@@ -25,6 +26,7 @@ type EditorShellRefs = {
   cssPane: HTMLDivElement;
   cssTab: HTMLButtonElement;
   jsTab: HTMLButtonElement;
+  jsModeSelect: HTMLSelectElement;
   jsControls: HTMLDivElement;
   runButton: HTMLButtonElement;
   shadowHintButton: HTMLButtonElement;
@@ -67,6 +69,26 @@ function createCompactActionButton(
 
   button.append(icon, text);
   return button;
+}
+
+function createJsModeSelect(className: string): HTMLSelectElement {
+  const select = document.createElement('select');
+  select.className = className;
+  select.setAttribute('aria-label', __( 'JavaScript mode', 'kayzart-live-code-editor'));
+
+  const options: Array<{ value: string; label: string }> = [
+    { value: 'classic', label: __( 'type: Classic script', 'kayzart-live-code-editor') },
+    { value: 'module', label: __( 'type: Module', 'kayzart-live-code-editor') },
+  ];
+
+  options.forEach((optionData) => {
+    const option = document.createElement('option');
+    option.value = optionData.value;
+    option.textContent = optionData.label;
+    select.append(option);
+  });
+
+  return select;
 }
 
 export function buildEditorShell(root: HTMLElement): EditorShellRefs {
@@ -115,6 +137,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   compactJsTab.type = 'button';
   compactJsTab.className = 'cd-editorTab cd-compactEditorTab';
   compactJsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
+  const compactJsModeSelect = createJsModeSelect('cd-formSelect cd-jsModeSelect cd-compactJsModeSelect');
   compactEditorTabsList.append(compactHtmlTab, compactCssTab, compactJsTab);
   const compactAddMediaButton = createCompactActionButton(
     'cd-editorAction cd-compactEditorAction cd-compactEditorAction-media',
@@ -138,9 +161,10 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   );
   compactEditorActions.append(
     compactAddMediaButton,
+    compactJsModeSelect,
+    compactShadowHintButton,
     compactRunButton,
     compactTailwindHintButton,
-    compactShadowHintButton
   );
   compactEditorTabs.append(compactEditorTabsList, compactEditorActions);
 
@@ -171,6 +195,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   jsTab.type = 'button';
   jsTab.className = 'cd-editorTab';
   jsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
+  const jsModeSelect = createJsModeSelect('cd-formSelect cd-jsModeSelect');
   cssTabs.append(cssTab, jsTab);
 
   const jsControls = el('div', 'cd-editorActions');
@@ -186,7 +211,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   tailwindHintButton.type = 'button';
   tailwindHintButton.className = 'cd-editorAction cd-editorAction-hint';
   tailwindHintButton.textContent = __( 'Tailwind CSS Hint', 'kayzart-live-code-editor');
-  jsControls.append(tailwindHintButton, shadowHintButton, runButton);
+  jsControls.append(jsModeSelect, shadowHintButton, runButton, tailwindHintButton);
 
   cssHeader.append(cssTabs, jsControls);
   const cssWrap = el('div', 'cd-editorWrap cd-editorWrap-tabs');
@@ -225,6 +250,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactHtmlTab,
     compactCssTab,
     compactJsTab,
+    compactJsModeSelect,
     compactAddMediaButton,
     compactRunButton,
     compactShadowHintButton,
@@ -239,6 +265,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     cssPane,
     cssTab,
     jsTab,
+    jsModeSelect,
     jsControls,
     runButton,
     shadowHintButton,

@@ -54,6 +54,8 @@ class Frontend {
 	private const TEMPLATE_MODE_META_KEY          = '_kayzart_template_mode';
 	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'frame', 'theme' );
 	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'frame', 'theme' );
+	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
+	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
 	private const SHORTCODE_RENDER_MAX_PASSES     = 2;
 	/**
 	 * Register front-end hooks.
@@ -226,6 +228,23 @@ class Frontend {
 	}
 
 	/**
+	 * Resolve JavaScript execution mode for a post.
+	 *
+	 * @param int $post_id KayzArt post ID.
+	 * @return string
+	 */
+	private static function get_js_mode_for_post( int $post_id ): string {
+		$mode = strtolower( trim( (string) get_post_meta( $post_id, self::JS_MODE_META_KEY, true ) ) );
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return 'classic';
+	}
+
+	/**
 	 * Normalize template mode string.
 	 *
 	 * @param mixed $value Template mode value.
@@ -393,11 +412,12 @@ class Frontend {
 		}
 
 		if ( ! self::is_shadow_dom_enabled( $post_id ) ) {
-			return $content;
+			$script_html = self::build_inline_script_payload( $post_id );
+			return $content . $script_html;
 		}
 
 		$style_html  = self::render_shadow_styles_html( $post_id );
-		$script_html = self::build_inline_shadow_script( $post_id );
+		$script_html = self::build_inline_script_payload( $post_id );
 		return '<kayzart-output data-post-id="' . esc_attr( $post_id ) . '"><template shadowrootmode="open">' . $style_html . $content . '</template>' . $script_html . '</kayzart-output>';
 	}
 
@@ -446,13 +466,13 @@ class Frontend {
 			++self::$shortcode_instance;
 			$instance    = self::$shortcode_instance;
 			$style_html  = self::render_shadow_styles_html( $post_id, $instance );
-			$script_html = self::build_inline_shadow_script( $post_id, $instance );
+			$script_html = self::build_inline_script_payload( $post_id, $instance );
 			self::enqueue_shortcode_scripts( $post_id );
 			return '<kayzart-output data-post-id="' . esc_attr( $post_id ) . '"><template shadowrootmode="open">' . $style_html . $content . '</template>' . $script_html . '</kayzart-output>';
 		}
 
 		$style_html = self::prepare_non_shadow_shortcode_assets( $post_id );
-		return $style_html . $content;
+		return $style_html . $content . self::build_inline_script_payload( $post_id );
 	}
 
 	/**
@@ -641,13 +661,13 @@ class Frontend {
 	}
 
 	/**
-	 * Build inline script payload for Shadow DOM rendering.
+	 * Build inline script payload for runtime execution.
 	 *
 	 * @param int $post_id  KayzArt post ID.
 	 * @param int $instance Instance number.
 	 * @return string
 	 */
-	private static function build_inline_shadow_script( int $post_id, int $instance = 0 ): string {
+	private static function build_inline_script_payload( int $post_id, int $instance = 0 ): string {
 		$js = (string) get_post_meta( $post_id, '_kayzart_js', true );
 		if ( '' === $js ) {
 			return '';
@@ -655,10 +675,11 @@ class Frontend {
 
 		$external_scripts = External_Scripts::get_external_scripts( $post_id );
 		$wait_attr        = empty( $external_scripts ) ? '' : ' data-kayzart-js-wait="load"';
+		$mode_attr        = ' data-kayzart-js-mode="' . esc_attr( self::get_js_mode_for_post( $post_id ) ) . '"';
 		$suffix           = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
 		$encoded          = rawurlencode( $js );
 		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
-		return '<script type="application/json" id="cd-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
+		return '<script type="application/json" id="cd-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
 	}
 
 	/**
@@ -690,18 +711,10 @@ class Frontend {
 			return;
 		}
 
-		$dependency = self::enqueue_external_scripts( $post_id );
-		if ( '' === $js ) {
-			return;
+		self::enqueue_external_scripts( $post_id );
+		if ( '' !== $js ) {
+			self::enqueue_shadow_runtime();
 		}
-
-		$handle = 'kayzart-shortcode-js-' . $post_id;
-		$deps   = $dependency ? array( $dependency ) : array();
-		if ( ! wp_script_is( $handle, 'registered' ) ) {
-			wp_register_script( $handle, false, $deps, KAYZART_VERSION, true );
-		}
-		wp_enqueue_script( $handle );
-		wp_add_inline_script( $handle, $js );
 	}
 
 	/**
@@ -860,23 +873,9 @@ class Frontend {
 			return;
 		}
 
-		$dependency = self::enqueue_external_scripts( $post_id );
-
-		if ( self::is_shadow_dom_enabled( $post_id ) ) {
-			if ( '' !== $js ) {
-				self::enqueue_shadow_runtime();
-			}
-			return;
-		}
-
-		$handle = 'kayzart-js';
-		if ( ! wp_script_is( $handle, 'registered' ) ) {
-			$js_deps = $dependency ? array( $dependency ) : array();
-			wp_register_script( $handle, false, $js_deps, KAYZART_VERSION, true );
-		}
-		wp_enqueue_script( $handle );
+		self::enqueue_external_scripts( $post_id );
 		if ( '' !== $js ) {
-			wp_add_inline_script( $handle, $js );
+			self::enqueue_shadow_runtime();
 		}
 	}
 }

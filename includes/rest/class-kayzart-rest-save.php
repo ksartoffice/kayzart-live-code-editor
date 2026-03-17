@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * REST callbacks for save and compile.
  */
 class Rest_Save {
+
+	private const JS_MODE_VALUES = array( 'classic', 'module' );
 	/**
 	 * Shadow DOM Tailwind custom property fallbacks.
 	 *
@@ -70,6 +72,7 @@ class Rest_Save {
 		$css_input        = self::sanitize_css_input( (string) $request->get_param( 'css' ) );
 		$js_input         = (string) $request->get_param( 'js' );
 		$has_js           = $request->has_param( 'js' );
+		$has_js_mode      = $request->has_param( 'jsMode' );
 		$tailwind_enabled = rest_sanitize_boolean( $request->get_param( 'tailwindEnabled' ) );
 		$settings_updates = $request->get_param( 'settingsUpdates' );
 		$has_settings     = $request->has_param( 'settingsUpdates' );
@@ -85,7 +88,7 @@ class Rest_Save {
 			);
 		}
 
-		if ( $has_js && ! current_user_can( 'unfiltered_html' ) ) {
+		if ( ( $has_js || $has_js_mode ) && ! current_user_can( 'unfiltered_html' ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -93,6 +96,20 @@ class Rest_Save {
 				),
 				403
 			);
+		}
+
+		$js_mode = self::normalize_js_mode( get_post_meta( $post_id, '_kayzart_js_mode', true ) );
+		if ( $has_js_mode ) {
+			$js_mode = self::sanitize_js_mode( $request->get_param( 'jsMode' ) );
+			if ( null === $js_mode ) {
+				return new \WP_REST_Response(
+					array(
+						'ok'    => false,
+						'error' => __( 'Invalid jsMode value.', 'kayzart-live-code-editor' ),
+					),
+					400
+				);
+			}
 		}
 
 		if ( $has_settings ) {
@@ -188,6 +205,9 @@ class Rest_Save {
 		if ( $has_js ) {
 			update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
 		}
+		if ( $has_js || $has_js_mode ) {
+			update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
+		}
 		delete_post_meta( $post_id, '_kayzart_js_enabled' );
 		if ( $tailwind_enabled ) {
 			update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $compiled_css ) );
@@ -233,6 +253,43 @@ class Rest_Save {
 			return '';
 		}
 		return str_ireplace( '</style', '&lt;/style', $css );
+	}
+
+	/**
+	 * Normalize JavaScript execution mode.
+	 *
+	 * @param mixed $value Raw mode value.
+	 * @return string
+	 */
+	public static function normalize_js_mode( $value ): string {
+		$mode = is_string( $value ) ? strtolower( trim( $value ) ) : '';
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return 'classic';
+	}
+
+	/**
+	 * Sanitize JavaScript execution mode when provided by clients.
+	 *
+	 * @param mixed $value Raw mode value.
+	 * @return string|null
+	 */
+	private static function sanitize_js_mode( $value ): ?string {
+		if ( ! is_string( $value ) ) {
+			return null;
+		}
+		$mode = strtolower( trim( $value ) );
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return null;
 	}
 
 	/**

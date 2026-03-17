@@ -2,6 +2,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import { exportKayzArt, saveKayzArt } from '../persistence';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
+import type { JsMode } from '../types/js-mode';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -22,6 +23,7 @@ type SaveExportControllerDeps = {
   getHtmlModel: () => import('monaco-editor').editor.ITextModel | undefined;
   getCssModel: () => import('monaco-editor').editor.ITextModel | undefined;
   getJsModel: () => import('monaco-editor').editor.ITextModel | undefined;
+  getJsMode: () => JsMode;
   getTailwindEnabled: () => boolean;
   getTailwindCss: () => string;
   getExternalScripts: () => string[];
@@ -65,7 +67,12 @@ type SaveExportControllerDeps = {
 export function createSaveExportController(deps: SaveExportControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
   let hasUnsavedChanges = false;
-  let lastSaved = { html: '', css: '', js: '' };
+  let lastSaved: { html: string; css: string; js: string; jsMode: JsMode } = {
+    html: '',
+    css: '',
+    js: '',
+    jsMode: deps.getJsMode(),
+  };
 
   const getUnsavedFlags = (): UnsavedFlags => {
     const htmlModel = deps.getHtmlModel();
@@ -84,12 +91,13 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     const htmlDirty = htmlModel.getValue() !== lastSaved.html;
     const cssDirty = cssModel.getValue() !== lastSaved.css;
     const jsDirty = jsModel.getValue() !== lastSaved.js;
+    const jsModeDirty = deps.getJsMode() !== lastSaved.jsMode;
     return {
       html: htmlDirty,
       css: cssDirty,
-      js: jsDirty,
+      js: jsDirty || jsModeDirty,
       settings: hasUnsavedSettings,
-      hasAny: htmlDirty || cssDirty || jsDirty || hasUnsavedSettings,
+      hasAny: htmlDirty || cssDirty || jsDirty || jsModeDirty || hasUnsavedSettings,
     };
   };
 
@@ -118,6 +126,7 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
       html: htmlModel.getValue(),
       css: cssModel.getValue(),
       js: jsModel.getValue(),
+      jsMode: deps.getJsMode(),
     };
     syncUnsavedUi();
   };
@@ -147,6 +156,7 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
       tailwindEnabled: deps.getTailwindEnabled(),
       tailwindCss: deps.getTailwindCss(),
       js: jsModel.getValue(),
+      jsMode: deps.getJsMode(),
       externalScripts: deps.getExternalScripts(),
       externalStyles: deps.getExternalStyles(),
       shadowDomEnabled: deps.getShadowDomEnabled(),
@@ -221,6 +231,7 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
         tailwindEnabled: deps.getTailwindEnabled(),
         canEditJs: deps.canEditJs,
         js: jsModel.getValue(),
+        jsMode: deps.getJsMode(),
         settingsUpdates,
       });
 

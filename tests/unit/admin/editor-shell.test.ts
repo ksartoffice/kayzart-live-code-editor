@@ -18,4 +18,34 @@ describe('editor shell iframe security attributes', () => {
     expect(sandbox).not.toContain('allow-top-navigation');
     expect(sandbox).not.toContain('allow-top-navigation-by-user-activation');
   });
+
+  it('renders JavaScript mode selectors with expected options', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+    const values = Array.from(ui.jsModeSelect.options).map((option) => option.value);
+    const compactValues = Array.from(ui.compactJsModeSelect.options).map((option) => option.value);
+
+    expect(values).toEqual(['classic', 'module']);
+    expect(compactValues).toEqual(['classic', 'module']);
+  });
+
+  it('places JavaScript mode selectors in action areas with expected order', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.jsModeSelect.parentElement).toBe(ui.jsControls);
+    expect(Array.from(ui.jsControls.children)).toEqual([
+      ui.jsModeSelect,
+      ui.shadowHintButton,
+      ui.runButton,
+      ui.tailwindHintButton,
+    ]);
+    expect(Array.from(ui.compactEditorActions.children)).toEqual([
+      ui.compactAddMediaButton,
+      ui.compactJsModeSelect,
+      ui.compactShadowHintButton,
+      ui.compactRunButton,
+      ui.compactTailwindHintButton,
+    ]);
+  });
 });

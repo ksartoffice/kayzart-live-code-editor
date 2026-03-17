@@ -9,6 +9,7 @@ describe('validateImportPayload', () => {
       css: 'body{}',
       tailwindEnabled: false,
       js: 'console.log(1);',
+      jsMode: 'module',
       externalScripts: ['https://example.com/a.js'],
       externalStyles: ['https://example.com/a.css'],
       shadowDomEnabled: true,
@@ -43,5 +44,30 @@ describe('validateImportPayload', () => {
     });
 
     expect(result.error).toBe('Invalid externalScripts value.');
+  });
+
+  it('rejects invalid jsMode', () => {
+    const result = validateImportPayload({
+      version: 1,
+      html: '<div>Hello</div>',
+      css: 'body{}',
+      tailwindEnabled: false,
+      jsMode: 'esm',
+    });
+
+    expect(result.error).toBe('Invalid jsMode value.');
+  });
+
+  it('accepts legacy auto jsMode and normalizes it to classic', () => {
+    const result = validateImportPayload({
+      version: 1,
+      html: '<div>Hello</div>',
+      css: 'body{}',
+      tailwindEnabled: false,
+      jsMode: 'auto',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.data?.jsMode).toBe('classic');
   });
 });

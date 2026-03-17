@@ -1,11 +1,13 @@
 import { createElement, Fragment, createRoot, render } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { X } from 'lucide';
 import {
   resolveDefaultTemplateMode,
   resolveTemplateMode,
   type DefaultTemplateMode,
   type TemplateMode,
 } from '../logic/template-mode';
+import { renderLucideIcon } from '../lucide-icons';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
@@ -56,6 +58,10 @@ type MissingMarkersModalProps = {
   onConfirm: () => void;
 };
 
+const closeIcon = renderLucideIcon(X, {
+  class: 'lucide lucide-x-icon lucide-x',
+});
+
 function ShadowHintModal({
   title,
   lead,
@@ -79,7 +85,7 @@ function ShadowHintModal({
             aria-label={closeLabel}
             onClick={onClose}
           >
-            x
+            <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: closeIcon }} />
           </button>
         </div>
         <div className="cd-modalBody">

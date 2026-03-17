@@ -16,6 +16,7 @@ KayzArt Live Code Editor provides a dedicated editor for building HTML, CSS, and
 Features:
 * Custom KayzArt post type and dedicated editor
 * Monaco Editor with HTML/CSS/JS tabs and live iframe preview
+* JavaScript ES Module support with execution type switch (Classic / Module)
 * Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
 * Tailwind mode with on-demand Tailwind CSS v4 compilation
 * Import/export JSON projects

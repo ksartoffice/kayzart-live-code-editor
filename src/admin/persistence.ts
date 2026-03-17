@@ -3,6 +3,7 @@ import type { SettingsData } from './settings';
 import { __, sprintf } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
 import type { CompileTailwindResponse, SaveResponse } from './types/rest';
+import type { JsMode } from './types/js-mode';
 
 type TailwindCompilerDeps = {
   apiFetch: ApiFetch;
@@ -93,6 +94,7 @@ type SaveParams = {
   tailwindEnabled: boolean;
   canEditJs: boolean;
   js: string;
+  jsMode: JsMode;
   settingsUpdates?: Record<string, unknown>;
 };
 
@@ -108,6 +110,7 @@ export async function saveKayzArt(
     };
     if (params.canEditJs) {
       payload.js = params.js;
+      payload.jsMode = params.jsMode;
     }
     if (params.settingsUpdates && Object.keys(params.settingsUpdates).length > 0) {
       payload.settingsUpdates = params.settingsUpdates;
@@ -146,6 +149,7 @@ type ExportParams = {
   tailwindEnabled: boolean;
   tailwindCss: string;
   js: string;
+  jsMode: JsMode;
   externalScripts: string[];
   externalStyles: string[];
   shadowDomEnabled: boolean;
@@ -187,6 +191,7 @@ export async function exportKayzArt(
       tailwindEnabled: params.tailwindEnabled,
       generatedCss: params.tailwindEnabled ? (generatedCss || params.tailwindCss) : '',
       js: params.js,
+      jsMode: params.jsMode,
       externalScripts: [...params.externalScripts],
       externalStyles: [...params.externalStyles],
       shadowDomEnabled: params.shadowDomEnabled,

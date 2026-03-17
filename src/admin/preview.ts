@@ -1,6 +1,7 @@
 import * as parse5 from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
 import type { MonacoType } from './monaco';
+import type { JsMode } from './types/js-mode';
 import {
   mediaQueriesMatch,
   parseCssRules,
@@ -53,6 +54,7 @@ type PreviewControllerDeps = {
   getShadowDomEnabled: () => boolean;
   getLiveHighlightEnabled: () => boolean;
   getJsEnabled: () => boolean;
+  getJsMode: () => JsMode;
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
   isTailwindEnabled: () => boolean;
@@ -279,6 +281,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     postToPreview({
       type: 'KAYZART_RUN_JS',
       jsText: deps.jsModel.getValue(),
+      jsMode: deps.getJsMode(),
     });
   };
 

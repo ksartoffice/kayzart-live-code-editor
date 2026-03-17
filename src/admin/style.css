@@ -770,6 +770,7 @@ body.admin_page_kayzart #wpbody-content {
 .cd-editorTabs {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .cd-editorTab {
@@ -802,6 +803,21 @@ body.admin_page_kayzart #wpbody-content {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.cd-jsModeSelect {
+  min-width: 104px;
+  height: 26px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  background: #151922;
+}
+
+.cd-compactJsModeSelect {
+  min-width: 96px;
+  height: 28px;
 }
 
 .cd-editorAction {
@@ -1674,6 +1690,10 @@ body.admin_page_kayzart #wpbody-content {
 }
 
 @media (max-width: 560px) {
+  .cd-compactJsModeSelect {
+    min-width: 84px;
+  }
+
   .cd-compactEditorAction {
     padding: 4px 6px;
     min-width: 30px;

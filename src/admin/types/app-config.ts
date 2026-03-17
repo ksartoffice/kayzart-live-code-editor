@@ -1,10 +1,12 @@
 import type { SettingsData } from '../settings';
+import type { JsMode } from './js-mode';
 
 export type AppConfig = {
   post_id: number;
   initialHtml: string;
   initialCss: string;
   initialJs: string;
+  initialJsMode?: JsMode;
   canEditJs: boolean;
   previewUrl: string;
   iframePreviewUrl?: string;

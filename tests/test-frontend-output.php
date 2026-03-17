@@ -64,6 +64,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
 		$this->assertStringNotContainsString( '<script id="cd-script">console.log("x");</script>', $output );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
+		$this->assertStringContainsString( 'data-kayzart-js-mode="auto"', $output );
 		$this->assertStringContainsString( '</template>', $output );
 		$this->assertStringContainsString( '</kayzart-output>', $output );
 	}
@@ -106,7 +107,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
 	}
 
-	public function test_shortcode_non_shadow_inlines_assets_once(): void {
+	public function test_shortcode_non_shadow_outputs_payload_and_enqueues_runtime(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -133,25 +134,18 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'body{font-size:16px;}', $first );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $first );
 		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $first );
-		$this->assertStringNotContainsString( 'id="cd-script-' . $post_id . '"', $first );
+		$this->assertStringContainsString( 'data-kayzart-js="1"', $first );
+		$this->assertStringContainsString( 'data-kayzart-js-mode="auto"', $first );
 
 		$this->assertStringNotContainsString( 'https://example.com/inline.css', $second );
 		$this->assertStringNotContainsString( 'body{font-size:16px;}', $second );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $second );
 		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $second );
-		$this->assertStringNotContainsString( 'id="cd-script-' . $post_id . '"', $second );
+		$this->assertStringContainsString( 'data-kayzart-js="1"', $second );
 
 		$external_handle = 'kayzart-ext-' . $post_id . '-0';
-		$shortcode_js    = 'kayzart-shortcode-js-' . $post_id;
 		$this->assertTrue( wp_script_is( $external_handle, 'enqueued' ) );
-		$this->assertTrue( wp_script_is( $shortcode_js, 'enqueued' ) );
-
-		$scripts = wp_scripts();
-		$this->assertArrayHasKey( $shortcode_js, $scripts->registered );
-		$this->assertContains( $external_handle, $scripts->registered[ $shortcode_js ]->deps );
-		$inline_scripts = $scripts->get_data( $shortcode_js, 'after' );
-		$this->assertIsArray( $inline_scripts );
-		$this->assertStringContainsString( 'console.log("inline");', implode( "\n", $inline_scripts ) );
+		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
 	}
 
 	public function test_shortcode_embed_runs_only_allowlisted_shortcodes(): void {

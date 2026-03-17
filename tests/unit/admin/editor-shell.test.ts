@@ -18,4 +18,14 @@ describe('editor shell iframe security attributes', () => {
     expect(sandbox).not.toContain('allow-top-navigation');
     expect(sandbox).not.toContain('allow-top-navigation-by-user-activation');
   });
+
+  it('renders JavaScript mode selectors with expected options', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+    const values = Array.from(ui.jsModeSelect.options).map((option) => option.value);
+    const compactValues = Array.from(ui.compactJsModeSelect.options).map((option) => option.value);
+
+    expect(values).toEqual(['auto', 'classic', 'module']);
+    expect(compactValues).toEqual(['auto', 'classic', 'module']);
+  });
 });

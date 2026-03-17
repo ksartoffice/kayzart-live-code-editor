@@ -92,6 +92,24 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status(), 'JavaScript must be string when provided.' );
 	}
 
+	public function test_import_rejects_invalid_js_mode(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+		$payload           = $this->get_import_payload_base();
+		$payload['jsMode'] = 'esm';
+		$response          = $this->dispatch_route(
+			'/kayzart/v1/import',
+			array(
+				'post_id' => $post_id,
+				'payload' => $payload,
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status(), 'jsMode must be one of auto/classic/module.' );
+	}
+
 	public function test_import_rejects_invalid_generated_css_type(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -477,6 +495,26 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$post = get_post( $post_id );
 		$this->assertInstanceOf( WP_Post::class, $post );
 		$this->assertSame( 'Before save', (string) $post->post_content, 'Content should stay unchanged when settings validation fails.' );
+	}
+
+	public function test_save_rejects_invalid_js_mode(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<p>Invalid mode</p>',
+				'css'             => '',
+				'js'              => 'console.log("x");',
+				'jsMode'          => 'esm',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status(), 'Invalid jsMode should fail save.' );
 	}
 
 	public function test_save_rejects_tailwind_input_over_limit_and_preserves_content(): void {

@@ -32,6 +32,7 @@ import {
 import { debounce } from './utils/debounce';
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
+import { normalizeJsMode, type JsMode } from './types/js-mode';
 import { __ } from '@wordpress/i18n';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
@@ -152,6 +153,7 @@ async function main() {
   let activeSettingsTab = 'settings';
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
+  let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
   let shadowDomEnabled = Boolean(initialState.settingsData?.shadowDomEnabled);
   let shortcodeEnabled = Boolean(initialState.settingsData?.shortcodeEnabled);
   let singlePageEnabled = initialState.settingsData?.singlePageEnabled ?? true;
@@ -291,6 +293,7 @@ async function main() {
     getHtmlModel: () => htmlModel,
     getCssModel: () => cssModel,
     getJsModel: () => jsModel,
+    getJsMode: () => jsMode,
     getTailwindEnabled: () => tailwindEnabled,
     getTailwindCss: () => tailwindCss,
     getExternalScripts: () => externalScripts,
@@ -840,6 +843,7 @@ async function main() {
     getShadowDomEnabled: () => shadowDomEnabled,
     getLiveHighlightEnabled: () => liveHighlightEnabled,
     getJsEnabled: () => jsEnabled,
+    getJsMode: () => jsMode,
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
     isTailwindEnabled: () => tailwindEnabled,
@@ -897,6 +901,37 @@ async function main() {
     preview.sendExternalScripts(externalScripts);
     preview.queueInitialJsRun();
   };
+
+  const syncJsModeSelectors = () => {
+    ui.jsModeSelect.value = jsMode;
+    ui.compactJsModeSelect.value = jsMode;
+  };
+
+  const setJsMode = (nextMode: JsMode) => {
+    const normalized = normalizeJsMode(nextMode);
+    if (normalized === jsMode) {
+      syncJsModeSelectors();
+      return;
+    }
+    jsMode = normalized;
+    syncJsModeSelectors();
+    syncUnsavedUi();
+    if (!jsEnabled) {
+      return;
+    }
+    preview?.requestRunJs();
+  };
+
+  syncJsModeSelectors();
+
+  ui.jsModeSelect.addEventListener('change', (event) => {
+    const target = event.target as HTMLSelectElement;
+    setJsMode(normalizeJsMode(target.value));
+  });
+  ui.compactJsModeSelect.addEventListener('change', (event) => {
+    const target = event.target as HTMLSelectElement;
+    setJsMode(normalizeJsMode(target.value));
+  });
 
   const setShadowDomEnabled = (enabled: boolean) => {
     shadowDomEnabled = enabled;

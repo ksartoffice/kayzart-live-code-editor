@@ -457,12 +457,43 @@
     });
   }
 
-  function runJs(jsText) {
+  function normalizeJsMode(mode) {
+    const value = String(mode || '').toLowerCase();
+    if (value === 'classic' || value === 'module') {
+      return value;
+    }
+    return 'auto';
+  }
+
+  function stripJsForModeDetection(code) {
+    const source = String(code || '');
+    return source
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/\/\/[^\n\r]*/g, ' ')
+      .replace(/(["'`])(?:\\[\s\S]|(?!\1)[\s\S])*\1/g, ' ');
+  }
+
+  function resolveJsMode(mode, jsText) {
+    const normalized = normalizeJsMode(mode);
+    if (normalized !== 'auto') {
+      return normalized;
+    }
+
+    const source = stripJsForModeDetection(jsText);
+    const hasStaticImport =
+      /(^|[;\n\r])\s*import\s+(?:[\w*\s{},]+\s+from\s*)?['"][^'"]+['"]\s*;?/m.test(source) ||
+      /(^|[;\n\r])\s*export\s+(?:\{|\*|default|class|function|const|let|var)\b/m.test(source) ||
+      /\bimport\.meta\b/.test(source);
+    return hasStaticImport ? 'module' : 'classic';
+  }
+
+  function runJs(jsText, jsMode) {
     lastJsText = jsText || '';
     if (!jsText) {
       removeScriptElement();
       return;
     }
+    const resolvedMode = resolveJsMode(jsMode, jsText);
     const runInline = () => {
       removeScriptElement();
       const restoreDomReadyShim =
@@ -470,7 +501,7 @@
       try {
         const scriptEl = document.createElement('script');
         scriptEl.id = scriptId;
-        scriptEl.type = 'text/javascript';
+        scriptEl.type = resolvedMode === 'module' ? 'module' : 'text/javascript';
         scriptEl.text = String(jsText);
         getInlineScriptHost().appendChild(scriptEl);
       } finally {
@@ -879,7 +910,7 @@
     if (data.type === 'KAYZART_RUN_JS') {
       if (!isReady) return;
       jsEnabled = true;
-      runJs(data.jsText || '');
+      runJs(data.jsText || '', data.jsMode);
     }
     if (data.type === 'KAYZART_DISABLE_JS') {
       if (!isReady) return;

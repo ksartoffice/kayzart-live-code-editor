@@ -82,6 +82,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 				'html'            => $html,
 				'css'             => $css,
 				'js'              => $js,
+				'jsMode'          => 'module',
 				'tailwindEnabled' => false,
 			)
 		);
@@ -96,6 +97,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$expected_css = str_ireplace( '</style', '&lt;/style', $css );
 		$this->assertSame( $expected_css, get_post_meta( $post_id, '_kayzart_css', true ) );
 		$this->assertSame( $js, get_post_meta( $post_id, '_kayzart_js', true ) );
+		$this->assertSame( 'module', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
 
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
@@ -352,6 +354,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertIsArray( $data['settingsData'] ?? null, 'Response should include settingsData payload.' );
 		$this->assert_settings_payload_keys( $data['settingsData'] );
 		$this->assertArrayNotHasKey( 'authors', $data['settingsData'], 'Authors should not be returned.' );
+		$this->assertSame( 'auto', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
 	}
 
 	public function test_save_compiles_tailwind_and_stores_generated_css(): void {

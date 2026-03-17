@@ -16,12 +16,13 @@ function createModel(value: string) {
 describe('preview shortcode handling', () => {
   it('sends shortcode text as-is to the preview iframe', async () => {
     const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
     const htmlModel = createModel('<div>[ez-toc]</div>');
     const cssModel = createModel('');
     const jsModel = createModel('');
 
     const controller = createPreviewController({
-      iframe: { contentWindow: { postMessage } } as unknown as HTMLIFrameElement,
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
       postId: 1,
       targetOrigin: 'https://example.com',
       monaco: {} as any,
@@ -42,6 +43,7 @@ describe('preview shortcode handling', () => {
 
     controller.handleMessage({
       origin: 'https://example.com',
+      source: contentWindow,
       data: { type: 'KAYZART_READY' },
     } as MessageEvent);
     await flushAsync();
@@ -53,6 +55,45 @@ describe('preview shortcode handling', () => {
     expect(renderCall).toBeTruthy();
     const payload = renderCall?.[0] as { canonicalHTML?: string };
     expect(payload.canonicalHTML).toContain('[ez-toc]');
+  });
+
+  it('ignores messages from non-iframe windows even with same origin', () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const attackerWindow = {} as Window;
+    const htmlModel = createModel('<div>hello</div>');
+    const cssModel = createModel('');
+    const jsModel = createModel('');
+
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      monaco: {} as any,
+      htmlModel: htmlModel as any,
+      cssModel: cssModel as any,
+      jsModel: jsModel as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getShadowDomEnabled: () => false,
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getExternalScripts: () => [],
+      getExternalStyles: () => [],
+      isTailwindEnabled: () => false,
+    });
+
+    controller.handleMessage({
+      origin: 'https://example.com',
+      source: attackerWindow,
+      data: { type: 'KAYZART_READY' },
+    } as MessageEvent);
+
+    controller.sendRender();
+    const renderCall = postMessage.mock.calls.find((entry) => entry?.[0]?.type === 'KAYZART_RENDER');
+    expect(renderCall).toBeFalsy();
   });
 });
 

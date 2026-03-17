@@ -162,6 +162,7 @@ function canonicalizeHtml(html: string): CanonicalResult {
 }
 
 export function createPreviewController(deps: PreviewControllerDeps): PreviewController {
+  let previewWindow: WindowProxy | null = deps.iframe.contentWindow;
   let previewReady = false;
   let pendingRender = false;
   let pendingJsAction: 'run' | 'disable' | null = null;
@@ -210,14 +211,24 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     return wrapper;
   };
 
+  const refreshPreviewWindow = () => {
+    previewWindow = deps.iframe.contentWindow;
+    return previewWindow;
+  };
+
+  const postToPreview = (payload: Record<string, unknown>) => {
+    const targetWindow = refreshPreviewWindow();
+    if (!targetWindow) {
+      return;
+    }
+    targetWindow.postMessage(payload, deps.targetOrigin);
+  };
+
   const sendInit = () => {
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_INIT',
-        post_id: deps.postId,
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_INIT',
+      post_id: deps.postId,
+    });
   };
 
   const sendRender = () => {
@@ -241,23 +252,17 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       pendingRender = true;
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      { ...payload, canonicalHTML: canonical.canonicalHTML },
-      deps.targetOrigin
-    );
+    postToPreview({ ...payload, canonicalHTML: canonical.canonicalHTML });
   };
 
   const sendCssUpdate = (cssText: string) => {
     if (!previewReady) {
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_SET_CSS',
-        cssText: cssText,
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_SET_CSS',
+      cssText: cssText,
+    });
   };
 
   const sendRunJs = () => {
@@ -270,21 +275,19 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       pendingJsAction = 'run';
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_RUN_JS',
-        jsText: deps.jsModel.getValue(),
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_RUN_JS',
+      jsText: deps.jsModel.getValue(),
+    });
   };
 
   const reloadPreviewIframe = (): boolean => {
     const iframe = deps.iframe;
     if (!iframe) return false;
-    if (iframe.contentWindow) {
+    const targetWindow = refreshPreviewWindow();
+    if (targetWindow) {
       try {
-        iframe.contentWindow.location.reload();
+        targetWindow.location.reload();
         return true;
       } catch (error) {
         // fallback to src refresh below
@@ -325,46 +328,37 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       pendingJsAction = 'disable';
       return;
     }
-    deps.iframe.contentWindow?.postMessage({ type: 'KAYZART_DISABLE_JS' }, deps.targetOrigin);
+    postToPreview({ type: 'KAYZART_DISABLE_JS' });
   };
 
   const sendExternalScripts = (scripts: string[]) => {
     if (!previewReady) {
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_EXTERNAL_SCRIPTS',
-        urls: scripts,
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_EXTERNAL_SCRIPTS',
+      urls: scripts,
+    });
   };
 
   const sendExternalStyles = (styles: string[]) => {
     if (!previewReady) {
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_EXTERNAL_STYLES',
-        urls: styles,
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_EXTERNAL_STYLES',
+      urls: styles,
+    });
   };
 
   const sendLiveHighlightUpdate = (enabled: boolean) => {
     if (!previewReady) {
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_SET_HIGHLIGHT',
-        liveHighlightEnabled: enabled,
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_SET_HIGHLIGHT',
+      liveHighlightEnabled: enabled,
+    });
   };
 
   const sendElementsTabState = (open: boolean) => {
@@ -373,13 +367,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       pendingElementsTabOpen = open;
       return;
     }
-    deps.iframe.contentWindow?.postMessage(
-      {
-        type: 'KAYZART_SET_ELEMENTS_TAB_OPEN',
-        open,
-      },
-      deps.targetOrigin
-    );
+    postToPreview({
+      type: 'KAYZART_SET_ELEMENTS_TAB_OPEN',
+      open,
+    });
   };
 
   const queueInitialJsRun = () => {
@@ -511,6 +502,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   };
 
   const handleIframeLoad = () => {
+    refreshPreviewWindow();
     previewReady = false;
     pendingRender = true;
     initialJsPending = true;
@@ -519,6 +511,8 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
 
   const handleMessage = (event: MessageEvent) => {
     if (event.origin !== deps.targetOrigin) return;
+    const targetWindow = refreshPreviewWindow();
+    if (!targetWindow || event.source !== targetWindow) return;
     const data = event.data;
 
     if (data?.type === 'KAYZART_READY') {

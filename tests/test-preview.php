@@ -116,6 +116,51 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertTrue( defined( 'DONOTCACHEPAGE' ) );
 	}
 
+	public function test_preview_headers_include_frame_ancestors_policy(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		$this->start_preview_request( $post_id, $admin_id );
+
+		$headers = apply_filters( 'wp_headers', array() );
+
+		$this->assertArrayHasKey( 'Content-Security-Policy', $headers );
+		$this->assertStringContainsString( "frame-ancestors 'self'", $headers['Content-Security-Policy'] );
+		$this->assertStringContainsString(
+			$this->build_origin( admin_url() ),
+			$headers['Content-Security-Policy']
+		);
+	}
+
+	public function test_enqueue_assets_sets_strict_allowed_origin(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		$this->start_preview_request( $post_id, $admin_id );
+		Preview::enqueue_assets();
+
+		$scripts    = wp_scripts();
+		$registered = $scripts->registered['kayzart-preview'] ?? null;
+		$this->assertNotNull( $registered, 'Preview script should be registered.' );
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$this->assertNotEmpty( $before_inline, 'Preview script should include inline payload.' );
+
+		$inline = implode( "\n", $before_inline );
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART_PREVIEW = (.+);/', $inline );
+
+		preg_match( '/window\\.KAYZART_PREVIEW = (.+);/', $inline, $matches );
+		$this->assertArrayHasKey( 1, $matches );
+		$payload = json_decode( $matches[1], true );
+		$this->assertIsArray( $payload );
+
+		$allowed_origin = (string) ( $payload['allowedOrigin'] ?? '' );
+		$this->assertSame( $this->build_origin( admin_url() ), $allowed_origin );
+		$parts = wp_parse_url( $allowed_origin );
+		$this->assertTrue( empty( $parts['path'] ), 'allowedOrigin should not include a path.' );
+		$this->assertTrue( empty( $parts['query'] ), 'allowedOrigin should not include a query string.' );
+		$this->assertTrue( empty( $parts['fragment'] ), 'allowedOrigin should not include a fragment.' );
+	}
+
 	public function test_preview_filter_registered_with_high_priority(): void {
 		$priority = has_filter( 'the_content', array( Preview::class, 'filter_content' ) );
 		if ( false === $priority ) {
@@ -347,6 +392,7 @@ class Test_Preview extends WP_UnitTestCase {
 			$property->setAccessible( true );
 			$property->setValue( null, $value );
 		}
+		remove_filter( 'wp_headers', array( Preview::class, 'filter_preview_headers' ) );
 	}
 
 	private function restore_query_globals(): void {
@@ -397,6 +443,18 @@ class Test_Preview extends WP_UnitTestCase {
 		return '<span data-kayzart-marker="start" data-kayzart-post-id="' . $post_id . '" aria-hidden="true" hidden></span>'
 			. $content
 			. '<span data-kayzart-marker="end" data-kayzart-post-id="' . $post_id . '" aria-hidden="true" hidden></span>';
+	}
+
+	private function build_origin( string $url ): string {
+		$parts = wp_parse_url( $url );
+		if ( empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
+			return '';
+		}
+		$origin = strtolower( (string) $parts['scheme'] ) . '://' . (string) $parts['host'];
+		if ( ! empty( $parts['port'] ) ) {
+			$origin .= ':' . (string) $parts['port'];
+		}
+		return $origin;
 	}
 }
 

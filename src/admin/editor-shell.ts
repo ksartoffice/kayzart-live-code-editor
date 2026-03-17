@@ -77,7 +77,7 @@ function createJsModeSelect(className: string): HTMLSelectElement {
   select.setAttribute('aria-label', __( 'JavaScript mode', 'kayzart-live-code-editor'));
 
   const options: Array<{ value: string; label: string }> = [
-    { value: 'classic', label: __( 'type: Classic', 'kayzart-live-code-editor') },
+    { value: 'classic', label: __( 'type: Classic script', 'kayzart-live-code-editor') },
     { value: 'module', label: __( 'type: Module', 'kayzart-live-code-editor') },
   ];
 

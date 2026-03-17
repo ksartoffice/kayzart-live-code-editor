@@ -31,7 +31,7 @@ class Admin {
 		' ' . "\xE2\x80\xB9" . ' ',
 		' &lsaquo; ',
 	);
-	private const JS_MODE_VALUES        = array( 'classic', 'module' );
+	private const JS_MODE_VALUES       = array( 'classic', 'module' );
 	/**
 	 * Register admin hooks.
 	 */

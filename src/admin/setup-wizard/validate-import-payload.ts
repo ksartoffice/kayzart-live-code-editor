@@ -42,11 +42,11 @@ export function validateImportPayload(raw: unknown): ValidationResult {
     return { error: __('Invalid jsMode value.', 'kayzart-live-code-editor') };
   }
 
-  if (
-    payload.jsMode !== undefined &&
-    normalizeJsMode(payload.jsMode) !== payload.jsMode
-  ) {
-    return { error: __('Invalid jsMode value.', 'kayzart-live-code-editor') };
+  if (payload.jsMode !== undefined) {
+    const mode = payload.jsMode.trim().toLowerCase();
+    if (mode !== 'classic' && mode !== 'module' && mode !== 'auto') {
+      return { error: __('Invalid jsMode value.', 'kayzart-live-code-editor') };
+    }
   }
 
   if (payload.shadowDomEnabled !== undefined && typeof payload.shadowDomEnabled !== 'boolean') {

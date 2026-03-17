@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Rest_Save {
 
-	private const JS_MODE_VALUES = array( 'auto', 'classic', 'module' );
+	private const JS_MODE_VALUES = array( 'classic', 'module' );
 	/**
 	 * Shadow DOM Tailwind custom property fallbacks.
 	 *
@@ -263,7 +263,13 @@ class Rest_Save {
 	 */
 	public static function normalize_js_mode( $value ): string {
 		$mode = is_string( $value ) ? strtolower( trim( $value ) ) : '';
-		return in_array( $mode, self::JS_MODE_VALUES, true ) ? $mode : 'auto';
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return 'classic';
 	}
 
 	/**
@@ -277,7 +283,13 @@ class Rest_Save {
 			return null;
 		}
 		$mode = strtolower( trim( $value ) );
-		return in_array( $mode, self::JS_MODE_VALUES, true ) ? $mode : null;
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return null;
 	}
 
 	/**

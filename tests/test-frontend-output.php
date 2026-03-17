@@ -64,7 +64,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
 		$this->assertStringNotContainsString( '<script id="cd-script">console.log("x");</script>', $output );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
-		$this->assertStringContainsString( 'data-kayzart-js-mode="auto"', $output );
+		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
 		$this->assertStringContainsString( '</template>', $output );
 		$this->assertStringContainsString( '</kayzart-output>', $output );
 	}
@@ -135,7 +135,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $first );
 		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $first );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $first );
-		$this->assertStringContainsString( 'data-kayzart-js-mode="auto"', $first );
+		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $first );
 
 		$this->assertStringNotContainsString( 'https://example.com/inline.css', $second );
 		$this->assertStringNotContainsString( 'body{font-size:16px;}', $second );

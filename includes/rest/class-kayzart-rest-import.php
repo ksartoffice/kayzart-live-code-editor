@@ -112,7 +112,7 @@ class Rest_Import {
 			$js_input = $payload['js'];
 		}
 
-		$js_mode = 'auto';
+		$js_mode = 'classic';
 		if ( array_key_exists( 'jsMode', $payload ) ) {
 			if ( ! is_string( $payload['jsMode'] ) ) {
 				return new \WP_REST_Response(
@@ -123,8 +123,8 @@ class Rest_Import {
 					400
 				);
 			}
-			$js_mode = Rest_Save::normalize_js_mode( $payload['jsMode'] );
-			if ( $js_mode !== $payload['jsMode'] ) {
+			$raw_js_mode = strtolower( trim( $payload['jsMode'] ) );
+			if ( ! in_array( $raw_js_mode, array( 'classic', 'module', 'auto' ), true ) ) {
 				return new \WP_REST_Response(
 					array(
 						'ok'    => false,
@@ -133,6 +133,7 @@ class Rest_Import {
 					400
 				);
 			}
+			$js_mode = Rest_Save::normalize_js_mode( $raw_js_mode );
 		}
 
 		$shadow_dom_enabled = false;

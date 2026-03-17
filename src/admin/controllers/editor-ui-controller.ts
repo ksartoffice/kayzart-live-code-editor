@@ -60,8 +60,8 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     const showHeaderActions = (deps.canEditJs && isJsTab) || (tailwindEnabled && isCssTab);
     deps.ui.jsTab.style.display = deps.canEditJs ? '' : 'none';
     deps.ui.jsTab.disabled = !deps.canEditJs;
-    deps.ui.jsModeSelect.style.display = deps.canEditJs ? '' : 'none';
-    deps.ui.jsModeSelect.disabled = !deps.canEditJs;
+    deps.ui.jsModeSelect.style.display = deps.canEditJs && isJsTab ? '' : 'none';
+    deps.ui.jsModeSelect.disabled = !deps.canEditJs || !isJsTab;
     deps.ui.compactJsTab.style.display = deps.canEditJs ? '' : 'none';
     deps.ui.compactJsTab.disabled = !deps.canEditJs;
     deps.ui.compactJsModeSelect.style.display = isCompactJsTab && deps.canEditJs ? '' : 'none';
@@ -74,7 +74,8 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactRunButton.disabled = !jsEnabled || !deps.canEditJs;
     deps.ui.tailwindHintButton.style.display = tailwindEnabled && isCssTab ? '' : 'none';
     deps.ui.tailwindHintButton.disabled = !tailwindEnabled || !isCssTab;
-    deps.ui.shadowHintButton.style.display = shadowDomEnabled && isJsTab ? '' : 'none';
+    deps.ui.shadowHintButton.style.display =
+      shadowDomEnabled && deps.canEditJs && isJsTab ? '' : 'none';
     deps.ui.shadowHintButton.disabled = !shadowDomEnabled || !deps.canEditJs || !isJsTab;
     deps.ui.compactTailwindHintButton.style.display =
       isCompactCssTab && tailwindEnabled ? '' : 'none';

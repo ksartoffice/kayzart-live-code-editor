@@ -55,7 +55,7 @@ class Frontend {
 	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'frame', 'theme' );
 	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'frame', 'theme' );
 	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
-	private const JS_MODE_VALUES                  = array( 'auto', 'classic', 'module' );
+	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
 	private const SHORTCODE_RENDER_MAX_PASSES     = 2;
 	/**
 	 * Register front-end hooks.
@@ -234,8 +234,14 @@ class Frontend {
 	 * @return string
 	 */
 	private static function get_js_mode_for_post( int $post_id ): string {
-		$mode = strtolower( (string) get_post_meta( $post_id, self::JS_MODE_META_KEY, true ) );
-		return in_array( $mode, self::JS_MODE_VALUES, true ) ? $mode : 'auto';
+		$mode = strtolower( trim( (string) get_post_meta( $post_id, self::JS_MODE_META_KEY, true ) ) );
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return 'classic';
 	}
 
 	/**

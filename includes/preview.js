@@ -33,7 +33,9 @@
   let shadowEnabled = false;
   let shadowHost = null;
   let shadowRoot = null;
-  let lastJsText = '';
+  let jsRunToken = 0;
+  let jsCleanupCallbacks = [];
+  let activeModuleUrl = '';
   let jsEnabled = false;
   let missingMarkersNotified = false;
   let pendingRenderPayload = null;
@@ -164,9 +166,9 @@
   function setShadowDomEnabled(enabled) {
     const next = Boolean(enabled);
     if (shadowEnabled === next) return;
+    stopJsRuntime();
     shadowEnabled = next;
     removeStyleElement();
-    removeScriptElement();
     clearExternalScripts();
     clearExternalStyles();
     if (!shadowEnabled) {
@@ -458,63 +460,148 @@
   }
 
   function normalizeJsMode(mode) {
-    const value = String(mode || '').toLowerCase();
-    if (value === 'classic' || value === 'module') {
-      return value;
+    const value = String(mode || '').trim().toLowerCase();
+    if (value === 'module') {
+      return 'module';
     }
-    return 'auto';
+    if (value === 'classic' || value === 'auto') {
+      return 'classic';
+    }
+    return 'classic';
   }
 
-  function stripJsForModeDetection(code) {
-    const source = String(code || '');
-    return source
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/\/\/[^\n\r]*/g, ' ')
-      .replace(/(["'`])(?:\\[\s\S]|(?!\1)[\s\S])*\1/g, ' ');
+  function getRuntimeHost() {
+    if (shadowEnabled) {
+      const host = ensureShadowHost();
+      if (host) {
+        return host;
+      }
+    }
+    const existing = document.querySelector('kayzart-output');
+    return existing instanceof HTMLElement ? existing : null;
   }
 
-  function resolveJsMode(mode, jsText) {
-    const normalized = normalizeJsMode(mode);
-    if (normalized !== 'auto') {
-      return normalized;
-    }
+  function buildModuleRuntimeContext() {
+    const host = getRuntimeHost();
+    const root = shadowEnabled ? ensureShadowRoot() || document : document;
+    return {
+      root: root,
+      document: document,
+      host: host,
+      onCleanup: (fn) => {
+        if (typeof fn === 'function') {
+          jsCleanupCallbacks.push(fn);
+        }
+      },
+    };
+  }
 
-    const source = stripJsForModeDetection(jsText);
-    const hasStaticImport =
-      /(^|[;\n\r])\s*import\s+(?:[\w*\s{},]+\s+from\s*)?['"][^'"]+['"]\s*;?/m.test(source) ||
-      /(^|[;\n\r])\s*export\s+(?:\{|\*|default|class|function|const|let|var)\b/m.test(source) ||
-      /\bimport\.meta\b/.test(source);
-    return hasStaticImport ? 'module' : 'classic';
+  function runRegisteredJsCleanup() {
+    if (!jsCleanupCallbacks.length) {
+      return;
+    }
+    const callbacks = jsCleanupCallbacks.slice();
+    jsCleanupCallbacks = [];
+    callbacks.forEach((cleanup) => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.error('[KayzArt] onCleanup callback failed.', error);
+      }
+    });
+  }
+
+  function revokeActiveModuleUrl() {
+    if (!activeModuleUrl) {
+      return;
+    }
+    try {
+      URL.revokeObjectURL(activeModuleUrl);
+    } catch (error) {
+      // noop
+    }
+    activeModuleUrl = '';
+  }
+
+  function resetJsRuntime() {
+    runRegisteredJsCleanup();
+    removeScriptElement();
+    revokeActiveModuleUrl();
+  }
+
+  function stopJsRuntime() {
+    jsRunToken += 1;
+    resetJsRuntime();
+  }
+
+  function runClassicJs(jsText) {
+    const restoreDomReadyShim = document.readyState !== 'loading' ? applyDomReadyShim() : null;
+    try {
+      const scriptEl = document.createElement('script');
+      scriptEl.id = scriptId;
+      scriptEl.type = 'text/javascript';
+      scriptEl.text = String(jsText);
+      getInlineScriptHost().appendChild(scriptEl);
+    } finally {
+      if (restoreDomReadyShim) {
+        restoreDomReadyShim();
+      }
+    }
+  }
+
+  async function runModuleJs(jsText, runToken) {
+    const moduleUrl = URL.createObjectURL(
+      new Blob([String(jsText)], { type: 'text/javascript' })
+    );
+    activeModuleUrl = moduleUrl;
+    try {
+      const moduleExports = await import(moduleUrl);
+      if (runToken !== jsRunToken) {
+        return;
+      }
+      const entry = moduleExports && moduleExports.default;
+      if (typeof entry !== 'function') {
+        console.error('[KayzArt] Module JS default export must be a function.');
+        return;
+      }
+      const context = buildModuleRuntimeContext();
+      const maybeCleanup = entry(context);
+      if (typeof maybeCleanup === 'function') {
+        jsCleanupCallbacks.push(maybeCleanup);
+      }
+    } catch (error) {
+      if (runToken === jsRunToken) {
+        console.error('[KayzArt] Module JS execution failed.', error);
+      }
+    } finally {
+      if (activeModuleUrl === moduleUrl) {
+        activeModuleUrl = '';
+      }
+      try {
+        URL.revokeObjectURL(moduleUrl);
+      } catch (error) {
+        // noop
+      }
+    }
   }
 
   function runJs(jsText, jsMode) {
-    lastJsText = jsText || '';
-    if (!jsText) {
-      removeScriptElement();
+    const nextJsText = String(jsText || '');
+    const runToken = ++jsRunToken;
+    resetJsRuntime();
+    if (!nextJsText.trim()) {
       return;
     }
-    const resolvedMode = resolveJsMode(jsMode, jsText);
-    const runInline = () => {
-      removeScriptElement();
-      const restoreDomReadyShim =
-        document.readyState !== 'loading' ? applyDomReadyShim() : null;
-      try {
-        const scriptEl = document.createElement('script');
-        scriptEl.id = scriptId;
-        scriptEl.type = resolvedMode === 'module' ? 'module' : 'text/javascript';
-        scriptEl.text = String(jsText);
-        getInlineScriptHost().appendChild(scriptEl);
-      } finally {
-        if (restoreDomReadyShim) {
-          restoreDomReadyShim();
-        }
-      }
-    };
+    const resolvedMode = normalizeJsMode(jsMode);
 
     const currentReady = externalScriptsReady;
     currentReady.then(() => {
-      if (currentReady !== externalScriptsReady) return;
-      runInline();
+      if (runToken !== jsRunToken || currentReady !== externalScriptsReady) return;
+      if (resolvedMode === 'module') {
+        void runModuleJs(nextJsText, runToken);
+        return;
+      }
+      runClassicJs(nextJsText);
     });
   }
 
@@ -915,7 +1002,7 @@
     if (data.type === 'KAYZART_DISABLE_JS') {
       if (!isReady) return;
       jsEnabled = false;
-      removeScriptElement();
+      stopJsRuntime();
     }
     if (data.type === 'KAYZART_EXTERNAL_SCRIPTS') {
       if (!isReady) return;
@@ -927,6 +1014,8 @@
     }
   });
 
+  window.addEventListener('beforeunload', stopJsRuntime);
+  window.addEventListener('pagehide', stopJsRuntime);
   attachDomSelector();
 })();
 

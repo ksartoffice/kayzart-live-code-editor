@@ -33,7 +33,7 @@ describe('save export controller', () => {
       getHtmlModel: () => htmlModel,
       getCssModel: () => cssModel,
       getJsModel: () => jsModel,
-      getJsMode: () => 'auto',
+      getJsMode: () => 'classic',
       getTailwindEnabled: () => false,
       getTailwindCss: () => '',
       getExternalScripts: () => [],
@@ -70,7 +70,7 @@ describe('save export controller', () => {
 
     expect(result.ok).toBe(true);
     expect(onSaveSuccess).toHaveBeenCalledTimes(1);
-    expect(saveKayzArt).toHaveBeenCalledWith(expect.objectContaining({ jsMode: 'auto' }));
+    expect(saveKayzArt).toHaveBeenCalledWith(expect.objectContaining({ jsMode: 'classic' }));
   });
 });
 

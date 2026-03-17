@@ -57,4 +57,17 @@ describe('validateImportPayload', () => {
 
     expect(result.error).toBe('Invalid jsMode value.');
   });
+
+  it('accepts legacy auto jsMode and normalizes it to classic', () => {
+    const result = validateImportPayload({
+      version: 1,
+      html: '<div>Hello</div>',
+      css: 'body{}',
+      tailwindEnabled: false,
+      jsMode: 'auto',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.data?.jsMode).toBe('classic');
+  });
 });

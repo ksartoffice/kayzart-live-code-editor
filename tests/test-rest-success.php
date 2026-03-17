@@ -342,6 +342,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 					'version'         => 1,
 					'html'            => '<p>Imported</p>',
 					'css'             => '',
+					'jsMode'          => 'auto',
 					'tailwindEnabled' => false,
 				),
 			)
@@ -354,7 +355,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertIsArray( $data['settingsData'] ?? null, 'Response should include settingsData payload.' );
 		$this->assert_settings_payload_keys( $data['settingsData'] );
 		$this->assertArrayNotHasKey( 'authors', $data['settingsData'], 'Authors should not be returned.' );
-		$this->assertSame( 'auto', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
+		$this->assertSame( 'classic', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
 	}
 
 	public function test_save_compiles_tailwind_and_stores_generated_css(): void {

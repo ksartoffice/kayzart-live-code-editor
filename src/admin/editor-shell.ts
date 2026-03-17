@@ -77,7 +77,6 @@ function createJsModeSelect(className: string): HTMLSelectElement {
   select.setAttribute('aria-label', __( 'JavaScript mode', 'kayzart-live-code-editor'));
 
   const options: Array<{ value: string; label: string }> = [
-    { value: 'auto', label: __( 'Auto', 'kayzart-live-code-editor') },
     { value: 'classic', label: __( 'Classic', 'kayzart-live-code-editor') },
     { value: 'module', label: __( 'Module', 'kayzart-live-code-editor') },
   ];
@@ -161,11 +160,11 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactIcons.hint
   );
   compactEditorActions.append(
-    compactJsModeSelect,
     compactAddMediaButton,
+    compactJsModeSelect,
+    compactShadowHintButton,
     compactRunButton,
     compactTailwindHintButton,
-    compactShadowHintButton
   );
   compactEditorTabs.append(compactEditorTabsList, compactEditorActions);
 
@@ -197,7 +196,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   jsTab.className = 'cd-editorTab';
   jsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
   const jsModeSelect = createJsModeSelect('cd-formSelect cd-jsModeSelect');
-  cssTabs.append(cssTab, jsTab, jsModeSelect);
+  cssTabs.append(cssTab, jsTab);
 
   const jsControls = el('div', 'cd-editorActions');
   const runButton = document.createElement('button');
@@ -212,7 +211,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   tailwindHintButton.type = 'button';
   tailwindHintButton.className = 'cd-editorAction cd-editorAction-hint';
   tailwindHintButton.textContent = __( 'Tailwind CSS Hint', 'kayzart-live-code-editor');
-  jsControls.append(tailwindHintButton, shadowHintButton, runButton);
+  jsControls.append(jsModeSelect, shadowHintButton, runButton, tailwindHintButton);
 
   cssHeader.append(cssTabs, jsControls);
   const cssWrap = el('div', 'cd-editorWrap cd-editorWrap-tabs');

@@ -31,7 +31,7 @@ class Admin {
 		' ' . "\xE2\x80\xB9" . ' ',
 		' &lsaquo; ',
 	);
-	private const JS_MODE_VALUES        = array( 'auto', 'classic', 'module' );
+	private const JS_MODE_VALUES        = array( 'classic', 'module' );
 	/**
 	 * Register admin hooks.
 	 */
@@ -824,7 +824,13 @@ class Admin {
 	 * @return string
 	 */
 	private static function normalize_js_mode( $value ): string {
-		$mode = is_string( $value ) ? strtolower( $value ) : '';
-		return in_array( $mode, self::JS_MODE_VALUES, true ) ? $mode : 'auto';
+		$mode = is_string( $value ) ? strtolower( trim( $value ) ) : '';
+		if ( 'module' === $mode ) {
+			return 'module';
+		}
+		if ( 'classic' === $mode || 'auto' === $mode ) {
+			return 'classic';
+		}
+		return 'classic';
 	}
 }

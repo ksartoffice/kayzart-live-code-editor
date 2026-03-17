@@ -107,7 +107,7 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 400, $response->get_status(), 'jsMode must be one of auto/classic/module.' );
+		$this->assertSame( 400, $response->get_status(), 'jsMode must be one of classic/module.' );
 	}
 
 	public function test_import_rejects_invalid_generated_css_type(): void {

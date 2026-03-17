@@ -75,5 +75,37 @@ describe('editor ui controller', () => {
     expect(cssEditor.focus).not.toHaveBeenCalled();
     expect(jsEditor.focus).not.toHaveBeenCalled();
   });
-});
 
+  it('shows mode selector only on JavaScript tab', () => {
+    const ui = createUi();
+    const htmlEditor = createEditor();
+    const cssEditor = createEditor();
+    const jsEditor = createEditor();
+
+    const controller = createEditorUiController({
+      ui,
+      canEditJs: true,
+      htmlEditor,
+      cssEditor,
+      jsEditor,
+      compactEditorBreakpoint: 900,
+      getViewportWidth: () => 1200,
+      getJsEnabled: () => true,
+      getShadowDomEnabled: () => true,
+      getTailwindEnabled: () => false,
+      onOpenMedia: () => {},
+      onRunJs: () => {},
+      onOpenShadowHint: () => {},
+      onOpenTailwindHint: () => {},
+    });
+
+    controller.initialize();
+    expect(ui.jsModeSelect.style.display).toBe('none');
+
+    ui.jsTab.click();
+    expect(ui.jsModeSelect.style.display).toBe('');
+
+    ui.cssTab.click();
+    expect(ui.jsModeSelect.style.display).toBe('none');
+  });
+});

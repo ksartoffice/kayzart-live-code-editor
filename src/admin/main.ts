@@ -444,6 +444,7 @@ async function main() {
     settingsRestUrl: cfg.settingsRestUrl,
     postId,
     getShadowDomEnabled: () => shadowDomEnabled,
+    getJsMode: () => jsMode,
     getTailwindEnabled: () => tailwindEnabled,
     isThemeTemplateModeActive,
     getDefaultTemplateMode: () => defaultTemplateMode,

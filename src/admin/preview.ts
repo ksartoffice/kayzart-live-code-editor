@@ -30,6 +30,7 @@ export type PreviewController = {
   requestDisableJs: () => void;
   queueInitialJsRun: () => void;
   flushPendingJsAction: () => void;
+  isRunJsPending: () => boolean;
   resetCanonicalCache: () => void;
   clearSelectionHighlight: () => void;
   clearCssSelectionHighlight: () => void;
@@ -394,6 +395,8 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     }
   };
 
+  const isRunJsPending = () => pendingJsAction === 'run';
+
   const clearSelectionHighlight = () => {
     selectionDecorations = deps.htmlModel.deltaDecorations(selectionDecorations, []);
     cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
@@ -567,6 +570,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     requestDisableJs,
     queueInitialJsRun,
     flushPendingJsAction,
+    isRunJsPending,
     resetCanonicalCache,
     clearSelectionHighlight,
     clearCssSelectionHighlight,

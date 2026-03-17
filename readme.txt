@@ -4,7 +4,7 @@ Tags: live preview, code editor, monaco, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.1.3
+Stable tag: 1.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -90,6 +90,10 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.2.0 =
+* Add JavaScript execution mode selector (Classic script / Module) in the JavaScript tab.
+* Add ES Module runtime contract support with context injection (`root`, `document`, `host`, `onCleanup`).
+
 = 1.1.3 =
 * Fix: Bug fixes and stability improvements.
 

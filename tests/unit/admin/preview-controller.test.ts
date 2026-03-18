@@ -15,6 +15,7 @@ function createModel(value: string) {
 
 describe('preview shortcode handling', () => {
   it('sends shortcode text as-is to the preview iframe', async () => {
+    const previewMessageToken = 'preview-token';
     const postMessage = vi.fn();
     const contentWindow = { postMessage } as unknown as Window;
     const htmlModel = createModel('<div>[ez-toc]</div>');
@@ -25,6 +26,7 @@ describe('preview shortcode handling', () => {
       iframe: { contentWindow } as unknown as HTMLIFrameElement,
       postId: 1,
       targetOrigin: 'https://example.com',
+      previewMessageToken,
       monaco: {} as any,
       htmlModel: htmlModel as any,
       cssModel: cssModel as any,
@@ -45,7 +47,7 @@ describe('preview shortcode handling', () => {
     controller.handleMessage({
       origin: 'https://example.com',
       source: contentWindow,
-      data: { type: 'KAYZART_READY' },
+      data: { type: 'KAYZART_READY', previewMessageToken },
     } as MessageEvent);
     await flushAsync();
     postMessage.mockClear();
@@ -59,6 +61,7 @@ describe('preview shortcode handling', () => {
   });
 
   it('ignores messages from non-iframe windows even with same origin', () => {
+    const previewMessageToken = 'preview-token';
     const postMessage = vi.fn();
     const contentWindow = { postMessage } as unknown as Window;
     const attackerWindow = {} as Window;
@@ -70,6 +73,7 @@ describe('preview shortcode handling', () => {
       iframe: { contentWindow } as unknown as HTMLIFrameElement,
       postId: 1,
       targetOrigin: 'https://example.com',
+      previewMessageToken,
       monaco: {} as any,
       htmlModel: htmlModel as any,
       cssModel: cssModel as any,
@@ -90,7 +94,92 @@ describe('preview shortcode handling', () => {
     controller.handleMessage({
       origin: 'https://example.com',
       source: attackerWindow,
-      data: { type: 'KAYZART_READY' },
+      data: { type: 'KAYZART_READY', previewMessageToken },
+    } as MessageEvent);
+
+    controller.sendRender();
+    const renderCall = postMessage.mock.calls.find((entry) => entry?.[0]?.type === 'KAYZART_RENDER');
+    expect(renderCall).toBeFalsy();
+  });
+
+  it('accepts iframe messages from null origin when token matches', async () => {
+    const previewMessageToken = 'preview-token';
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const htmlModel = createModel('<div>hello</div>');
+    const cssModel = createModel('');
+    const jsModel = createModel('');
+
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      previewMessageToken,
+      monaco: {} as any,
+      htmlModel: htmlModel as any,
+      cssModel: cssModel as any,
+      jsModel: jsModel as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getShadowDomEnabled: () => false,
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getExternalScripts: () => [],
+      getExternalStyles: () => [],
+      isTailwindEnabled: () => false,
+    });
+
+    controller.handleMessage({
+      origin: 'null',
+      source: contentWindow,
+      data: { type: 'KAYZART_READY', previewMessageToken },
+    } as MessageEvent);
+    await flushAsync();
+    postMessage.mockClear();
+
+    controller.sendRender();
+
+    const renderCall = postMessage.mock.calls.find((entry) => entry?.[0]?.type === 'KAYZART_RENDER');
+    expect(renderCall).toBeTruthy();
+  });
+
+  it('rejects null-origin iframe messages when token mismatches', () => {
+    const previewMessageToken = 'preview-token';
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const htmlModel = createModel('<div>hello</div>');
+    const cssModel = createModel('');
+    const jsModel = createModel('');
+
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      previewMessageToken,
+      monaco: {} as any,
+      htmlModel: htmlModel as any,
+      cssModel: cssModel as any,
+      jsModel: jsModel as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getShadowDomEnabled: () => false,
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getExternalScripts: () => [],
+      getExternalStyles: () => [],
+      isTailwindEnabled: () => false,
+    });
+
+    controller.handleMessage({
+      origin: 'null',
+      source: contentWindow,
+      data: { type: 'KAYZART_READY', previewMessageToken: 'wrong-token' },
     } as MessageEvent);
 
     controller.sendRender();

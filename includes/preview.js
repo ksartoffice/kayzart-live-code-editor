@@ -8,6 +8,8 @@
   const KAYZART_ATTR_NAME = 'data-kayzart-id';
   const config = window.KAYZART_PREVIEW || {};
   const postId = config.post_id || null;
+  const previewMessageToken =
+    typeof config.previewMessageToken === 'string' ? config.previewMessageToken : '';
   const markerAttr =
     config.markers && config.markers.attr ? String(config.markers.attr) : 'data-kayzart-marker';
   const markerPostAttr =
@@ -950,7 +952,7 @@
     if (!window.parent || !allowedOrigin) return;
     try {
       window.parent.postMessage(
-        Object.assign({ type: type }, payload || {}),
+        Object.assign({ type: type, previewMessageToken: previewMessageToken }, payload || {}),
         allowedOrigin
       );
     } catch (e) {
@@ -969,6 +971,7 @@
     if (event.origin !== allowedOrigin) return;
     if (event.source !== window.parent) return;
     const data = event.data || {};
+    if (data.previewMessageToken !== previewMessageToken) return;
     if (data.type === 'KAYZART_INIT') {
       isReady = true;
       reply('KAYZART_READY', { post_id: postId });

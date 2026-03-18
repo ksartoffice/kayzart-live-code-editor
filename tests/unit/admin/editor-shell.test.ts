@@ -9,7 +9,7 @@ describe('editor shell iframe security attributes', () => {
 
     expect(ui.iframe.referrerPolicy).toBe('strict-origin-when-cross-origin');
     expect(sandbox).toContain('allow-scripts');
-    expect(sandbox).toContain('allow-same-origin');
+    expect(sandbox).not.toContain('allow-same-origin');
     expect(sandbox).toContain('allow-forms');
     expect(sandbox).toContain('allow-modals');
     expect(sandbox).toContain('allow-popups');

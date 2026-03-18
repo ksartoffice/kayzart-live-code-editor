@@ -28,6 +28,12 @@ class Preview {
 	 * @var bool
 	 */
 	private static bool $is_preview = false;
+	/**
+	 * Verified preview message token shared with admin iframe host.
+	 *
+	 * @var string
+	 */
+	private static string $preview_message_token = '';
 	private const MARKER_ATTR       = 'data-kayzart-marker';
 	private const MARKER_POST_ATTR  = 'data-kayzart-post-id';
 	private const MARKER_START      = 'start';
@@ -98,6 +104,7 @@ class Preview {
 
 		self::$post_id    = $post_id;
 		self::$is_preview = true;
+		self::$preview_message_token = $token;
 		if ( false === has_filter( 'wp_headers', array( __CLASS__, 'filter_preview_headers' ) ) ) {
 			add_filter( 'wp_headers', array( __CLASS__, 'filter_preview_headers' ) );
 		}
@@ -297,6 +304,7 @@ class Preview {
 		$payload                = array(
 			'allowedOrigin'        => $admin_origin,
 			'post_id'              => self::$post_id,
+			'previewMessageToken'  => self::$preview_message_token,
 			'liveHighlightEnabled' => $live_highlight_enabled,
 			'markers'              => array(
 				'attr'     => self::MARKER_ATTR,

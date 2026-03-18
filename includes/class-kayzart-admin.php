@@ -763,6 +763,7 @@ class Admin {
 			'canEditJs'            => current_user_can( 'unfiltered_html' ),
 			'previewUrl'           => $preview_url,
 			'iframePreviewUrl'     => $iframe_preview_url,
+			'previewMessageToken'  => $preview_token,
 			'monacoVsPath'         => KAYZART_URL . 'assets/monaco/vs',
 			'restUrl'              => rest_url( 'kayzart/v1/save' ),
 			'restCompileUrl'       => rest_url( 'kayzart/v1/compile-tailwind' ),

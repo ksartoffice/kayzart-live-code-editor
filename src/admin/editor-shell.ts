@@ -230,7 +230,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   iframe.referrerPolicy = 'strict-origin-when-cross-origin';
   iframe.setAttribute(
     'sandbox',
-    'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads allow-popups-to-escape-sandbox'
+    'allow-scripts allow-forms allow-modals allow-popups allow-downloads allow-popups-to-escape-sandbox'
   );
   const previewBadge = el('div', 'cd-previewBadge');
   previewBadge.setAttribute('role', 'status');

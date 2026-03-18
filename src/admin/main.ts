@@ -833,6 +833,7 @@ async function main() {
     iframe: ui.iframe,
     postId,
     targetOrigin,
+    previewMessageToken: cfg.previewMessageToken,
     monaco,
     htmlModel,
     cssModel,

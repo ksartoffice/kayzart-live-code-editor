@@ -43,6 +43,7 @@ type PreviewControllerDeps = {
   iframe: HTMLIFrameElement;
   postId: number;
   targetOrigin: string;
+  previewMessageToken: string;
   monaco: MonacoType;
   htmlModel: import('monaco-editor').editor.ITextModel;
   cssModel: import('monaco-editor').editor.ITextModel;
@@ -224,7 +225,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     if (!targetWindow) {
       return;
     }
-    targetWindow.postMessage(payload, deps.targetOrigin);
+    targetWindow.postMessage(
+      { ...payload, previewMessageToken: deps.previewMessageToken },
+      '*'
+    );
   };
 
   const sendInit = () => {
@@ -516,10 +520,11 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   };
 
   const handleMessage = (event: MessageEvent) => {
-    if (event.origin !== deps.targetOrigin) return;
     const targetWindow = refreshPreviewWindow();
     if (!targetWindow || event.source !== targetWindow) return;
     const data = event.data;
+    if (!data || data.previewMessageToken !== deps.previewMessageToken) return;
+    if (event.origin !== deps.targetOrigin && event.origin !== 'null') return;
 
     if (data?.type === 'KAYZART_READY') {
       previewReady = true;

@@ -24,6 +24,11 @@ import { createModalController } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
 import {
+  setContextSnapshotProvider,
+  type ContextKey,
+  type ContextSnapshot,
+} from './extensions/settings-tab-registry';
+import {
   createNotices,
   NOTICE_ERROR_DURATION_MS,
   NOTICE_IDS,
@@ -187,6 +192,57 @@ async function main() {
   let suppressSelectionClear = 0;
   const selectionListeners = new Set<(lcId: string | null) => void>();
   const contentListeners = new Set<() => void>();
+  let getContextDocumentHtml: (() => string) | null = null;
+  let getContextDocumentCss: (() => string) | null = null;
+  let getContextDocumentJs: (() => string) | null = null;
+
+  const resolveContextKeys = (includeKeys?: ContextKey[]) => {
+    if (!includeKeys || includeKeys.length === 0) {
+      return ['selected_element', 'document_html', 'document_css', 'document_js'] as const;
+    }
+    return includeKeys;
+  };
+
+  const createContextSnapshot = (includeKeys?: ContextKey[]): ContextSnapshot => {
+    const requested = new Set<ContextKey>(resolveContextKeys(includeKeys));
+    const snapshot: ContextSnapshot = {};
+
+    if (requested.has('selected_element') && selectedLcId) {
+      const selectedElement: NonNullable<ContextSnapshot['selectedElement']> = {
+        cssSelector: `[data-kayzart-id="${selectedLcId}"]`,
+      };
+      if (getContextDocumentHtml) {
+        const elementInfo = getEditableElementText(getContextDocumentHtml(), selectedLcId);
+        if (elementInfo?.text) {
+          selectedElement.textSnippet = elementInfo.text;
+        }
+      }
+      snapshot.selectedElement = selectedElement;
+    }
+
+    if (requested.has('document_html') && getContextDocumentHtml) {
+      snapshot.document = {
+        ...(snapshot.document || {}),
+        html: getContextDocumentHtml(),
+      };
+    }
+    if (requested.has('document_css') && getContextDocumentCss) {
+      snapshot.document = {
+        ...(snapshot.document || {}),
+        css: getContextDocumentCss(),
+      };
+    }
+    if (requested.has('document_js') && getContextDocumentJs) {
+      snapshot.document = {
+        ...(snapshot.document || {}),
+        js: getContextDocumentJs(),
+      };
+    }
+
+    return snapshot;
+  };
+
+  setContextSnapshotProvider(createContextSnapshot);
 
   const notifySelection = () => {
     selectionListeners.forEach((listener) => listener(selectedLcId));
@@ -595,6 +651,9 @@ async function main() {
   });
 
   ({ monaco, htmlModel, cssModel, jsModel, htmlEditor, cssEditor, jsEditor } = monacoSetup);
+  getContextDocumentHtml = () => htmlModel.getValue();
+  getContextDocumentCss = () => cssModel.getValue();
+  getContextDocumentJs = () => jsModel.getValue();
 
   registerSaveShortcut(htmlEditor);
   registerSaveShortcut(cssEditor);

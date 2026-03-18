@@ -102,4 +102,28 @@ describe('settings tab registry', () => {
     expect(registry.getExternalSettingsTabs().map((tab) => tab.id)).toEqual(['ai']);
     expect(warnSpy).toHaveBeenCalled();
   });
+
+  it('exposes context snapshot API and allows provider updates', async () => {
+    const registry = await loadRegistry();
+    const api = (window as any).KAYZART_EXTENSION_API;
+
+    expect(api.getContextSnapshot()).toEqual({});
+
+    registry.setContextSnapshotProvider((includeKeys?: string[]) => {
+      if (includeKeys?.includes('document_html')) {
+        return {
+          document: {
+            html: '<main>Hello</main>',
+          },
+        };
+      }
+      return {};
+    });
+
+    expect(api.getContextSnapshot(['document_html'])).toEqual({
+      document: {
+        html: '<main>Hello</main>',
+      },
+    });
+  });
 });

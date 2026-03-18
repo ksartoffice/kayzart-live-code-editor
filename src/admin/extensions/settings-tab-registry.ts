@@ -21,8 +21,30 @@ type RegistryEntry = {
 type Listener = () => void;
 type RegisterSettingsTab = (tab: ExternalSettingsTab) => () => void;
 
+export type ContextKey =
+  | 'selected_element'
+  | 'document_html'
+  | 'document_css'
+  | 'document_js';
+
+export type ContextSnapshot = {
+  selectedElement?: {
+    cssSelector?: string;
+    htmlSnippet?: string;
+    textSnippet?: string;
+  };
+  document?: {
+    html?: string;
+    css?: string;
+    js?: string;
+  };
+};
+
+type GetContextSnapshot = (includeKeys?: ContextKey[]) => ContextSnapshot;
+
 type KayzArtExtensionApi = {
   registerSettingsTab: RegisterSettingsTab;
+  getContextSnapshot: GetContextSnapshot;
 };
 
 const RESERVED_TAB_IDS = new Set(['settings', 'elements']);
@@ -30,6 +52,7 @@ const DEFAULT_ORDER = 100;
 
 const registry = new Map<string, RegistryEntry>();
 const listeners = new Set<Listener>();
+let contextSnapshotProvider: GetContextSnapshot | null = null;
 let sequenceCounter = 0;
 let initialized = false;
 
@@ -135,6 +158,13 @@ function flushQueuedTabs(registerSettingsTab: RegisterSettingsTab) {
   });
 }
 
+function getContextSnapshotInternal(includeKeys?: ContextKey[]): ContextSnapshot {
+  if (!contextSnapshotProvider) {
+    return {};
+  }
+  return contextSnapshotProvider(includeKeys);
+}
+
 export function ensureSettingsTabRegistryApi() {
   if (initialized) {
     return;
@@ -146,8 +176,20 @@ export function ensureSettingsTabRegistryApi() {
   window.KAYZART_EXTENSION_API = {
     ...(window.KAYZART_EXTENSION_API || {}),
     registerSettingsTab,
+    getContextSnapshot: getContextSnapshotInternal,
   };
   flushQueuedTabs(registerSettingsTab);
+}
+
+export function setContextSnapshotProvider(provider: GetContextSnapshot | null) {
+  contextSnapshotProvider = provider;
+  if (!window.KAYZART_EXTENSION_API) {
+    return;
+  }
+  window.KAYZART_EXTENSION_API = {
+    ...window.KAYZART_EXTENSION_API,
+    getContextSnapshot: getContextSnapshotInternal,
+  };
 }
 
 export function getExternalSettingsTabs(): ResolvedExternalSettingsTab[] {

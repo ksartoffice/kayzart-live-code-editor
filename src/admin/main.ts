@@ -25,8 +25,15 @@ import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
 import {
   setContextSnapshotProvider,
+  setProposedEditHandlers,
+  type ApplyProposedEditOptions,
+  type ApplyProposedEditResult,
   type ContextKey,
   type ContextSnapshot,
+  type ProposedEdit,
+  type ProposedEditOperation,
+  type ProposedEditTarget,
+  type UndoProposedEditResult,
 } from './extensions/settings-tab-registry';
 import {
   createNotices,
@@ -54,6 +61,21 @@ declare global {
 const COMPACT_EDITOR_BREAKPOINT = 900;
 const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
 type HtmlWordWrapMode = 'off' | 'on';
+
+type AppliedEditRecord =
+  | {
+      target: ProposedEditTarget;
+      operation: 'replace_full';
+      beforeText: string;
+      afterText: string;
+    }
+  | {
+      target: ProposedEditTarget;
+      operation: 'replace_range';
+      startOffset: number;
+      beforeText: string;
+      afterText: string;
+    };
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
   try {
@@ -195,6 +217,8 @@ async function main() {
   let getContextDocumentHtml: (() => string) | null = null;
   let getContextDocumentCss: (() => string) | null = null;
   let getContextDocumentJs: (() => string) | null = null;
+  const appliedEditRecords = new Map<string, AppliedEditRecord>();
+  let appliedEditSequence = 0;
 
   const resolveContextKeys = (includeKeys?: ContextKey[]) => {
     if (!includeKeys || includeKeys.length === 0) {
@@ -654,6 +678,224 @@ async function main() {
   getContextDocumentHtml = () => htmlModel.getValue();
   getContextDocumentCss = () => cssModel.getValue();
   getContextDocumentJs = () => jsModel.getValue();
+
+  const makeAppliedHandle = () => `pe-${Date.now()}-${++appliedEditSequence}`;
+
+  const createApplyError = (
+    code: Exclude<ApplyProposedEditResult, { ok: true }>['code'],
+    message: string
+  ): ApplyProposedEditResult => ({
+    ok: false,
+    code,
+    message,
+  });
+
+  const createUndoError = (
+    code: Exclude<UndoProposedEditResult, { ok: true }>['code'],
+    message: string
+  ): UndoProposedEditResult => ({
+    ok: false,
+    code,
+    message,
+  });
+
+  const isNonNegativeInteger = (value: unknown) =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+  const isProposedEditTarget = (value: unknown): value is ProposedEditTarget =>
+    value === 'html' || value === 'css' || value === 'js';
+
+  const isProposedEditOperation = (value: unknown): value is ProposedEditOperation =>
+    value === 'replace_full' || value === 'replace_range';
+
+  const getTargetBinding = (target: ProposedEditTarget) => {
+    if (target === 'html') {
+      return {
+        model: htmlModel,
+        editor: htmlEditor,
+      };
+    }
+    if (target === 'css') {
+      return {
+        model: cssModel,
+        editor: cssEditor,
+      };
+    }
+    return {
+      model: jsModel,
+      editor: jsEditor,
+    };
+  };
+
+  const pushReplaceOperation = (
+    target: ProposedEditTarget,
+    startOffset: number,
+    endOffset: number,
+    nextText: string
+  ) => {
+    const { model, editor } = getTargetBinding(target);
+    const startPosition = model.getPositionAt(startOffset);
+    const endPosition = model.getPositionAt(endOffset);
+    editor.pushUndoStop();
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new monaco.Range(
+            startPosition.lineNumber,
+            startPosition.column,
+            endPosition.lineNumber,
+            endPosition.column
+          ),
+          text: nextText,
+        },
+      ],
+      () => null
+    );
+    editor.pushUndoStop();
+  };
+
+  const applyProposedEdit = (
+    edit: ProposedEdit,
+    options?: ApplyProposedEditOptions
+  ): ApplyProposedEditResult => {
+    if (!edit || typeof edit !== 'object') {
+      return createApplyError('INVALID_REQUEST', 'edit must be an object.');
+    }
+    if (!isProposedEditTarget(edit.target)) {
+      return createApplyError('INVALID_REQUEST', 'edit.target is invalid.');
+    }
+    if (!isProposedEditOperation(edit.operation)) {
+      return createApplyError('INVALID_REQUEST', 'edit.operation is invalid.');
+    }
+    if (typeof edit.content !== 'string') {
+      return createApplyError('INVALID_REQUEST', 'edit.content must be a string.');
+    }
+
+    const { model } = getTargetBinding(edit.target);
+    const currentText = model.getValue();
+
+    if (edit.operation === 'replace_full') {
+      const beforeText = currentText;
+      if (
+        typeof options?.expectedBefore === 'string' &&
+        options.expectedBefore !== beforeText
+      ) {
+        return createApplyError(
+          'STALE_RANGE',
+          'The proposed full-replace content is stale. Please request a new proposal.'
+        );
+      }
+
+      pushReplaceOperation(edit.target, 0, beforeText.length, edit.content);
+      const appliedHandle = makeAppliedHandle();
+      appliedEditRecords.set(appliedHandle, {
+        target: edit.target,
+        operation: 'replace_full',
+        beforeText,
+        afterText: edit.content,
+      });
+      return {
+        ok: true,
+        appliedHandle,
+      };
+    }
+
+    if (
+      !edit.range ||
+      !isNonNegativeInteger(edit.range.startOffset) ||
+      !isNonNegativeInteger(edit.range.endOffset) ||
+      edit.range.endOffset < edit.range.startOffset ||
+      edit.range.endOffset > currentText.length
+    ) {
+      return createApplyError(
+        'INVALID_RANGE',
+        'replace_range requires a valid range inside the current document.'
+      );
+    }
+
+    const startOffset = edit.range.startOffset;
+    const endOffset = edit.range.endOffset;
+    const beforeText = currentText.slice(startOffset, endOffset);
+
+    if (
+      typeof options?.expectedBefore === 'string' &&
+      options.expectedBefore !== beforeText
+    ) {
+      return createApplyError(
+        'STALE_RANGE',
+        'The target range no longer matches the original proposal.'
+      );
+    }
+
+    pushReplaceOperation(edit.target, startOffset, endOffset, edit.content);
+    const appliedHandle = makeAppliedHandle();
+    appliedEditRecords.set(appliedHandle, {
+      target: edit.target,
+      operation: 'replace_range',
+      startOffset,
+      beforeText,
+      afterText: edit.content,
+    });
+
+    return {
+      ok: true,
+      appliedHandle,
+    };
+  };
+
+  const undoProposedEdit = (appliedHandle: string): UndoProposedEditResult => {
+    if (typeof appliedHandle !== 'string' || appliedHandle.trim() === '') {
+      return createUndoError('INVALID_REQUEST', 'appliedHandle must be a non-empty string.');
+    }
+
+    const record = appliedEditRecords.get(appliedHandle);
+    if (!record) {
+      return createUndoError('HANDLE_NOT_FOUND', 'The applied edit handle was not found.');
+    }
+
+    const { model } = getTargetBinding(record.target);
+    const currentText = model.getValue();
+
+    if (record.operation === 'replace_full') {
+      if (currentText !== record.afterText) {
+        return createUndoError(
+          'STALE_UNDO',
+          'The current document differs from the applied proposal. Undo was skipped.'
+        );
+      }
+      pushReplaceOperation(record.target, 0, currentText.length, record.beforeText);
+      appliedEditRecords.delete(appliedHandle);
+      return { ok: true };
+    }
+
+    const undoStart = record.startOffset;
+    const undoEnd = record.startOffset + record.afterText.length;
+
+    if (undoEnd > currentText.length) {
+      return createUndoError(
+        'STALE_UNDO',
+        'The current document differs from the applied proposal. Undo was skipped.'
+      );
+    }
+
+    const currentSlice = currentText.slice(undoStart, undoEnd);
+    if (currentSlice !== record.afterText) {
+      return createUndoError(
+        'STALE_UNDO',
+        'The current document differs from the applied proposal. Undo was skipped.'
+      );
+    }
+
+    pushReplaceOperation(record.target, undoStart, undoEnd, record.beforeText);
+    appliedEditRecords.delete(appliedHandle);
+    return { ok: true };
+  };
+
+  setProposedEditHandlers({
+    applyProposedEdit,
+    undoProposedEdit,
+  });
 
   registerSaveShortcut(htmlEditor);
   registerSaveShortcut(cssEditor);

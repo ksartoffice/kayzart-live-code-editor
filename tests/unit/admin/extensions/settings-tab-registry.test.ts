@@ -103,11 +103,25 @@ describe('settings tab registry', () => {
     expect(warnSpy).toHaveBeenCalled();
   });
 
-  it('exposes context snapshot API and allows provider updates', async () => {
+  it('exposes context and edit APIs and allows provider updates', async () => {
     const registry = await loadRegistry();
     const api = (window as any).KAYZART_EXTENSION_API;
 
     expect(api.getContextSnapshot()).toEqual({});
+    expect(
+      api.applyProposedEdit({
+        target: 'html',
+        operation: 'replace_full',
+        content: '<div>Hello</div>',
+      })
+    ).toMatchObject({
+      ok: false,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(api.undoProposedEdit('missing')).toMatchObject({
+      ok: false,
+      code: 'INTERNAL_ERROR',
+    });
 
     registry.setContextSnapshotProvider((includeKeys?: string[]) => {
       if (includeKeys?.includes('document_html')) {
@@ -125,5 +139,27 @@ describe('settings tab registry', () => {
         html: '<main>Hello</main>',
       },
     });
+
+    registry.setProposedEditHandlers({
+      applyProposedEdit: () => ({
+        ok: true,
+        appliedHandle: 'handle-1',
+      }),
+      undoProposedEdit: () => ({
+        ok: true,
+      }),
+    });
+
+    expect(
+      api.applyProposedEdit({
+        target: 'html',
+        operation: 'replace_full',
+        content: '<main>Updated</main>',
+      })
+    ).toEqual({
+      ok: true,
+      appliedHandle: 'handle-1',
+    });
+    expect(api.undoProposedEdit('handle-1')).toEqual({ ok: true });
   });
 });

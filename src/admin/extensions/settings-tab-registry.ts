@@ -40,11 +40,65 @@ export type ContextSnapshot = {
   };
 };
 
+export type ProposedEditTarget = 'html' | 'css' | 'js';
+export type ProposedEditOperation = 'replace_full' | 'replace_range';
+
+export type ProposedEdit = {
+  target: ProposedEditTarget;
+  operation: ProposedEditOperation;
+  content: string;
+  range?: {
+    startOffset: number;
+    endOffset: number;
+  };
+  summary?: string;
+};
+
+export type ApplyProposedEditOptions = {
+  expectedBefore?: string;
+};
+
+export type EditActionErrorCode =
+  | 'INVALID_REQUEST'
+  | 'INVALID_RANGE'
+  | 'STALE_RANGE'
+  | 'STALE_UNDO'
+  | 'HANDLE_NOT_FOUND'
+  | 'INTERNAL_ERROR';
+
+export type ApplyProposedEditResult =
+  | {
+      ok: true;
+      appliedHandle: string;
+    }
+  | {
+      ok: false;
+      code: EditActionErrorCode;
+      message: string;
+    };
+
+export type UndoProposedEditResult =
+  | {
+      ok: true;
+    }
+  | {
+      ok: false;
+      code: EditActionErrorCode;
+      message: string;
+    };
+
 type GetContextSnapshot = (includeKeys?: ContextKey[]) => ContextSnapshot;
+type ApplyProposedEdit = (
+  edit: ProposedEdit,
+  options?: ApplyProposedEditOptions
+) => ApplyProposedEditResult;
+type UndoProposedEdit = (appliedHandle: string) => UndoProposedEditResult;
 
 type KayzArtExtensionApi = {
   registerSettingsTab: RegisterSettingsTab;
   getContextSnapshot: GetContextSnapshot;
+  applyProposedEdit: ApplyProposedEdit;
+  undoProposedEdit: UndoProposedEdit;
 };
 
 const RESERVED_TAB_IDS = new Set(['settings', 'elements']);
@@ -53,6 +107,8 @@ const DEFAULT_ORDER = 100;
 const registry = new Map<string, RegistryEntry>();
 const listeners = new Set<Listener>();
 let contextSnapshotProvider: GetContextSnapshot | null = null;
+let applyProposedEditProvider: ApplyProposedEdit | null = null;
+let undoProposedEditProvider: UndoProposedEdit | null = null;
 let sequenceCounter = 0;
 let initialized = false;
 
@@ -165,6 +221,31 @@ function getContextSnapshotInternal(includeKeys?: ContextKey[]): ContextSnapshot
   return contextSnapshotProvider(includeKeys);
 }
 
+function applyProposedEditInternal(
+  edit: ProposedEdit,
+  options?: ApplyProposedEditOptions
+): ApplyProposedEditResult {
+  if (!applyProposedEditProvider) {
+    return {
+      ok: false,
+      code: 'INTERNAL_ERROR',
+      message: 'edit handlers are not available.',
+    };
+  }
+  return applyProposedEditProvider(edit, options);
+}
+
+function undoProposedEditInternal(appliedHandle: string): UndoProposedEditResult {
+  if (!undoProposedEditProvider) {
+    return {
+      ok: false,
+      code: 'INTERNAL_ERROR',
+      message: 'edit handlers are not available.',
+    };
+  }
+  return undoProposedEditProvider(appliedHandle);
+}
+
 export function ensureSettingsTabRegistryApi() {
   if (initialized) {
     return;
@@ -177,6 +258,8 @@ export function ensureSettingsTabRegistryApi() {
     ...(window.KAYZART_EXTENSION_API || {}),
     registerSettingsTab,
     getContextSnapshot: getContextSnapshotInternal,
+    applyProposedEdit: applyProposedEditInternal,
+    undoProposedEdit: undoProposedEditInternal,
   };
   flushQueuedTabs(registerSettingsTab);
 }
@@ -189,6 +272,28 @@ export function setContextSnapshotProvider(provider: GetContextSnapshot | null) 
   window.KAYZART_EXTENSION_API = {
     ...window.KAYZART_EXTENSION_API,
     getContextSnapshot: getContextSnapshotInternal,
+  };
+}
+
+export function setProposedEditHandlers(
+  handlers:
+    | {
+        applyProposedEdit: ApplyProposedEdit;
+        undoProposedEdit: UndoProposedEdit;
+      }
+    | null
+) {
+  applyProposedEditProvider = handlers?.applyProposedEdit || null;
+  undoProposedEditProvider = handlers?.undoProposedEdit || null;
+
+  if (!window.KAYZART_EXTENSION_API) {
+    return;
+  }
+
+  window.KAYZART_EXTENSION_API = {
+    ...window.KAYZART_EXTENSION_API,
+    applyProposedEdit: applyProposedEditInternal,
+    undoProposedEdit: undoProposedEditInternal,
   };
 }
 

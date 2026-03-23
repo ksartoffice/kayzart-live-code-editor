@@ -44,12 +44,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/app.css' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/app.css' ) )
 		);
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/app.js' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/app.js' ) )
 		);
 
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
@@ -80,12 +80,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/shortcode.css' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/shortcode.css' ) )
 		);
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/shortcode.js' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/shortcode.js' ) )
 		);
 
 		wp_set_current_user( $admin_id );
@@ -117,12 +117,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/inline.css' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/inline.css' ) )
 		);
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/inline.js' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/inline.js' ) )
 		);
 
 		wp_set_current_user( $admin_id );

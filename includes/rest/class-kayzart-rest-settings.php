@@ -262,10 +262,7 @@ class Rest_Settings {
 			if ( empty( $sanitized ) ) {
 					$prepared['meta_deletes'][] = '_kayzart_external_scripts';
 			} else {
-				$prepared['meta_updates']['_kayzart_external_scripts'] = wp_json_encode(
-					$sanitized,
-					JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
-				);
+				$prepared['meta_updates']['_kayzart_external_scripts'] = wp_json_encode( $sanitized );
 			}
 		}
 
@@ -304,10 +301,7 @@ class Rest_Settings {
 			if ( empty( $sanitized ) ) {
 					$prepared['meta_deletes'][] = '_kayzart_external_styles';
 			} else {
-					$prepared['meta_updates']['_kayzart_external_styles'] = wp_json_encode(
-						$sanitized,
-						JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
-					);
+					$prepared['meta_updates']['_kayzart_external_styles'] = wp_json_encode( $sanitized );
 			}
 		}
 

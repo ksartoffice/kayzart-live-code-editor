@@ -371,6 +371,21 @@ class Frontend {
 			}
 		}
 
+		return $css;
+	}
+
+	/**
+	 * Sanitize CSS before inline style output.
+	 *
+	 * @param string $css CSS output.
+	 * @return string
+	 */
+	private static function sanitize_inline_style_css( string $css ): string {
+		if ( '' === $css ) {
+			return '';
+		}
+
+		$css = wp_strip_all_tags( $css, false );
 		return self::escape_style_tag( $css );
 	}
 
@@ -584,7 +599,7 @@ class Frontend {
 				wp_register_style( $inline_handle, false, $inline_deps, KAYZART_VERSION );
 			}
 			wp_enqueue_style( $inline_handle );
-			wp_add_inline_style( $inline_handle, $css );
+			wp_add_inline_style( $inline_handle, self::sanitize_inline_style_css( $css ) );
 			$handles[] = $inline_handle;
 		}
 
@@ -624,7 +639,7 @@ class Frontend {
 				wp_register_style( $inline_handle, false, $inline_deps, KAYZART_VERSION );
 			}
 			wp_enqueue_style( $inline_handle );
-			wp_add_inline_style( $inline_handle, $css );
+			wp_add_inline_style( $inline_handle, self::sanitize_inline_style_css( $css ) );
 			$handles[] = $inline_handle;
 		}
 
@@ -831,7 +846,7 @@ class Frontend {
 		}
 
 		wp_enqueue_style( $handle );
-		wp_add_inline_style( $handle, $css );
+		wp_add_inline_style( $handle, self::sanitize_inline_style_css( $css ) );
 	}
 
 	/**

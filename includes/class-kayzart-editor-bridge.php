@@ -88,10 +88,14 @@ class Editor_Bridge {
 			'postType'  => Post_Type::POST_TYPE,
 			'actionUrl' => Admin::get_action_redirect_url(),
 		);
+		$json = wp_json_encode( $data );
+		if ( false === $json ) {
+			$json = '{}';
+		}
 
 		wp_add_inline_script(
 			self::SCRIPT_HANDLE,
-			'window.KAYZART_EDITOR = ' . wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ';',
+			'window.KAYZART_EDITOR = ' . $json . ';',
 			'before'
 		);
 

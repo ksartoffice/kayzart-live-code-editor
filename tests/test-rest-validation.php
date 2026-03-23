@@ -617,7 +617,8 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		}
 
 		$this->assertStringNotContainsString( '</style><script', $output, 'Inline scripts should not be injected via CSS.' );
-		$this->assertStringContainsString( '&lt;/style', $output, 'Output should escape closing style tags.' );
+		$this->assertStringNotContainsString( '<script>alert("test2");</script>', $output, 'Output should not include script payload from CSS.' );
+		$this->assertStringNotContainsString( '&lt;/style', $output, 'Output should strip escaped closing style fragments after strict filtering.' );
 	}
 
 	private function create_kayzart_post( int $author_id ): int {

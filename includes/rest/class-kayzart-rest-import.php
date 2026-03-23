@@ -342,7 +342,7 @@ class Rest_Import {
 			update_post_meta(
 				$post_id,
 				'_kayzart_external_scripts',
-				wp_json_encode( $external_scripts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+				wp_json_encode( $external_scripts )
 			);
 		}
 
@@ -352,7 +352,7 @@ class Rest_Import {
 			update_post_meta(
 				$post_id,
 				'_kayzart_external_styles',
-				wp_json_encode( $external_styles, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+				wp_json_encode( $external_styles )
 			);
 		}
 

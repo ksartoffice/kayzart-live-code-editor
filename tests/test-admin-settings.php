@@ -234,6 +234,43 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'monacoVsPath', $payload );
 	}
 
+	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		$malicious_js = '</script><script>alert("x")</script>';
+		update_post_meta( $post_id, '_kayzart_js', $malicious_js );
+
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+
+		$_GET = $original_get;
+
+		$registered = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = (string) end( $before_inline );
+
+		$this->assertStringNotContainsString( '</script>', $inline );
+		$this->assertStringContainsString( '<\\/script>', $inline );
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART = (.+);/', $inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$this->assertNotEmpty( $matches[1] ?? '' );
+
+		$payload = json_decode( $matches[1], true );
+		$this->assertIsArray( $payload );
+		$this->assertSame( $malicious_js, $payload['initialJs'] ?? '' );
+	}
+
 	public function test_enqueue_assets_fires_editor_extension_hook_with_context(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );

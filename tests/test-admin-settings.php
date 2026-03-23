@@ -114,14 +114,34 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$submenu[ $parent_slug ] = array(
 			array( __( 'All KayzArt Pages', 'kayzart-live-code-editor' ), 'edit_posts', 'edit.php?post_type=' . Post_Type::POST_TYPE ),
 			array( __( 'Add New', 'kayzart-live-code-editor' ), 'edit_posts', 'post-new.php?post_type=' . Post_Type::POST_TYPE ),
+			array( __( 'Settings', 'kayzart-live-code-editor' ), 'manage_options', Admin::SETTINGS_SLUG ),
 		);
 
 		Admin::override_new_submenu_link();
 
-		$updated_slug = (string) ( $submenu[ $parent_slug ][1][2] ?? '' );
+		$updated_slug = '';
+		$updated_label = '';
+		$updated_index = -1;
+		$settings_index = -1;
+		$items = array_values( (array) ( $submenu[ $parent_slug ] ?? array() ) );
+		foreach ( $items as $index => $item ) {
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
+			if ( str_contains( $slug, 'action=' . Admin::NEW_POST_ACTION ) ) {
+				$updated_slug  = $slug;
+				$updated_label = isset( $item[0] ) ? (string) $item[0] : '';
+				$updated_index = (int) $index;
+			}
+			if ( Admin::SETTINGS_SLUG === $slug ) {
+				$settings_index = (int) $index;
+			}
+		}
 		$submenu      = $original_submenu;
 
-		$this->assertStringNotContainsString( '&amp;', $updated_slug );
+		$this->assertNotSame( '', $updated_slug );
+		$this->assertSame( __( 'Add New KayzArt Page', 'kayzart-live-code-editor' ), $updated_label );
+		$this->assertNotSame( -1, $updated_index );
+		$this->assertNotSame( -1, $settings_index );
+		$this->assertLessThan( $settings_index, $updated_index );
 		$this->assertStringContainsString( 'action=' . Admin::NEW_POST_ACTION, $updated_slug );
 		$this->assertStringContainsString( 'post_type=' . Post_Type::POST_TYPE, $updated_slug );
 		$this->assertStringContainsString( '_wpnonce=', $updated_slug );
@@ -167,6 +187,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$original_get    = $_GET;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 		$before          = did_action( 'wp_enqueue_media' );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
@@ -189,6 +210,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$original_get    = $_GET;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
 
@@ -230,6 +252,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$original_get    = $_GET;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
 

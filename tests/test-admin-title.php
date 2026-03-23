@@ -18,6 +18,9 @@ class Test_Admin_Title extends WP_UnitTestCase {
 		if ( ! post_type_exists( Post_Type::POST_TYPE ) ) {
 			Post_Type::register();
 		}
+		if ( ! function_exists( 'set_current_screen' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/screen.php';
+		}
 
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->admin_id );
@@ -27,14 +30,15 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 	protected function tearDown(): void {
 		$_GET = $this->original_get;
+		set_current_screen( 'front' );
 		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
 
 	public function test_filter_admin_title_replaces_left_side_for_kayzart_editor(): void {
 		$post_id = $this->create_kayzart_post( 'Foo' );
+		set_current_screen( 'admin_page_' . Admin::MENU_SLUG );
 
-		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
@@ -48,8 +52,8 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 	public function test_filter_admin_title_uses_untitled_fallback_for_empty_post_title(): void {
 		$post_id = $this->create_kayzart_post( '' );
+		set_current_screen( 'admin_page_' . Admin::MENU_SLUG );
 
-		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
@@ -63,8 +67,8 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 	public function test_filter_admin_title_supports_utf8_separator_suffix(): void {
 		$post_id = $this->create_kayzart_post( 'Foo' );
+		set_current_screen( 'admin_page_' . Admin::MENU_SLUG );
 
-		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
@@ -77,7 +81,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 	}
 
 	public function test_filter_admin_title_does_not_change_other_admin_pages(): void {
-		$_GET['page'] = Admin::SETTINGS_SLUG;
+		set_current_screen( 'dashboard' );
 
 		$original = 'Settings &lsaquo; Test Site - WordPress';
 		$filtered = Admin::filter_admin_title( $original, 'Settings' );
@@ -87,8 +91,8 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 	public function test_filter_admin_title_returns_left_label_when_suffix_is_not_available(): void {
 		$post_id = $this->create_kayzart_post( 'Foo' );
+		set_current_screen( 'admin_page_' . Admin::MENU_SLUG );
 
-		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 

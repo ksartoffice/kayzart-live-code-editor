@@ -519,28 +519,20 @@ class Frontend {
 			return $content;
 		}
 
-		$had_original_shortcode_tags = array_key_exists( 'shortcode_tags', $GLOBALS );
-		$original_shortcode_tags     = $had_original_shortcode_tags ? $GLOBALS['shortcode_tags'] : null;
-		if ( ! is_array( $original_shortcode_tags ) || empty( $original_shortcode_tags ) ) {
-			return $content;
-		}
-
-		$allowed_shortcode_tags = array();
-		foreach ( $allowlist as $tag ) {
-			if ( isset( $original_shortcode_tags[ $tag ] ) ) {
-				$allowed_shortcode_tags[ $tag ] = $original_shortcode_tags[ $tag ];
-			}
-		}
-
-		if ( empty( $allowed_shortcode_tags ) ) {
-			return $content;
-		}
+		$allowed_tags = array_fill_keys( $allowlist, true );
 
 		$rendered = $content;
+		$filter   = static function ( $output, $tag, $attr, $m ) use ( $allowed_tags ) {
+			unset( $attr );
+			if ( isset( $allowed_tags[ $tag ] ) ) {
+				return $output;
+			}
+
+			return isset( $m[0] ) ? (string) $m[0] : $output;
+		};
+		add_filter( 'pre_do_shortcode_tag', $filter, 10, 4 );
+
 		try {
-
-			$GLOBALS['shortcode_tags'] = $allowed_shortcode_tags;
-
 			for ( $pass = 0; $pass < self::SHORTCODE_RENDER_MAX_PASSES; $pass++ ) {
 				$previous = $rendered;
 				$rendered = do_shortcode( $previous );
@@ -549,12 +541,7 @@ class Frontend {
 				}
 			}
 		} finally {
-			if ( $had_original_shortcode_tags ) {
-
-				$GLOBALS['shortcode_tags'] = $original_shortcode_tags;
-			} else {
-				unset( $GLOBALS['shortcode_tags'] );
-			}
+			remove_filter( 'pre_do_shortcode_tag', $filter, 10 );
 		}
 
 		return $rendered;

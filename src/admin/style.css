@@ -1755,3 +1755,22 @@ body.admin_page_kayzart #wpbody-content {
 .cm-editor .cm-tooltip .cm-textfield {
   color: #e6e8ea;
 }
+
+.cm-editor .cm-panel.cm-search [name='close'] {
+  color: #e6e8ea;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cm-editor .cm-panel.cm-search [name='close']:hover {
+  background: #333b47;
+  color: #ffffff;
+}
+
+.cm-editor .cm-panel.cm-search [name='close']:focus-visible {
+  outline: 2px solid #4c84ff;
+  outline-offset: 1px;
+  color: #ffffff;
+}

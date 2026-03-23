@@ -854,6 +854,24 @@ body.admin_page_kayzart #wpbody-content {
   height: 100%;
 }
 
+.cd-editor .cm-editor {
+  height: 100%;
+}
+
+.cd-editor .cm-scroller {
+  font-family: var(
+    --vscode-editor-font-family,
+    'SFMono-Regular',
+    Menlo,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace
+  );
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .cd-right {
   background: #111318;
   position: relative;
@@ -1473,7 +1491,6 @@ body.admin_page_kayzart #wpbody-content {
     --vscode-editor-font-family,
     'SFMono-Regular',
     Menlo,
-    Monaco,
     Consolas,
     'Liberation Mono',
     'Courier New',
@@ -1600,9 +1617,9 @@ body.admin_page_kayzart #wpbody-content {
   color: #ffb4b4;
 }
 
-/* Prevent WP core button styles from leaking into Monaco UI */
-.wp-core-ui .cd-app .monaco-editor .button,
-.wp-core-ui .cd-app .monaco-editor .button-secondary {
+/* Prevent WP core button styles from leaking into code editor UI */
+.wp-core-ui .cd-app .cm-editor .button,
+.wp-core-ui .cd-app .cm-editor .button-secondary {
   background: transparent!important;
   border: 0;
   color: inherit;
@@ -1611,18 +1628,14 @@ body.admin_page_kayzart #wpbody-content {
   vertical-align: baseline;
 }
 
-/* Monaco highlight (DOM selector -> editor) */
-.monaco-editor .cd-highlight-inline {
+/* Editor highlight (DOM selector -> editor) */
+.cm-editor .cd-highlight-inline {
   background: rgba(37, 99, 235, 0.28);
   border-bottom: 1px solid rgba(29, 78, 216, 0.95);
 }
 
-.monaco-editor .cd-highlight-line {
+.cm-editor .cd-highlight-line {
   background: rgba(37, 99, 235, 0.12);
-}
-
-.monaco-highlighted-label .highlight {
-  background-color: transparent;
 }
 
 @media (max-width: 1280px) {
@@ -1723,6 +1736,6 @@ body.admin_page_kayzart #wpbody-content {
   }
 }
 
-.monaco-editor .rename-box .rename-input{
+.cm-editor .cm-tooltip .cm-textfield {
   color: #e6e8ea;
 }

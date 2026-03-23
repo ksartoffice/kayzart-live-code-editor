@@ -3,6 +3,7 @@ import { exportKayzArt, saveKayzArt } from '../persistence';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
+import type { EditorModel } from '../codemirror';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -20,9 +21,9 @@ type SaveExportControllerDeps = {
   restCompileUrl: string;
   postId: number;
   canEditJs: boolean;
-  getHtmlModel: () => import('monaco-editor').editor.ITextModel | undefined;
-  getCssModel: () => import('monaco-editor').editor.ITextModel | undefined;
-  getJsModel: () => import('monaco-editor').editor.ITextModel | undefined;
+  getHtmlModel: () => EditorModel | undefined;
+  getCssModel: () => EditorModel | undefined;
+  getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
   getTailwindEnabled: () => boolean;
   getTailwindCss: () => string;
@@ -287,3 +288,4 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     handleExport,
   };
 }
+

@@ -685,25 +685,11 @@ class Admin {
 		$admin_script_version = self::resolve_asset_version( KAYZART_PATH . 'assets/dist/main.js' );
 		$admin_style_version  = self::resolve_asset_version( KAYZART_PATH . 'assets/dist/style.css' );
 
-		// Monaco AMD loader lives in assets/monaco/vs/loader.js.
-		wp_register_script(
-			'kayzart-monaco-loader',
-			KAYZART_URL . 'assets/monaco/vs/loader.js',
-			array(),
-			KAYZART_VERSION,
-			true
-		);
-		wp_add_inline_script(
-			'kayzart-monaco-loader',
-			'if (typeof window.define === "function" && window.define.amd) { window.__kayzartDefineAmd = window.define.amd; window.define.amd = undefined; }',
-			'after'
-		);
-
 		// Admin app bundle (Vite output).
 		wp_register_script(
 			'kayzart-admin',
 			KAYZART_URL . 'assets/dist/main.js',
-			array( 'kayzart-monaco-loader', 'wp-api-fetch', 'wp-element', 'wp-i18n', 'wp-data', 'wp-components', 'wp-notices' ),
+			array( 'wp-api-fetch', 'wp-element', 'wp-i18n', 'wp-data', 'wp-components', 'wp-notices' ),
 			$admin_script_version,
 			true
 		);
@@ -763,7 +749,6 @@ class Admin {
 			'canEditJs'            => current_user_can( 'unfiltered_html' ),
 			'previewUrl'           => $preview_url,
 			'iframePreviewUrl'     => $iframe_preview_url,
-			'monacoVsPath'         => KAYZART_URL . 'assets/monaco/vs',
 			'restUrl'              => rest_url( 'kayzart/v1/save' ),
 			'restCompileUrl'       => rest_url( 'kayzart/v1/compile-tailwind' ),
 			'setupRestUrl'         => rest_url( 'kayzart/v1/setup' ),

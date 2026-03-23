@@ -10,7 +10,6 @@ export type AppConfig = {
   canEditJs: boolean;
   previewUrl: string;
   iframePreviewUrl?: string;
-  monacoVsPath: string;
   restUrl: string;
   restCompileUrl: string;
   setupRestUrl: string;

@@ -8,7 +8,12 @@ import {
 import { runSetupWizard } from './setup-wizard';
 import { mountToolbar, type ToolbarApi } from './toolbar';
 import { buildEditorShell } from './editor-shell';
-import { initMonacoEditors, type MonacoType } from './monaco';
+import {
+  initCodeMirrorEditors,
+  type CodeMirrorType,
+  type CodeEditorInstance,
+  type EditorModel,
+} from './codemirror';
 import { createPreviewController, type PreviewController } from './preview';
 import { getEditableElementAttributes, getEditableElementText } from './element-text';
 import {
@@ -41,8 +46,6 @@ declare const wp: any;
 declare global {
   interface Window {
     KAYZART: AppConfig;
-    monaco?: MonacoType;
-    require?: any; // AMD loader
   }
 }
 
@@ -141,13 +144,13 @@ async function main() {
   let tailwindEnabled = initialState.tailwindEnabled;
   let htmlWordWrapMode: HtmlWordWrapMode = readHtmlWordWrapMode();
 
-  let monaco: MonacoType;
-  let htmlModel: import('monaco-editor').editor.ITextModel;
-  let cssModel: import('monaco-editor').editor.ITextModel;
-  let jsModel: import('monaco-editor').editor.ITextModel;
-  let htmlEditor: import('monaco-editor').editor.IStandaloneCodeEditor;
-  let cssEditor: import('monaco-editor').editor.IStandaloneCodeEditor;
-  let jsEditor: import('monaco-editor').editor.IStandaloneCodeEditor;
+  let codemirror: CodeMirrorType;
+  let htmlModel: EditorModel;
+  let cssModel: EditorModel;
+  let jsModel: EditorModel;
+  let htmlEditor: CodeEditorInstance;
+  let cssEditor: CodeEditorInstance;
+  let jsEditor: CodeEditorInstance;
   let tailwindCss = initialState.importedGeneratedCss;
   let settingsOpen = false;
   let activeSettingsTab = 'settings';
@@ -357,25 +360,25 @@ async function main() {
   };
 
   const registerSaveShortcut = (
-    editorInstance: import('monaco-editor').editor.IStandaloneCodeEditor
+    editorInstance: CodeEditorInstance
   ) => {
     editorInstance.addAction({
       id: 'kayzart.save',
       label: __( 'Save', 'kayzart-live-code-editor'),
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+      keybindings: [codemirror.KeyMod.CtrlCmd | codemirror.KeyCode.KeyS],
       run: runSaveShortcut,
     });
   };
 
   const registerHtmlWordWrapAction = (
-    editorInstance: import('monaco-editor').editor.IStandaloneCodeEditor
+    editorInstance: CodeEditorInstance
   ) => {
     editorInstance.addAction({
       id: 'kayzart.toggleHtmlWordWrap',
       label: __( 'Toggle HTML word wrap', 'kayzart-live-code-editor'),
       contextMenuGroupId: '1_modification',
       contextMenuOrder: 2.5,
-      keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.KeyZ],
+      keybindings: [codemirror.KeyMod.Alt | codemirror.KeyCode.KeyZ],
       run: () => {
         htmlWordWrapMode = htmlWordWrapMode === 'on' ? 'off' : 'on';
         editorInstance.updateOptions({ wordWrap: htmlWordWrapMode });
@@ -473,7 +476,7 @@ async function main() {
       canUndo: false,
       canRedo: false,
       editorCollapsed: viewportController.isEditorCollapsed(),
-      compactEditorMode: editorUiController?.isCompactEditorMode() ?? false,
+      compactEditorMode: false,
       settingsOpen,
       tailwindEnabled,
       viewportMode: viewportController.getViewportMode(),
@@ -574,15 +577,14 @@ async function main() {
   );
   syncNoticeOffset();
   window.setTimeout(syncNoticeOffset, 0);
-  createSnackbar('info', __( 'Loading Monaco...', 'kayzart-live-code-editor'), NOTICE_IDS.monaco);
+  createSnackbar('info', __( 'Loading editor...', 'kayzart-live-code-editor'), NOTICE_IDS.editor);
 
   // iframe
   ui.iframe.src = getPreviewUrl();
 
-  // Monaco
-  const monacoSetup = await initMonacoEditors({
-    vsPath: cfg.monacoVsPath,
-    initialHtml: initialState.initialHtml,
+  // CodeMirror
+  const codeMirrorSetup = await initCodeMirrorEditors({
+        initialHtml: initialState.initialHtml,
     initialCss: initialState.initialCss,
     initialJs: initialState.initialJs,
     htmlWordWrap: htmlWordWrapMode,
@@ -594,14 +596,14 @@ async function main() {
     jsContainer: ui.jsEditorDiv,
   });
 
-  ({ monaco, htmlModel, cssModel, jsModel, htmlEditor, cssEditor, jsEditor } = monacoSetup);
+  ({ codemirror, htmlModel, cssModel, jsModel, htmlEditor, cssEditor, jsEditor } = codeMirrorSetup);
 
   registerSaveShortcut(htmlEditor);
   registerSaveShortcut(cssEditor);
   registerSaveShortcut(jsEditor);
   registerHtmlWordWrapAction(htmlEditor);
 
-  removeNotice(NOTICE_IDS.monaco);
+  removeNotice(NOTICE_IDS.editor);
   markSavedState();
 
   const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -622,7 +624,7 @@ async function main() {
       [],
       [
         {
-          range: new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column),
+          range: new codemirror.Range(start.lineNumber, start.column, end.lineNumber, end.column),
           text: nextText,
         },
       ],
@@ -636,7 +638,7 @@ async function main() {
     const cursor = htmlEditor.getPosition();
     const range =
       selection ||
-      new monaco.Range(
+      new codemirror.Range(
         cursor?.lineNumber || 1,
         cursor?.column || 1,
         cursor?.lineNumber || 1,
@@ -652,7 +654,7 @@ async function main() {
           return null;
         }
         const end = inverseRange.getEndPosition();
-        return [new monaco.Selection(end.lineNumber, end.column, end.lineNumber, end.column)];
+        return [new codemirror.Selection(end.lineNumber, end.column, end.lineNumber, end.column)];
       }
     );
     htmlEditor.pushUndoStop();
@@ -833,7 +835,6 @@ async function main() {
     iframe: ui.iframe,
     postId,
     targetOrigin,
-    monaco,
     htmlModel,
     cssModel,
     jsModel,
@@ -1070,6 +1071,7 @@ main().catch((e) => {
   // eslint-disable-next-line no-console
   console.error(e);
 });
+
 
 
 

@@ -135,16 +135,16 @@ class Editor_Bridge {
 	 * @return int
 	 */
 	private static function resolve_post_id(): int {
-		$post_id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-		if ( ! $post_id ) {
-			$post = get_post();
-			if ( $post && Post_Type::POST_TYPE === $post->post_type ) {
-				$post_id = (int) $post->ID;
-			}
+		$post = get_post();
+		if ( ! $post || Post_Type::POST_TYPE !== $post->post_type ) {
+			return 0;
 		}
 
-		return $post_id;
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return 0;
+		}
+
+		return (int) $post->ID;
 	}
 
 	/**

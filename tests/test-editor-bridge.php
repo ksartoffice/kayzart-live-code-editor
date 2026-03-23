@@ -62,11 +62,13 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( '', get_post_meta( $normal_id, '_kayzart_setup_required', true ) );
 	}
 
-	public function test_resolve_post_id_prefers_query_post_and_falls_back_to_global_post(): void {
+	public function test_resolve_post_id_uses_global_post_with_edit_permission(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
 		$first_id = $this->create_post( Post_Type::POST_TYPE );
 		$_GET['post'] = (string) $first_id;
-
-		$this->assertSame( $first_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
+		$this->assertSame( 0, $this->invoke_private_int_method( 'resolve_post_id' ) );
 
 		unset( $_GET['post'] );
 

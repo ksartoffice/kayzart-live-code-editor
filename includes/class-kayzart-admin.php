@@ -22,6 +22,7 @@ class Admin {
 	const NEW_POST_ACTION              = 'kayzart_new';
 	const NEW_POST_NONCE_ACTION        = 'kayzart_new_post';
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
+	const EDITOR_PAGE_NONCE_ACTION     = 'kayzart_editor_page';
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_SHORTCODE_ALLOWLIST   = 'kayzart_shortcode_allowlist';
@@ -114,10 +115,20 @@ class Admin {
 	 * @return string
 	 */
 	private static function resolve_editor_post_title(): string {
+
 		$fallback_title = __( 'Untitled', 'kayzart-live-code-editor' );
-		$post_id        = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$post_id        = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
 		if ( ! $post_id ) {
 			return $fallback_title;
+		}
+
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, self::EDITOR_PAGE_NONCE_ACTION ) ) {
+			return $fallback_title;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+				return $fallback_title;
 		}
 
 		$post = get_post( $post_id );
@@ -180,21 +191,20 @@ class Admin {
 	 * Redirect new KayzArt posts directly to the custom editor.
 	 */
 	public static function maybe_redirect_new_post(): void {
-		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( $_GET['post_type'] ) : 'post'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( Post_Type::POST_TYPE !== $post_type ) {
-			return;
-		}
 
+		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( wp_unslash( (string) $_GET['post_type'] ) ) : 'post';
+		if ( Post_Type::POST_TYPE !== $post_type ) {
+				return;
+		}
 		$post_type_object = get_post_type_object( $post_type );
 		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
-
 		wp_safe_redirect( self::get_new_post_action_url() );
 		exit;
 	}
@@ -203,21 +213,18 @@ class Admin {
 	 * Create a new KayzArt draft post from a nonce-protected admin action.
 	 */
 	public static function action_create_new_post(): void {
-		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( $_GET['post_type'] ) : Post_Type::POST_TYPE; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( Post_Type::POST_TYPE !== $post_type ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
+
+		$post_type = Post_Type::POST_TYPE;
 
 		$post_type_object = get_post_type_object( $post_type );
 		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
-
 		$post_id = wp_insert_post(
 			array(
 				'post_type'   => $post_type,
@@ -304,6 +311,7 @@ class Admin {
 	 * @return string
 	 */
 	private static function get_new_post_action_url(): string {
+
 		return add_query_arg(
 			array(
 				'action'    => self::NEW_POST_ACTION,
@@ -318,6 +326,7 @@ class Admin {
 	 * Replace the default KayzArt "Add New" submenu URL with the nonce-protected action URL.
 	 */
 	public static function override_new_submenu_link(): void {
+
 		global $submenu;
 
 		$parent_slug = 'edit.php?post_type=' . Post_Type::POST_TYPE;
@@ -347,7 +356,6 @@ class Admin {
 			$submenu[ $parent_slug ][ $index ][2] = self::get_new_post_action_url();
 		}
 	}
-
 	/**
 	 * Register the hidden admin page entry.
 	 */

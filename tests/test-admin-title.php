@@ -10,6 +10,7 @@ use KayzArt\Post_Type;
 
 class Test_Admin_Title extends WP_UnitTestCase {
 	private array $original_get = array();
+	private int $admin_id = 0;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -18,11 +19,15 @@ class Test_Admin_Title extends WP_UnitTestCase {
 			Post_Type::register();
 		}
 
+		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $this->admin_id );
+
 		$this->original_get = $_GET;
 	}
 
 	protected function tearDown(): void {
 		$_GET = $this->original_get;
+		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
 
@@ -31,6 +36,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title(
 			'KayzArt &lsaquo; Test Site - WordPress',
@@ -45,6 +51,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title(
 			'KayzArt &lsaquo; Test Site - WordPress',
@@ -59,6 +66,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title(
 			'KayzArt ' . "\xE2\x80\xB9" . ' Test Site - WordPress',
@@ -82,6 +90,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 		$_GET['page']    = Admin::MENU_SLUG;
 		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title( 'KayzArt', 'KayzArt' );
 

@@ -105,7 +105,7 @@ class Admin {
 	 * @return bool
 	 */
 	private static function is_editor_page_request(): bool {
-		$page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : '';
 		return self::MENU_SLUG === $page;
 	}
 
@@ -169,11 +169,11 @@ class Admin {
 	 * Redirect from admin.php?action=kayzart to the custom editor page.
 	 */
 	public static function action_redirect(): void {
-		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0;
 		if ( ! $post_id ) {
 			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 		}
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, self::REDIRECT_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
@@ -677,7 +677,7 @@ class Admin {
 	 * Render the admin editor container.
 	 */
 	public static function render_page(): void {
-		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0;
 		if ( ! $post_id ) {
 			echo '<div class="wrap"><h1>' . esc_html__( 'KayzArt', 'kayzart-live-code-editor' ) . '</h1><p>' . esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) . '</p></div>';
 			return;
@@ -721,7 +721,7 @@ class Admin {
 			return;
 		}
 
-		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0;
 		if ( ! $post_id || ! Post_Type::is_kayzart_post( $post_id ) ) {
 			return;
 		}

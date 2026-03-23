@@ -538,7 +538,7 @@ class Frontend {
 
 		$rendered = $content;
 		try {
-			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Temporarily scope shortcode execution to the allowlist.
+
 			$GLOBALS['shortcode_tags'] = $allowed_shortcode_tags;
 
 			for ( $pass = 0; $pass < self::SHORTCODE_RENDER_MAX_PASSES; $pass++ ) {
@@ -550,7 +550,7 @@ class Frontend {
 			}
 		} finally {
 			if ( $had_original_shortcode_tags ) {
-              // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore previous global state.
+
 				$GLOBALS['shortcode_tags'] = $original_shortcode_tags;
 			} else {
 				unset( $GLOBALS['shortcode_tags'] );

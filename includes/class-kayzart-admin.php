@@ -693,7 +693,6 @@ class Admin {
 			$admin_script_version,
 			true
 		);
-
 		wp_register_style(
 			'kayzart-admin',
 			KAYZART_URL . 'assets/dist/style.css',

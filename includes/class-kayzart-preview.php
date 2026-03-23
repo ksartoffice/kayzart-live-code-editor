@@ -101,6 +101,9 @@ class Preview {
 		if ( false === has_filter( 'wp_headers', array( __CLASS__, 'filter_preview_headers' ) ) ) {
 			add_filter( 'wp_headers', array( __CLASS__, 'filter_preview_headers' ) );
 		}
+		if ( false === has_filter( 'nocache_headers', array( __CLASS__, 'filter_nocache_headers' ) ) ) {
+			add_filter( 'nocache_headers', array( __CLASS__, 'filter_nocache_headers' ) );
+		}
 		add_filter( 'show_admin_bar', '__return_false' );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'disable_admin_bar_assets' ), 100 );
 		remove_action( 'wp_head', '_admin_bar_bump_cb' );
@@ -112,9 +115,6 @@ class Preview {
 			remove_filter( 'the_content', 'shortcode_unautop' );
 		}
 
-		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
-			define( 'DONOTCACHEPAGE', true );
-		}
 		nocache_headers();
 	}
 
@@ -138,6 +138,23 @@ class Preview {
 		$sources = array_values( array_unique( $sources ) );
 
 		$headers['Content-Security-Policy'] = 'frame-ancestors ' . implode( ' ', $sources );
+		return $headers;
+	}
+
+	/**
+	 * Force no-cache headers for preview requests only.
+	 *
+	 * @param array $headers Existing no-cache headers.
+	 * @return array
+	 */
+	public static function filter_nocache_headers( array $headers ): array {
+		if ( ! self::$is_preview ) {
+			return $headers;
+		}
+
+		$headers['Expires']       = 'Wed, 11 Jan 1984 05:00:00 GMT';
+		$headers['Cache-Control'] = 'no-cache, must-revalidate, max-age=0, no-store, private';
+		$headers['Pragma']        = 'no-cache';
 		return $headers;
 	}
 	/**

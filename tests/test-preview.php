@@ -103,7 +103,7 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( 'Invalid post type.', 'kayzart-live-code-editor'), $message );
 	}
 
-	public function test_preview_allows_valid_request(): void {
+	public function test_preview_registers_nocache_header_filter_for_valid_request(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -113,7 +113,21 @@ class Test_Preview extends WP_UnitTestCase {
 
 		Preview::maybe_handle_preview();
 
-		$this->assertTrue( defined( 'DONOTCACHEPAGE' ) );
+		$this->assertNotFalse(
+			has_filter( 'nocache_headers', array( Preview::class, 'filter_nocache_headers' ) )
+		);
+	}
+
+	public function test_preview_forces_expected_nocache_headers(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		$this->start_preview_request( $post_id, $admin_id );
+		$headers = apply_filters( 'nocache_headers', array() );
+
+		$this->assertSame( 'no-cache, must-revalidate, max-age=0, no-store, private', $headers['Cache-Control'] ?? '' );
+		$this->assertSame( 'no-cache', $headers['Pragma'] ?? '' );
+		$this->assertSame( 'Wed, 11 Jan 1984 05:00:00 GMT', $headers['Expires'] ?? '' );
 	}
 
 	public function test_preview_headers_include_frame_ancestors_policy(): void {
@@ -393,6 +407,7 @@ class Test_Preview extends WP_UnitTestCase {
 			$property->setValue( null, $value );
 		}
 		remove_filter( 'wp_headers', array( Preview::class, 'filter_preview_headers' ) );
+		remove_filter( 'nocache_headers', array( Preview::class, 'filter_nocache_headers' ) );
 	}
 
 	private function restore_query_globals(): void {

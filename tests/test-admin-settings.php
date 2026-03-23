@@ -103,6 +103,30 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( '_wpnonce=', $node->href );
 	}
 
+	public function test_override_new_submenu_link_replaces_add_new_slug(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $submenu;
+		$original_submenu = $submenu;
+		$parent_slug      = 'edit.php?post_type=' . Post_Type::POST_TYPE;
+		$submenu          = is_array( $submenu ) ? $submenu : array();
+		$submenu[ $parent_slug ] = array(
+			array( __( 'All KayzArt Pages', 'kayzart-live-code-editor' ), 'edit_posts', 'edit.php?post_type=' . Post_Type::POST_TYPE ),
+			array( __( 'Add New', 'kayzart-live-code-editor' ), 'edit_posts', 'post-new.php?post_type=' . Post_Type::POST_TYPE ),
+		);
+
+		Admin::override_new_submenu_link();
+
+		$updated_slug = (string) ( $submenu[ $parent_slug ][1][2] ?? '' );
+		$submenu      = $original_submenu;
+
+		$this->assertStringNotContainsString( '&amp;', $updated_slug );
+		$this->assertStringContainsString( 'action=' . Admin::NEW_POST_ACTION, $updated_slug );
+		$this->assertStringContainsString( 'post_type=' . Post_Type::POST_TYPE, $updated_slug );
+		$this->assertStringContainsString( '_wpnonce=', $updated_slug );
+	}
+
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {
 		update_option( Admin::OPTION_FLUSH_REWRITE, '0' );
 

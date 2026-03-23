@@ -38,6 +38,7 @@ class Admin {
 	public static function init(): void {
 
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
+		add_action( 'admin_menu', array( __CLASS__, 'override_new_submenu_link' ), 999 );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'admin_title', array( __CLASS__, 'filter_admin_title' ), 10, 2 );
@@ -190,7 +191,7 @@ class Admin {
 		}
 
 		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( '' !== $nonce && ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
+		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 
@@ -311,6 +312,40 @@ class Admin {
 			),
 			admin_url( 'admin.php' )
 		);
+	}
+
+	/**
+	 * Replace the default KayzArt "Add New" submenu URL with the nonce-protected action URL.
+	 */
+	public static function override_new_submenu_link(): void {
+		global $submenu;
+
+		$parent_slug = 'edit.php?post_type=' . Post_Type::POST_TYPE;
+		if ( empty( $submenu[ $parent_slug ] ) || ! is_array( $submenu[ $parent_slug ] ) ) {
+			return;
+		}
+
+		foreach ( $submenu[ $parent_slug ] as $index => $item ) {
+			$item_slug = isset( $item[2] ) ? (string) $item[2] : '';
+			if ( '' === $item_slug ) {
+				continue;
+			}
+
+			$parts     = wp_parse_url( str_replace( '&amp;', '&', $item_slug ) );
+			$route     = isset( $parts['path'] ) ? basename( (string) $parts['path'] ) : '';
+			$query     = array();
+			$post_type = 'post';
+			if ( ! empty( $parts['query'] ) ) {
+				parse_str( (string) $parts['query'], $query );
+				$post_type = isset( $query['post_type'] ) ? sanitize_key( (string) $query['post_type'] ) : 'post';
+			}
+
+			if ( 'post-new.php' !== $route || Post_Type::POST_TYPE !== $post_type ) {
+				continue;
+			}
+
+			$submenu[ $parent_slug ][ $index ][2] = self::get_new_post_action_url();
+		}
 	}
 
 	/**

@@ -1,6 +1,7 @@
 /.git
 /.github
 /.gitignore
+/.gitattributes
 /.distignore
 /AGENTS.md
 /STYLEGUIDE.md
@@ -36,3 +37,4 @@
 /vendor/bin/tailwindphp
 /vendor/bin/tailwindphp.bat
 /vendor/tailwindphp/tailwindphp/bin/tailwindphp
+/vendor/**/.gitattributes

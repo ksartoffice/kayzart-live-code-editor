@@ -50,12 +50,17 @@ declare global {
 }
 
 const COMPACT_EDITOR_BREAKPOINT = 900;
-const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
+const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.wordWrap.html';
+const LEGACY_HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
 type HtmlWordWrapMode = 'off' | 'on';
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
   try {
-    return window.localStorage.getItem(HTML_WORD_WRAP_STORAGE_KEY) === 'on' ? 'on' : 'off';
+    const saved = window.localStorage.getItem(HTML_WORD_WRAP_STORAGE_KEY);
+    if (saved === 'on' || saved === 'off') {
+      return saved;
+    }
+    return window.localStorage.getItem(LEGACY_HTML_WORD_WRAP_STORAGE_KEY) === 'on' ? 'on' : 'off';
   } catch {
     return 'off';
   }
@@ -64,6 +69,7 @@ const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
 const saveHtmlWordWrapMode = (mode: HtmlWordWrapMode) => {
   try {
     window.localStorage.setItem(HTML_WORD_WRAP_STORAGE_KEY, mode);
+    window.localStorage.removeItem(LEGACY_HTML_WORD_WRAP_STORAGE_KEY);
   } catch {
     // Ignore storage errors and keep editing.
   }
@@ -378,11 +384,33 @@ async function main() {
       label: __( 'Toggle HTML word wrap', 'kayzart-live-code-editor'),
       keybindings: [codemirror.KeyMod.Alt | codemirror.KeyCode.KeyZ],
       run: () => {
-        htmlWordWrapMode = htmlWordWrapMode === 'on' ? 'off' : 'on';
-        editorInstance.updateOptions({ wordWrap: htmlWordWrapMode });
-        saveHtmlWordWrapMode(htmlWordWrapMode);
+        toggleHtmlWordWrapMode(editorInstance);
       },
     });
+  };
+
+  const getHtmlWordWrapToggleLabel = (mode: HtmlWordWrapMode) =>
+    mode === 'on'
+      ? __( 'Wrap: On', 'kayzart-live-code-editor')
+      : __( 'Wrap: Off', 'kayzart-live-code-editor');
+
+  const syncHtmlWordWrapToggleButton = () => {
+    const label = getHtmlWordWrapToggleLabel(htmlWordWrapMode);
+    ui.htmlWordWrapButton.textContent = label;
+    ui.htmlWordWrapButton.setAttribute('title', label);
+    ui.htmlWordWrapButton.setAttribute('aria-label', label);
+    ui.htmlWordWrapButton.setAttribute('aria-pressed', htmlWordWrapMode === 'on' ? 'true' : 'false');
+    ui.htmlWordWrapButton.classList.toggle('is-active', htmlWordWrapMode === 'on');
+  };
+
+  const toggleHtmlWordWrapMode = (editorInstance?: CodeEditorInstance) => {
+    htmlWordWrapMode = htmlWordWrapMode === 'on' ? 'off' : 'on';
+    const targetEditor = editorInstance || htmlEditor;
+    if (targetEditor) {
+      targetEditor.updateOptions({ wordWrap: htmlWordWrapMode });
+    }
+    saveHtmlWordWrapMode(htmlWordWrapMode);
+    syncHtmlWordWrapToggleButton();
   };
 
   const basePreviewUrl = cfg.iframePreviewUrl || cfg.previewUrl;
@@ -575,6 +603,10 @@ async function main() {
   );
   syncNoticeOffset();
   window.setTimeout(syncNoticeOffset, 0);
+  syncHtmlWordWrapToggleButton();
+  ui.htmlWordWrapButton.addEventListener('click', () => {
+    toggleHtmlWordWrapMode();
+  });
   createSnackbar('info', __( 'Loading editor...', 'kayzart-live-code-editor'), NOTICE_IDS.editor);
 
   // iframe

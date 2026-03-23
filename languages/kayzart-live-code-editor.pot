@@ -934,6 +934,14 @@ msgid "Setup wizard unavailable."
 msgstr ""
 
 #: assets/dist/main.js:127
+msgid "Wrap: On"
+msgstr ""
+
+#: assets/dist/main.js:127
+msgid "Wrap: Off"
+msgstr ""
+
+#: assets/dist/main.js:127
 msgid "Toggle HTML word wrap"
 msgstr ""
 

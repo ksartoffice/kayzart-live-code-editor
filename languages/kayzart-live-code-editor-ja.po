@@ -902,6 +902,14 @@ msgid "Setup wizard unavailable."
 msgstr "セットアップウィザードを利用できません。"
 
 #: assets/dist/main.js:127
+msgid "Wrap: On"
+msgstr "折り返し: オン"
+
+#: assets/dist/main.js:127
+msgid "Wrap: Off"
+msgstr "折り返し: オフ"
+
+#: assets/dist/main.js:127
 msgid "Toggle HTML word wrap"
 msgstr "HTML の折り返しを切り替え"
 

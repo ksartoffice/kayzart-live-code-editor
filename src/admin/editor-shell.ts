@@ -19,6 +19,7 @@ type EditorShellRefs = {
   htmlHeader: HTMLDivElement;
   htmlTitle: HTMLSpanElement;
   addMediaButton: HTMLButtonElement;
+  htmlWordWrapButton: HTMLButtonElement;
   htmlEditorDiv: HTMLDivElement;
   cssEditorDiv: HTMLDivElement;
   jsEditorDiv: HTMLDivElement;
@@ -177,7 +178,12 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   addMediaButton.type = 'button';
   addMediaButton.className = 'cd-editorAction cd-editorAction-media';
   addMediaButton.textContent = __( 'Add Media', 'kayzart-live-code-editor');
-  htmlActions.append(addMediaButton);
+  const htmlWordWrapButton = document.createElement('button');
+  htmlWordWrapButton.type = 'button';
+  htmlWordWrapButton.className = 'cd-editorAction cd-editorAction-wrap';
+  htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
+  htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
+  htmlActions.append(addMediaButton, htmlWordWrapButton);
   htmlHeader.append(htmlTitle, htmlActions);
   const htmlWrap = el('div', 'cd-editorWrap');
   const htmlEditorDiv = el('div', 'cd-editor cd-editor-html');
@@ -258,6 +264,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     htmlHeader,
     htmlTitle,
     addMediaButton,
+    htmlWordWrapButton,
     htmlEditorDiv,
     cssEditorDiv,
     jsEditorDiv,

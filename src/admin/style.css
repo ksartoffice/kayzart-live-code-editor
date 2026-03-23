@@ -823,6 +823,22 @@ body.admin_page_kayzart #wpbody-content {
   cursor: pointer;
 }
 
+.cd-editorAction-wrap {
+  min-width: 96px;
+  text-align: center;
+}
+
+.cd-editorAction.is-active {
+  background: #2f6feb;
+  border-color: #2f6feb;
+  color: #fff;
+}
+
+.cd-editorAction.is-active:hover {
+  background: #3b7cff;
+  border-color: #3b7cff;
+}
+
 .cd-editorAction:hover {
   background: #333b47;
 }

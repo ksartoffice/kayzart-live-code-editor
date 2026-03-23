@@ -5,7 +5,7 @@ KayzArt Live Code Editor – Live HTML/CSS/JS Editor with Tailwind CSS
 ----
 - KayzArt専用のカスタム投稿タイプ `kayzart` を登録し、通常の投稿/固定ページは対象外。
 - 新規作成時は専用エディタ (`admin.php?page=kayzart`) へ自動遷移。既存投稿ではブロック/クラシックに「Edit with KayzArt」ボタンを追加して遷移。
-- Monaco Editor で HTML/CSS/JavaScript を編集し、右側 iframe に実フロントを即時プレビュー。
+- CodeMirror 6 で HTML/CSS/JavaScript を編集し、右側 iframe に実フロントを即時プレビュー。
 - 管理一覧には TailwindCSS 使用状態を表示。
 
 編集UI (React)

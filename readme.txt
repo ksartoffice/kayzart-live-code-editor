@@ -1,10 +1,10 @@
 === KayzArt Live Code Editor ===
 Contributors: ksartoffice
-Tags: live preview, code editor, monaco, tailwind, shortcode
+Tags: live preview, code editor, codemirror, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,7 +15,7 @@ KayzArt Live Code Editor provides a dedicated editor for building HTML, CSS, and
 
 Features:
 * Custom KayzArt post type and dedicated editor
-* Monaco Editor with HTML/CSS/JS tabs and live iframe preview
+* CodeMirror 6 editor with HTML/CSS/JS tabs and live iframe preview
 * JavaScript ES Module support with execution type switch (Classic / Module)
 * Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
 * Tailwind mode with on-demand Tailwind CSS v4 compilation
@@ -90,6 +90,9 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.3.0 =
+* Replace Monaco with CodeMirror 6 and remove Monaco bundled assets/loader.
+
 = 1.2.1 =
 * Fix: Minor internal code cleanup
 
@@ -115,5 +118,6 @@ Build commands:
 
 == Credits ==
 This plugin bundles third-party libraries:
-* Monaco Editor - MIT License (see assets/monaco/LICENSE) - https://github.com/microsoft/monaco-editor
+* CodeMirror - MIT License - https://github.com/codemirror
+* Emmet CodeMirror 6 Plugin - MIT License - https://github.com/emmetio/codemirror6-plugin
 * TailwindPHP (fork) - MIT License - https://github.com/ksartoffice/tailwindphp (upstream: https://github.com/dnnsjsk/tailwindphp)

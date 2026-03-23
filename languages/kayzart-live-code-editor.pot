@@ -620,7 +620,7 @@ msgid "Normal (HTML/CSS)"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Edit HTML and CSS directly with Monaco."
+msgid "Edit HTML and CSS directly in the code editor."
 msgstr ""
 
 #: assets/dist/main.js:106
@@ -934,11 +934,19 @@ msgid "Setup wizard unavailable."
 msgstr ""
 
 #: assets/dist/main.js:127
+msgid "Wrap: On"
+msgstr ""
+
+#: assets/dist/main.js:127
+msgid "Wrap: Off"
+msgstr ""
+
+#: assets/dist/main.js:127
 msgid "Toggle HTML word wrap"
 msgstr ""
 
 #: assets/dist/main.js:127
-msgid "Loading Monaco..."
+msgid "Loading editor..."
 msgstr ""
 
 #: assets/dist/main.js:127

@@ -1,6 +1,7 @@
-﻿import type { EditorShellRefs } from '../editor-shell';
+import type { EditorShellRefs } from '../editor-shell';
+import type { CodeEditorInstance } from '../codemirror';
 
-type EditorInstance = import('monaco-editor').editor.IStandaloneCodeEditor;
+type EditorInstance = CodeEditorInstance;
 type CssTab = 'css' | 'js';
 type CompactEditorTab = 'html' | 'css' | 'js';
 
@@ -201,13 +202,13 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     updateJsUi();
   };
 
-  const isMonacoWidgetClick = (event: MouseEvent) => {
+  const isEditorWidgetClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Node)) {
       return false;
     }
     const targetElement = target instanceof Element ? target : target.parentElement;
-    return Boolean(targetElement?.closest('.editor-widget'));
+    return Boolean(targetElement?.closest('.cm-tooltip'));
   };
 
   const isInteractiveControlClick = (event: MouseEvent) => {
@@ -229,13 +230,13 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
   const initialize = () => {
     setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
     deps.ui.htmlPane.addEventListener('click', (event) => {
-      if (isMonacoWidgetClick(event) || isInteractiveControlClick(event)) {
+      if (isEditorWidgetClick(event) || isInteractiveControlClick(event)) {
         return;
       }
       deps.htmlEditor.focus();
     });
     deps.ui.cssPane.addEventListener('click', (event) => {
-      if (isMonacoWidgetClick(event) || isInteractiveControlClick(event)) {
+      if (isEditorWidgetClick(event) || isInteractiveControlClick(event)) {
         return;
       }
       if (activeCssTab === 'js') {
@@ -303,5 +304,6 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     syncTailwindState,
   };
 }
+
 
 

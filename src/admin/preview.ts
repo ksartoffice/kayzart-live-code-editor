@@ -1,6 +1,6 @@
 import * as parse5 from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
-import type { MonacoType } from './monaco';
+import { EditorRange, type CodeEditorInstance, type EditorModel } from './codemirror';
 import type { JsMode } from './types/js-mode';
 import {
   mediaQueriesMatch,
@@ -43,12 +43,11 @@ type PreviewControllerDeps = {
   iframe: HTMLIFrameElement;
   postId: number;
   targetOrigin: string;
-  monaco: MonacoType;
-  htmlModel: import('monaco-editor').editor.ITextModel;
-  cssModel: import('monaco-editor').editor.ITextModel;
-  jsModel: import('monaco-editor').editor.ITextModel;
-  htmlEditor: import('monaco-editor').editor.IStandaloneCodeEditor;
-  cssEditor: import('monaco-editor').editor.IStandaloneCodeEditor;
+  htmlModel: EditorModel;
+  cssModel: EditorModel;
+  jsModel: EditorModel;
+  htmlEditor: CodeEditorInstance;
+  cssEditor: CodeEditorInstance;
   focusHtmlEditor: () => void;
   getPreviewCss: () => string;
   getShadowDomEnabled: () => boolean;
@@ -180,7 +179,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let selectionDecorations: string[] = [];
   let cssSelectionDecorations: string[] = [];
   let lastSelectedLcId: string | null = null;
-  const overviewHighlightColor = 'rgba(96, 165, 250, 0.35)';
   let elementsTabOpen = false;
 
   const getCanonical = () => {
@@ -443,7 +441,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         const startPos = deps.cssModel.getPositionAt(rule.startOffset);
         const endPos = deps.cssModel.getPositionAt(rule.endOffset);
         return {
-          range: new deps.monaco.Range(
+          range: new EditorRange(
             startPos.lineNumber,
             startPos.column,
             endPos.lineNumber,
@@ -452,10 +450,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
           options: {
             className: 'cd-highlight-line',
             inlineClassName: 'cd-highlight-inline',
-            overviewRuler: {
-              color: overviewHighlightColor,
-              position: deps.monaco.editor.OverviewRulerLane.Full,
-            },
           },
         };
       })
@@ -464,26 +458,26 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     if (first) {
       const startPos = deps.cssModel.getPositionAt(first.startOffset);
       const endPos = deps.cssModel.getPositionAt(first.endOffset);
-      const range = new deps.monaco.Range(
+      const range = new EditorRange(
         startPos.lineNumber,
         startPos.column,
         endPos.lineNumber,
         endPos.column
       );
-      deps.cssEditor.revealRangeInCenter(range, deps.monaco.editor.ScrollType.Smooth);
+      deps.cssEditor.revealRangeInCenter(range);
     }
   };
 
   const highlightByLcId = (lcId: string) => {
     const rangeInfo = lcSourceMap[lcId];
     if (!rangeInfo) {
-    console.warn('[KayzArt] No source map for cd-id:', lcId);
+      console.warn('[KayzArt] No source map for cd-id:', lcId);
       return;
     }
     deps.focusHtmlEditor();
     const startPos = deps.htmlModel.getPositionAt(rangeInfo.startOffset);
     const endPos = deps.htmlModel.getPositionAt(rangeInfo.endOffset);
-    const monacoRange = new deps.monaco.Range(
+    const selectedRange = new EditorRange(
       startPos.lineNumber,
       startPos.column,
       endPos.lineNumber,
@@ -491,18 +485,14 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     );
     selectionDecorations = deps.htmlModel.deltaDecorations(selectionDecorations, [
       {
-        range: monacoRange,
+        range: selectedRange,
         options: {
           className: 'cd-highlight-line',
           inlineClassName: 'cd-highlight-inline',
-          overviewRuler: {
-            color: overviewHighlightColor,
-            position: deps.monaco.editor.OverviewRulerLane.Full,
-          },
         },
       },
     ]);
-    deps.htmlEditor.revealRangeInCenter(monacoRange, deps.monaco.editor.ScrollType.Smooth);
+    deps.htmlEditor.revealRangeInCenter(selectedRange);
     deps.htmlEditor.focus();
     highlightCssByLcId(lcId);
   };
@@ -581,4 +571,5 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     handleMessage,
   };
 }
+
 

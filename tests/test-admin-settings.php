@@ -153,6 +153,41 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( $before + 1, did_action( 'wp_enqueue_media' ) );
 	}
 
+	public function test_enqueue_assets_does_not_register_legacy_monaco_loader_and_inline_config_has_no_monaco_path(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
+
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+
+		$_GET = $original_get;
+
+		$this->assertFalse( wp_script_is( 'kayzart-monaco-loader', 'registered' ) );
+
+		$registered = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$this->assertNotNull( $registered );
+		$this->assertIsArray( $registered->deps );
+		$this->assertNotContains( 'kayzart-monaco-loader', $registered->deps );
+
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART = (.+);/', $inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$this->assertNotEmpty( $matches[1] ?? '' );
+
+		$payload = json_decode( $matches[1], true );
+		$this->assertIsArray( $payload );
+		$this->assertArrayNotHasKey( 'monacoVsPath', $payload );
+	}
+
 	public function test_enqueue_assets_fires_editor_extension_hook_with_context(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );

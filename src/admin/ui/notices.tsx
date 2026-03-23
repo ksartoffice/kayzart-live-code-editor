@@ -10,7 +10,7 @@ const NOTICE_STORE = 'core/notices';
 const NOTICE_OFFSET_GAP_PX = 8;
 
 export const NOTICE_IDS = {
-  monaco: 'cd-monaco',
+  editor: 'cd-editor',
   save: 'cd-save',
   export: 'cd-export',
   tailwind: 'cd-tailwind',

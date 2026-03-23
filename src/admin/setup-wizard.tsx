@@ -175,7 +175,7 @@ function SetupWizard({
                 {__('Normal (HTML/CSS)', 'kayzart-live-code-editor')}
               </span>
               <span className="cd-setupOptionDesc">
-                {__('Edit HTML and CSS directly with Monaco.', 'kayzart-live-code-editor')}
+                {__('Edit HTML and CSS directly in the code editor.', 'kayzart-live-code-editor')}
               </span>
             </span>
           </label>

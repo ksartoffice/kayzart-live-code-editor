@@ -4,7 +4,7 @@ Tags: live preview, code editor, codemirror, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -90,6 +90,9 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.3.0 =
+* Replace Monaco with CodeMirror 6 and remove Monaco bundled assets/loader.
+
 = 1.2.1 =
 * Fix: Minor internal code cleanup
 

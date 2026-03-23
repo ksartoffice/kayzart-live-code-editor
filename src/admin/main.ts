@@ -376,8 +376,6 @@ async function main() {
     editorInstance.addAction({
       id: 'kayzart.toggleHtmlWordWrap',
       label: __( 'Toggle HTML word wrap', 'kayzart-live-code-editor'),
-      contextMenuGroupId: '1_modification',
-      contextMenuOrder: 2.5,
       keybindings: [codemirror.KeyMod.Alt | codemirror.KeyCode.KeyZ],
       run: () => {
         htmlWordWrapMode = htmlWordWrapMode === 'on' ? 'off' : 'on';

@@ -102,8 +102,6 @@ export type CodeEditorInstance = {
     id: string;
     label: string;
     keybindings?: number[];
-    contextMenuGroupId?: string;
-    contextMenuOrder?: number;
     run: () => void | Promise<void>;
   }) => void;
 };
@@ -118,14 +116,6 @@ export type CodeMirrorType = {
   KeyCode: {
     KeyS: number;
     KeyZ: number;
-  };
-  editor: {
-    ScrollType: {
-      Smooth: number;
-    };
-    OverviewRulerLane: {
-      Full: number;
-    };
   };
 };
 
@@ -562,14 +552,6 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
       KeyCode: {
         KeyS: KEY_CODE_S,
         KeyZ: KEY_CODE_Z,
-      },
-      editor: {
-        ScrollType: {
-          Smooth: 0,
-        },
-        OverviewRulerLane: {
-          Full: 0,
-        },
       },
     },
     htmlModel: htmlWrapper.model,

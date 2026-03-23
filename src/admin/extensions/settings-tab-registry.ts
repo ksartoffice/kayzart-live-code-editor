@@ -41,51 +41,57 @@ export type ContextSnapshot = {
 };
 
 export type ProposedEditTarget = 'html' | 'css' | 'js';
-export type ProposedEditOperation = 'replace_full' | 'replace_range';
+export type ProposedEditOperation = 'replace_full' | 'replace_match';
 
-export type ProposedEdit = {
+type ProposedEditBase = {
   target: ProposedEditTarget;
-  operation: ProposedEditOperation;
-  content: string;
-  range?: {
-    startOffset: number;
-    endOffset: number;
-  };
   summary?: string;
 };
 
-export type ApplyProposedEditOptions = {
-  expectedBefore?: string;
+export type ProposedEditReplaceFull = ProposedEditBase & {
+  operation: 'replace_full';
+  content: string;
 };
+
+export type ProposedEditReplaceMatch = ProposedEditBase & {
+  operation: 'replace_match';
+  beforeText: string;
+  afterText: string;
+  scopeText?: string;
+};
+
+export type ProposedEdit = ProposedEditReplaceFull | ProposedEditReplaceMatch;
+
+export type ApplyProposedEditOptions = Record<string, never>;
 
 export type EditActionErrorCode =
   | 'INVALID_REQUEST'
-  | 'INVALID_RANGE'
-  | 'STALE_RANGE'
+  | 'NOT_FOUND'
+  | 'AMBIGUOUS_MATCH'
+  | 'SCOPE_NOT_FOUND'
+  | 'AMBIGUOUS_SCOPE'
   | 'STALE_UNDO'
   | 'HANDLE_NOT_FOUND'
   | 'INTERNAL_ERROR';
+
+type EditActionError = {
+  ok: false;
+  code: EditActionErrorCode;
+  message: string;
+};
 
 export type ApplyProposedEditResult =
   | {
       ok: true;
       appliedHandle: string;
     }
-  | {
-      ok: false;
-      code: EditActionErrorCode;
-      message: string;
-    };
+  | EditActionError;
 
 export type UndoProposedEditResult =
   | {
       ok: true;
     }
-  | {
-      ok: false;
-      code: EditActionErrorCode;
-      message: string;
-    };
+  | EditActionError;
 
 type GetContextSnapshot = (includeKeys?: ContextKey[]) => ContextSnapshot;
 type ApplyProposedEdit = (

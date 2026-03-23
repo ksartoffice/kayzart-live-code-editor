@@ -160,6 +160,17 @@ describe('settings tab registry', () => {
       ok: true,
       appliedHandle: 'handle-1',
     });
+    expect(
+      api.applyProposedEdit({
+        target: 'html',
+        operation: 'replace_match',
+        beforeText: 'Old',
+        afterText: 'New',
+      })
+    ).toEqual({
+      ok: true,
+      appliedHandle: 'handle-1',
+    });
     expect(api.undoProposedEdit('handle-1')).toEqual({ ok: true });
   });
 });

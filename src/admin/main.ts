@@ -35,6 +35,7 @@ import {
   type ProposedEditTarget,
   type UndoProposedEditResult,
 } from './extensions/settings-tab-registry';
+import { resolveReplaceMatchRange } from './extensions/proposed-edit-match';
 import {
   createNotices,
   NOTICE_ERROR_DURATION_MS,
@@ -71,7 +72,7 @@ type AppliedEditRecord =
     }
   | {
       target: ProposedEditTarget;
-      operation: 'replace_range';
+      operation: 'replace_match';
       startOffset: number;
       beforeText: string;
       afterText: string;
@@ -699,14 +700,11 @@ async function main() {
     message,
   });
 
-  const isNonNegativeInteger = (value: unknown) =>
-    typeof value === 'number' && Number.isInteger(value) && value >= 0;
-
   const isProposedEditTarget = (value: unknown): value is ProposedEditTarget =>
     value === 'html' || value === 'css' || value === 'js';
 
   const isProposedEditOperation = (value: unknown): value is ProposedEditOperation =>
-    value === 'replace_full' || value === 'replace_range';
+    value === 'replace_full' || value === 'replace_match';
 
   const getTargetBinding = (target: ProposedEditTarget) => {
     if (target === 'html') {
@@ -757,7 +755,7 @@ async function main() {
 
   const applyProposedEdit = (
     edit: ProposedEdit,
-    options?: ApplyProposedEditOptions
+    _options?: ApplyProposedEditOptions
   ): ApplyProposedEditResult => {
     if (!edit || typeof edit !== 'object') {
       return createApplyError('INVALID_REQUEST', 'edit must be an object.');
@@ -768,24 +766,18 @@ async function main() {
     if (!isProposedEditOperation(edit.operation)) {
       return createApplyError('INVALID_REQUEST', 'edit.operation is invalid.');
     }
-    if (typeof edit.content !== 'string') {
-      return createApplyError('INVALID_REQUEST', 'edit.content must be a string.');
-    }
 
     const { model } = getTargetBinding(edit.target);
     const currentText = model.getValue();
 
     if (edit.operation === 'replace_full') {
-      const beforeText = currentText;
-      if (
-        typeof options?.expectedBefore === 'string' &&
-        options.expectedBefore !== beforeText
-      ) {
+      if (typeof edit.content !== 'string') {
         return createApplyError(
-          'STALE_RANGE',
-          'The proposed full-replace content is stale. Please request a new proposal.'
+          'INVALID_REQUEST',
+          'replace_full.content must be a string.'
         );
       }
+      const beforeText = currentText;
 
       pushReplaceOperation(edit.target, 0, beforeText.length, edit.content);
       const appliedHandle = makeAppliedHandle();
@@ -802,40 +794,35 @@ async function main() {
     }
 
     if (
-      !edit.range ||
-      !isNonNegativeInteger(edit.range.startOffset) ||
-      !isNonNegativeInteger(edit.range.endOffset) ||
-      edit.range.endOffset < edit.range.startOffset ||
-      edit.range.endOffset > currentText.length
+      typeof edit.beforeText !== 'string' ||
+      edit.beforeText.length === 0 ||
+      typeof edit.afterText !== 'string' ||
+      (edit.scopeText !== undefined && typeof edit.scopeText !== 'string')
     ) {
       return createApplyError(
-        'INVALID_RANGE',
-        'replace_range requires a valid range inside the current document.'
+        'INVALID_REQUEST',
+        'replace_match requires { beforeText, afterText, scopeText? }.'
       );
     }
 
-    const startOffset = edit.range.startOffset;
-    const endOffset = edit.range.endOffset;
-    const beforeText = currentText.slice(startOffset, endOffset);
-
-    if (
-      typeof options?.expectedBefore === 'string' &&
-      options.expectedBefore !== beforeText
-    ) {
-      return createApplyError(
-        'STALE_RANGE',
-        'The target range no longer matches the original proposal.'
-      );
+    const resolvedRange = resolveReplaceMatchRange(
+      currentText,
+      edit.beforeText,
+      edit.scopeText
+    );
+    if (!resolvedRange.ok) {
+      return createApplyError(resolvedRange.code, resolvedRange.message);
     }
 
-    pushReplaceOperation(edit.target, startOffset, endOffset, edit.content);
+    const { startOffset, endOffset } = resolvedRange;
+    pushReplaceOperation(edit.target, startOffset, endOffset, edit.afterText);
     const appliedHandle = makeAppliedHandle();
     appliedEditRecords.set(appliedHandle, {
       target: edit.target,
-      operation: 'replace_range',
+      operation: 'replace_match',
       startOffset,
-      beforeText,
-      afterText: edit.content,
+      beforeText: edit.beforeText,
+      afterText: edit.afterText,
     });
 
     return {

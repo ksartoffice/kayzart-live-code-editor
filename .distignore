@@ -31,3 +31,8 @@
 /assets/dist/*.map
 /.wordpress-tests-lib
 /.wordpress
+/vendor/bin/
+/vendor/**/bin/
+/vendor/bin/tailwindphp
+/vendor/bin/tailwindphp.bat
+/vendor/tailwindphp/tailwindphp/bin/tailwindphp

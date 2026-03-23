@@ -16,6 +16,7 @@ import {
   type KeyBinding,
 } from '@codemirror/view';
 import { undo, redo, undoDepth, redoDepth } from '@codemirror/commands';
+import { startCompletion } from '@codemirror/autocomplete';
 import { html as htmlLanguage } from '@codemirror/lang-html';
 import { css as cssLanguage } from '@codemirror/lang-css';
 import { javascript as javascriptLanguage } from '@codemirror/lang-javascript';
@@ -284,11 +285,27 @@ const emmetExtensions = (syntax: EmmetKnownSyntax): Extension[] => [
   ]),
 ];
 
+const htmlIntellisenseExtensions = (): Extension[] => [
+  EditorView.inputHandler.of((view, _from, _to, text, insert) => {
+    if (text !== '<') {
+      return false;
+    }
+    view.dispatch(insert());
+    queueMicrotask(() => {
+      if (view.hasFocus) {
+        startCompletion(view);
+      }
+    });
+    return true;
+  }),
+];
+
 const createEditorWrapper = (options: {
   parent: HTMLElement;
   initialValue: string;
   language: Extension;
   emmet?: EmmetKnownSyntax;
+  htmlIntellisense?: boolean;
   readOnly?: boolean;
   wordWrap?: WordWrapMode;
 }): EditorWrapper => {
@@ -335,6 +352,9 @@ const createEditorWrapper = (options: {
 
   if (options.emmet) {
     extensions.push(...emmetExtensions(options.emmet));
+  }
+  if (options.htmlIntellisense) {
+    extensions.push(...htmlIntellisenseExtensions());
   }
 
   const state = EditorState.create({
@@ -524,6 +544,7 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
     initialValue: options.initialHtml ?? '',
     language: htmlLanguage(),
     emmet: EmmetKnownSyntax.html,
+    htmlIntellisense: true,
     wordWrap: options.htmlWordWrap,
   });
 

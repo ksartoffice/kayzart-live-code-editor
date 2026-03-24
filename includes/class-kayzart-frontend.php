@@ -56,7 +56,7 @@ class Frontend {
 	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'theme' );
 	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
 	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
-	private const SHORTCODE_RENDER_MAX_PASSES     = 2;
+	private const SHORTCODE_RENDER_MAX_PASSES     = 1;
 	/**
 	 * Register front-end hooks.
 	 */

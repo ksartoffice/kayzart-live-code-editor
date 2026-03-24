@@ -23,7 +23,7 @@ Features:
 * Per-post template mode control: Default/Standalone/Theme
 * External scripts/styles (https only), live edit highlight, real-time DOM selection, and optional Shadow DOM isolation
 * External embedding (enable in settings): [kayzart post_id="123"]
-* Allowlist for shortcode execution inside external embeds (one shortcode tag per line, up to 2 passes)
+* Allowlist for shortcode execution inside external embeds (one shortcode tag per line)
 * Optional single-page disable for external-embed output
 
 External connections and privacy:
@@ -54,7 +54,7 @@ Users who can edit the post can use the editor. JavaScript, external scripts/sty
 No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.
 
 = How do I embed a page created with KayzArt? =
-Enable external embedding in KayzArt settings, then use [kayzart post_id="123"] with the post ID of the page you created in KayzArt. For shortcode execution inside the embedded content, add allowed tags in KayzArt settings (one tag per line). Non-allowlisted tags remain plain text. Allowlisted tags run for up to 2 passes to resolve nested shortcodes.
+Enable external embedding in KayzArt settings, then use [kayzart post_id="123"] with the post ID of the page you created in KayzArt. For shortcode execution inside the embedded content, add allowed tags in KayzArt settings (one tag per line). Non-allowlisted tags remain plain text.
 
 = Can I disable the single page view? =
 Yes. Enable external embedding and turn on "Do not publish as single page." Disabled single pages are marked noindex and excluded from search/archives, and the single-page request is redirected (or can be forced to 404 via the kayzart_single_page_redirect filter).

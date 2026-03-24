@@ -679,7 +679,7 @@ class Admin {
 		echo '<textarea class="large-text code" rows="6" name="' . esc_attr( self::OPTION_SHORTCODE_ALLOWLIST ) . '">' . esc_textarea( $value ) . '</textarea>';
 		echo '<p class="description">' .
 			esc_html__(
-				'One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id="..."]). Shortcode resolution runs up to 2 passes to handle nesting. Other tags stay as plain text.',
+				'One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id="..."]). Other tags stay as plain text.',
 				'kayzart-live-code-editor'
 			) .
 		'</p>';

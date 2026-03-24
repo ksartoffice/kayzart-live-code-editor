@@ -218,7 +218,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<span class="allowed-probe">ok</span>', $output );
 	}
 
-	public function test_shortcode_embed_allowlist_runs_nested_shortcodes_in_two_passes(): void {
+	public function test_shortcode_embed_allowlist_runs_single_pass_only(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -253,11 +253,11 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 			remove_shortcode( 'contact-form-7' );
 		}
 
-		$this->assertStringContainsString( '<form data-cf7-id="123"></form>', $output );
-		$this->assertStringNotContainsString( '[contact-form-7 id="123"]', $output );
+		$this->assertStringContainsString( '[contact-form-7 id="123"]', $output );
+		$this->assertStringNotContainsString( '<form data-cf7-id="123"></form>', $output );
 	}
 
-	public function test_shortcode_embed_stops_after_two_passes(): void {
+	public function test_shortcode_embed_stops_after_single_pass(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -298,7 +298,8 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 			remove_shortcode( 'pass_three' );
 		}
 
-		$this->assertStringContainsString( '[pass_three]', $output );
+		$this->assertStringContainsString( '[pass_two]', $output );
+		$this->assertStringNotContainsString( '[pass_three]', $output );
 		$this->assertStringNotContainsString( '<span class="pass-three">ok</span>', $output );
 	}
 

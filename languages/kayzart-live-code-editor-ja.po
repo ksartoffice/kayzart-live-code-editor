@@ -304,11 +304,6 @@ msgstr "アンインストール時に KayzArt 投稿をすべて削除します
 msgid "Standalone"
 msgstr "スタンドアロン"
 
-#: includes/class-kayzart-admin.php:583
-#: assets/dist/main.js:106
-msgid "Frame"
-msgstr "フレーム"
-
 #: includes/class-kayzart-admin.php:661
 msgid "KayzArt Live Code Editor Settings"
 msgstr "KayzArt Live Code Editor 設定"
@@ -379,10 +374,6 @@ msgstr "「デフォルト」はプラグイン設定のデフォルトテンプ
 #: assets/dist/main.js:106
 msgid "Standalone hides the theme header and footer."
 msgstr "Standalone はテーマのヘッダーとフッターを非表示にします。"
-
-#: assets/dist/main.js:106
-msgid "Frame uses the theme header and footer."
-msgstr "Frame はテーマのヘッダーとフッターを使用します。"
 
 #: assets/dist/main.js:106
 msgid "Theme uses the active theme template."
@@ -882,8 +873,8 @@ msgid "Theme template unavailable"
 msgstr "テーマテンプレートを利用できません"
 
 #: assets/dist/main.js:127
-msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Frame."
-msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。KayzArt はテンプレートモードを Frame に切り替えます。"
+msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone."
+msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。KayzArt はテンプレートモードを Standalone に切り替えます。"
 
 #: assets/dist/main.js:127
 msgid "OK"

@@ -26,8 +26,8 @@ export type SettingsData = {
   slug: string;
   status: string;
   viewUrl?: string;
-  templateMode?: 'default' | 'standalone' | 'frame' | 'theme';
-  defaultTemplateMode?: 'standalone' | 'frame' | 'theme';
+  templateMode?: 'default' | 'standalone' | 'theme';
+  defaultTemplateMode?: 'standalone' | 'theme';
   shadowDomEnabled: boolean;
   shortcodeEnabled: boolean;
   singlePageEnabled: boolean;
@@ -50,7 +50,7 @@ type SettingsConfig = {
   header?: HTMLElement;
   data: SettingsData;
   postId: number;
-  onTemplateModeChange?: (mode: 'default' | 'standalone' | 'frame' | 'theme') => void;
+  onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
   onShadowDomToggle?: (enabled: boolean) => void;
   onShortcodeToggle?: (enabled: boolean) => void;
   onSinglePageToggle?: (enabled: boolean) => void;
@@ -318,9 +318,7 @@ function SettingsSidebar({
     setShadowDomEnabled(enabled);
   };
 
-  const handleTemplateModeChange = (
-    next: 'default' | 'standalone' | 'frame' | 'theme'
-  ) => {
+  const handleTemplateModeChange = (next: 'default' | 'standalone' | 'theme') => {
     if (!canEditJs) {
       return;
     }

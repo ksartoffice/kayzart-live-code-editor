@@ -548,7 +548,7 @@ class Admin {
 	public static function sanitize_default_template_mode( $value ): string {
 
 		$template_mode = is_string( $value ) ? sanitize_key( $value ) : '';
-		$valid         = array( 'standalone', 'frame', 'theme' );
+		$valid         = array( 'standalone', 'theme' );
 		return in_array( $template_mode, $valid, true ) ? $template_mode : 'theme';
 	}
 
@@ -656,7 +656,6 @@ class Admin {
 		$value          = self::sanitize_default_template_mode( $value );
 		$template_modes = array(
 			'standalone' => __( 'Standalone', 'kayzart-live-code-editor' ),
-			'frame'      => __( 'Frame', 'kayzart-live-code-editor' ),
 			'theme'      => __( 'Theme', 'kayzart-live-code-editor' ),
 		);
 		echo '<select name="' . esc_attr( self::OPTION_DEFAULT_TEMPLATE_MODE ) . '">';

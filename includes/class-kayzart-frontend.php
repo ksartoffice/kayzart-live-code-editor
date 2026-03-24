@@ -52,8 +52,8 @@ class Frontend {
 	 */
 	private static int $shadow_style_render_count = 0;
 	private const TEMPLATE_MODE_META_KEY          = '_kayzart_template_mode';
-	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'frame', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'frame', 'theme' );
+	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'theme' );
 	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
 	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
 	private const SHORTCODE_RENDER_MAX_PASSES     = 2;
@@ -321,8 +321,6 @@ class Frontend {
 		$path = '';
 		if ( 'standalone' === $template_mode ) {
 			$path = KAYZART_PATH . 'templates/single-kayzart-standalone.php';
-		} elseif ( 'frame' === $template_mode ) {
-			$path = KAYZART_PATH . 'templates/single-kayzart-frame.php';
 		}
 
 		if ( $path && file_exists( $path ) ) {

@@ -16,8 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Rest_Settings {
 
-	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'frame', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'frame', 'theme' );
+	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'theme' );
 	/**
 	 * Normalize template mode value stored in post meta.
 	 *

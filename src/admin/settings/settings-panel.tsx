@@ -4,9 +4,9 @@ import { __, sprintf } from '@wordpress/i18n';
 type SettingsPanelProps = {
   postId: number;
   canEditJs: boolean;
-  templateMode: 'default' | 'standalone' | 'frame' | 'theme';
-  defaultTemplateMode: 'standalone' | 'frame' | 'theme';
-  onChangeTemplateMode: (mode: 'default' | 'standalone' | 'frame' | 'theme') => void;
+  templateMode: 'default' | 'standalone' | 'theme';
+  defaultTemplateMode: 'standalone' | 'theme';
+  onChangeTemplateMode: (mode: 'default' | 'standalone' | 'theme') => void;
   shadowDomEnabled: boolean;
   onToggleShadowDom: (enabled: boolean) => void;
   shortcodeEnabled: boolean;
@@ -64,9 +64,8 @@ export function SettingsPanel({
   const canAddStyle = !disabled && externalStyles.length < externalStylesMax;
   const hasStyles = externalStyles.length > 0;
   const shortcodeText = `[kayzart post_id="${postId}"]`;
-  const templateModeLabels: Record<'standalone' | 'frame' | 'theme', string> = {
+  const templateModeLabels: Record<'standalone' | 'theme', string> = {
     standalone: __( 'Standalone', 'kayzart-live-code-editor'),
-    frame: __( 'Frame', 'kayzart-live-code-editor'),
     theme: __( 'Theme', 'kayzart-live-code-editor'),
   };
   const resolvedDefaultTemplateMode =
@@ -76,9 +75,7 @@ export function SettingsPanel({
       ? __( 'Use default follows the default template mode from plugin settings.', 'kayzart-live-code-editor')
       : templateMode === 'standalone'
         ? __( 'Standalone hides the theme header and footer.', 'kayzart-live-code-editor')
-        : templateMode === 'frame'
-          ? __( 'Frame uses the theme header and footer.', 'kayzart-live-code-editor')
-          : __( 'Theme uses the active theme template.', 'kayzart-live-code-editor');
+        : __( 'Theme uses the active theme template.', 'kayzart-live-code-editor');
 
   useEffect(() => {
     return () => {
@@ -176,7 +173,7 @@ export function SettingsPanel({
             value={templateMode}
             onChange={(event) =>
               onChangeTemplateMode(
-                event.target.value as 'default' | 'standalone' | 'frame' | 'theme'
+                event.target.value as 'default' | 'standalone' | 'theme'
               )
             }
             aria-label={__( 'Template mode', 'kayzart-live-code-editor')}
@@ -186,7 +183,6 @@ export function SettingsPanel({
               {sprintf(__( 'Use default (%s)', 'kayzart-live-code-editor'), resolvedDefaultTemplateMode)}
             </option>
             <option value="standalone">{templateModeLabels.standalone}</option>
-            <option value="frame">{templateModeLabels.frame}</option>
             <option value="theme">{templateModeLabels.theme}</option>
           </select>
         </div>

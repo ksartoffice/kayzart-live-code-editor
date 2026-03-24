@@ -169,11 +169,11 @@ export function createModalController(deps: ModalControllerDeps) {
 
   const missingMarkersTitle = __('Theme template unavailable', 'kayzart-live-code-editor');
   const missingMarkersBody = __(
-    'This theme does not output "the_content", so the preview cannot be rendered. KayzArt will switch the template mode to Frame.', 'kayzart-live-code-editor');
+    'This theme does not output "the_content", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone.', 'kayzart-live-code-editor');
   const missingMarkersActionLabel = __('OK', 'kayzart-live-code-editor');
   const missingMarkersRetryNotice = __(
     'Preview markers are still missing after switching template mode. The current template does not output "the_content".', 'kayzart-live-code-editor');
-  const missingMarkersFallbackTemplateMode: 'standalone' | 'frame' = 'frame';
+  const missingMarkersFallbackTemplateMode: 'standalone' = 'standalone';
 
   let modalHost: HTMLDivElement | null = null;
   let modalRoot: ReturnType<typeof createRoot> | null = null;

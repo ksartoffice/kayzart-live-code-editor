@@ -20,7 +20,7 @@ Features:
 * Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
 * Tailwind mode with on-demand Tailwind CSS v4 compilation
 * Import/export JSON projects
-* Per-post template mode control: Default/Standalone/Frame/Theme
+* Per-post template mode control: Default/Standalone/Theme
 * External scripts/styles (https only), live edit highlight, real-time DOM selection, and optional Shadow DOM isolation
 * External embedding (enable in settings): [kayzart post_id="123"]
 * Allowlist for shortcode execution inside external embeds (one shortcode tag per line, up to 2 passes)
@@ -66,13 +66,13 @@ The setup wizard lets you choose Normal or Tailwind. The choice is locked per Ka
 Tailwind mode supports Tailwind CSS v4.
 
 = How does template mode work? =
-Each KayzArt post can use Default, Standalone, Frame, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Frame.
+Each KayzArt post can use Default, Standalone, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Standalone.
 
 = Can I change the KayzArt URL slug? =
 Yes. Go to KayzArt > Settings and update the KayzArt slug.
 
 = Can I set a default template mode for new previews? =
-Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Frame/Theme).
+Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Theme).
 
 = Does the plugin delete data on uninstall? =
 By default, KayzArt posts are kept when the plugin is uninstalled. You can enable data removal from the KayzArt > Settings screen.

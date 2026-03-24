@@ -149,11 +149,6 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:583
 #: assets/dist/main.js:106
-msgid "Frame"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:584
-#: assets/dist/main.js:106
 msgid "Theme"
 msgstr ""
 
@@ -394,10 +389,6 @@ msgstr ""
 
 #: assets/dist/main.js:106
 msgid "Standalone hides the theme header and footer."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Frame uses the theme header and footer."
 msgstr ""
 
 #: assets/dist/main.js:106
@@ -914,7 +905,7 @@ msgid "Theme template unavailable"
 msgstr ""
 
 #: assets/dist/main.js:127
-msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Frame."
+msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone."
 msgstr ""
 
 #: assets/dist/main.js:127

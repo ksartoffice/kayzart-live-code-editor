@@ -49,7 +49,7 @@ test('preview postMessage handshake works', async ({ page }) => {
   await page.evaluate(
     ({ url }) => {
       const iframe = document.createElement('iframe');
-      iframe.id = 'cd-preview-frame';
+      iframe.id = 'kayzart-preview-frame';
       iframe.src = url;
       iframe.style.width = '800px';
       iframe.style.height = '600px';
@@ -58,9 +58,9 @@ test('preview postMessage handshake works', async ({ page }) => {
     { url: previewUrl }
   );
 
-  await page.waitForSelector('#cd-preview-frame');
+  await page.waitForSelector('#kayzart-preview-frame');
   await page.waitForFunction(() => {
-    const iframe = document.getElementById('cd-preview-frame') as HTMLIFrameElement | null;
+    const iframe = document.getElementById('kayzart-preview-frame') as HTMLIFrameElement | null;
     if (!iframe || !iframe.contentWindow) {
       return false;
     }
@@ -71,7 +71,7 @@ test('preview postMessage handshake works', async ({ page }) => {
 
   const ready = await page.evaluate(() => {
     return new Promise<{ type?: string }>((resolve, reject) => {
-      const iframe = document.getElementById('cd-preview-frame') as HTMLIFrameElement | null;
+      const iframe = document.getElementById('kayzart-preview-frame') as HTMLIFrameElement | null;
       if (!iframe) {
         reject(new Error('Preview iframe not found'));
         return;
@@ -105,7 +105,7 @@ test('preview does not send READY before INIT', async ({ page }) => {
   await page.evaluate(
     ({ url }) => {
       const iframe = document.createElement('iframe');
-      iframe.id = 'cd-preview-frame';
+      iframe.id = 'kayzart-preview-frame';
       iframe.src = url;
       iframe.style.width = '800px';
       iframe.style.height = '600px';
@@ -114,7 +114,7 @@ test('preview does not send READY before INIT', async ({ page }) => {
     { url: previewUrl }
   );
 
-  await page.waitForSelector('#cd-preview-frame');
+  await page.waitForSelector('#kayzart-preview-frame');
 
   const outcome = await page.evaluate(() => {
     return new Promise<'ready' | 'timeout'>((resolve) => {
@@ -142,7 +142,7 @@ test('preview ignores postMessage when allowedOrigin mismatches', async ({ page 
   await page.evaluate(
     ({ url }) => {
       const iframe = document.createElement('iframe');
-      iframe.id = 'cd-preview-frame';
+      iframe.id = 'kayzart-preview-frame';
       iframe.src = url;
       iframe.style.width = '800px';
       iframe.style.height = '600px';
@@ -151,7 +151,7 @@ test('preview ignores postMessage when allowedOrigin mismatches', async ({ page 
     { url: previewUrl }
   );
 
-  await page.waitForSelector('#cd-preview-frame');
+  await page.waitForSelector('#kayzart-preview-frame');
 
   const outcome = await page.evaluate(() => {
     return new Promise<'ready' | 'timeout'>((resolve) => {
@@ -162,7 +162,7 @@ test('preview ignores postMessage when allowedOrigin mismatches', async ({ page 
         }
       };
       window.addEventListener('message', handler as EventListener);
-      const iframe = document.getElementById('cd-preview-frame') as HTMLIFrameElement | null;
+      const iframe = document.getElementById('kayzart-preview-frame') as HTMLIFrameElement | null;
       iframe?.contentWindow?.postMessage({ type: 'KAYZART_INIT' }, '*');
       window.setTimeout(() => {
         window.removeEventListener('message', handler as EventListener);

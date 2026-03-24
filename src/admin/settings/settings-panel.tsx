@@ -168,11 +168,11 @@ export function SettingsPanel({
 
   return (
     <Fragment>
-      <div className="cd-settingsSection">
-        <div className="cd-settingsSectionTitle">{__( 'Page template', 'kayzart-live-code-editor')}</div>
-        <div className="cd-settingsItem">
+      <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">{__( 'Page template', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-settingsItem">
           <select
-            className="cd-formSelect"
+            className="kayzart-formSelect"
             value={templateMode}
             onChange={(event) =>
               onChangeTemplateMode(
@@ -190,18 +190,18 @@ export function SettingsPanel({
             <option value="theme">{templateModeLabels.theme}</option>
           </select>
         </div>
-        {templateHelp ? <div className="cd-settingsHelp">{templateHelp}</div> : null}
+        {templateHelp ? <div className="kayzart-settingsHelp">{templateHelp}</div> : null}
       </div>
 
-      <div className="cd-settingsSection">
-        <div className="cd-settingsSectionTitle">
+      <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">
           {__( 'Output settings', 'kayzart-live-code-editor')}
         </div>
-        <div className="cd-settingsItem cd-settingsToggle">
-          <div className="cd-settingsItemLabel">
+        <div className="kayzart-settingsItem kayzart-settingsToggle">
+          <div className="kayzart-settingsItemLabel">
             {__( 'Enable external embedding', 'kayzart-live-code-editor')}
           </div>
-          <label className="cd-toggle">
+          <label className="kayzart-toggle">
             <input
               type="checkbox"
               checked={shortcodeEnabled}
@@ -209,22 +209,22 @@ export function SettingsPanel({
               onChange={(event) => onToggleShortcode(event.target.checked)}
               disabled={disabled}
             />
-            <span className="cd-toggleTrack" aria-hidden="true" />
+            <span className="kayzart-toggleTrack" aria-hidden="true" />
           </label>
         </div>
         {shortcodeEnabled ? (
           <Fragment>
-            <div className="cd-settingsScriptRow">
+            <div className="kayzart-settingsScriptRow">
               <input
                 ref={shortcodeInputRef}
                 type="text"
-                className="cd-formInput cd-settingsScriptInput"
+                className="kayzart-formInput kayzart-settingsScriptInput"
                 value={shortcodeText}
                 readOnly
                 aria-label={__( 'KayzArt embed code', 'kayzart-live-code-editor')}
               />
               <button
-                className="cd-btn cd-btn-secondary"
+                className="kayzart-btn kayzart-btn-secondary"
                 type="button"
                 onClick={handleCopyShortcode}
                 aria-label={__( 'Copy embed code', 'kayzart-live-code-editor')}
@@ -235,16 +235,16 @@ export function SettingsPanel({
               </button>
             </div>
             {copyState === 'copied' ? (
-              <div className="cd-settingsHelp">{__( 'Copied.', 'kayzart-live-code-editor')}</div>
+              <div className="kayzart-settingsHelp">{__( 'Copied.', 'kayzart-live-code-editor')}</div>
             ) : null}
             {copyState === 'error' ? (
-              <div className="cd-settingsError">{__( 'Copy failed.', 'kayzart-live-code-editor')}</div>
+              <div className="kayzart-settingsError">{__( 'Copy failed.', 'kayzart-live-code-editor')}</div>
             ) : null}
-            <div className="cd-settingsItem cd-settingsToggle">
-              <div className="cd-settingsItemLabel">
+            <div className="kayzart-settingsItem kayzart-settingsToggle">
+              <div className="kayzart-settingsItemLabel">
                 {__( 'Do not publish as single page', 'kayzart-live-code-editor')}
               </div>
-              <label className="cd-toggle">
+              <label className="kayzart-toggle">
                 <input
                   type="checkbox"
                   checked={!singlePageEnabled}
@@ -252,32 +252,32 @@ export function SettingsPanel({
                   onChange={(event) => onToggleSinglePage(!event.target.checked)}
                   disabled={disabled}
                 />
-                <span className="cd-toggleTrack" aria-hidden="true" />
+                <span className="kayzart-toggleTrack" aria-hidden="true" />
               </label>
             </div>
-            <div className="cd-settingsHelp">
+            <div className="kayzart-settingsHelp">
               {__(
                 'You can paste this embed code into a Shortcode block in Gutenberg or Elementor.', 'kayzart-live-code-editor')}
             </div>
           </Fragment>
         ) : null}
         {disabled ? (
-          <div className="cd-settingsHelp">
+          <div className="kayzart-settingsHelp">
             {__( 'Requires unfiltered_html capability.', 'kayzart-live-code-editor')}
           </div>
         ) : null}
-        {error ? <div className="cd-settingsError">{error}</div> : null}
+        {error ? <div className="kayzart-settingsError">{error}</div> : null}
       </div>
 
-      <div className="cd-settingsSection">
-        <div className="cd-settingsSectionTitle">
+      <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">
           {__( 'Rendering settings', 'kayzart-live-code-editor')}
         </div>
-        <div className="cd-settingsItem cd-settingsToggle">
-          <div className="cd-settingsItemLabel">
+        <div className="kayzart-settingsItem kayzart-settingsToggle">
+          <div className="kayzart-settingsItemLabel">
             {__( 'Enable Shadow DOM (DSD)', 'kayzart-live-code-editor')}
           </div>
-          <label className="cd-toggle">
+          <label className="kayzart-toggle">
             <input
               type="checkbox"
               checked={shadowDomEnabled}
@@ -285,32 +285,32 @@ export function SettingsPanel({
               onChange={(event) => onToggleShadowDom(event.target.checked)}
               disabled={disabled}
             />
-            <span className="cd-toggleTrack" aria-hidden="true" />
+            <span className="kayzart-toggleTrack" aria-hidden="true" />
           </label>
         </div>
-        <div className="cd-settingsHelp">
+        <div className="kayzart-settingsHelp">
           {__( 'Prevents interference with existing theme CSS.', 'kayzart-live-code-editor')}
         </div>
       </div>
 
-      <div className="cd-settingsSection">
-        <div className="cd-settingsSectionTitle">
+      <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">
           {__( 'External resource settings', 'kayzart-live-code-editor')}
         </div>
-        <div className="cd-settingsHelp">
+        <div className="kayzart-settingsHelp">
           {__(
             'These files are requested from third-party servers in preview and front-end output. Add only trusted URLs.', 'kayzart-live-code-editor')}
         </div>
         {canEditJs ? (
           <Fragment>
-            <div className="cd-settingsItemLabel">{__( 'External scripts', 'kayzart-live-code-editor')}</div>
+            <div className="kayzart-settingsItemLabel">{__( 'External scripts', 'kayzart-live-code-editor')}</div>
             {hasScripts ? (
-              <div className="cd-settingsScriptList">
+              <div className="kayzart-settingsScriptList">
                 {externalScripts.map((scriptUrl, index) => (
-                  <div className="cd-settingsScriptRow" key={`script-${index}`}>
+                  <div className="kayzart-settingsScriptRow" key={`script-${index}`}>
                     <input
                       type="url"
-                      className="cd-formInput cd-settingsScriptInput"
+                      className="kayzart-formInput kayzart-settingsScriptInput"
                       placeholder={__( 'https://example.com/script.js', 'kayzart-live-code-editor')}
                       value={scriptUrl}
                       onChange={(event) => updateScriptAt(index, event.target.value, false)}
@@ -324,7 +324,7 @@ export function SettingsPanel({
                       disabled={disabled}
                     />
                     <button
-                      className="cd-btn cd-btn-danger cd-settingsScriptButton"
+                      className="kayzart-btn kayzart-btn-danger kayzart-settingsScriptButton"
                       type="button"
                       onClick={() => handleRemoveScript(index)}
                       disabled={disabled}
@@ -335,7 +335,7 @@ export function SettingsPanel({
                   </div>
                 ))}
                 <button
-                  className="cd-btn cd-btn-secondary cd-settingsScriptAdd"
+                  className="kayzart-btn kayzart-btn-secondary kayzart-settingsScriptAdd"
                   type="button"
                   onClick={handleAddScript}
                   disabled={!canAddScript}
@@ -346,7 +346,7 @@ export function SettingsPanel({
               </div>
             ) : (
               <button
-                className="cd-btn cd-btn-secondary"
+                className="kayzart-btn kayzart-btn-secondary"
                 type="button"
                 onClick={handleAddScript}
                 disabled={!canAddScript}
@@ -354,7 +354,7 @@ export function SettingsPanel({
                 {__( 'Add external script', 'kayzart-live-code-editor')}
               </button>
             )}
-            <div className="cd-settingsHelp">
+            <div className="kayzart-settingsHelp">
               {/* translators: %d: maximum number of items. */}
               {sprintf(
                 __(
@@ -363,18 +363,18 @@ export function SettingsPanel({
               )}
             </div>
             {externalScriptsError ? (
-              <div className="cd-settingsError">{externalScriptsError}</div>
+              <div className="kayzart-settingsError">{externalScriptsError}</div>
             ) : null}
           </Fragment>
         ) : null}
-        <div className="cd-settingsItemLabel">{__( 'External styles', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-settingsItemLabel">{__( 'External styles', 'kayzart-live-code-editor')}</div>
         {hasStyles ? (
-          <div className="cd-settingsScriptList">
+          <div className="kayzart-settingsScriptList">
             {externalStyles.map((styleUrl, index) => (
-              <div className="cd-settingsScriptRow" key={`style-${index}`}>
+              <div className="kayzart-settingsScriptRow" key={`style-${index}`}>
                 <input
                   type="url"
-                  className="cd-formInput cd-settingsScriptInput"
+                  className="kayzart-formInput kayzart-settingsScriptInput"
                   placeholder={__( 'https://example.com/style.css', 'kayzart-live-code-editor')}
                   value={styleUrl}
                   onChange={(event) => updateStyleAt(index, event.target.value, false)}
@@ -388,7 +388,7 @@ export function SettingsPanel({
                   disabled={disabled}
                 />
                 <button
-                  className="cd-btn cd-btn-danger cd-settingsScriptButton"
+                  className="kayzart-btn kayzart-btn-danger kayzart-settingsScriptButton"
                   type="button"
                   onClick={() => handleRemoveStyle(index)}
                   disabled={disabled}
@@ -399,7 +399,7 @@ export function SettingsPanel({
               </div>
             ))}
             <button
-              className="cd-btn cd-btn-secondary cd-settingsScriptAdd"
+              className="kayzart-btn kayzart-btn-secondary kayzart-settingsScriptAdd"
               type="button"
               onClick={handleAddStyle}
               disabled={!canAddStyle}
@@ -410,7 +410,7 @@ export function SettingsPanel({
           </div>
         ) : (
           <button
-            className="cd-btn cd-btn-secondary"
+            className="kayzart-btn kayzart-btn-secondary"
             type="button"
             onClick={handleAddStyle}
             disabled={!canAddStyle}
@@ -418,7 +418,7 @@ export function SettingsPanel({
             {__( 'Add external style', 'kayzart-live-code-editor')}
           </button>
         )}
-        <div className="cd-settingsHelp">
+        <div className="kayzart-settingsHelp">
           {/* translators: %d: maximum number of items. */}
           {sprintf(
             __( 'Only URLs starting with https:// are allowed. You can add up to %d items.', 'kayzart-live-code-editor'),
@@ -426,26 +426,26 @@ export function SettingsPanel({
           )}
         </div>
         {externalStylesError ? (
-          <div className="cd-settingsError">{externalStylesError}</div>
+          <div className="kayzart-settingsError">{externalStylesError}</div>
         ) : null}
       </div>
 
-      <div className="cd-settingsSection">
-        <div className="cd-settingsSectionTitle">
+      <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">
           {__( 'Display settings', 'kayzart-live-code-editor')}
         </div>
-        <div className="cd-settingsItem cd-settingsToggle">
-          <div className="cd-settingsItemLabel">
+        <div className="kayzart-settingsItem kayzart-settingsToggle">
+          <div className="kayzart-settingsItemLabel">
             {__( 'Enable live edit highlight', 'kayzart-live-code-editor')}
           </div>
-          <label className="cd-toggle">
+          <label className="kayzart-toggle">
             <input
               type="checkbox"
               checked={liveHighlightEnabled}
               aria-label={__( 'Enable live edit highlight', 'kayzart-live-code-editor')}
               onChange={(event) => onToggleLiveHighlight(event.target.checked)}
             />
-            <span className="cd-toggleTrack" aria-hidden="true" />
+            <span className="kayzart-toggleTrack" aria-hidden="true" />
           </label>
         </div>
       </div>

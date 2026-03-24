@@ -10,29 +10,29 @@ const NOTICE_STORE = 'core/notices';
 const NOTICE_OFFSET_GAP_PX = 8;
 
 export const NOTICE_IDS = {
-  editor: 'cd-editor',
-  save: 'cd-save',
-  export: 'cd-export',
-  tailwind: 'cd-tailwind',
-  templateFallback: 'cd-template-fallback',
-  media: 'cd-media',
+  editor: 'kayzart-editor',
+  save: 'kayzart-save',
+  export: 'kayzart-export',
+  tailwind: 'kayzart-tailwind',
+  templateFallback: 'kayzart-template-fallback',
+  media: 'kayzart-media',
 } as const;
 
 export const NOTICE_SUCCESS_DURATION_MS = 3000;
 export const NOTICE_ERROR_DURATION_MS = 5000;
 
 function syncNoticeOffset() {
-  const toolbar = document.querySelector('.cd-toolbar') as HTMLElement | null;
+  const toolbar = document.querySelector('.kayzart-toolbar') as HTMLElement | null;
   if (!toolbar) {
     return;
   }
   const base = toolbar.getBoundingClientRect().bottom + NOTICE_OFFSET_GAP_PX;
-  const list = document.querySelector('.cd-noticeHost .components-snackbar-list') as HTMLElement | null;
+  const list = document.querySelector('.kayzart-noticeHost .components-snackbar-list') as HTMLElement | null;
   const noticeContainer = list?.querySelector('.components-snackbar-list__notices') as HTMLElement | null;
   const firstNotice = noticeContainer?.firstElementChild as HTMLElement | null;
   const noticeHeight = firstNotice?.getBoundingClientRect().height ?? 0;
   const offset = Math.max(0, Math.round(base + noticeHeight));
-  document.documentElement.style.setProperty('--cd-notice-offset-top', `${offset}px`);
+  document.documentElement.style.setProperty('--kayzart-notice-offset-top', `${offset}px`);
 }
 
 function removeNoticeRaw(wp: any, id: string) {
@@ -83,11 +83,11 @@ export function createNotices(deps: NoticesDeps) {
     if (!wp?.components?.SnackbarList || !wp?.data?.useSelect) {
       return;
     }
-    if (document.querySelector('.cd-noticeHost')) {
+    if (document.querySelector('.kayzart-noticeHost')) {
       return;
     }
     const host = document.createElement('div');
-    host.className = 'cd-noticeHost';
+    host.className = 'kayzart-noticeHost';
     document.body.append(host);
 
     const SnackbarList = wp.components.SnackbarList;

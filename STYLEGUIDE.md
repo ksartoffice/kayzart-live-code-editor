@@ -16,6 +16,7 @@ This document captures project-wide naming conventions. Keep it in sync with the
 - Local variables and functions: camelCase
 - React components: PascalCase
 - File names: kebab-case
+- JS/CSS/DOM prefix: kayzart- (no cd- legacy prefix)
 
 ## API / Payload Keys
 - Identifiers: post_id

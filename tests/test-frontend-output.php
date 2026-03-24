@@ -62,7 +62,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'body{color:red;}', $output );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
-		$this->assertStringNotContainsString( '<script id="cd-script">console.log("x");</script>', $output );
+		$this->assertStringNotContainsString( '<script id="kayzart-script">console.log("x");</script>', $output );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
 		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
 		$this->assertStringContainsString( '</template>', $output );
@@ -99,8 +99,8 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'https://example.com/shortcode.css', $second );
 		$this->assertStringContainsString( 'body{background:#000;}', $first );
 		$this->assertStringContainsString( 'body{background:#000;}', $second );
-		$this->assertStringContainsString( 'id="cd-script-data-' . $post_id . '-1"', $first );
-		$this->assertStringContainsString( 'id="cd-script-data-' . $post_id . '-2"', $second );
+		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-1"', $first );
+		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-2"', $second );
 		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $first );
 		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $second );
 		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );

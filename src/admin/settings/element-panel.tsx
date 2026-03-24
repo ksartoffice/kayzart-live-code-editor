@@ -25,7 +25,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
   const [attributes, setAttributes] = useState<ElementPanelAttribute[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [hasText, setHasText] = useState(false);
-  const fieldId = 'cd-elements-text';
+  const fieldId = 'kayzart-elements-text';
 
   const refreshElement = useCallback(() => {
     if (!selectedId) {
@@ -121,9 +121,9 @@ export function ElementPanel({ api }: ElementPanelProps) {
 
   if (!isVisible) {
     return (
-      <div className="cd-settingsSection">
-        <div className="cd-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
-        <div className="cd-settingsHelp">
+      <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-settingsHelp">
           {__( 'Select an element in the preview to edit its content and attributes.', 'kayzart-live-code-editor')}
         </div>
       </div>
@@ -131,43 +131,43 @@ export function ElementPanel({ api }: ElementPanelProps) {
   }
 
   return (
-    <div className="cd-settingsSection">
-      <div className="cd-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
+    <div className="kayzart-settingsSection">
+      <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
       {hasText ? (
-        <div className="cd-formGroup">
-          <label className="cd-formLabel" htmlFor={fieldId}>
+        <div className="kayzart-formGroup">
+          <label className="kayzart-formLabel" htmlFor={fieldId}>
             {__( 'Text', 'kayzart-live-code-editor')}
           </label>
           <textarea
             id={fieldId}
-            className="cd-formInput"
+            className="kayzart-formInput"
             rows={4}
             value={value}
             onChange={handleChange}
           />
         </div>
       ) : null}
-      <div className="cd-formGroup">
-        <div className="cd-formLabel">{__( 'Attributes', 'kayzart-live-code-editor')}</div>
-        <div className="cd-settingsScriptList">
+      <div className="kayzart-formGroup">
+        <div className="kayzart-formLabel">{__( 'Attributes', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-settingsScriptList">
           {attributes.map((attr, index) => (
-            <div className="cd-settingsScriptRow" key={`attr-${index}`}>
+            <div className="kayzart-settingsScriptRow" key={`attr-${index}`}>
               <input
                 type="text"
-                className="cd-formInput cd-settingsAttrNameInput"
+                className="kayzart-formInput kayzart-settingsAttrNameInput"
                 placeholder={__( 'Attribute name', 'kayzart-live-code-editor')}
                 value={attr.name}
                 onChange={(event) => handleAttributeNameChange(index, event.target.value)}
               />
               <input
                 type="text"
-                className="cd-formInput cd-settingsScriptInput"
+                className="kayzart-formInput kayzart-settingsScriptInput"
                 placeholder={__( 'Value', 'kayzart-live-code-editor')}
                 value={attr.value}
                 onChange={(event) => handleAttributeValueChange(index, event.target.value)}
               />
               <button
-                className="cd-btn cd-btn-danger cd-settingsScriptButton"
+                className="kayzart-btn kayzart-btn-danger kayzart-settingsScriptButton"
                 type="button"
                 onClick={() => handleRemoveAttribute(index)}
                 aria-label={__( 'Remove attribute', 'kayzart-live-code-editor')}
@@ -177,7 +177,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
             </div>
           ))}
           <button
-            className="cd-btn cd-btn-secondary cd-settingsScriptAdd"
+            className="kayzart-btn kayzart-btn-secondary kayzart-settingsScriptAdd"
             type="button"
             onClick={handleAddAttribute}
           >

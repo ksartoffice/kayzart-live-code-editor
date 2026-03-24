@@ -681,7 +681,7 @@ class Frontend {
 		$suffix           = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
 		$encoded          = rawurlencode( $js );
 		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
-		return '<script type="application/json" id="cd-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
+		return '<script type="application/json" id="kayzart-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
 	}
 
 	/**

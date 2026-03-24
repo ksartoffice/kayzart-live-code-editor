@@ -1,10 +1,10 @@
 (function () {
-  const styleId = 'cd-style';
-  const scriptId = 'cd-script';
-  const shadowContentId = 'cd-shadow-content';
-  const shadowScriptsId = 'cd-shadow-scripts';
-  const externalScriptAttr = 'data-cd-external-script';
-  const externalStyleAttr = 'data-cd-external-style';
+  const styleId = 'kayzart-style';
+  const scriptId = 'kayzart-script';
+  const shadowContentId = 'kayzart-shadow-content';
+  const shadowScriptsId = 'kayzart-shadow-scripts';
+  const externalScriptAttr = 'data-kayzart-external-script';
+  const externalStyleAttr = 'data-kayzart-external-style';
   const KAYZART_ATTR_NAME = 'data-kayzart-id';
   const config = window.KAYZART_PREVIEW || {};
   const postId = config.post_id || null;
@@ -197,7 +197,7 @@
   function ensureHighlightBox() {
     if (highlightBox) return highlightBox;
     highlightBox = document.createElement('div');
-    highlightBox.id = 'cd-highlight-box';
+    highlightBox.id = 'kayzart-highlight-box';
     Object.assign(highlightBox.style, {
       position: 'fixed',
       border: '2px solid #3b82f6',
@@ -219,7 +219,7 @@
   function ensureSelectBox() {
     if (selectBox) return selectBox;
     selectBox = document.createElement('div');
-    selectBox.id = 'cd-select-box';
+    selectBox.id = 'kayzart-select-box';
     Object.assign(selectBox.style, {
       position: 'fixed',
       border: '2px solid #a855f7',
@@ -241,7 +241,7 @@
   function ensureSelectActionButton() {
     if (selectActionButton) return selectActionButton;
     const button = document.createElement('button');
-    button.id = 'cd-select-action';
+    button.id = 'kayzart-select-action';
     button.type = 'button';
     button.setAttribute('aria-label', 'Open element settings');
     Object.assign(button.style, {
@@ -925,13 +925,13 @@
     templates.forEach((tpl) => {
       const host = tpl.parentElement;
       if (!host) return;
-      if (host.hasAttribute('data-cd-shadow-hydrated')) return;
+      if (host.hasAttribute('data-kayzart-shadow-hydrated')) return;
       const modeAttr = tpl.getAttribute('shadowrootmode');
       const mode = modeAttr === 'closed' ? 'closed' : 'open';
       try {
         const shadow = host.attachShadow({ mode: mode });
         shadow.appendChild(tpl.content.cloneNode(true));
-        host.setAttribute('data-cd-shadow-hydrated', '1');
+        host.setAttribute('data-kayzart-shadow-hydrated', '1');
         tpl.remove();
       } catch (e) {
         // noop

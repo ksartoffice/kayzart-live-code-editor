@@ -293,12 +293,12 @@ class Test_Preview extends WP_UnitTestCase {
 
 		$inner_had_markers = null;
 		$nested_filter     = static function ( string $content ): string {
-			if ( false === strpos( $content, '[cd-nested]' ) ) {
+			if ( false === strpos( $content, '[kayzart-nested]' ) ) {
 				return $content;
 			}
 
 			apply_filters( 'the_content', '<p>Inner</p>' );
-			return str_replace( '[cd-nested]', '', $content );
+			return str_replace( '[kayzart-nested]', '', $content );
 		};
 		$probe_filter      = static function ( string $content ) use ( &$inner_had_markers ): string {
 			global $wp_current_filter;
@@ -319,7 +319,7 @@ class Test_Preview extends WP_UnitTestCase {
 		add_filter( 'the_content', $nested_filter, 12 );
 		add_filter( 'the_content', $probe_filter, 1000000 );
 		try {
-			$actual = apply_filters( 'the_content', '[cd-nested]<p>Outer</p>' );
+			$actual = apply_filters( 'the_content', '[kayzart-nested]<p>Outer</p>' );
 		} finally {
 			remove_filter( 'the_content', $nested_filter, 12 );
 			remove_filter( 'the_content', $probe_filter, 1000000 );

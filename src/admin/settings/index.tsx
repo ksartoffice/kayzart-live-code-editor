@@ -463,16 +463,16 @@ function SettingsSidebar({
   }, [onPendingUpdatesChange, pendingSettingsState]);
 
   const tabs = (
-    <div className="cd-settingsTabsRow">
+    <div className="kayzart-settingsTabsRow">
       <div
-        className="cd-settingsTabs"
+        className="kayzart-settingsTabs"
         role="tablist"
         aria-label={__( 'Settings tabs', 'kayzart-live-code-editor')}
       >
         {tabItems.map((tab) => (
           <button
             key={tab.id}
-            className={`cd-settingsTab${activeTab === tab.id ? ' is-active' : ''}`}
+            className={`kayzart-settingsTab${activeTab === tab.id ? ' is-active' : ''}`}
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
@@ -483,7 +483,7 @@ function SettingsSidebar({
         ))}
       </div>
       <button
-        className="cd-settingsClose"
+        className="kayzart-settingsClose"
         type="button"
         aria-label={__( 'Close settings panel', 'kayzart-live-code-editor')}
         onClick={() => onClosePanel?.()}
@@ -535,7 +535,7 @@ function SettingsSidebar({
       {activeTab === 'elements' ? <ElementPanel api={elementsApi} /> : null}
 
       {activeExternalTab ? (
-        <div className="cd-settingsExternalPanel" ref={externalTabHostRef} />
+        <div className="kayzart-settingsExternalPanel" ref={externalTabHostRef} />
       ) : null}
     </Fragment>
   );

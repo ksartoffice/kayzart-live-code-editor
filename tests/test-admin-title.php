@@ -101,6 +101,22 @@ class Test_Admin_Title extends WP_UnitTestCase {
 		$this->assertSame( 'KayzArt Live Code Editor: Foo', $filtered );
 	}
 
+	public function test_maybe_suppress_editor_notices_sets_non_null_global_title(): void {
+		$post_id = $this->create_kayzart_post( 'Foo' );
+		set_current_screen( 'admin_page_' . Admin::MENU_SLUG );
+
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+
+		$GLOBALS['title'] = null;
+
+		$screen = get_current_screen();
+		Admin::maybe_suppress_editor_notices( $screen );
+
+		$this->assertIsString( $GLOBALS['title'] );
+		$this->assertSame( 'KayzArt Live Code Editor: Foo', $GLOBALS['title'] );
+	}
+
 	private function create_kayzart_post( string $title ): int {
 		return (int) self::factory()->post->create(
 			array(

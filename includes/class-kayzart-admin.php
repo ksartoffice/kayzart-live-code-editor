@@ -69,10 +69,29 @@ class Admin {
 			return;
 		}
 
+		self::ensure_editor_screen_title();
+
 		remove_all_actions( 'admin_notices' );
 		remove_all_actions( 'all_admin_notices' );
 		remove_all_actions( 'network_admin_notices' );
 		remove_all_actions( 'user_admin_notices' );
+	}
+
+	/**
+	 * Ensure the admin page title global is a non-null string on the editor screen.
+	 *
+	 * Prevents PHP 8.1+ deprecations when wp-admin/admin-header.php runs strip_tags( $title ).
+	 */
+	private static function ensure_editor_screen_title(): void {
+		global $title;
+
+		if ( is_string( $title ) && '' !== $title ) {
+			return;
+		}
+
+		$post_title = self::resolve_editor_post_title();
+		/* translators: %s: post title. */
+		$title = sprintf( __( 'KayzArt Live Code Editor: %s', 'kayzart-live-code-editor' ), $post_title );
 	}
 
 	/**

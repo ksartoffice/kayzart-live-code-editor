@@ -157,7 +157,7 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"], up to 2 passes). Other tags stay as plain text."
+msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Shortcode resolution runs up to 2 passes to handle nesting. Other tags stay as plain text."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:617

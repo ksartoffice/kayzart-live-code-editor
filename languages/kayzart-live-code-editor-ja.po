@@ -941,8 +941,8 @@ msgid "Control which shortcode tags are allowed to execute inside external embed
 msgstr "外部埋め込み内で実行を許可するショートコードタグを設定します。"
 
 #: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"], up to 2 passes). Other tags stay as plain text."
-msgstr "1行に1つのショートコードタグを入力してください。外部埋め込み（[kayzart post_id=\"...\"]、最大2回）の中では、ここで指定したタグのみ実行されます。それ以外のタグはプレーンテキストのまま表示されます。"
+msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Shortcode resolution runs up to 2 passes to handle nesting. Other tags stay as plain text."
+msgstr "1行に1つのショートコードタグを入力してください。外部埋め込み（[kayzart post_id=\"...\"]）内では、ここで指定したタグだけを実行します。入れ子のショートコードを解決するため、処理は最大2回まで繰り返します。指定外のタグはプレーンテキストのまま表示されます。"
 
 #: assets/dist/main.js:106
 msgid "Enable external embedding"

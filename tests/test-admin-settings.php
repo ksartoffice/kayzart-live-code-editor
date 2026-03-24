@@ -315,5 +315,77 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		remove_action( 'kayzart_editor_enqueue_assets', $listener, 10 );
 		$this->assertFalse( $fired );
 	}
+
+	public function test_register_menu_uses_empty_hidden_parent_slug(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $submenu, $_parent_pages;
+		$original_submenu      = $submenu;
+		$original_parent_pages = $_parent_pages;
+
+		$submenu       = is_array( $submenu ) ? $submenu : array();
+		$_parent_pages = is_array( $_parent_pages ) ? $_parent_pages : array();
+
+		Admin::register_menu();
+
+		$hidden_items = (array) ( $submenu[ Admin::HIDDEN_PARENT_SLUG ] ?? array() );
+		$editor_item  = null;
+		foreach ( $hidden_items as $item ) {
+			if ( Admin::MENU_SLUG === (string) ( $item[2] ?? '' ) ) {
+				$editor_item = $item;
+				break;
+			}
+		}
+		$registered_parent = (string) ( $_parent_pages[ Admin::MENU_SLUG ] ?? '' );
+
+		$submenu       = $original_submenu;
+		$_parent_pages = $original_parent_pages;
+
+		$this->assertNotNull( $editor_item );
+		$this->assertSame( 'KayzArt', (string) ( $editor_item[3] ?? '' ) );
+		$this->assertSame( Admin::HIDDEN_PARENT_SLUG, $registered_parent );
+	}
+
+	public function test_enqueue_assets_falls_back_when_permalink_filter_returns_null(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'publish',
+			)
+		);
+
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+
+		$null_permalink_filter = static function ( $permalink, $post, $leavename ) {
+			unset( $permalink, $post, $leavename );
+			return null;
+		};
+		add_filter( 'post_type_link', $null_permalink_filter, 999, 3 );
+
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+
+		remove_filter( 'post_type_link', $null_permalink_filter, 999 );
+		$_GET = $original_get;
+
+		$registered = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART = (.+);/', $inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$this->assertNotEmpty( $matches[1] ?? '' );
+
+		$payload = json_decode( $matches[1], true );
+		$this->assertIsArray( $payload );
+		$this->assertIsString( $payload['previewUrl'] ?? null );
+		$this->assertNotSame( '', $payload['previewUrl'] ?? '' );
+		$this->assertIsString( $payload['iframePreviewUrl'] ?? null );
+		$this->assertNotSame( '', $payload['iframePreviewUrl'] ?? '' );
+	}
 }
 

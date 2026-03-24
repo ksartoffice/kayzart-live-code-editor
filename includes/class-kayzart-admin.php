@@ -28,6 +28,7 @@ class Admin {
 	const OPTION_SHORTCODE_ALLOWLIST   = 'kayzart_shortcode_allowlist';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const OPTION_DELETE_ON_UNINSTALL   = 'kayzart_delete_on_uninstall';
+	const HIDDEN_PARENT_SLUG           = '';
 	const ADMIN_TITLE_SEPARATORS       = array(
 		' ' . "\xE2\x80\xB9" . ' ',
 		' &lsaquo; ',
@@ -394,8 +395,9 @@ class Admin {
 	public static function register_menu(): void {
 
 		// Hidden admin page (no menu entry). Accessed via redirects only.
+		// Use an empty parent slug to avoid passing null into add_submenu_page().
 		add_submenu_page(
-			null,
+			self::HIDDEN_PARENT_SLUG,
 			__( 'KayzArt', 'kayzart-live-code-editor' ),
 			__( 'KayzArt', 'kayzart-live-code-editor' ),
 			'edit_posts',
@@ -790,8 +792,12 @@ class Admin {
 		$back_url = $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
 		$list_url = admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
 
-		$preview_token      = $post_id ? wp_create_nonce( 'kayzart_preview_' . $post_id ) : '';
-		$preview_url        = $post_id ? add_query_arg( 'preview', 'true', get_permalink( $post_id ) ) : home_url( '/' );
+		$preview_token = $post_id ? wp_create_nonce( 'kayzart_preview_' . $post_id ) : '';
+		$permalink     = $post_id ? get_permalink( $post_id ) : '';
+		if ( ! is_string( $permalink ) || '' === $permalink ) {
+			$permalink = home_url( '/' );
+		}
+		$preview_url        = add_query_arg( 'preview', 'true', $permalink );
 		$iframe_preview_url = $post_id
 			? add_query_arg(
 				array(
@@ -799,7 +805,7 @@ class Admin {
 					'post_id'         => $post_id,
 					'token'           => $preview_token,
 				),
-				get_permalink( $post_id )
+				$permalink
 			)
 			: $preview_url;
 

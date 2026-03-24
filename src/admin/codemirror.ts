@@ -1,4 +1,3 @@
-import { basicSetup } from 'codemirror';
 import {
   Compartment,
   EditorState,
@@ -11,12 +10,43 @@ import {
 import {
   Decoration,
   EditorView,
+  crosshairCursor,
+  drawSelection,
+  dropCursor,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
   keymap,
+  lineNumbers,
+  rectangularSelection,
   type DecorationSet,
   type KeyBinding,
 } from '@codemirror/view';
-import { undo, redo, undoDepth, redoDepth } from '@codemirror/commands';
-import { startCompletion } from '@codemirror/autocomplete';
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  redo,
+  redoDepth,
+  undo,
+  undoDepth,
+} from '@codemirror/commands';
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  startCompletion,
+} from '@codemirror/autocomplete';
+import {
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from '@codemirror/language';
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
+import { lintKeymap } from '@codemirror/lint';
 import { html as htmlLanguage } from '@codemirror/lang-html';
 import { css as cssLanguage } from '@codemirror/lang-css';
 import { javascript as javascriptLanguage } from '@codemirror/lang-javascript';
@@ -204,6 +234,34 @@ const decorationField = StateField.define<DecorationSet>({
   },
 });
 
+const baseEditorSetup: Extension = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+];
+
 const KEY_MOD_CTRL_CMD = 1 << 11;
 const KEY_MOD_ALT = 1 << 9;
 const KEY_CODE_S = 1;
@@ -340,7 +398,7 @@ const createEditorWrapper = (options: {
   });
 
   const extensions: Extension[] = [
-    basicSetup,
+    baseEditorSetup,
     oneDark,
     wrapCompartment.of(lineWrappingExtension(options.wordWrap ?? 'off')),
     editableCompartment.of(EditorView.editable.of(!options.readOnly)),

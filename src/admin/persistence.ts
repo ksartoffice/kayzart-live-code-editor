@@ -5,6 +5,33 @@ import type { ApiFetch } from './types/api-fetch';
 import type { CompileTailwindResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
 
+const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    const maybeError = error as Record<string, unknown>;
+    if (typeof maybeError.message === 'string' && maybeError.message.trim()) {
+      return maybeError.message;
+    }
+    if (typeof maybeError.error === 'string' && maybeError.error.trim()) {
+      return maybeError.error;
+    }
+  }
+
+  const message = String(error);
+  if (message && message !== '[object Object]') {
+    return message;
+  }
+
+  return fallbackMessage;
+};
+
 type TailwindCompilerDeps = {
   apiFetch: ApiFetch;
   restCompileUrl: string;
@@ -65,7 +92,10 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
       if (currentToken !== tailwindCompileToken) {
         return;
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = resolveUnknownErrorMessage(
+        error,
+        __('Tailwind compile failed.', 'kayzart-live-code-editor')
+      );
       /* translators: %s: error message. */
       deps.onStatus(sprintf(__( 'Tailwind error: %s', 'kayzart-live-code-editor'), message));
     } finally {
@@ -133,10 +163,10 @@ export async function saveKayzArt(
     }
     return { ok: false };
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      return { ok: false, error: error.message };
-    }
-    return { ok: false, error: String(error) };
+    return {
+      ok: false,
+      error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
+    };
   }
 }
 
@@ -216,9 +246,9 @@ export async function exportKayzArt(
 
     return { ok: true };
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      return { ok: false, error: error.message };
-    }
-    return { ok: false, error: String(error) };
+    return {
+      ok: false,
+      error: resolveUnknownErrorMessage(error, __('Export failed.', 'kayzart-live-code-editor')),
+    };
   }
 }

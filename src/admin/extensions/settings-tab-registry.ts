@@ -21,8 +21,36 @@ type RegistryEntry = {
 type Listener = () => void;
 type RegisterSettingsTab = (tab: ExternalSettingsTab) => () => void;
 
-type KayzArtExtensionApi = {
+export type EditorSourceRange = {
+  startOffset: number;
+  endOffset: number;
+};
+
+export type SelectedElementContext = {
+  lcId: string;
+  tagName: string;
+  attributes: Array<{ name: string; value: string }>;
+  text: string | null;
+  outerHTML: string;
+  sourceRange?: EditorSourceRange;
+};
+
+export type EditorSnapshot = {
+  html: string;
+  css: string;
+  js: string;
+  jsMode: 'classic' | 'module';
+  baseHash: string;
+};
+
+export type KayzArtExtensionApi = {
   registerSettingsTab: RegisterSettingsTab;
+  openSettingsTab?: (tabId: string) => void;
+  getEditorSnapshot?: () => EditorSnapshot | null;
+  replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
+  getSelectedContext?: () => SelectedElementContext | null;
+  setEditorLock?: (locked: boolean) => void;
+  isEditorLocked?: () => boolean;
 };
 
 const RESERVED_TAB_IDS = new Set(['settings', 'elements']);

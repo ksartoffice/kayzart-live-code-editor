@@ -135,6 +135,7 @@ export type CodeEditorInstance = {
     keybindings?: number[];
     run: () => void | Promise<void>;
   }) => void;
+  setLocked: (locked: boolean) => void;
 };
 
 export type CodeMirrorType = {
@@ -369,10 +370,12 @@ const createEditorWrapper = (options: {
 }): EditorWrapper => {
   const wrapCompartment = new Compartment();
   const editableCompartment = new Compartment();
+  const readOnlyCompartment = new Compartment();
   const actionKeymapCompartment = new Compartment();
   const changeListeners = new Set<() => void>();
   const focusListeners = new Set<() => void>();
   const actionKeymaps: KeyBinding[] = [];
+  const baseReadOnly = Boolean(options.readOnly);
   let decorationIdSeq = 0;
   const activeDecorations = new Map<string, DecorationSpec>();
 
@@ -402,6 +405,7 @@ const createEditorWrapper = (options: {
     oneDark,
     wrapCompartment.of(lineWrappingExtension(options.wordWrap ?? 'off')),
     editableCompartment.of(EditorView.editable.of(!options.readOnly)),
+    readOnlyCompartment.of(EditorState.readOnly.of(baseReadOnly)),
     actionKeymapCompartment.of(keymap.of(actionKeymaps)),
     options.language,
     decorationField,
@@ -585,6 +589,13 @@ const createEditorWrapper = (options: {
       });
 
       updateActionKeymaps(view);
+    },
+    setLocked: (locked) => {
+      view.dispatch({
+        effects: readOnlyCompartment.reconfigure(
+          EditorState.readOnly.of(baseReadOnly || locked)
+        ),
+      });
     },
   };
 

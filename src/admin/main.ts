@@ -15,7 +15,11 @@ import {
   type EditorModel,
 } from './codemirror';
 import { createPreviewController, type PreviewController } from './preview';
-import { getEditableElementAttributes, getEditableElementText } from './element-text';
+import {
+  getEditableElementAttributes,
+  getEditableElementText,
+  getElementContext,
+} from './element-text';
 import {
   createTailwindCompiler,
   type TailwindCompiler,
@@ -38,6 +42,11 @@ import { debounce } from './utils/debounce';
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
+import type {
+  EditorSnapshot,
+  KayzArtExtensionApi,
+  SelectedElementContext,
+} from './extensions/settings-tab-registry';
 import { __ } from '@wordpress/i18n';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
@@ -46,6 +55,7 @@ declare const wp: any;
 declare global {
   interface Window {
     KAYZART: AppConfig;
+    KAYZART_EXTENSION_API?: KayzArtExtensionApi;
   }
 }
 
@@ -73,6 +83,17 @@ const saveHtmlWordWrapMode = (mode: HtmlWordWrapMode) => {
   } catch {
     // Ignore storage errors and keep editing.
   }
+};
+
+const computeEditorBaseHash = (html: string, css: string, js: string) => {
+  const source = `${html}\n\u0000${css}\n\u0000${js}`;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < source.length; i += 1) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+    hash >>>= 0;
+  }
+  return hash.toString(16).padStart(8, '0');
 };
 
 async function main() {
@@ -193,6 +214,7 @@ async function main() {
   let sendRenderDebounced: (() => void) | null = null;
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
+  let extensionEditorLock = false;
   let suppressSelectionClear = 0;
   const selectionListeners = new Set<(lcId: string | null) => void>();
   const contentListeners = new Set<() => void>();
@@ -1006,6 +1028,112 @@ async function main() {
     }
   };
 
+  const setEditorLock = (locked: boolean) => {
+    extensionEditorLock = locked;
+    htmlEditor.setLocked(locked);
+    cssEditor.setLocked(locked);
+    jsEditor.setLocked(locked);
+  };
+
+  const getEditorSnapshot = (): EditorSnapshot => {
+    const html = htmlModel.getValue();
+    const css = cssModel.getValue();
+    const js = jsModel.getValue();
+    return {
+      html,
+      css,
+      js,
+      jsMode,
+      baseHash: computeEditorBaseHash(html, css, js),
+    };
+  };
+
+  const replaceModelContent = (model: EditorModel, nextText: string) => {
+    const current = model.getValue();
+    if (current === nextText) {
+      return;
+    }
+    const end = model.getPositionAt(current.length);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new codemirror.Range(1, 1, end.lineNumber, end.column),
+          text: nextText,
+        },
+      ],
+      () => null
+    );
+  };
+
+  const replaceEditorSnapshot = (snapshot: EditorSnapshot) => {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return false;
+    }
+    replaceModelContent(htmlModel, snapshot.html ?? '');
+    replaceModelContent(cssModel, snapshot.css ?? '');
+    replaceModelContent(jsModel, snapshot.js ?? '');
+    setJsMode(snapshot.jsMode ?? 'classic');
+    preview?.resetCanonicalCache();
+    preview?.sendRender();
+    if (jsEnabled) {
+      preview?.requestRunJs();
+    } else {
+      preview?.requestDisableJs();
+    }
+    return true;
+  };
+
+  const getSelectedContext = (): SelectedElementContext | null => {
+    if (!selectedLcId) {
+      return null;
+    }
+    const context = getElementContext(htmlModel.getValue(), selectedLcId);
+    if (!context) {
+      return null;
+    }
+    return {
+      lcId: context.lcId,
+      tagName: context.tagName,
+      attributes: context.attributes.map((attr) => ({
+        name: attr.name,
+        value: attr.value,
+      })),
+      text: context.text,
+      outerHTML: context.outerHTML,
+      sourceRange: context.sourceRange
+        ? {
+            startOffset: context.sourceRange.startOffset,
+            endOffset: context.sourceRange.endOffset,
+          }
+        : undefined,
+    };
+  };
+
+  const openSettingsTab = (tabId: string) => {
+    if (!settingsOpen) {
+      setSettingsOpen(true);
+    }
+    settingsApi?.openTab(tabId);
+  };
+
+  const publishExtensionApi = () => {
+    const registerSettingsTab = window.KAYZART_EXTENSION_API?.registerSettingsTab;
+    if (typeof registerSettingsTab !== 'function') {
+      return;
+    }
+    window.KAYZART_EXTENSION_API = {
+      ...window.KAYZART_EXTENSION_API,
+      registerSettingsTab,
+      openSettingsTab,
+      getEditorSnapshot,
+      replaceEditorSnapshot,
+      getSelectedContext,
+      setEditorLock,
+      isEditorLocked: () => extensionEditorLock,
+    };
+  };
+
   settingsApi = initSettings({
     container: ui.settingsBody,
     header: ui.settingsHeader,
@@ -1048,6 +1176,7 @@ async function main() {
     onClosePanel: () => setSettingsOpen(false),
     elementsApi,
   });
+  publishExtensionApi();
 
   const handleViewportResize = debounce(() => {
     editorUiController?.updateCompactEditorMode();

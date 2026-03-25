@@ -316,7 +316,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertFalse( $fired );
 	}
 
-	public function test_register_menu_uses_empty_hidden_parent_slug(): void {
+	public function test_register_menu_uses_admin_php_hidden_parent_slug(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -344,6 +344,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertNotNull( $editor_item );
 		$this->assertSame( 'KayzArt', (string) ( $editor_item[3] ?? '' ) );
+		$this->assertSame( 'admin.php', Admin::HIDDEN_PARENT_SLUG );
 		$this->assertSame( Admin::HIDDEN_PARENT_SLUG, $registered_parent );
 	}
 
@@ -386,6 +387,42 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertNotSame( '', $payload['previewUrl'] ?? '' );
 		$this->assertIsString( $payload['iframePreviewUrl'] ?? null );
 		$this->assertNotSame( '', $payload['iframePreviewUrl'] ?? '' );
+	}
+
+	public function test_register_menu_provides_non_null_admin_page_title_for_editor_page(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $menu, $submenu, $pagenow, $plugin_page, $title, $_parent_pages;
+		$original_menu         = $menu;
+		$original_submenu      = $submenu;
+		$original_pagenow      = $pagenow;
+		$original_plugin_page  = $plugin_page;
+		$original_title        = $title;
+		$original_parent_pages = $_parent_pages;
+
+		$menu          = is_array( $menu ) ? $menu : array();
+		$submenu       = is_array( $submenu ) ? $submenu : array();
+		$_parent_pages = is_array( $_parent_pages ) ? $_parent_pages : array();
+
+		Admin::register_menu();
+
+		$pagenow     = 'admin.php';
+		$plugin_page = Admin::MENU_SLUG;
+		$title       = null;
+
+		$page_title = get_admin_page_title();
+
+		$menu          = $original_menu;
+		$submenu       = $original_submenu;
+		$pagenow       = $original_pagenow;
+		$plugin_page   = $original_plugin_page;
+		$title         = $original_title;
+		$_parent_pages = $original_parent_pages;
+
+		$this->assertIsString( $page_title );
+		$this->assertNotSame( '', $page_title );
+		$this->assertSame( 'KayzArt', $page_title );
 	}
 }
 

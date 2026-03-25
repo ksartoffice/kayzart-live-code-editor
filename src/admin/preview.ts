@@ -148,7 +148,7 @@ function canonicalizeHtml(html: string): CanonicalResult {
     const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
     const map: Record<string, SourceRange> = {};
     let seq = 0;
-    const nextId = () => `cd-${++seq}`;
+    const nextId = () => `kayzart-${++seq}`;
 
     walkCanonicalTree(fragment, null, map, nextId);
 
@@ -299,7 +299,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     if (!src) return false;
     try {
       const url = new URL(src, window.location.href);
-      url.searchParams.set('cd_js_reload', String(Date.now()));
+      url.searchParams.set('kayzart_js_reload', String(Date.now()));
       iframe.src = url.toString();
       return true;
     } catch (error) {
@@ -448,8 +448,8 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
             endPos.column
           ),
           options: {
-            className: 'cd-highlight-line',
-            inlineClassName: 'cd-highlight-inline',
+            className: 'kayzart-highlight-line',
+            inlineClassName: 'kayzart-highlight-inline',
           },
         };
       })
@@ -471,7 +471,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   const highlightByLcId = (lcId: string) => {
     const rangeInfo = lcSourceMap[lcId];
     if (!rangeInfo) {
-      console.warn('[KayzArt] No source map for cd-id:', lcId);
+      console.warn('[KayzArt] No source map for kayzart-id:', lcId);
       return;
     }
     deps.focusHtmlEditor();
@@ -487,8 +487,8 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       {
         range: selectedRange,
         options: {
-          className: 'cd-highlight-line',
-          inlineClassName: 'cd-highlight-inline',
+          className: 'kayzart-highlight-line',
+          inlineClassName: 'kayzart-highlight-inline',
         },
       },
     ]);

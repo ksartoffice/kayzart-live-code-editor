@@ -154,91 +154,91 @@ function SetupWizard({
   };
 
   return (
-    <div className="cd-setupOverlay">
-      <div className="cd-setupCard" role="dialog" aria-modal="true">
-        <div className="cd-setupTitle">{__('Choose editor mode', 'kayzart-live-code-editor')}</div>
-        <div className="cd-setupIntro">
+    <div className="kayzart-setupOverlay">
+      <div className="kayzart-setupCard" role="dialog" aria-modal="true">
+        <div className="kayzart-setupTitle">{__('Choose editor mode', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-setupIntro">
           {__(
             'Select TailwindCSS or Normal mode. This choice cannot be changed later.', 'kayzart-live-code-editor')}
         </div>
-        <div className="cd-setupOptions">
-          <label className={`cd-setupOption${mode === 'normal' ? ' is-active' : ''}`}>
+        <div className="kayzart-setupOptions">
+          <label className={`kayzart-setupOption${mode === 'normal' ? ' is-active' : ''}`}>
             <input
               type="radio"
-              name="cd-setup-mode"
+              name="kayzart-setup-mode"
               value="normal"
               checked={mode === 'normal'}
               onChange={() => setMode('normal')}
             />
-            <span className="cd-setupOptionBody">
-              <span className="cd-setupOptionTitle">
+            <span className="kayzart-setupOptionBody">
+              <span className="kayzart-setupOptionTitle">
                 {__('Normal (HTML/CSS)', 'kayzart-live-code-editor')}
               </span>
-              <span className="cd-setupOptionDesc">
+              <span className="kayzart-setupOptionDesc">
                 {__('Edit HTML and CSS directly in the code editor.', 'kayzart-live-code-editor')}
               </span>
             </span>
           </label>
-          <label className={`cd-setupOption${mode === 'tailwind' ? ' is-active' : ''}`}>
+          <label className={`kayzart-setupOption${mode === 'tailwind' ? ' is-active' : ''}`}>
             <input
               type="radio"
-              name="cd-setup-mode"
+              name="kayzart-setup-mode"
               value="tailwind"
               checked={mode === 'tailwind'}
               onChange={() => setMode('tailwind')}
             />
-            <span className="cd-setupOptionBody">
-              <span className="cd-setupOptionTitle">
+            <span className="kayzart-setupOptionBody">
+              <span className="kayzart-setupOptionTitle">
                 {__('TailwindCSS', 'kayzart-live-code-editor')}
               </span>
-              <span className="cd-setupOptionDesc">
+              <span className="kayzart-setupOptionDesc">
                 {__('Use utility classes. CSS is compiled automatically.', 'kayzart-live-code-editor')}
               </span>
             </span>
           </label>
-          <label className={`cd-setupOption${mode === 'import' ? ' is-active' : ''}`}>
+          <label className={`kayzart-setupOption${mode === 'import' ? ' is-active' : ''}`}>
             <input
               type="radio"
-              name="cd-setup-mode"
+              name="kayzart-setup-mode"
               value="import"
               checked={mode === 'import'}
               onChange={() => setMode('import')}
             />
-            <span className="cd-setupOptionBody">
-              <span className="cd-setupOptionTitle">
+            <span className="kayzart-setupOptionBody">
+              <span className="kayzart-setupOptionTitle">
                 {__('Import JSON', 'kayzart-live-code-editor')}
               </span>
-              <span className="cd-setupOptionDesc">
+              <span className="kayzart-setupOptionDesc">
                 {__('Restore from an exported KayzArt JSON file.', 'kayzart-live-code-editor')}
               </span>
             </span>
           </label>
         </div>
         {mode === 'import' ? (
-          <div className="cd-setupImport">
-            <label className="cd-btn cd-btn-secondary cd-setupFileLabel">
+          <div className="kayzart-setupImport">
+            <label className="kayzart-btn kayzart-btn-secondary kayzart-setupFileLabel">
               {__('Choose JSON file', 'kayzart-live-code-editor')}
               <input
-                className="cd-setupFileInput"
+                className="kayzart-setupFileInput"
                 type="file"
                 accept="application/json,.json"
                 onChange={handleFileChange}
               />
             </label>
-            <div className="cd-setupFileName">
+            <div className="kayzart-setupFileName">
               {importFileName || __('No file selected.', 'kayzart-live-code-editor')}
             </div>
           </div>
         ) : null}
-        <div className="cd-setupError">{error || ''}</div>
-        <div className="cd-setupActions">
+        <div className="kayzart-setupError">{error || ''}</div>
+        <div className="kayzart-setupActions">
           {backUrl ? (
-            <a className="cd-btn cd-btn-secondary" href={backUrl}>
+            <a className="kayzart-btn kayzart-btn-secondary" href={backUrl}>
               {__('Back', 'kayzart-live-code-editor')}
             </a>
           ) : null}
           <button
-            className="cd-btn cd-btn-primary"
+            className="kayzart-btn kayzart-btn-primary"
             type="button"
             onClick={handleSubmit}
             disabled={saving}

@@ -135,8 +135,9 @@ class Post_Type {
 	public static function get_editor_url( int $post_id ): string {
 		return add_query_arg(
 			array(
-				'page'    => Admin::MENU_SLUG,
-				'post_id' => $post_id,
+				'page'     => Admin::MENU_SLUG,
+				'post_id'  => $post_id,
+				'_wpnonce' => wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION ),
 			),
 			admin_url( 'admin.php' )
 		);

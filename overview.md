@@ -21,7 +21,7 @@ KayzArt Live Code Editor – Live HTML/CSS/JS Editor with Tailwind CSS
 - `?kayzart_preview=1&post_id=...&token=...` で実フロントを表示し、`<!--kayzart:start-->...<!--kayzart:end-->` 内を差し替え。`kayzart_template_mode` クエリでプレビュー時テンプレートモードを上書き可能。
 - parse5 で `data-kayzart-id` を付与し、ホバー/クリックで該当要素をハイライト。
 - 選択時に要素タブを開くアクションボタンを表示し、エディタ/設定と選択状態を同期。
-- `theme` レイアウトでテーマ側が `the_content` を出力しない場合、プレビューは検出して `frame` への切り替えを促す。
+- `theme` レイアウトでテーマ側が `the_content` を出力しない場合、プレビューは検出して `standalone` への切り替えを促す。
 
 セットアップ/インポート
 ----------------------
@@ -51,9 +51,8 @@ Shadow DOM
 
 テンプレートモード
 ------------------
-- 投稿ごとに `default` / `standalone` / `frame` / `theme` を選択可能（`default` は管理設定の既定値に追従）。
+- 投稿ごとに `default` / `standalone` / `theme` を選択可能（`default` は管理設定の既定値に追従）。
 - `standalone`: プラグイン同梱テンプレートで最小構成表示（テーマのヘッダー/フッターなし）。
-- `frame`: テーマのヘッダー/フッター付きで本文を表示。
 - `theme`: テーマ標準の単一投稿テンプレートをそのまま使用。
 
 フロント表示
@@ -82,7 +81,7 @@ REST API
 管理設定
 --------
 - `KayzArt > Settings` で投稿スラッグ (`kayzart_post_slug`) を変更可能。
-- 同画面で既定テンプレートモード (`kayzart_default_template_mode`: Standalone / Frame / Theme) を設定可能。
+- 同画面で既定テンプレートモード (`kayzart_default_template_mode`: Standalone / Theme) を設定可能。
 - 同画面でアンインストール時のデータ削除を設定（`kayzart_delete_on_uninstall`）。
 
 postMessage プロトコル

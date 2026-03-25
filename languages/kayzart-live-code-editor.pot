@@ -149,11 +149,6 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:583
 #: assets/dist/main.js:106
-msgid "Frame"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:584
-#: assets/dist/main.js:106
 msgid "Theme"
 msgstr ""
 
@@ -162,7 +157,7 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"], up to 2 passes). Other tags stay as plain text."
+msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Other tags stay as plain text."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:617
@@ -397,10 +392,6 @@ msgid "Standalone hides the theme header and footer."
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Frame uses the theme header and footer."
-msgstr ""
-
-#: assets/dist/main.js:106
 msgid "Theme uses the active theme template."
 msgstr ""
 
@@ -468,7 +459,7 @@ msgid "Enable Shadow DOM (DSD)"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Prevents interference with existing theme CSS."
+msgid "Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected."
 msgstr ""
 
 #: assets/dist/main.js:106
@@ -914,7 +905,7 @@ msgid "Theme template unavailable"
 msgstr ""
 
 #: assets/dist/main.js:127
-msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Frame."
+msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone."
 msgstr ""
 
 #: assets/dist/main.js:127

@@ -52,11 +52,11 @@ class Frontend {
 	 */
 	private static int $shadow_style_render_count = 0;
 	private const TEMPLATE_MODE_META_KEY          = '_kayzart_template_mode';
-	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'frame', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'frame', 'theme' );
+	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'theme' );
 	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
 	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
-	private const SHORTCODE_RENDER_MAX_PASSES     = 2;
+	private const SHORTCODE_RENDER_MAX_PASSES     = 1;
 	/**
 	 * Register front-end hooks.
 	 */
@@ -321,8 +321,6 @@ class Frontend {
 		$path = '';
 		if ( 'standalone' === $template_mode ) {
 			$path = KAYZART_PATH . 'templates/single-kayzart-standalone.php';
-		} elseif ( 'frame' === $template_mode ) {
-			$path = KAYZART_PATH . 'templates/single-kayzart-frame.php';
 		}
 
 		if ( $path && file_exists( $path ) ) {
@@ -371,6 +369,21 @@ class Frontend {
 			}
 		}
 
+		return $css;
+	}
+
+	/**
+	 * Sanitize CSS before inline style output.
+	 *
+	 * @param string $css CSS output.
+	 * @return string
+	 */
+	private static function sanitize_inline_style_css( string $css ): string {
+		if ( '' === $css ) {
+			return '';
+		}
+
+		$css = wp_strip_all_tags( $css, false );
 		return self::escape_style_tag( $css );
 	}
 
@@ -519,28 +532,20 @@ class Frontend {
 			return $content;
 		}
 
-		$had_original_shortcode_tags = array_key_exists( 'shortcode_tags', $GLOBALS );
-		$original_shortcode_tags     = $had_original_shortcode_tags ? $GLOBALS['shortcode_tags'] : null;
-		if ( ! is_array( $original_shortcode_tags ) || empty( $original_shortcode_tags ) ) {
-			return $content;
-		}
-
-		$allowed_shortcode_tags = array();
-		foreach ( $allowlist as $tag ) {
-			if ( isset( $original_shortcode_tags[ $tag ] ) ) {
-				$allowed_shortcode_tags[ $tag ] = $original_shortcode_tags[ $tag ];
-			}
-		}
-
-		if ( empty( $allowed_shortcode_tags ) ) {
-			return $content;
-		}
+		$allowed_tags = array_fill_keys( $allowlist, true );
 
 		$rendered = $content;
-		try {
-			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Temporarily scope shortcode execution to the allowlist.
-			$GLOBALS['shortcode_tags'] = $allowed_shortcode_tags;
+		$filter   = static function ( $output, $tag, $attr, $m ) use ( $allowed_tags ) {
+			unset( $attr );
+			if ( isset( $allowed_tags[ $tag ] ) ) {
+				return $output;
+			}
 
+			return isset( $m[0] ) ? (string) $m[0] : $output;
+		};
+		add_filter( 'pre_do_shortcode_tag', $filter, 10, 4 );
+
+		try {
 			for ( $pass = 0; $pass < self::SHORTCODE_RENDER_MAX_PASSES; $pass++ ) {
 				$previous = $rendered;
 				$rendered = do_shortcode( $previous );
@@ -549,12 +554,7 @@ class Frontend {
 				}
 			}
 		} finally {
-			if ( $had_original_shortcode_tags ) {
-              // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore previous global state.
-				$GLOBALS['shortcode_tags'] = $original_shortcode_tags;
-			} else {
-				unset( $GLOBALS['shortcode_tags'] );
-			}
+			remove_filter( 'pre_do_shortcode_tag', $filter, 10 );
 		}
 
 		return $rendered;
@@ -597,7 +597,7 @@ class Frontend {
 				wp_register_style( $inline_handle, false, $inline_deps, KAYZART_VERSION );
 			}
 			wp_enqueue_style( $inline_handle );
-			wp_add_inline_style( $inline_handle, $css );
+			wp_add_inline_style( $inline_handle, self::sanitize_inline_style_css( $css ) );
 			$handles[] = $inline_handle;
 		}
 
@@ -637,7 +637,7 @@ class Frontend {
 				wp_register_style( $inline_handle, false, $inline_deps, KAYZART_VERSION );
 			}
 			wp_enqueue_style( $inline_handle );
-			wp_add_inline_style( $inline_handle, $css );
+			wp_add_inline_style( $inline_handle, self::sanitize_inline_style_css( $css ) );
 			$handles[] = $inline_handle;
 		}
 
@@ -679,7 +679,7 @@ class Frontend {
 		$suffix           = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
 		$encoded          = rawurlencode( $js );
 		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
-		return '<script type="application/json" id="cd-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
+		return '<script type="application/json" id="kayzart-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
 	}
 
 	/**
@@ -844,7 +844,7 @@ class Frontend {
 		}
 
 		wp_enqueue_style( $handle );
-		wp_add_inline_style( $handle, $css );
+		wp_add_inline_style( $handle, self::sanitize_inline_style_css( $css ) );
 	}
 
 	/**

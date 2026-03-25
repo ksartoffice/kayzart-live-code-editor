@@ -161,7 +161,7 @@ export function getEditableElementText(html: string, lcId: string): ElementTextI
     for (const child of node.childNodes || []) {
       if (isElement(child)) {
         const existingId = getExistingLcId(child);
-        const id = existingId ?? `cd-${++seq}`;
+        const id = existingId ?? `kayzart-${++seq}`;
 
         if (id === lcId) {
           if (VOID_TAGS.has(child.tagName)) {
@@ -212,7 +212,7 @@ export function getEditableElementAttributes(html: string, lcId: string): Elemen
     for (const child of node.childNodes || []) {
       if (isElement(child)) {
         const existingId = getExistingLcId(child);
-        const id = existingId ?? `cd-${++seq}`;
+        const id = existingId ?? `kayzart-${++seq}`;
 
         if (id === lcId) {
           const startTag = child.sourceCodeLocation?.startTag;

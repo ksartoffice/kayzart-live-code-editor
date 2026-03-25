@@ -34,8 +34,7 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 					'http://example.com/bad.js',
 					'https://example.com/good.js',
 					'javascript:alert(1)',
-				),
-				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+				)
 			)
 		);
 
@@ -47,8 +46,7 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 					'http://example.com/bad.css',
 					'https://example.com/good.css',
 					'javascript:alert(2)',
-				),
-				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+				)
 			)
 		);
 

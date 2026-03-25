@@ -74,33 +74,33 @@ function ShadowHintModal({
   onCopy,
 }: ShadowHintModalProps) {
   return (
-    <div className="cd-modal">
-      <div className="cd-modalBackdrop" onClick={onClose} />
-      <div className="cd-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="cd-modalHeader">
-          <div className="cd-modalTitle">{title}</div>
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" onClick={onClose} />
+      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
           <button
             type="button"
-            className="cd-modalClose"
+            className="kayzart-modalClose"
             aria-label={closeLabel}
             onClick={onClose}
           >
             <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: closeIcon }} />
           </button>
         </div>
-        <div className="cd-modalBody">
-          <div className="cd-hintBody">
-            <p className="cd-hintText">{lead}</p>
-            {detail ? <p className="cd-hintText">{detail}</p> : null}
-            <pre className="cd-hintCode">{code}</pre>
-            {note ? <p className="cd-hintText">{note}</p> : null}
+        <div className="kayzart-modalBody">
+          <div className="kayzart-hintBody">
+            <p className="kayzart-hintText">{lead}</p>
+            {detail ? <p className="kayzart-hintText">{detail}</p> : null}
+            <pre className="kayzart-hintCode">{code}</pre>
+            {note ? <p className="kayzart-hintText">{note}</p> : null}
           </div>
         </div>
-        <div className="cd-modalActions">
-          <button type="button" className="cd-btn cd-btn-secondary" onClick={onCopy}>
+        <div className="kayzart-modalActions">
+          <button type="button" className="kayzart-btn kayzart-btn-secondary" onClick={onCopy}>
             {copyLabel}
           </button>
-          <button type="button" className="cd-btn cd-btn-primary" onClick={onClose}>
+          <button type="button" className="kayzart-btn kayzart-btn-primary" onClick={onClose}>
             {closeLabel}
           </button>
         </div>
@@ -117,19 +117,19 @@ function MissingMarkersModal({
   onConfirm,
 }: MissingMarkersModalProps) {
   return (
-    <div className="cd-modal">
-      <div className="cd-modalBackdrop" />
-      <div className="cd-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="cd-modalHeader">
-          <div className="cd-modalTitle">{title}</div>
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" />
+      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
         </div>
-        <div className="cd-modalBody">
-          <p className="cd-hintText">{body}</p>
+        <div className="kayzart-modalBody">
+          <p className="kayzart-hintText">{body}</p>
         </div>
-        <div className="cd-modalActions">
+        <div className="kayzart-modalActions">
           <button
             type="button"
-            className="cd-btn cd-btn-primary"
+            className="kayzart-btn kayzart-btn-primary"
             disabled={inFlight}
             onClick={onConfirm}
           >
@@ -169,11 +169,11 @@ export function createModalController(deps: ModalControllerDeps) {
 
   const missingMarkersTitle = __('Theme template unavailable', 'kayzart-live-code-editor');
   const missingMarkersBody = __(
-    'This theme does not output "the_content", so the preview cannot be rendered. KayzArt will switch the template mode to Frame.', 'kayzart-live-code-editor');
+    'This theme does not output "the_content", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone.', 'kayzart-live-code-editor');
   const missingMarkersActionLabel = __('OK', 'kayzart-live-code-editor');
   const missingMarkersRetryNotice = __(
     'Preview markers are still missing after switching template mode. The current template does not output "the_content".', 'kayzart-live-code-editor');
-  const missingMarkersFallbackTemplateMode: 'standalone' | 'frame' = 'frame';
+  const missingMarkersFallbackTemplateMode: 'standalone' = 'standalone';
 
   let modalHost: HTMLDivElement | null = null;
   let modalRoot: ReturnType<typeof createRoot> | null = null;
@@ -210,7 +210,7 @@ export function createModalController(deps: ModalControllerDeps) {
       return;
     }
     modalHost = document.createElement('div');
-    modalHost.className = 'cd-modalHost';
+    modalHost.className = 'kayzart-modalHost';
     document.body.appendChild(modalHost);
     if (typeof createRoot === 'function') {
       modalRoot = createRoot(modalHost);

@@ -61,11 +61,11 @@ function createCompactActionButton(
   button.setAttribute('aria-label', label);
   button.setAttribute('title', label);
 
-  const icon = el('span', 'cd-compactEditorActionIcon');
+  const icon = el('span', 'kayzart-compactEditorActionIcon');
   icon.setAttribute('aria-hidden', 'true');
   icon.innerHTML = iconSvg;
 
-  const text = el('span', 'cd-compactEditorActionLabel');
+  const text = el('span', 'kayzart-compactEditorActionLabel');
   text.textContent = label;
 
   button.append(icon, text);
@@ -93,21 +93,21 @@ function createJsModeSelect(className: string): HTMLSelectElement {
 }
 
 export function buildEditorShell(root: HTMLElement): EditorShellRefs {
-  const app = el('div', 'cd-app');
+  const app = el('div', 'kayzart-app');
 
   // Toolbar (React mount point)
-  const toolbar = el('div', 'cd-toolbar');
+  const toolbar = el('div', 'kayzart-toolbar');
 
   // Main split
-  const main = el('div', 'cd-main');
-  const left = el('div', 'cd-left');
-  const resizer = el('div', 'cd-resizer');
-  const right = el('div', 'cd-right');
-  const settings = el('aside', 'cd-settings');
-  settings.id = 'cd-settings';
-  const settingsInner = el('div', 'cd-settingsInner');
-  const settingsHeader = el('div', 'cd-settingsHeader');
-  const settingsBody = el('div', 'cd-settingsBody');
+  const main = el('div', 'kayzart-main');
+  const left = el('div', 'kayzart-left');
+  const resizer = el('div', 'kayzart-resizer');
+  const right = el('div', 'kayzart-right');
+  const settings = el('aside', 'kayzart-settings');
+  settings.id = 'kayzart-settings';
+  const settingsInner = el('div', 'kayzart-settingsInner');
+  const settingsHeader = el('div', 'kayzart-settingsHeader');
+  const settingsBody = el('div', 'kayzart-settingsBody');
   settingsInner.append(settingsHeader, settingsBody);
   settings.append(settingsInner);
 
@@ -123,40 +123,40 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     }),
   };
 
-  const compactEditorTabs = el('div', 'cd-compactEditorTabs');
-  const compactEditorTabsList = el('div', 'cd-editorTabs cd-compactEditorTabsList');
-  const compactEditorActions = el('div', 'cd-compactEditorActions');
+  const compactEditorTabs = el('div', 'kayzart-compactEditorTabs');
+  const compactEditorTabsList = el('div', 'kayzart-editorTabs kayzart-compactEditorTabsList');
+  const compactEditorActions = el('div', 'kayzart-compactEditorActions');
   const compactHtmlTab = document.createElement('button');
   compactHtmlTab.type = 'button';
-  compactHtmlTab.className = 'cd-editorTab cd-compactEditorTab is-active';
+  compactHtmlTab.className = 'kayzart-editorTab kayzart-compactEditorTab is-active';
   compactHtmlTab.textContent = __( 'HTML', 'kayzart-live-code-editor');
   const compactCssTab = document.createElement('button');
   compactCssTab.type = 'button';
-  compactCssTab.className = 'cd-editorTab cd-compactEditorTab';
+  compactCssTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
   compactCssTab.textContent = __( 'CSS', 'kayzart-live-code-editor');
   const compactJsTab = document.createElement('button');
   compactJsTab.type = 'button';
-  compactJsTab.className = 'cd-editorTab cd-compactEditorTab';
+  compactJsTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
   compactJsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
-  const compactJsModeSelect = createJsModeSelect('cd-formSelect cd-jsModeSelect cd-compactJsModeSelect');
+  const compactJsModeSelect = createJsModeSelect('kayzart-formSelect kayzart-jsModeSelect kayzart-compactJsModeSelect');
   compactEditorTabsList.append(compactHtmlTab, compactCssTab, compactJsTab);
   const compactAddMediaButton = createCompactActionButton(
-    'cd-editorAction cd-compactEditorAction cd-compactEditorAction-media',
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-media',
     __( 'Add Media', 'kayzart-live-code-editor'),
     compactIcons.media
   );
   const compactRunButton = createCompactActionButton(
-    'cd-editorAction cd-compactEditorAction cd-compactEditorAction-run',
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-run',
     __( 'Run', 'kayzart-live-code-editor'),
     compactIcons.run
   );
   const compactShadowHintButton = createCompactActionButton(
-    'cd-editorAction cd-compactEditorAction cd-compactEditorAction-hint',
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-hint',
     __( 'Shadow DOM Hint', 'kayzart-live-code-editor'),
     compactIcons.hint
   );
   const compactTailwindHintButton = createCompactActionButton(
-    'cd-editorAction cd-compactEditorAction cd-compactEditorAction-hint',
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-hint',
     __( 'Tailwind CSS Hint', 'kayzart-live-code-editor'),
     compactIcons.hint
   );
@@ -169,76 +169,76 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   );
   compactEditorTabs.append(compactEditorTabsList, compactEditorActions);
 
-  const htmlPane = el('div', 'cd-editorPane cd-editorPane-html is-active');
-  const htmlHeader = el('div', 'cd-editorHeader cd-editorHeader-tabs');
-  const htmlTitle = el('span', 'cd-editorTitle');
+  const htmlPane = el('div', 'kayzart-editorPane kayzart-editorPane-html is-active');
+  const htmlHeader = el('div', 'kayzart-editorHeader kayzart-editorHeader-tabs');
+  const htmlTitle = el('span', 'kayzart-editorTitle');
   htmlTitle.textContent = __( 'HTML', 'kayzart-live-code-editor');
-  const htmlActions = el('div', 'cd-editorActions');
+  const htmlActions = el('div', 'kayzart-editorActions');
   const addMediaButton = document.createElement('button');
   addMediaButton.type = 'button';
-  addMediaButton.className = 'cd-editorAction cd-editorAction-media';
+  addMediaButton.className = 'kayzart-editorAction kayzart-editorAction-media';
   addMediaButton.textContent = __( 'Add Media', 'kayzart-live-code-editor');
   const htmlWordWrapButton = document.createElement('button');
   htmlWordWrapButton.type = 'button';
-  htmlWordWrapButton.className = 'cd-editorAction cd-editorAction-wrap';
+  htmlWordWrapButton.className = 'kayzart-editorAction kayzart-editorAction-wrap';
   htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
   htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
   htmlActions.append(addMediaButton, htmlWordWrapButton);
   htmlHeader.append(htmlTitle, htmlActions);
-  const htmlWrap = el('div', 'cd-editorWrap');
-  const htmlEditorDiv = el('div', 'cd-editor cd-editor-html');
+  const htmlWrap = el('div', 'kayzart-editorWrap');
+  const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html');
   htmlWrap.append(htmlEditorDiv);
   htmlPane.append(htmlHeader, htmlWrap);
 
-  const cssPane = el('div', 'cd-editorPane cd-editorPane-css');
-  const cssHeader = el('div', 'cd-editorHeader cd-editorHeader-tabs');
-  const cssTabs = el('div', 'cd-editorTabs');
+  const cssPane = el('div', 'kayzart-editorPane kayzart-editorPane-css');
+  const cssHeader = el('div', 'kayzart-editorHeader kayzart-editorHeader-tabs');
+  const cssTabs = el('div', 'kayzart-editorTabs');
   const cssTab = document.createElement('button');
   cssTab.type = 'button';
-  cssTab.className = 'cd-editorTab is-active';
+  cssTab.className = 'kayzart-editorTab is-active';
   cssTab.textContent = __( 'CSS', 'kayzart-live-code-editor');
   const jsTab = document.createElement('button');
   jsTab.type = 'button';
-  jsTab.className = 'cd-editorTab';
+  jsTab.className = 'kayzart-editorTab';
   jsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
-  const jsModeSelect = createJsModeSelect('cd-formSelect cd-jsModeSelect');
+  const jsModeSelect = createJsModeSelect('kayzart-formSelect kayzart-jsModeSelect');
   cssTabs.append(cssTab, jsTab);
 
-  const jsControls = el('div', 'cd-editorActions');
+  const jsControls = el('div', 'kayzart-editorActions');
   const runButton = document.createElement('button');
   runButton.type = 'button';
-  runButton.className = 'cd-editorAction';
+  runButton.className = 'kayzart-editorAction';
   runButton.textContent = __( 'Run', 'kayzart-live-code-editor');
   const shadowHintButton = document.createElement('button');
   shadowHintButton.type = 'button';
-  shadowHintButton.className = 'cd-editorAction cd-editorAction-hint';
+  shadowHintButton.className = 'kayzart-editorAction kayzart-editorAction-hint';
   shadowHintButton.textContent = __( 'Shadow DOM Hint', 'kayzart-live-code-editor');
   const tailwindHintButton = document.createElement('button');
   tailwindHintButton.type = 'button';
-  tailwindHintButton.className = 'cd-editorAction cd-editorAction-hint';
+  tailwindHintButton.className = 'kayzart-editorAction kayzart-editorAction-hint';
   tailwindHintButton.textContent = __( 'Tailwind CSS Hint', 'kayzart-live-code-editor');
   jsControls.append(jsModeSelect, shadowHintButton, runButton, tailwindHintButton);
 
   cssHeader.append(cssTabs, jsControls);
-  const cssWrap = el('div', 'cd-editorWrap cd-editorWrap-tabs');
-  const cssEditorDiv = el('div', 'cd-editor cd-editor-css is-active');
-  const jsEditorDiv = el('div', 'cd-editor cd-editor-js');
+  const cssWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
+  const cssEditorDiv = el('div', 'kayzart-editor kayzart-editor-css is-active');
+  const jsEditorDiv = el('div', 'kayzart-editor kayzart-editor-js');
   cssWrap.append(cssEditorDiv, jsEditorDiv);
   cssPane.append(cssHeader, cssWrap);
 
-  const editorResizer = el('div', 'cd-editorResizer');
+  const editorResizer = el('div', 'kayzart-editorResizer');
 
   left.append(compactEditorTabs, htmlPane, editorResizer, cssPane);
 
   // Preview
   const iframe = document.createElement('iframe');
-  iframe.className = 'cd-iframe';
+  iframe.className = 'kayzart-iframe';
   iframe.referrerPolicy = 'strict-origin-when-cross-origin';
   iframe.setAttribute(
     'sandbox',
     'allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads allow-popups-to-escape-sandbox'
   );
-  const previewBadge = el('div', 'cd-previewBadge');
+  const previewBadge = el('div', 'kayzart-previewBadge');
   previewBadge.setAttribute('role', 'status');
   previewBadge.setAttribute('aria-live', 'polite');
   previewBadge.setAttribute('aria-atomic', 'true');

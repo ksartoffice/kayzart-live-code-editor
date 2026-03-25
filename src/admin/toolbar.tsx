@@ -124,8 +124,8 @@ const ICONS = {
 function IconLabel({ label, svg }: { label: string; svg: string }) {
   return (
     <Fragment>
-      <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: svg }} />
-      <span className="cd-btnLabel">{label}</span>
+      <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: svg }} />
+      <span className="kayzart-btnLabel">{label}</span>
     </Fragment>
   );
 }
@@ -311,26 +311,26 @@ function Toolbar({
   };
   return (
     <Fragment>
-      <div className="cd-toolbarGroup cd-toolbarLeft">
-        <div className="cd-backMenu">
+      <div className="kayzart-toolbarGroup kayzart-toolbarLeft">
+        <div className="kayzart-backMenu">
           <a
-            className="cd-btn cd-btn-back"
+            className="kayzart-btn kayzart-btn-back"
             href={backUrl}
             aria-label={backLabel}
           >
-            <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.back }} />
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.back }} />
             <span
-              className="cd-btnIcon cd-btnIcon-wordpress"
+              className="kayzart-btnIcon kayzart-btnIcon-wordpress"
               dangerouslySetInnerHTML={{ __html: ICONS.wordpress }}
             />
           </a>
           {showBackMenu ? (
-            <div className="cd-backMenuDropdown">
-              <a className="cd-backMenuItem" href={backUrl}>
+            <div className="kayzart-backMenuDropdown">
+              <a className="kayzart-backMenuItem" href={backUrl}>
                 {backLabel}
               </a>
               {showListLink ? (
-                <a className="cd-backMenuItem" href={listUrl}>
+                <a className="kayzart-backMenuItem" href={listUrl}>
                   {listLabel}
                 </a>
               ) : null}
@@ -338,29 +338,29 @@ function Toolbar({
           ) : null}
         </div>
         <button
-          className={`cd-btn cd-btn-muted cd-btn-icon${canUndo ? ' is-active' : ''}`}
+          className={`kayzart-btn kayzart-btn-muted kayzart-btn-icon${canUndo ? ' is-active' : ''}`}
           type="button"
           onClick={onUndo}
           disabled={!canUndo}
           aria-label={__( 'Undo', 'kayzart-live-code-editor')}
           data-tooltip={__( 'Undo', 'kayzart-live-code-editor')}
         >
-          <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.undo }} />
+          <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.undo }} />
         </button>
         <button
-          className={`cd-btn cd-btn-muted cd-btn-icon${canRedo ? ' is-active' : ''}`}
+          className={`kayzart-btn kayzart-btn-muted kayzart-btn-icon${canRedo ? ' is-active' : ''}`}
           type="button"
           onClick={onRedo}
           disabled={!canRedo}
           aria-label={__( 'Redo', 'kayzart-live-code-editor')}
           data-tooltip={__( 'Redo', 'kayzart-live-code-editor')}
         >
-          <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.redo }} />
+          <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.redo }} />
         </button>
       </div>
-      <div className="cd-toolbarGroup cd-toolbarCenter">
+      <div className="kayzart-toolbarGroup kayzart-toolbarCenter">
         <div
-          className="cd-toolbarTitle"
+          className="kayzart-toolbarTitle"
           data-tooltip={titleTooltip}
           aria-label={titleText}
           role="button"
@@ -368,63 +368,63 @@ function Toolbar({
           onClick={openTitleModal}
           onKeyDown={handleTitleKeyDown}
         >
-          <span className="cd-toolbarTitleText">{resolvedTitle}</span>
+          <span className="kayzart-toolbarTitleText">{resolvedTitle}</span>
           {draftSuffix ? (
-            <span className="cd-toolbarTitleSuffix">{draftSuffix}</span>
+            <span className="kayzart-toolbarTitleSuffix">{draftSuffix}</span>
           ) : null}
         </div>
-        <div className="cd-toolbarCluster cd-toolbarCluster-viewports">
+        <div className="kayzart-toolbarCluster kayzart-toolbarCluster-viewports">
           <button
-            className={`cd-btn cd-btn-icon cd-btn-viewport${isViewportDesktop ? ' is-active' : ''}`}
+            className={`kayzart-btn kayzart-btn-icon kayzart-btn-viewport${isViewportDesktop ? ' is-active' : ''}`}
             type="button"
             aria-label={viewportDesktopLabel}
             aria-pressed={isViewportDesktop}
             data-tooltip={viewportDesktopLabel}
             onClick={() => onViewportChange('desktop')}
           >
-            <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.desktop }} />
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.desktop }} />
           </button>
           <button
-            className={`cd-btn cd-btn-icon cd-btn-viewport${isViewportTablet ? ' is-active' : ''}`}
+            className={`kayzart-btn kayzart-btn-icon kayzart-btn-viewport${isViewportTablet ? ' is-active' : ''}`}
             type="button"
             aria-label={viewportTabletLabel}
             aria-pressed={isViewportTablet}
             data-tooltip={viewportTabletLabel}
             onClick={() => onViewportChange('tablet')}
           >
-            <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.tablet }} />
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.tablet }} />
           </button>
           <button
-            className={`cd-btn cd-btn-icon cd-btn-viewport${isViewportMobile ? ' is-active' : ''}`}
+            className={`kayzart-btn kayzart-btn-icon kayzart-btn-viewport${isViewportMobile ? ' is-active' : ''}`}
             type="button"
             aria-label={viewportMobileLabel}
             aria-pressed={isViewportMobile}
             data-tooltip={viewportMobileLabel}
             onClick={() => onViewportChange('mobile')}
           >
-            <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.mobile }} />
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.mobile }} />
           </button>
         </div>
-        <div className="cd-toolbarCluster cd-toolbarCluster-divider">
+        <div className="kayzart-toolbarCluster kayzart-toolbarCluster-divider">
           <button
-            className="cd-btn cd-btn-icon"
+            className="kayzart-btn kayzart-btn-icon"
             type="button"
             onClick={onToggleEditor}
             aria-label={toggleLabel}
             data-tooltip={toggleLabel}
           >
-            <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
           </button>
         </div>
       </div>
       {titleModalOpen ? (
-        <div className="cd-modal">
-          <div className="cd-modalBackdrop" onClick={closeTitleModal} />
-          <div className="cd-modalDialog" role="dialog" aria-modal="true">
-            <div className="cd-modalHeader">
-              <div className="cd-modalTitle">{__( 'Title', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-modal">
+          <div className="kayzart-modalBackdrop" onClick={closeTitleModal} />
+          <div className="kayzart-modalDialog" role="dialog" aria-modal="true">
+            <div className="kayzart-modalHeader">
+              <div className="kayzart-modalTitle">{__( 'Title', 'kayzart-live-code-editor')}</div>
               <button
-                className="cd-modalClose"
+                className="kayzart-modalClose"
                 type="button"
                 onClick={closeTitleModal}
                 aria-label={__( 'Close', 'kayzart-live-code-editor')}
@@ -432,21 +432,21 @@ function Toolbar({
                 <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: ICONS.close }} />
               </button>
             </div>
-            <div className="cd-modalBody">
+            <div className="kayzart-modalBody">
               <form
-                className="cd-modalForm"
+                className="kayzart-modalForm"
                 onSubmit={(event) => {
                   event.preventDefault();
                   handleTitleSave();
                 }}
               >
-                <div className="cd-formGroup">
-                  <label className="cd-formLabel" htmlFor="cd-title-modal-input">
+                <div className="kayzart-formGroup">
+                  <label className="kayzart-formLabel" htmlFor="kayzart-title-modal-input">
                     {__( 'Title', 'kayzart-live-code-editor')}
                   </label>
                   <input
-                    id="cd-title-modal-input"
-                    className="cd-formInput"
+                    id="kayzart-title-modal-input"
+                    className="kayzart-formInput"
                     type="text"
                     value={titleDraft}
                     onChange={(event) => setTitleDraft(event.target.value)}
@@ -454,29 +454,29 @@ function Toolbar({
                     autoFocus
                   />
                 </div>
-                <div className="cd-formGroup">
-                  <label className="cd-formLabel" htmlFor="cd-slug-modal-input">
+                <div className="kayzart-formGroup">
+                  <label className="kayzart-formLabel" htmlFor="kayzart-slug-modal-input">
                     {__( 'Slug', 'kayzart-live-code-editor')}
                   </label>
                   <input
-                    id="cd-slug-modal-input"
-                    className="cd-formInput"
+                    id="kayzart-slug-modal-input"
+                    className="kayzart-formInput"
                     type="text"
                     value={slugDraft}
                     onChange={(event) => setSlugDraft(event.target.value)}
                     onKeyDown={handleTitleInputKeyDown}
                   />
                 </div>
-                {titleError ? <div className="cd-modalError">{titleError}</div> : null}
-                <div className="cd-modalActions">
+                {titleError ? <div className="kayzart-modalError">{titleError}</div> : null}
+                <div className="kayzart-modalActions">
                   <button
-                    className="cd-btn cd-btn-secondary"
+                    className="kayzart-btn kayzart-btn-secondary"
                     type="button"
                     onClick={closeTitleModal}
                   >
                     {__( 'Cancel', 'kayzart-live-code-editor')}
                   </button>
-                  <button className="cd-btn cd-btn-primary" type="submit" disabled={titleSaving}>
+                  <button className="kayzart-btn kayzart-btn-primary" type="submit" disabled={titleSaving}>
                     {titleSaving ? __( 'Saving...', 'kayzart-live-code-editor') : __( 'Save', 'kayzart-live-code-editor')}
                   </button>
                 </div>
@@ -485,11 +485,11 @@ function Toolbar({
           </div>
         </div>
       ) : null}
-      <div className="cd-toolbarGroup cd-toolbarRight">
-        <div className="cd-toolbarCluster cd-toolbarCluster-rightPrimary">
-          <div className="cd-splitButton cd-splitButton-save">
+      <div className="kayzart-toolbarGroup kayzart-toolbarRight">
+        <div className="kayzart-toolbarCluster kayzart-toolbarCluster-rightPrimary">
+          <div className="kayzart-splitButton kayzart-splitButton-save">
             <button
-              className={`cd-btn cd-btn-save cd-splitButton-main${hasUnsavedChanges ? ' is-unsaved' : ''}`}
+              className={`kayzart-btn kayzart-btn-save kayzart-splitButton-main${hasUnsavedChanges ? ' is-unsaved' : ''}`}
               type="button"
               onClick={onSave}
               aria-label={saveLabel}
@@ -497,7 +497,7 @@ function Toolbar({
               <IconLabel label={saveLabel} svg={ICONS.save} />
             </button>
             <button
-              className={`cd-btn cd-btn-save cd-btn-icon cd-splitButton-toggle${hasUnsavedChanges ? ' is-unsaved' : ''}`}
+              className={`kayzart-btn kayzart-btn-save kayzart-btn-icon kayzart-splitButton-toggle${hasUnsavedChanges ? ' is-unsaved' : ''}`}
               type="button"
               aria-haspopup="menu"
               aria-expanded={saveMenuOpen}
@@ -505,15 +505,15 @@ function Toolbar({
               data-tooltip={__( 'Save options', 'kayzart-live-code-editor')}
               onClick={toggleSaveMenu}
             >
-              <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.chevronDown }} />
+              <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.chevronDown }} />
             </button>
             {saveMenuOpen ? (
               <div
-                className="cd-splitMenu"
+                className="kayzart-splitMenu"
                 role="menu"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="cd-splitMenuTitle">
+                <div className="kayzart-splitMenuTitle">
                   {/* translators: %s: current status label. */}
                   {sprintf(
                     __( 'Status: %s', 'kayzart-live-code-editor'),
@@ -528,19 +528,19 @@ function Toolbar({
                             : __( 'Published', 'kayzart-live-code-editor')
                   )}
                 </div>
-                <div className="cd-splitMenuList">
+                <div className="kayzart-splitMenuList">
                   {statusActions
                     .filter((option) => option.value !== normalizedStatus)
                     .map((option) => (
                       <button
                         key={option.value}
-                        className="cd-splitMenuItem"
+                        className="kayzart-splitMenuItem"
                         type="button"
                         role="menuitem"
                         onClick={(event) => handleStatusSelect(event, option.value)}
                         disabled={statusSaving}
                       >
-                        <span className="cd-splitMenuLabel">{option.label}</span>
+                        <span className="kayzart-splitMenuLabel">{option.label}</span>
                       </button>
                     ))}
                 </div>
@@ -548,10 +548,10 @@ function Toolbar({
             ) : null}
           </div>
         </div>
-        <div className="cd-toolbarCluster cd-toolbarCluster-rightSecondary">
+        <div className="kayzart-toolbarCluster kayzart-toolbarCluster-rightSecondary">
           {tailwindEnabled ? (
             <span
-              className="cd-tailwindBadge"
+              className="kayzart-tailwindBadge"
               title={tailwindTooltip}
               aria-label={tailwindTooltip}
               data-tooltip={tailwindTooltip}
@@ -561,29 +561,29 @@ function Toolbar({
           ) : null}
           {showViewPost ? (
             <a
-              className="cd-btn cd-btn-icon cd-btn-view"
+              className="kayzart-btn kayzart-btn-icon kayzart-btn-view"
               href={targetUrl}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={viewPostLabel}
               data-tooltip={viewPostLabel}
             >
-              <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.viewPost }} />
+              <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.viewPost }} />
             </a>
           ) : null}
           <button
-            className={`cd-btn cd-btn-settings cd-btn-icon${settingsOpen ? ' is-active' : ''}`}
+            className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}`}
             type="button"
             onClick={onToggleSettings}
             aria-label={settingsTitle}
             aria-expanded={settingsOpen}
-            aria-controls="cd-settings"
+            aria-controls="kayzart-settings"
             data-tooltip={settingsTitle}
           >
-            <span className="cd-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
           </button>
           <button
-            className="cd-btn cd-btn-export"
+            className="kayzart-btn kayzart-btn-export"
             type="button"
             onClick={onExport}
             aria-label={exportLabel}

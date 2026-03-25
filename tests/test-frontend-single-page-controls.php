@@ -186,8 +186,12 @@ class Test_Frontend_Single_Page_Controls extends WP_UnitTestCase {
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
 
 		update_post_meta( $post_id, '_kayzart_template_mode', 'frame' );
-		$frame_template = Frontend::maybe_override_template( 'theme-template.php' );
-		$this->assertStringContainsString( 'templates/single-kayzart-frame.php', str_replace( '\\', '/', $frame_template ) );
+		$legacy_template = Frontend::maybe_override_template( 'theme-template.php' );
+		$this->assertSame( 'theme-template.php', $legacy_template );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		$standalone_template = Frontend::maybe_override_template( 'theme-template.php' );
+		$this->assertStringContainsString( 'templates/single-kayzart-standalone.php', str_replace( '\\', '/', $standalone_template ) );
 
 		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
 		$theme_template = Frontend::maybe_override_template( 'theme-template.php' );

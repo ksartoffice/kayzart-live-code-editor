@@ -4,7 +4,7 @@ Tags: live preview, code editor, codemirror, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,10 +20,10 @@ Features:
 * Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
 * Tailwind mode with on-demand Tailwind CSS v4 compilation
 * Import/export JSON projects
-* Per-post template mode control: Default/Standalone/Frame/Theme
+* Per-post template mode control: Default/Standalone/Theme
 * External scripts/styles (https only), live edit highlight, real-time DOM selection, and optional Shadow DOM isolation
 * External embedding (enable in settings): [kayzart post_id="123"]
-* Allowlist for shortcode execution inside external embeds (one shortcode tag per line, up to 2 passes)
+* Allowlist for shortcode execution inside external embeds (one shortcode tag per line)
 * Optional single-page disable for external-embed output
 
 External connections and privacy:
@@ -54,7 +54,7 @@ Users who can edit the post can use the editor. JavaScript, external scripts/sty
 No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.
 
 = How do I embed a page created with KayzArt? =
-Enable external embedding in KayzArt settings, then use [kayzart post_id="123"] with the post ID of the page you created in KayzArt. For shortcode execution inside the embedded content, add allowed tags in KayzArt settings (one tag per line). Non-allowlisted tags remain plain text. Allowlisted tags run for up to 2 passes to resolve nested shortcodes.
+Enable external embedding in KayzArt settings, then use [kayzart post_id="123"] with the post ID of the page you created in KayzArt. For shortcode execution inside the embedded content, add allowed tags in KayzArt settings (one tag per line). Non-allowlisted tags remain plain text.
 
 = Can I disable the single page view? =
 Yes. Enable external embedding and turn on "Do not publish as single page." Disabled single pages are marked noindex and excluded from search/archives, and the single-page request is redirected (or can be forced to 404 via the kayzart_single_page_redirect filter).
@@ -66,13 +66,13 @@ The setup wizard lets you choose Normal or Tailwind. The choice is locked per Ka
 Tailwind mode supports Tailwind CSS v4.
 
 = How does template mode work? =
-Each KayzArt post can use Default, Standalone, Frame, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Frame.
+Each KayzArt post can use Default, Standalone, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Standalone.
 
 = Can I change the KayzArt URL slug? =
 Yes. Go to KayzArt > Settings and update the KayzArt slug.
 
 = Can I set a default template mode for new previews? =
-Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Frame/Theme).
+Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Theme).
 
 = Does the plugin delete data on uninstall? =
 By default, KayzArt posts are kept when the plugin is uninstalled. You can enable data removal from the KayzArt > Settings screen.
@@ -90,8 +90,11 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.3.1 =
+* Fix: Bug fixes and stability improvements.
+
 = 1.3.0 =
-* Replace Monaco with CodeMirror 6 and remove Monaco bundled assets/loader.
+* Introduce CodeMirror 6 editor runtime and remove legacy bundled loader assets.
 
 = 1.2.1 =
 * Fix: Minor internal code cleanup

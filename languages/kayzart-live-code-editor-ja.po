@@ -304,11 +304,6 @@ msgstr "アンインストール時に KayzArt 投稿をすべて削除します
 msgid "Standalone"
 msgstr "スタンドアロン"
 
-#: includes/class-kayzart-admin.php:583
-#: assets/dist/main.js:106
-msgid "Frame"
-msgstr "フレーム"
-
 #: includes/class-kayzart-admin.php:661
 msgid "KayzArt Live Code Editor Settings"
 msgstr "KayzArt Live Code Editor 設定"
@@ -381,10 +376,6 @@ msgid "Standalone hides the theme header and footer."
 msgstr "Standalone はテーマのヘッダーとフッターを非表示にします。"
 
 #: assets/dist/main.js:106
-msgid "Frame uses the theme header and footer."
-msgstr "Frame はテーマのヘッダーとフッターを使用します。"
-
-#: assets/dist/main.js:106
 msgid "Theme uses the active theme template."
 msgstr "Theme は有効化中のテーマテンプレートを使用します。"
 
@@ -436,8 +427,8 @@ msgid "Enable Shadow DOM (DSD)"
 msgstr "Shadow DOM（DSD）を有効化"
 
 #: assets/dist/main.js:106
-msgid "Prevents interference with existing theme CSS."
-msgstr "既存テーマの CSS との干渉を防ぎます。"
+msgid "Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected."
+msgstr "既存テーマの CSS との干渉を防ぎます。※ Shadow DOM に未対応の外部 CSS / JS ライブラリは、スタイルや動作が期待どおりにならない場合があります。"
 
 #: assets/dist/main.js:106
 msgid "External resource settings"
@@ -882,8 +873,8 @@ msgid "Theme template unavailable"
 msgstr "テーマテンプレートを利用できません"
 
 #: assets/dist/main.js:127
-msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Frame."
-msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。KayzArt はテンプレートモードを Frame に切り替えます。"
+msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone."
+msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。KayzArt はテンプレートモードを Standalone に切り替えます。"
 
 #: assets/dist/main.js:127
 msgid "OK"
@@ -950,8 +941,8 @@ msgid "Control which shortcode tags are allowed to execute inside external embed
 msgstr "外部埋め込み内で実行を許可するショートコードタグを設定します。"
 
 #: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"], up to 2 passes). Other tags stay as plain text."
-msgstr "1行に1つのショートコードタグを入力してください。外部埋め込み（[kayzart post_id=\"...\"]、最大2回）の中では、ここで指定したタグのみ実行されます。それ以外のタグはプレーンテキストのまま表示されます。"
+msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Other tags stay as plain text."
+msgstr "1行に1つのショートコードタグを入力してください。外部埋め込み（[kayzart post_id=\"...\"]）内では、ここで指定したタグだけを実行します。指定外のタグはプレーンテキストのまま表示されます。"
 
 #: assets/dist/main.js:106
 msgid "Enable external embedding"

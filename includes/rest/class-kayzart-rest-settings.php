@@ -16,8 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Rest_Settings {
 
-	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'frame', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'frame', 'theme' );
+	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'theme' );
 	/**
 	 * Normalize template mode value stored in post meta.
 	 *
@@ -262,10 +262,7 @@ class Rest_Settings {
 			if ( empty( $sanitized ) ) {
 					$prepared['meta_deletes'][] = '_kayzart_external_scripts';
 			} else {
-				$prepared['meta_updates']['_kayzart_external_scripts'] = wp_json_encode(
-					$sanitized,
-					JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
-				);
+				$prepared['meta_updates']['_kayzart_external_scripts'] = wp_json_encode( $sanitized );
 			}
 		}
 
@@ -304,10 +301,7 @@ class Rest_Settings {
 			if ( empty( $sanitized ) ) {
 					$prepared['meta_deletes'][] = '_kayzart_external_styles';
 			} else {
-					$prepared['meta_updates']['_kayzart_external_styles'] = wp_json_encode(
-						$sanitized,
-						JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
-					);
+					$prepared['meta_updates']['_kayzart_external_styles'] = wp_json_encode( $sanitized );
 			}
 		}
 

@@ -81,7 +81,7 @@ const createAuthorAndPost = async (
   adminNonce: string
 ): Promise<{ username: string; password: string; postId: number }> => {
   const seed = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const username = `cd_author_${seed}`;
+  const username = `kayzart_author_${seed}`;
   const password = `Cd!${seed}pass`;
   const email = `${username}@example.com`;
 

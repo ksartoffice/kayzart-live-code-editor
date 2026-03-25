@@ -120,7 +120,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
 	}
 
-	public function test_maybe_redirect_new_post_without_nonce_redirects_to_action_without_creating_post(): void {
+	public function test_maybe_redirect_new_post_without_nonce_is_denied(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
@@ -131,7 +131,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			'post_type' => Post_Type::POST_TYPE,
 		);
 
-		$location = $this->capture_redirect(
+		$message = $this->capture_wp_die(
 			function () {
 				Admin::maybe_redirect_new_post();
 			}
@@ -140,17 +140,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$_GET = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
-		$this->assertStringNotContainsString( '&amp;', $location );
-		$parts = wp_parse_url( $location );
-		$query = array();
-		if ( ! empty( $parts['query'] ) ) {
-			parse_str( (string) $parts['query'], $query );
-		}
-
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
-		$this->assertSame( Admin::NEW_POST_ACTION, $query['action'] ?? '' );
-		$this->assertSame( Post_Type::POST_TYPE, $query['post_type'] ?? '' );
-		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 	}
 
 	public function test_maybe_redirect_new_post_rejects_invalid_nonce(): void {

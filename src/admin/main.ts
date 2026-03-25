@@ -123,7 +123,7 @@ async function main() {
     }
 
     const setupHost = document.createElement('div');
-    setupHost.className = 'cd-setupHost';
+    setupHost.className = 'kayzart-setupHost';
     document.body.append(setupHost);
 
     try {
@@ -555,7 +555,7 @@ async function main() {
           settingsApi?.applySettings({ title: postTitle, slug: postSlug });
           syncDocumentTitle(postTitle);
           window.dispatchEvent(
-            new CustomEvent('cd-title-updated', { detail: { title: postTitle, slug: postSlug } })
+            new CustomEvent('kayzart-title-updated', { detail: { title: postTitle, slug: postSlug } })
           );
           if (basePreviewUrl) {
             ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());

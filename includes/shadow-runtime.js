@@ -99,14 +99,12 @@
         return;
       }
       const entry = moduleExports && moduleExports.default;
-      if (typeof entry !== 'function') {
-        console.error('[KayzArt] Module JS default export must be a function.');
-        return;
-      }
-      const context = buildRuntimeContext(payload, host);
-      const maybeCleanup = entry(context);
-      if (typeof maybeCleanup === 'function') {
-        state.cleanups.push(maybeCleanup);
+      if (typeof entry === 'function') {
+        const context = buildRuntimeContext(payload, host);
+        const maybeCleanup = entry(context);
+        if (typeof maybeCleanup === 'function') {
+          state.cleanups.push(maybeCleanup);
+        }
       }
     } catch (error) {
       if (state.runToken === runToken) {

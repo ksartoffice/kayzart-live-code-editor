@@ -44,12 +44,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/app.css' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/app.css' ) )
 		);
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/app.js' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/app.js' ) )
 		);
 
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
@@ -62,7 +62,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'body{color:red;}', $output );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
-		$this->assertStringNotContainsString( '<script id="cd-script">console.log("x");</script>', $output );
+		$this->assertStringNotContainsString( '<script id="kayzart-script">console.log("x");</script>', $output );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
 		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
 		$this->assertStringContainsString( '</template>', $output );
@@ -80,12 +80,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/shortcode.css' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/shortcode.css' ) )
 		);
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/shortcode.js' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/shortcode.js' ) )
 		);
 
 		wp_set_current_user( $admin_id );
@@ -99,8 +99,8 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'https://example.com/shortcode.css', $second );
 		$this->assertStringContainsString( 'body{background:#000;}', $first );
 		$this->assertStringContainsString( 'body{background:#000;}', $second );
-		$this->assertStringContainsString( 'id="cd-script-data-' . $post_id . '-1"', $first );
-		$this->assertStringContainsString( 'id="cd-script-data-' . $post_id . '-2"', $second );
+		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-1"', $first );
+		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-2"', $second );
 		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $first );
 		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $second );
 		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
@@ -117,12 +117,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/inline.css' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/inline.css' ) )
 		);
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/inline.js' ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE )
+			wp_json_encode( array( 'https://example.com/inline.js' ) )
 		);
 
 		wp_set_current_user( $admin_id );
@@ -218,7 +218,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<span class="allowed-probe">ok</span>', $output );
 	}
 
-	public function test_shortcode_embed_allowlist_runs_nested_shortcodes_in_two_passes(): void {
+	public function test_shortcode_embed_allowlist_runs_single_pass_only(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -253,11 +253,11 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 			remove_shortcode( 'contact-form-7' );
 		}
 
-		$this->assertStringContainsString( '<form data-cf7-id="123"></form>', $output );
-		$this->assertStringNotContainsString( '[contact-form-7 id="123"]', $output );
+		$this->assertStringContainsString( '[contact-form-7 id="123"]', $output );
+		$this->assertStringNotContainsString( '<form data-cf7-id="123"></form>', $output );
 	}
 
-	public function test_shortcode_embed_stops_after_two_passes(): void {
+	public function test_shortcode_embed_stops_after_single_pass(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -298,7 +298,8 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 			remove_shortcode( 'pass_three' );
 		}
 
-		$this->assertStringContainsString( '[pass_three]', $output );
+		$this->assertStringContainsString( '[pass_two]', $output );
+		$this->assertStringNotContainsString( '[pass_three]', $output );
 		$this->assertStringNotContainsString( '<span class="pass-three">ok</span>', $output );
 	}
 

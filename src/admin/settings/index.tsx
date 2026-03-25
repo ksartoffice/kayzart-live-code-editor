@@ -26,8 +26,8 @@ export type SettingsData = {
   slug: string;
   status: string;
   viewUrl?: string;
-  templateMode?: 'default' | 'standalone' | 'frame' | 'theme';
-  defaultTemplateMode?: 'standalone' | 'frame' | 'theme';
+  templateMode?: 'default' | 'standalone' | 'theme';
+  defaultTemplateMode?: 'standalone' | 'theme';
   shadowDomEnabled: boolean;
   shortcodeEnabled: boolean;
   singlePageEnabled: boolean;
@@ -50,7 +50,7 @@ type SettingsConfig = {
   header?: HTMLElement;
   data: SettingsData;
   postId: number;
-  onTemplateModeChange?: (mode: 'default' | 'standalone' | 'frame' | 'theme') => void;
+  onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
   onShadowDomToggle?: (enabled: boolean) => void;
   onShortcodeToggle?: (enabled: boolean) => void;
   onSinglePageToggle?: (enabled: boolean) => void;
@@ -318,9 +318,7 @@ function SettingsSidebar({
     setShadowDomEnabled(enabled);
   };
 
-  const handleTemplateModeChange = (
-    next: 'default' | 'standalone' | 'frame' | 'theme'
-  ) => {
+  const handleTemplateModeChange = (next: 'default' | 'standalone' | 'theme') => {
     if (!canEditJs) {
       return;
     }
@@ -463,16 +461,16 @@ function SettingsSidebar({
   }, [onPendingUpdatesChange, pendingSettingsState]);
 
   const tabs = (
-    <div className="cd-settingsTabsRow">
+    <div className="kayzart-settingsTabsRow">
       <div
-        className="cd-settingsTabs"
+        className="kayzart-settingsTabs"
         role="tablist"
         aria-label={__( 'Settings tabs', 'kayzart-live-code-editor')}
       >
         {tabItems.map((tab) => (
           <button
             key={tab.id}
-            className={`cd-settingsTab${activeTab === tab.id ? ' is-active' : ''}`}
+            className={`kayzart-settingsTab${activeTab === tab.id ? ' is-active' : ''}`}
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
@@ -483,7 +481,7 @@ function SettingsSidebar({
         ))}
       </div>
       <button
-        className="cd-settingsClose"
+        className="kayzart-settingsClose"
         type="button"
         aria-label={__( 'Close settings panel', 'kayzart-live-code-editor')}
         onClick={() => onClosePanel?.()}
@@ -535,7 +533,7 @@ function SettingsSidebar({
       {activeTab === 'elements' ? <ElementPanel api={elementsApi} /> : null}
 
       {activeExternalTab ? (
-        <div className="cd-settingsExternalPanel" ref={externalTabHostRef} />
+        <div className="kayzart-settingsExternalPanel" ref={externalTabHostRef} />
       ) : null}
     </Fragment>
   );

@@ -103,7 +103,7 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( 'Invalid post type.', 'kayzart-live-code-editor'), $message );
 	}
 
-	public function test_preview_allows_valid_request(): void {
+	public function test_preview_registers_nocache_header_filter_for_valid_request(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -113,7 +113,21 @@ class Test_Preview extends WP_UnitTestCase {
 
 		Preview::maybe_handle_preview();
 
-		$this->assertTrue( defined( 'DONOTCACHEPAGE' ) );
+		$this->assertNotFalse(
+			has_filter( 'nocache_headers', array( Preview::class, 'filter_nocache_headers' ) )
+		);
+	}
+
+	public function test_preview_forces_expected_nocache_headers(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		$this->start_preview_request( $post_id, $admin_id );
+		$headers = apply_filters( 'nocache_headers', array() );
+
+		$this->assertSame( 'no-cache, must-revalidate, max-age=0, no-store, private', $headers['Cache-Control'] ?? '' );
+		$this->assertSame( 'no-cache', $headers['Pragma'] ?? '' );
+		$this->assertSame( 'Wed, 11 Jan 1984 05:00:00 GMT', $headers['Expires'] ?? '' );
 	}
 
 	public function test_preview_headers_include_frame_ancestors_policy(): void {
@@ -279,12 +293,12 @@ class Test_Preview extends WP_UnitTestCase {
 
 		$inner_had_markers = null;
 		$nested_filter     = static function ( string $content ): string {
-			if ( false === strpos( $content, '[cd-nested]' ) ) {
+			if ( false === strpos( $content, '[kayzart-nested]' ) ) {
 				return $content;
 			}
 
 			apply_filters( 'the_content', '<p>Inner</p>' );
-			return str_replace( '[cd-nested]', '', $content );
+			return str_replace( '[kayzart-nested]', '', $content );
 		};
 		$probe_filter      = static function ( string $content ) use ( &$inner_had_markers ): string {
 			global $wp_current_filter;
@@ -305,7 +319,7 @@ class Test_Preview extends WP_UnitTestCase {
 		add_filter( 'the_content', $nested_filter, 12 );
 		add_filter( 'the_content', $probe_filter, 1000000 );
 		try {
-			$actual = apply_filters( 'the_content', '[cd-nested]<p>Outer</p>' );
+			$actual = apply_filters( 'the_content', '[kayzart-nested]<p>Outer</p>' );
 		} finally {
 			remove_filter( 'the_content', $nested_filter, 12 );
 			remove_filter( 'the_content', $probe_filter, 1000000 );
@@ -393,6 +407,7 @@ class Test_Preview extends WP_UnitTestCase {
 			$property->setValue( null, $value );
 		}
 		remove_filter( 'wp_headers', array( Preview::class, 'filter_preview_headers' ) );
+		remove_filter( 'nocache_headers', array( Preview::class, 'filter_nocache_headers' ) );
 	}
 
 	private function restore_query_globals(): void {

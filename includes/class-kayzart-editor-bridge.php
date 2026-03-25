@@ -88,10 +88,14 @@ class Editor_Bridge {
 			'postType'  => Post_Type::POST_TYPE,
 			'actionUrl' => Admin::get_action_redirect_url(),
 		);
+		$json = wp_json_encode( $data );
+		if ( false === $json ) {
+			$json = '{}';
+		}
 
 		wp_add_inline_script(
 			self::SCRIPT_HANDLE,
-			'window.KAYZART_EDITOR = ' . wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . ';',
+			'window.KAYZART_EDITOR = ' . $json . ';',
 			'before'
 		);
 
@@ -135,16 +139,16 @@ class Editor_Bridge {
 	 * @return int
 	 */
 	private static function resolve_post_id(): int {
-		$post_id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-		if ( ! $post_id ) {
-			$post = get_post();
-			if ( $post && Post_Type::POST_TYPE === $post->post_type ) {
-				$post_id = (int) $post->ID;
-			}
+		$post = get_post();
+		if ( ! $post || Post_Type::POST_TYPE !== $post->post_type ) {
+			return 0;
 		}
 
-		return $post_id;
+		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+			return 0;
+		}
+
+		return (int) $post->ID;
 	}
 
 	/**

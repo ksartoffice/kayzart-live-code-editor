@@ -165,7 +165,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertIsArray( $data['settings'] ?? null, 'Response should include settings payload.' );
 		$this->assert_settings_payload_keys( $data['settings'] );
 
-		$this->assertSame( 'frame', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
+		$this->assertSame( 'default', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
@@ -180,6 +180,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( true, $data['settings']['shadowDomEnabled'] ?? null );
+		$this->assertSame( 'default', $data['settings']['templateMode'] ?? null );
 		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
 		$this->assertSame(
 			array( 'https://example.com/runtime.js' ),

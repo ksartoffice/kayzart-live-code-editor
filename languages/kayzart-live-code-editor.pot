@@ -459,7 +459,7 @@ msgid "Enable Shadow DOM (DSD)"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Prevents interference with existing theme CSS."
+msgid "Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected."
 msgstr ""
 
 #: assets/dist/main.js:106

@@ -285,7 +285,10 @@ export function SettingsPanel({
           </label>
         </div>
         <div className="kayzart-settingsHelp">
-          {__( 'Prevents interference with existing theme CSS.', 'kayzart-live-code-editor')}
+          {__(
+            'Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected.',
+            'kayzart-live-code-editor'
+          )}
         </div>
       </div>
 

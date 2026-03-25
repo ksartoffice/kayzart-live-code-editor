@@ -121,7 +121,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
 
   if (!isVisible) {
     return (
-      <div className="kayzart-settingsSection">
+      <div className="kayzart-settingsSection" data-kayzart-panel="elements">
         <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
         <div className="kayzart-settingsHelp">
           {__( 'Select an element in the preview to edit its content and attributes.', 'kayzart-live-code-editor')}
@@ -131,7 +131,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
   }
 
   return (
-    <div className="kayzart-settingsSection">
+    <div className="kayzart-settingsSection" data-kayzart-panel="elements">
       <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
       {hasText ? (
         <div className="kayzart-formGroup">
@@ -188,4 +188,3 @@ export function ElementPanel({ api }: ElementPanelProps) {
     </div>
   );
 }
-

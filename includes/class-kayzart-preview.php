@@ -80,12 +80,12 @@ class Preview {
 			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 		}
 
-		if ( ! current_user_can( 'edit_post', $post_id ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-
 		if ( ! wp_verify_nonce( $token, 'kayzart_preview_' . $post_id ) ) {
 			wp_die( esc_html__( 'Invalid preview token.', 'kayzart-live-code-editor' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 
 		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {

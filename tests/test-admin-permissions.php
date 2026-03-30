@@ -33,6 +33,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 	protected function tearDown(): void {
 		wp_set_current_user( 0 );
+		set_current_screen( 'front' );
+		unset( $GLOBALS['typenow'] );
 		parent::tearDown();
 	}
 
@@ -105,9 +107,10 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
 		wp_set_current_user( $subscriber_id );
+		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
 
 		$original_get         = $_GET;
-		$_GET['post_type']    = Post_Type::POST_TYPE;
+		$_GET['_wpnonce']     = wp_create_nonce( Admin::NEW_POST_NONCE_ACTION );
 
 		$message = $this->capture_wp_die(
 			function () {
@@ -124,12 +127,11 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
+		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
 
 		$before       = $this->get_kayzart_post_ids();
 		$original_get = $_GET;
-		$_GET         = array(
-			'post_type' => Post_Type::POST_TYPE,
-		);
+		$_GET         = array();
 
 		$message = $this->capture_wp_die(
 			function () {
@@ -148,11 +150,11 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
+		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
 
 		$before       = $this->get_kayzart_post_ids();
 		$original_get = $_GET;
 		$_GET         = array(
-			'post_type' => Post_Type::POST_TYPE,
 			'_wpnonce'  => 'invalid-nonce',
 		);
 
@@ -173,11 +175,11 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
+		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
 
 		$before       = $this->get_kayzart_post_ids();
 		$original_get = $_GET;
 		$_GET         = array(
-			'post_type' => Post_Type::POST_TYPE,
 			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
 		);
 
@@ -201,6 +203,23 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( Admin::NEW_POST_ACTION, $query['action'] ?? '' );
 		$this->assertSame( Post_Type::POST_TYPE, $query['post_type'] ?? '' );
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
+	}
+
+	public function test_maybe_redirect_new_post_ignores_non_kayzart_context(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$this->set_new_post_screen_context( 'post' );
+
+		$before       = $this->get_kayzart_post_ids();
+		$original_get = $_GET;
+		$_GET         = array();
+
+		Admin::maybe_redirect_new_post();
+
+		$_GET = $original_get;
+		$after = $this->get_kayzart_post_ids();
+
+		$this->assertSame( $before, $after, 'Non-KayzArt post-new context should be ignored.' );
 	}
 
 	public function test_action_create_new_post_requires_valid_nonce(): void {
@@ -285,6 +304,15 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 				'suppress_filters'       => true,
 			)
 		);
+	}
+
+	private function set_new_post_screen_context( string $post_type ): void {
+		set_current_screen( 'post' );
+		$screen = get_current_screen();
+		if ( $screen instanceof WP_Screen ) {
+			$screen->post_type = $post_type;
+		}
+		$GLOBALS['typenow'] = $post_type;
 	}
 
 	public function provide_wp_die_handler( $handler ) {

@@ -4,7 +4,7 @@ Tags: live preview, code editor, codemirror, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,12 +34,14 @@ External connections and privacy:
 
 Development repository and build:
 * Source repository: https://github.com/ksartoffice/kayzart-live-code-editor
+* Generated files used by WordPress: assets/dist/main.js and assets/dist/style.css
+* Source files for generated assets: src/admin/main.ts, src/admin/style.css, and related files under src/admin/
+* Build configuration files: package.json, package-lock.json, vite.config.ts, tsconfig.json
 * Build steps:
-* 1) npm install
-* 2) composer install
-* 3) npm run build
-* 4) npm run plugin-zip
-* The production files used by WordPress are generated into assets/dist/.
+1. npm install
+2. composer install
+3. npm run build
+4. npm run plugin-zip
 
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/kayzart-live-code-editor/.
@@ -83,6 +85,14 @@ HTML is stored in the post content. CSS/JS and other settings are stored in post
 = Where is the development repository and how do I build the plugin? =
 Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
+Generated files in the distributed plugin:
+* assets/dist/main.js
+* assets/dist/style.css
+
+Source files and build configuration in this repository:
+* src/admin/main.ts and src/admin/style.css (plus related source files under src/admin/)
+* package.json, package-lock.json, vite.config.ts, tsconfig.json
+
 Build commands:
 1. npm install
 2. composer install
@@ -90,6 +100,9 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.3.2 =
+* Security: Security update and hardening improvements.
+
 = 1.3.1 =
 * Fix: Bug fixes and stability improvements.
 

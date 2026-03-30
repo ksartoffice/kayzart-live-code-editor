@@ -143,18 +143,18 @@ class Admin {
 	 * @return int
 	 */
 	private static function get_valid_editor_post_id( bool $die_on_failure ): int {
-		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
-		if ( ! $post_id ) {
-			if ( $die_on_failure ) {
-				wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
-			}
-			return 0;
-		}
-
 		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, self::EDITOR_PAGE_NONCE_ACTION ) ) {
 			if ( $die_on_failure ) {
 				wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+			}
+			return 0;
+		}
+
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		if ( ! $post_id ) {
+			if ( $die_on_failure ) {
+				wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 			}
 			return 0;
 		}
@@ -205,13 +205,13 @@ class Admin {
 	 * Redirect from admin.php?action=kayzart to the custom editor page.
 	 */
 	public static function action_redirect(): void {
-		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0;
-		if ( ! $post_id ) {
-			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
-		}
 		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, self::REDIRECT_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		if ( ! $post_id ) {
+			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 		}
 		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
 			wp_die( esc_html__( 'This editor is only available for KayzArt posts.', 'kayzart-live-code-editor' ) );
@@ -227,22 +227,39 @@ class Admin {
 	 * Redirect new KayzArt posts directly to the custom editor.
 	 */
 	public static function maybe_redirect_new_post(): void {
-
-		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( wp_unslash( (string) $_GET['post_type'] ) ) : 'post';
+		$post_type = self::resolve_new_post_screen_post_type();
 		if ( Post_Type::POST_TYPE !== $post_type ) {
-				return;
-		}
-		$post_type_object = get_post_type_object( $post_type );
-		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+			return;
 		}
 
 		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
 		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
+
+		$post_type_object = get_post_type_object( $post_type );
+		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
 		wp_safe_redirect( self::get_new_post_action_url() );
 		exit;
+	}
+
+	/**
+	 * Resolve current post type on post-new.php from screen context.
+	 *
+	 * @return string
+	 */
+	private static function resolve_new_post_screen_post_type(): string {
+		if ( function_exists( 'get_current_screen' ) ) {
+			$screen = get_current_screen();
+			if ( $screen instanceof \WP_Screen && is_string( $screen->post_type ) && '' !== $screen->post_type ) {
+				return sanitize_key( $screen->post_type );
+			}
+		}
+
+		$typenow = isset( $GLOBALS['typenow'] ) ? sanitize_key( (string) $GLOBALS['typenow'] ) : '';
+		return '' !== $typenow ? $typenow : 'post';
 	}
 
 	/**
@@ -252,13 +269,13 @@ class Admin {
 
 		$post_type = Post_Type::POST_TYPE;
 
-		$post_type_object = get_post_type_object( $post_type );
-		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
+		$post_type_object = get_post_type_object( $post_type );
+		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 		$post_id = wp_insert_post(

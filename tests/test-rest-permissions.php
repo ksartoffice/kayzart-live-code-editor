@@ -72,6 +72,24 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 403, $response->get_status(), 'Authorized users must provide a valid REST nonce.' );
 	}
 
+	public function test_rest_routes_reject_param_nonce_without_header_nonce(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$post_id   = $this->create_kayzart_post( $author_id );
+
+		wp_set_current_user( $author_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'  => $post_id,
+				'html'     => '<p>Test</p>',
+				'_wpnonce' => wp_create_nonce( 'wp_rest' ),
+			),
+			false
+		);
+		$this->assertSame( 403, $response->get_status(), '_wpnonce parameter alone must not pass REST auth.' );
+	}
+
 	public function test_rest_routes_allow_editor_for_others_post(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$editor_id = self::factory()->user->create( array( 'role' => 'editor' ) );

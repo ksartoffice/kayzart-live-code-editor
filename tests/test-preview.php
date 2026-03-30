@@ -66,9 +66,9 @@ class Test_Preview extends WP_UnitTestCase {
 		$author_id     = self::factory()->user->create( array( 'role' => 'author' ) );
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		$post_id       = $this->create_kayzart_post( $author_id );
-		$token         = wp_create_nonce( 'kayzart_preview_' . $post_id );
 
 		wp_set_current_user( $subscriber_id );
+		$token = wp_create_nonce( 'kayzart_preview_' . $post_id );
 		$this->set_preview_query_vars( $post_id, $token );
 
 		$message = $this->capture_wp_die(

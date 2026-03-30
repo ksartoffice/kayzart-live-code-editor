@@ -130,6 +130,27 @@ class Rest {
 	 * @return bool|\WP_Error
 	 */
 	public static function permission_check( \WP_REST_Request $request ) {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+
+		$nonce = sanitize_text_field( wp_unslash( (string) $request->get_header( 'X-WP-Nonce' ) ) );
+		if ( '' === $nonce ) {
+			return new \WP_Error(
+				'kayzart_missing_nonce',
+				__( 'Permission denied.', 'kayzart-live-code-editor' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+			return new \WP_Error(
+				'kayzart_invalid_nonce',
+				__( 'Permission denied.', 'kayzart-live-code-editor' ),
+				array( 'status' => 403 )
+			);
+		}
+
 		$post_id = absint( $request->get_param( 'post_id' ) );
 		if ( 0 >= $post_id ) {
 			return false;
@@ -139,20 +160,6 @@ class Rest {
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return false;
-		}
-
-		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
-		if ( '' === $nonce ) {
-			$nonce = (string) $request->get_param( '_wpnonce' );
-		}
-		$nonce = sanitize_text_field( wp_unslash( $nonce ) );
-
-		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			return new \WP_Error(
-				'kayzart_invalid_nonce',
-				__( 'Permission denied.', 'kayzart-live-code-editor' ),
-				array( 'status' => 403 )
-			);
 		}
 
 		return true;

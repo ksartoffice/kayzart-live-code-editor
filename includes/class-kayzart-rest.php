@@ -130,14 +130,7 @@ class Rest {
 	 * @return bool|\WP_Error
 	 */
 	public static function permission_check( \WP_REST_Request $request ) {
-		$post_id = absint( $request->get_param( 'post_id' ) );
-		if ( 0 >= $post_id ) {
-			return false;
-		}
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
-			return false;
-		}
-		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		if ( ! is_user_logged_in() ) {
 			return false;
 		}
 
@@ -156,6 +149,17 @@ class Rest {
 				__( 'Permission denied.', 'kayzart-live-code-editor' ),
 				array( 'status' => 403 )
 			);
+		}
+
+		$post_id = absint( $request->get_param( 'post_id' ) );
+		if ( 0 >= $post_id ) {
+			return false;
+		}
+		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return false;
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return false;
 		}
 
 		return true;

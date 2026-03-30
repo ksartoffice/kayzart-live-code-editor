@@ -269,13 +269,13 @@ class Admin {
 
 		$post_type = Post_Type::POST_TYPE;
 
-		$post_type_object = get_post_type_object( $post_type );
-		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
+		$post_type_object = get_post_type_object( $post_type );
+		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
 		$post_id = wp_insert_post(

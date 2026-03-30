@@ -13,6 +13,10 @@
 /tailwindphp.md
 /.vscode
 /.idea
+/package.json
+/package-lock.json
+/tsconfig.json
+/vite.config.ts
 /composer.lock
 /phpunit.xml.dist
 /phpunit.xml

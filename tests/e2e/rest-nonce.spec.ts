@@ -22,23 +22,96 @@ const login = async (
   username: string,
   password: string
 ): Promise<void> => {
-  await page.context().clearCookies();
   const loginUrl = new URL('wp-login.php', baseUrl).toString();
-  await page.goto(loginUrl, { waitUntil: 'domcontentloaded' });
-  await page.fill('#user_login', username);
-  await page.fill('#user_pass', password);
-  await page.click('#wp-submit');
-  await page.waitForLoadState('networkidle');
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.context().clearCookies();
+    await page.goto(loginUrl, { waitUntil: 'domcontentloaded' });
+    await page.fill('#user_login', username);
+    await page.fill('#user_pass', password);
+    await page.click('#wp-submit');
+    await page.waitForLoadState('networkidle');
+
+    const hasLoggedInCookie = (await page.context().cookies()).some((cookie) =>
+      cookie.name.startsWith('wordpress_logged_in')
+    );
+    if (hasLoggedInCookie) {
+      return;
+    }
+
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error(`Failed to log in as ${username}.`);
+};
+
+const resolveEditorUrl = async (
+  page: import('@playwright/test').Page,
+  postId: number
+): Promise<string> => {
+  const postEditUrl = new URL('wp-admin/post.php', baseUrl);
+  postEditUrl.searchParams.set('post', String(postId));
+  postEditUrl.searchParams.set('action', 'edit');
+  await page.goto(postEditUrl.toString(), { waitUntil: 'domcontentloaded' });
+
+  const editorUrlHandle = await page
+    .waitForFunction(
+      (targetPostId) => {
+        const bridge = (window as any).KAYZART_EDITOR;
+        if (!bridge || typeof bridge.actionUrl !== 'string' || !bridge.actionUrl) {
+          return null;
+        }
+        const url = new URL(bridge.actionUrl, window.location.origin);
+        url.searchParams.set('post_id', String(targetPostId));
+        return url.toString();
+      },
+      postId,
+      { timeout: 8000 }
+    )
+    .catch(() => null);
+
+  if (editorUrlHandle) {
+    const editorUrl = await editorUrlHandle.jsonValue();
+    if (typeof editorUrl === 'string' && editorUrl.length > 0) {
+      return editorUrl;
+    }
+  }
+
+  const listUrl = new URL('wp-admin/edit.php', baseUrl);
+  listUrl.searchParams.set('post_type', 'kayzart');
+  await page.goto(listUrl.toString(), { waitUntil: 'domcontentloaded' });
+  const rowActionLink = await page.evaluate((targetPostId) => {
+    const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    for (const anchor of anchors) {
+      try {
+        const url = new URL(anchor.href, window.location.origin);
+        if (
+          url.searchParams.get('page') === 'kayzart' &&
+          url.searchParams.get('post_id') === String(targetPostId) &&
+          url.searchParams.get('_wpnonce')
+        ) {
+          return url.toString();
+        }
+      } catch {
+        // Ignore malformed href values.
+      }
+    }
+    return null;
+  }, postId);
+
+  if (typeof rowActionLink !== 'string' || rowActionLink.length === 0) {
+    throw new Error('Failed to resolve nonce-protected KayzArt editor URL.');
+  }
+
+  return rowActionLink;
 };
 
 const openEditorAndGetNonce = async (
   page: import('@playwright/test').Page,
   postId: number
 ): Promise<string> => {
-  const adminUrl = new URL('wp-admin/admin.php', baseUrl);
-  adminUrl.searchParams.set('page', 'kayzart');
-  adminUrl.searchParams.set('post_id', String(postId));
-  await page.goto(adminUrl.toString(), { waitUntil: 'domcontentloaded' });
+  const editorUrl = await resolveEditorUrl(page, postId);
+  await page.goto(editorUrl, { waitUntil: 'domcontentloaded' });
 
   const handle = await page.waitForFunction(() => {
     const cfg = (window as any).KAYZART;

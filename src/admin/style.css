@@ -1654,6 +1654,14 @@ body.admin_page_kayzart #wpbody-content {
   background: rgba(37, 99, 235, 0.12);
 }
 
+.cm-editor .kayzart-change-line-added {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.cm-editor .kayzart-change-line-removed {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 @media (max-width: 1280px) {
   .kayzart-toolbar {
     grid-template-columns: minmax(0, 1fr) minmax(0, auto);

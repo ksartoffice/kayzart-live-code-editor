@@ -6,7 +6,6 @@
 /AGENTS.md
 /STYLEGUIDE.md
 /node_modules
-/src
 /tests
 /bin
 /scripts
@@ -14,10 +13,6 @@
 /tailwindphp.md
 /.vscode
 /.idea
-/package.json
-/package-lock.json
-/tsconfig.json
-/vite.config.ts
 /composer.lock
 /phpunit.xml.dist
 /phpunit.xml

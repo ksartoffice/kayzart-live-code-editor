@@ -141,13 +141,16 @@ class Rest {
 			return false;
 		}
 
-		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
+		$nonce = sanitize_text_field( wp_unslash( (string) $request->get_header( 'X-WP-Nonce' ) ) );
 		if ( '' === $nonce ) {
-			$nonce = (string) $request->get_param( '_wpnonce' );
+			return new \WP_Error(
+				'kayzart_missing_nonce',
+				__( 'Permission denied.', 'kayzart-live-code-editor' ),
+				array( 'status' => 403 )
+			);
 		}
-		$nonce = sanitize_text_field( wp_unslash( $nonce ) );
 
-		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
+		if ( ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
 			return new \WP_Error(
 				'kayzart_invalid_nonce',
 				__( 'Permission denied.', 'kayzart-live-code-editor' ),

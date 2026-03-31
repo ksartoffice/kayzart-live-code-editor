@@ -20,6 +20,20 @@ type RegistryEntry = {
 
 type Listener = () => void;
 type RegisterSettingsTab = (tab: ExternalSettingsTab) => () => void;
+export type ToolbarActionPlacement = 'before-settings' | 'after-settings';
+
+export type ToolbarAction = {
+  id: string;
+  label: string;
+  order?: number;
+  placement?: ToolbarActionPlacement;
+  icon?: string;
+  tooltip?: string;
+  className?: string;
+  onClick: () => void;
+};
+
+export type RegisterToolbarAction = (action: ToolbarAction) => () => void;
 
 export type EditorSourceRange = {
   startOffset: number;
@@ -49,6 +63,7 @@ export type SnapshotReplaceOptions = {
 
 export type KayzArtExtensionApi = {
   registerSettingsTab: RegisterSettingsTab;
+  registerToolbarAction?: RegisterToolbarAction;
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => boolean;
@@ -69,6 +84,7 @@ declare global {
   interface Window {
     KAYZART_EXTENSION_API?: KayzArtExtensionApi;
     KAYZART_SETTINGS_TAB_QUEUE?: unknown[];
+    KAYZART_TOOLBAR_ACTION_QUEUE?: unknown[];
   }
 }
 

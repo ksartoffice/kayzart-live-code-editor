@@ -26,6 +26,11 @@ import {
   X,
 } from 'lucide';
 import { renderLucideIcon } from './lucide-icons';
+import {
+  getExternalToolbarActions,
+  subscribeExternalToolbarActions,
+  type ResolvedToolbarAction,
+} from './extensions/toolbar-action-registry';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
@@ -162,6 +167,9 @@ function Toolbar({
   const [titleSaving, setTitleSaving] = useState(false);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [externalToolbarActions, setExternalToolbarActions] = useState<ResolvedToolbarAction[]>(
+    () => getExternalToolbarActions()
+  );
   const toggleLabel = editorCollapsed
     ? __( 'Show code', 'kayzart-live-code-editor')
     : __( 'Hide code', 'kayzart-live-code-editor');
@@ -213,6 +221,15 @@ function Toolbar({
     { value: 'private' as const, label: __( 'Make private', 'kayzart-live-code-editor') },
     { value: 'draft' as const, label: __( 'Revert to draft', 'kayzart-live-code-editor') },
   ];
+  useEffect(() => {
+    const syncActions = () => {
+      setExternalToolbarActions(getExternalToolbarActions());
+    };
+    const unsubscribe = subscribeExternalToolbarActions(syncActions);
+    syncActions();
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     if (!titleModalOpen) {
       setTitleDraft(resolvedTitle);
@@ -308,6 +325,34 @@ function Toolbar({
     if (result.ok) {
       setSaveMenuOpen(false);
     }
+  };
+  const beforeSettingsActions = externalToolbarActions.filter(
+    (action) => action.placement === 'before-settings'
+  );
+  const afterSettingsActions = externalToolbarActions.filter(
+    (action) => action.placement === 'after-settings'
+  );
+  const renderExternalToolbarAction = (action: ResolvedToolbarAction) => {
+    const tooltip = action.tooltip ? action.tooltip.trim() : '';
+    const className = action.className ? ` ${action.className}` : '';
+    return (
+      <button
+        key={action.id}
+        className={`kayzart-btn kayzart-btn-toolbarAction${className}`}
+        type="button"
+        onClick={() => action.onClick()}
+        aria-label={action.label}
+        data-tooltip={tooltip || undefined}
+      >
+        {action.icon ? (
+          <span
+            className="kayzart-btnIcon"
+            dangerouslySetInnerHTML={{ __html: action.icon }}
+          />
+        ) : null}
+        <span className="kayzart-btnLabel">{action.label}</span>
+      </button>
+    );
   };
   return (
     <Fragment>
@@ -571,6 +616,7 @@ function Toolbar({
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.viewPost }} />
             </a>
           ) : null}
+          {beforeSettingsActions.map(renderExternalToolbarAction)}
           <button
             className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}`}
             type="button"
@@ -582,6 +628,7 @@ function Toolbar({
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
           </button>
+          {afterSettingsActions.map(renderExternalToolbarAction)}
           <button
             className="kayzart-btn kayzart-btn-export"
             type="button"

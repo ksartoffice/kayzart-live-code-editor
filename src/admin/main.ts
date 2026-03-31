@@ -64,6 +64,7 @@ declare global {
 const COMPACT_EDITOR_BREAKPOINT = 900;
 const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.wordWrap.html';
 const LEGACY_HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
+const SETTINGS_PANEL_WIDTH_STORAGE_KEY = 'kayzart.settingsPanelWidth';
 type HtmlWordWrapMode = 'off' | 'on';
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
@@ -152,6 +153,33 @@ const addCoveredLines = (
   }
 };
 
+const readSettingsPanelWidth = (): number | undefined => {
+  try {
+    const saved = window.localStorage.getItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY);
+    if (!saved) {
+      return undefined;
+    }
+    const parsed = Number.parseFloat(saved);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+};
+
+const saveSettingsPanelWidth = (width: number) => {
+  if (!Number.isFinite(width) || width <= 0) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY, `${Math.round(width)}`);
+  } catch {
+    // Ignore storage errors and keep editing.
+  }
+};
+
 const computeSnapshotLineChanges = (beforeText: string, nextText: string): SnapshotLineChanges => {
   if (beforeText === nextText) {
     return { addedLines: [], removedAnchorLines: [] };
@@ -204,6 +232,7 @@ async function main() {
 
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
+  const initialSettingsPanelWidth = readSettingsPanelWidth();
   const viewportController = createViewportController({
     ui,
     compactDesktopViewportWidth: 1280,
@@ -218,6 +247,8 @@ async function main() {
     desktopMinPreviewWidth: 1024,
     minEditorPaneHeight: 160,
     minSettingsWidth: 260,
+    initialSettingsWidth: initialSettingsPanelWidth,
+    onSettingsWidthCommit: saveSettingsPanelWidth,
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),

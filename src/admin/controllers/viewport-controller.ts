@@ -15,6 +15,8 @@ type ViewportControllerDeps = {
   desktopMinPreviewWidth: number;
   minEditorPaneHeight: number;
   minSettingsWidth: number;
+  initialSettingsWidth?: number;
+  onSettingsWidthCommit?: (width: number) => void;
   getCompactEditorMode: () => boolean;
   onViewportModeChange?: (mode: ViewportMode) => void;
   onEditorCollapsedChange?: (collapsed: boolean) => void;
@@ -65,10 +67,43 @@ export function createViewportController(deps: ViewportControllerDeps) {
     deps.ui.left.style.width = '';
   };
 
-  const setSettingsWidth = (width: number) => {
-    const clamped = Math.max(deps.minSettingsWidth, Math.round(width));
-    deps.ui.app.style.setProperty('--kayzart-settings-width', `${clamped}px`);
+  const getMaxSettingsWidth = () => {
+    const mainRect = deps.ui.main.getBoundingClientRect();
+    const leftWidth = deps.ui.left.getBoundingClientRect().width;
+    const leftResizerWidth = deps.ui.resizer.getBoundingClientRect().width;
+    const settingsResizerWidth = deps.ui.settingsResizer.getBoundingClientRect().width;
+    return Math.max(
+      deps.minSettingsWidth,
+      mainRect.width - leftWidth - leftResizerWidth - settingsResizerWidth - deps.minRightWidth
+    );
   };
+
+  const clampSettingsWidth = (width: number) => {
+    return Math.min(getMaxSettingsWidth(), Math.max(deps.minSettingsWidth, Math.round(width)));
+  };
+
+  const getCurrentSettingsWidth = () => {
+    const rawValue = window.getComputedStyle(deps.ui.app).getPropertyValue('--kayzart-settings-width');
+    const parsed = Number.parseFloat(rawValue);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+    const measured = deps.ui.settings.getBoundingClientRect().width;
+    if (Number.isFinite(measured) && measured > 0) {
+      return measured;
+    }
+    return deps.minSettingsWidth;
+  };
+
+  const setSettingsWidth = (width: number) => {
+    const clamped = clampSettingsWidth(width);
+    deps.ui.app.style.setProperty('--kayzart-settings-width', `${clamped}px`);
+    return clamped;
+  };
+
+  if (typeof deps.initialSettingsWidth === 'number' && Number.isFinite(deps.initialSettingsWidth)) {
+    setSettingsWidth(deps.initialSettingsWidth);
+  }
 
   const updatePreviewBadge = () => {
     const compactEditorMode = deps.getCompactEditorMode();
@@ -284,16 +319,8 @@ export function createViewportController(deps: ViewportControllerDeps) {
 
   const onSettingsPointerMove = (event: PointerEvent) => {
     if (!isSettingsResizing) return;
-    const mainRect = deps.ui.main.getBoundingClientRect();
-    const leftWidth = deps.ui.left.getBoundingClientRect().width;
-    const leftResizerWidth = deps.ui.resizer.getBoundingClientRect().width;
-    const settingsResizerWidth = deps.ui.settingsResizer.getBoundingClientRect().width;
-    const maxSettingsWidth = Math.max(
-      deps.minSettingsWidth,
-      mainRect.width - leftWidth - leftResizerWidth - settingsResizerWidth - deps.minRightWidth
-    );
     const nextWidth = startSettingsWidth + (startX - event.clientX);
-    setSettingsWidth(Math.min(maxSettingsWidth, nextWidth));
+    setSettingsWidth(nextWidth);
     if (viewportMode !== 'desktop') {
       applyViewportLayout();
     }
@@ -317,6 +344,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     if (!isSettingsResizing) return;
     isSettingsResizing = false;
     deps.ui.app.classList.remove('is-resizing');
+    deps.onSettingsWidthCommit?.(clampSettingsWidth(getCurrentSettingsWidth()));
     if (event) {
       try {
         deps.ui.settingsResizer.releasePointerCapture(event.pointerId);

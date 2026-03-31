@@ -17,9 +17,9 @@ import {
   PanelBottomOpen,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRight,
   Redo2,
   Save,
-  Settings,
   Smartphone,
   Tablet,
   Undo2,
@@ -115,8 +115,8 @@ const ICONS = {
   mobile: renderLucideIcon(Smartphone, {
     class: 'lucide lucide-smartphone-icon lucide-smartphone',
   }),
-  settings: renderLucideIcon(Settings, {
-    class: 'lucide lucide-settings-icon lucide-settings',
+  settings: renderLucideIcon(PanelRight, {
+    class: 'lucide lucide-panel-right-icon lucide-panel-right',
   }),
   chevronDown: renderLucideIcon(ChevronDown, {
     class: 'lucide lucide-chevron-down-icon lucide-chevron-down',
@@ -183,9 +183,7 @@ function Toolbar({
   const isPublished = postStatus === 'publish' || postStatus === 'private';
   const isDraft = postStatus === 'draft' || postStatus === 'auto-draft';
   const viewPostLabel = isPublished ? __( 'View post', 'kayzart-live-code-editor') : __( 'Preview', 'kayzart-live-code-editor');
-  const settingsTitle = settingsOpen
-    ? __( 'Close settings', 'kayzart-live-code-editor')
-    : __( 'Settings', 'kayzart-live-code-editor');
+  const settingsTitle = settingsOpen ? '右パネルを閉じる' : '右パネル';
   const viewportDesktopLabel = __( 'Desktop', 'kayzart-live-code-editor');
   const viewportTabletLabel = __( 'Tablet', 'kayzart-live-code-editor');
   const viewportMobileLabel = __( 'Mobile', 'kayzart-live-code-editor');

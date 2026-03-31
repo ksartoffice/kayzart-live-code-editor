@@ -199,6 +199,8 @@ async function main() {
   ui.resizer.setAttribute('aria-orientation', 'vertical');
   ui.editorResizer.setAttribute('role', 'separator');
   ui.editorResizer.setAttribute('aria-orientation', 'horizontal');
+  ui.settingsResizer.setAttribute('role', 'separator');
+  ui.settingsResizer.setAttribute('aria-orientation', 'vertical');
 
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
@@ -215,6 +217,7 @@ async function main() {
     minRightWidth: 360,
     desktopMinPreviewWidth: 1024,
     minEditorPaneHeight: 160,
+    minSettingsWidth: 260,
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),

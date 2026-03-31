@@ -135,5 +135,33 @@ describe('viewport controller settings width persistence hooks', () => {
     expect(onSettingsWidthCommit).toHaveBeenCalledWith(330);
     expect(ui.app.style.getPropertyValue('--kayzart-settings-width')).toBe('330px');
   });
-});
 
+  it('allows settings resize while editor is collapsed', () => {
+    const ui = createUi();
+    const onSettingsWidthCommit = vi.fn();
+
+    const controller = createViewportController({
+      ui,
+      compactDesktopViewportWidth: 1280,
+      viewportPresetWidths: { mobile: 375, tablet: 768 },
+      previewBadgeHideMs: 2200,
+      previewBadgeTransitionMs: 320,
+      minLeftWidth: 320,
+      minRightWidth: 360,
+      desktopMinPreviewWidth: 1024,
+      minEditorPaneHeight: 160,
+      minSettingsWidth: 260,
+      initialSettingsWidth: 300,
+      onSettingsWidthCommit,
+      getCompactEditorMode: () => false,
+    });
+
+    controller.setEditorCollapsed(true);
+    dispatchPointer(ui.settingsResizer, 'pointerdown', 1000);
+    dispatchPointer(window, 'pointermove', 980);
+    dispatchPointer(window, 'pointerup', 980);
+
+    expect(onSettingsWidthCommit).toHaveBeenCalledTimes(1);
+    expect(Number.parseFloat(ui.app.style.getPropertyValue('--kayzart-settings-width'))).toBeGreaterThan(300);
+  });
+});

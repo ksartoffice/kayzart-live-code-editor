@@ -388,7 +388,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
   deps.ui.editorResizer.addEventListener('pointercancel', stopEditorResizing);
 
   deps.ui.settingsResizer.addEventListener('pointerdown', (event) => {
-    if (editorCollapsed || isStackedLayout()) {
+    if (isStackedLayout()) {
       return;
     }
     if (deps.ui.settings.getBoundingClientRect().width < 1) {

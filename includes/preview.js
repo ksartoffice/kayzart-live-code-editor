@@ -23,7 +23,9 @@
   let highlightBox = null;
   let selectTarget = null;
   let selectBox = null;
-  let selectActionButton = null;
+  let selectActionGroup = null;
+  let selectActionAddonButton = null;
+  let selectActionEditButton = null;
   let elementsTabOpen = false;
   let markerNodes = null;
   let externalScripts = [];
@@ -43,6 +45,7 @@
   let markerRetryStartedAt = 0;
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
+  const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
   let domSelectorEnabled =
     config.liveHighlightEnabled === undefined ? true : Boolean(config.liveHighlightEnabled);
 
@@ -238,24 +241,22 @@
     return selectBox;
   }
 
-  function ensureSelectActionButton() {
-    if (selectActionButton) return selectActionButton;
+  function createSelectActionButton(args) {
     const button = document.createElement('button');
-    button.id = 'kayzart-select-action';
+    button.id = args.id;
     button.type = 'button';
-    button.setAttribute('aria-label', 'Open element settings');
+    button.setAttribute('aria-label', args.ariaLabel);
     Object.assign(button.style, {
-      position: 'fixed',
       width: '32px',
       height: '32px',
       borderRadius: '999px',
-      background: '#a855f7',
+      background: args.background,
       color: '#fff',
       border: 'none',
       padding: '7px',
       margin: '0',
       boxSizing: 'border-box',
-      display: 'none',
+      display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       boxShadow: '0 4px 8px rgba(0, 0, 0, 0.25)',
@@ -264,43 +265,126 @@
       zIndex: 2147483647,
       transition: 'transform 80ms ease-out, opacity 80ms ease-out',
     });
-    button.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>';
+    button.innerHTML = args.iconSvg;
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      reply('KAYZART_OPEN_ELEMENTS_TAB');
+      args.onClick();
     });
-    document.body.appendChild(button);
-    selectActionButton = button;
     return button;
   }
 
-  function hideSelectActionButton() {
-    if (selectActionButton) {
-      selectActionButton.style.display = 'none';
+  function resolveOverlayActionConfig(raw) {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+    const actionId = typeof raw.actionId === 'string' ? raw.actionId.trim() : '';
+    const iconSvg = typeof raw.iconSvg === 'string' ? raw.iconSvg : '';
+    if (!actionId || !iconSvg) {
+      return null;
+    }
+    const ariaLabel =
+      typeof raw.ariaLabel === 'string' && raw.ariaLabel.trim()
+        ? raw.ariaLabel.trim()
+        : 'Run overlay action';
+    const background =
+      typeof raw.background === 'string' && raw.background.trim() ? raw.background.trim() : '#7c3aed';
+    return {
+      actionId: actionId,
+      ariaLabel: ariaLabel,
+      iconSvg: iconSvg,
+      background: background,
+      showWhenElementsTabOpen: raw.showWhenElementsTabOpen === true,
+    };
+  }
+
+  function ensureSelectActionButtons() {
+    if (selectActionGroup) return selectActionGroup;
+
+    const group = document.createElement('div');
+    group.id = 'kayzart-select-actions';
+    Object.assign(group.style, {
+      position: 'fixed',
+      display: 'none',
+      alignItems: 'center',
+      gap: '6px',
+      top: '0px',
+      left: '0px',
+      zIndex: 2147483647,
+    });
+
+    if (overlayActionConfig) {
+      selectActionAddonButton = createSelectActionButton({
+        id: 'kayzart-select-overlay-action',
+        ariaLabel: overlayActionConfig.ariaLabel,
+        background: overlayActionConfig.background,
+        iconSvg: overlayActionConfig.iconSvg,
+        onClick: () =>
+          reply('KAYZART_OVERLAY_ACTION', {
+            actionId: overlayActionConfig.actionId,
+          }),
+      });
+      group.appendChild(selectActionAddonButton);
+    }
+
+    selectActionEditButton = createSelectActionButton({
+      id: 'kayzart-select-action',
+      ariaLabel: 'Open element settings',
+      background: '#a855f7',
+      iconSvg:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>',
+      onClick: () => reply('KAYZART_OPEN_ELEMENTS_TAB'),
+    });
+    group.appendChild(selectActionEditButton);
+
+    document.body.appendChild(group);
+    selectActionGroup = group;
+    return group;
+  }
+
+  function hideSelectActionButtons() {
+    if (selectActionGroup) {
+      selectActionGroup.style.display = 'none';
     }
   }
 
   function updateSelectActionPosition() {
-    if (!selectTarget || elementsTabOpen) {
-      hideSelectActionButton();
+    if (!selectTarget) {
+      hideSelectActionButtons();
       return;
     }
     const rect = selectTarget.getBoundingClientRect();
-    const button = ensureSelectActionButton();
+    const group = ensureSelectActionButtons();
     const size = 32;
     const gap = 6;
     const padding = 6;
+    const showAddonButton =
+      Boolean(selectActionAddonButton) &&
+      (!elementsTabOpen ||
+        Boolean(overlayActionConfig && overlayActionConfig.showWhenElementsTabOpen));
+    const showEditButton = !elementsTabOpen && Boolean(selectActionEditButton);
+    const buttonCount = (showAddonButton ? 1 : 0) + (showEditButton ? 1 : 0);
+    if (buttonCount === 0) {
+      hideSelectActionButtons();
+      return;
+    }
+    if (selectActionAddonButton) {
+      selectActionAddonButton.style.display = showAddonButton ? 'flex' : 'none';
+    }
+    if (selectActionEditButton) {
+      selectActionEditButton.style.display = showEditButton ? 'flex' : 'none';
+    }
+    const groupWidth = size * buttonCount + gap * (buttonCount - 1);
     const maxTop = window.innerHeight - size - padding;
-    const maxLeft = window.innerWidth - size - padding;
+    const maxLeft = window.innerWidth - groupWidth - padding;
     let top = rect.top - size - gap;
-    let left = rect.right - size + gap;
+    const rightButtonLeft = rect.right - size + gap;
+    let left = rightButtonLeft - (groupWidth - size);
     top = Math.max(padding, Math.min(top, maxTop));
     left = Math.max(padding, Math.min(left, maxLeft));
-    button.style.top = top + 'px';
-    button.style.left = left + 'px';
-    button.style.display = 'flex';
+    group.style.top = top + 'px';
+    group.style.left = left + 'px';
+    group.style.display = 'flex';
   }
 
   function clearHighlight() {
@@ -315,7 +399,7 @@
     if (selectBox) {
       selectBox.style.display = 'none';
     }
-    hideSelectActionButton();
+    hideSelectActionButtons();
   }
 
   function drawHighlight(el) {

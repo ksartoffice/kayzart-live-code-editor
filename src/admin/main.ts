@@ -65,6 +65,7 @@ const COMPACT_EDITOR_BREAKPOINT = 900;
 const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.wordWrap.html';
 const LEGACY_HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
 const SETTINGS_PANEL_WIDTH_STORAGE_KEY = 'kayzart.settingsPanelWidth';
+const PREVIEW_OVERLAY_ACTION_EVENT = 'kayzart-preview-overlay-action';
 type HtmlWordWrapMode = 'off' | 'on';
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
@@ -1039,6 +1040,15 @@ async function main() {
       if (activeSettingsTab !== 'elements') {
         settingsApi?.openTab('elements');
       }
+    },
+    onOverlayAction: (actionId) => {
+      window.dispatchEvent(
+        new CustomEvent(PREVIEW_OVERLAY_ACTION_EVENT, {
+          detail: {
+            actionId,
+          },
+        })
+      );
     },
     onMissingMarkers: () => {
       handleMissingMarkers();

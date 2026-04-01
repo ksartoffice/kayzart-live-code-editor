@@ -162,9 +162,11 @@ class Test_Preview extends WP_UnitTestCase {
 		$inline = implode( "\n", $before_inline );
 		$this->assertMatchesRegularExpression( '/window\\.KAYZART_PREVIEW = (.+);/', $inline );
 
-		preg_match( '/window\\.KAYZART_PREVIEW = (.+);/', $inline, $matches );
-		$this->assertArrayHasKey( 1, $matches );
-		$payload = json_decode( $matches[1], true );
+		preg_match_all( '/window\\.KAYZART_PREVIEW = (.+);/', $inline, $matches );
+		$payload_json = isset( $matches[1] ) && is_array( $matches[1] ) && ! empty( $matches[1] ) ? end( $matches[1] ) : '';
+		$this->assertIsString( $payload_json );
+		$this->assertNotSame( '', $payload_json );
+		$payload = json_decode( $payload_json, true );
 		$this->assertIsArray( $payload );
 
 		$allowed_origin = (string) ( $payload['allowedOrigin'] ?? '' );
@@ -173,6 +175,40 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertTrue( empty( $parts['path'] ), 'allowedOrigin should not include a path.' );
 		$this->assertTrue( empty( $parts['query'] ), 'allowedOrigin should not include a query string.' );
 		$this->assertTrue( empty( $parts['fragment'] ), 'allowedOrigin should not include a fragment.' );
+		$this->assertArrayNotHasKey( 'overlayAction', $payload );
+	}
+
+	public function test_enqueue_assets_allows_preview_payload_extension_filter(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		$filter   = static function ( array $payload ) {
+			$payload['overlayAction'] = array(
+				'actionId' => 'test-action',
+				'iconSvg'  => '<svg></svg>',
+			);
+			return $payload;
+		};
+
+		add_filter( 'kayzart_preview_payload', $filter );
+
+		try {
+			$this->start_preview_request( $post_id, $admin_id );
+			Preview::enqueue_assets();
+		} finally {
+			remove_filter( 'kayzart_preview_payload', $filter );
+		}
+
+		$scripts       = wp_scripts();
+		$registered    = $scripts->registered['kayzart-preview'] ?? null;
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", $before_inline );
+		preg_match_all( '/window\\.KAYZART_PREVIEW = (.+);/', $inline, $matches );
+		$payload_json = isset( $matches[1] ) && is_array( $matches[1] ) && ! empty( $matches[1] ) ? end( $matches[1] ) : '';
+		$this->assertIsString( $payload_json );
+		$this->assertNotSame( '', $payload_json );
+		$payload = json_decode( $payload_json, true );
+		$this->assertIsArray( $payload );
+		$this->assertSame( 'test-action', $payload['overlayAction']['actionId'] ?? '' );
 	}
 
 	public function test_preview_filter_registered_with_high_priority(): void {

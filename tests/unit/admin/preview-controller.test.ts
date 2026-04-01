@@ -95,5 +95,44 @@ describe('preview shortcode handling', () => {
     const renderCall = postMessage.mock.calls.find((entry) => entry?.[0]?.type === 'KAYZART_RENDER');
     expect(renderCall).toBeFalsy();
   });
+
+  it('forwards overlay action events from preview iframe', () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const htmlModel = createModel('<div>hello</div>');
+    const cssModel = createModel('');
+    const jsModel = createModel('');
+    const onOverlayAction = vi.fn();
+
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: htmlModel as any,
+      cssModel: cssModel as any,
+      jsModel: jsModel as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getShadowDomEnabled: () => false,
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getExternalScripts: () => [],
+      getExternalStyles: () => [],
+      isTailwindEnabled: () => false,
+      onOverlayAction,
+    });
+
+    controller.handleMessage({
+      origin: 'https://example.com',
+      source: contentWindow,
+      data: { type: 'KAYZART_OVERLAY_ACTION', actionId: 'test-action' },
+    } as MessageEvent);
+
+    expect(onOverlayAction).toHaveBeenCalledTimes(1);
+    expect(onOverlayAction).toHaveBeenCalledWith('test-action');
+  });
 });
 

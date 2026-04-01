@@ -323,6 +323,15 @@ class Preview {
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
+
+		/**
+		 * Filter preview script payload before it is injected into the iframe.
+		 *
+		 * @param array<string,mixed> $payload Preview payload.
+		 * @param int                 $post_id Preview post ID.
+		 */
+		$payload = apply_filters( 'kayzart_preview_payload', $payload, self::$post_id );
+
 		$json                   = wp_json_encode( $payload );
 		if ( false === $json ) {
 			$json = '{}';

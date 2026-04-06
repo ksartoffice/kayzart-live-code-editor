@@ -57,6 +57,8 @@ export type EditorSnapshot = {
   baseHash: string;
 };
 
+export type EditorMode = 'normal' | 'tailwind';
+
 export type SnapshotReplaceOptions = {
   highlightChanges?: boolean;
 };
@@ -67,6 +69,7 @@ export type KayzArtExtensionApi = {
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => boolean;
+  getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;
   isEditorLocked?: () => boolean;

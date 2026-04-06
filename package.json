@@ -11,6 +11,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "plugin-zip": "npm run build && composer install --no-dev --optimize-autoloader && node scripts/plugin-zip.mjs && composer install",
+    "release:svn": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-to-svn.ps1",
     "e2e": "playwright test",
     "e2e:install": "playwright install"
   },

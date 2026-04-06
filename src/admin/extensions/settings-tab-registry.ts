@@ -20,9 +20,56 @@ type RegistryEntry = {
 
 type Listener = () => void;
 type RegisterSettingsTab = (tab: ExternalSettingsTab) => () => void;
+export type ToolbarActionPlacement = 'before-settings' | 'after-settings';
 
-type KayzArtExtensionApi = {
+export type ToolbarAction = {
+  id: string;
+  label: string;
+  order?: number;
+  placement?: ToolbarActionPlacement;
+  icon?: string;
+  tooltip?: string;
+  className?: string;
+  onClick: () => void;
+};
+
+export type RegisterToolbarAction = (action: ToolbarAction) => () => void;
+
+export type EditorSourceRange = {
+  startOffset: number;
+  endOffset: number;
+};
+
+export type SelectedElementContext = {
+  lcId: string;
+  tagName: string;
+  attributes: Array<{ name: string; value: string }>;
+  text: string | null;
+  outerHTML: string;
+  sourceRange?: EditorSourceRange;
+};
+
+export type EditorSnapshot = {
+  html: string;
+  css: string;
+  js: string;
+  jsMode: 'classic' | 'module';
+  baseHash: string;
+};
+
+export type SnapshotReplaceOptions = {
+  highlightChanges?: boolean;
+};
+
+export type KayzArtExtensionApi = {
   registerSettingsTab: RegisterSettingsTab;
+  registerToolbarAction?: RegisterToolbarAction;
+  openSettingsTab?: (tabId: string) => void;
+  getEditorSnapshot?: () => EditorSnapshot | null;
+  replaceEditorSnapshot?: (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => boolean;
+  getSelectedContext?: () => SelectedElementContext | null;
+  setEditorLock?: (locked: boolean) => void;
+  isEditorLocked?: () => boolean;
 };
 
 const RESERVED_TAB_IDS = new Set(['settings', 'elements']);
@@ -37,6 +84,7 @@ declare global {
   interface Window {
     KAYZART_EXTENSION_API?: KayzArtExtensionApi;
     KAYZART_SETTINGS_TAB_QUEUE?: unknown[];
+    KAYZART_TOOLBAR_ACTION_QUEUE?: unknown[];
   }
 }
 

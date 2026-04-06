@@ -43,6 +43,7 @@ body.admin_page_kayzart #wpbody-content {
 }
 
 .kayzart-app {
+  --kayzart-settings-width: 320px;
   height: 100%;
   min-height: 100vh;
   display: flex;
@@ -644,7 +645,10 @@ body.admin_page_kayzart #wpbody-content {
 
 .kayzart-app.is-resizing .kayzart-left,
 .kayzart-app.is-resizing .kayzart-resizer,
-.kayzart-app.is-resizing .kayzart-editorResizer {
+.kayzart-app.is-resizing .kayzart-editorResizer,
+.kayzart-app.is-resizing .kayzart-settings,
+.kayzart-app.is-resizing .kayzart-settingsResizer,
+.kayzart-app.is-resizing .kayzart-settingsInner {
   transition: none;
 }
 
@@ -931,6 +935,37 @@ body.admin_page_kayzart #wpbody-content {
   transform: translate(-50%, 0);
 }
 
+.kayzart-settingsResizer {
+  width: 0;
+  opacity: 0;
+  cursor: col-resize;
+  background: #111318;
+  position: relative;
+  transition: width 0.28s ease, opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.kayzart-settingsResizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  background: #2b2f38;
+  transition: background 0.2s ease;
+}
+
+.kayzart-settingsResizer:hover::before {
+  background: #4c84ff;
+}
+
+.kayzart-app.is-settings-open .kayzart-settingsResizer {
+  width: 6px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .kayzart-settings {
   width: 0;
   max-width: 0;
@@ -945,8 +980,8 @@ body.admin_page_kayzart #wpbody-content {
 }
 
 .kayzart-app.is-settings-open .kayzart-settings {
-  width: 320px;
-  max-width: 320px;
+  width: var(--kayzart-settings-width);
+  max-width: var(--kayzart-settings-width);
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
@@ -962,8 +997,12 @@ body.admin_page_kayzart #wpbody-content {
   box-shadow: -12px 0 24px rgba(0, 0, 0, 0.35);
 }
 
+.kayzart-app.is-compact-editors .kayzart-settingsResizer {
+  display: none;
+}
+
 .kayzart-settingsInner {
-  width: 320px;
+  width: var(--kayzart-settings-width);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -1062,6 +1101,10 @@ body.admin_page_kayzart #wpbody-content {
 
 .kayzart-settingsExternalPanel {
   width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
 }
 
 .kayzart-settingsSection {
@@ -1652,6 +1695,14 @@ body.admin_page_kayzart #wpbody-content {
 
 .cm-editor .kayzart-highlight-line {
   background: rgba(37, 99, 235, 0.12);
+}
+
+.cm-editor .kayzart-change-line-added {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.cm-editor .kayzart-change-line-removed {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 @media (max-width: 1280px) {

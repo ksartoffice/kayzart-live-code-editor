@@ -59,6 +59,7 @@ type PreviewControllerDeps = {
   isTailwindEnabled: () => boolean;
   onSelect?: (lcId: string) => void;
   onOpenElementsTab?: () => void;
+  onOverlayAction?: (actionId: string) => void;
   onMissingMarkers?: () => void;
 };
 
@@ -544,6 +545,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
 
     if (data?.type === 'KAYZART_OPEN_ELEMENTS_TAB') {
       deps.onOpenElementsTab?.();
+    }
+
+    if (data?.type === 'KAYZART_OVERLAY_ACTION' && typeof data.actionId === 'string') {
+      deps.onOverlayAction?.(data.actionId);
     }
 
     if (data?.type === 'KAYZART_MISSING_MARKERS') {

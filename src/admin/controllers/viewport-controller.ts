@@ -14,6 +14,9 @@ type ViewportControllerDeps = {
   minRightWidth: number;
   desktopMinPreviewWidth: number;
   minEditorPaneHeight: number;
+  minSettingsWidth: number;
+  initialSettingsWidth?: number;
+  onSettingsWidthCommit?: (width: number) => void;
   getCompactEditorMode: () => boolean;
   onViewportModeChange?: (mode: ViewportMode) => void;
   onEditorCollapsedChange?: (collapsed: boolean) => void;
@@ -26,8 +29,10 @@ export function createViewportController(deps: ViewportControllerDeps) {
   let previewBadgeRaf = 0;
   let isResizing = false;
   let isEditorResizing = false;
+  let isSettingsResizing = false;
   let startX = 0;
   let startY = 0;
+  let startSettingsWidth = 0;
   let startWidth = 0;
   let startHeight = 0;
   let lastLeftWidth = deps.ui.left.getBoundingClientRect().width || deps.minLeftWidth;
@@ -38,7 +43,8 @@ export function createViewportController(deps: ViewportControllerDeps) {
     const mainRect = deps.ui.main.getBoundingClientRect();
     const settingsWidth = deps.ui.settings.getBoundingClientRect().width;
     const resizerWidth = deps.ui.resizer.getBoundingClientRect().width;
-    return Math.max(0, mainRect.width - settingsWidth - resizerWidth);
+    const settingsResizerWidth = deps.ui.settingsResizer.getBoundingClientRect().width;
+    return Math.max(0, mainRect.width - settingsWidth - settingsResizerWidth - resizerWidth);
   };
 
   const getPreviewAreaWidth = () => {
@@ -60,6 +66,44 @@ export function createViewportController(deps: ViewportControllerDeps) {
     deps.ui.left.style.flex = '';
     deps.ui.left.style.width = '';
   };
+
+  const getMaxSettingsWidth = () => {
+    const mainRect = deps.ui.main.getBoundingClientRect();
+    const leftWidth = deps.ui.left.getBoundingClientRect().width;
+    const leftResizerWidth = deps.ui.resizer.getBoundingClientRect().width;
+    const settingsResizerWidth = deps.ui.settingsResizer.getBoundingClientRect().width;
+    return Math.max(
+      deps.minSettingsWidth,
+      mainRect.width - leftWidth - leftResizerWidth - settingsResizerWidth - deps.minRightWidth
+    );
+  };
+
+  const clampSettingsWidth = (width: number) => {
+    return Math.min(getMaxSettingsWidth(), Math.max(deps.minSettingsWidth, Math.round(width)));
+  };
+
+  const getCurrentSettingsWidth = () => {
+    const rawValue = window.getComputedStyle(deps.ui.app).getPropertyValue('--kayzart-settings-width');
+    const parsed = Number.parseFloat(rawValue);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+    const measured = deps.ui.settings.getBoundingClientRect().width;
+    if (Number.isFinite(measured) && measured > 0) {
+      return measured;
+    }
+    return deps.minSettingsWidth;
+  };
+
+  const setSettingsWidth = (width: number) => {
+    const clamped = clampSettingsWidth(width);
+    deps.ui.app.style.setProperty('--kayzart-settings-width', `${clamped}px`);
+    return clamped;
+  };
+
+  if (typeof deps.initialSettingsWidth === 'number' && Number.isFinite(deps.initialSettingsWidth)) {
+    setSettingsWidth(deps.initialSettingsWidth);
+  }
 
   const updatePreviewBadge = () => {
     const compactEditorMode = deps.getCompactEditorMode();
@@ -243,7 +287,8 @@ export function createViewportController(deps: ViewportControllerDeps) {
     const mainRect = deps.ui.main.getBoundingClientRect();
     const settingsWidth = deps.ui.settings.getBoundingClientRect().width;
     const resizerWidth = deps.ui.resizer.getBoundingClientRect().width;
-    const available = mainRect.width - settingsWidth - resizerWidth;
+    const settingsResizerWidth = deps.ui.settingsResizer.getBoundingClientRect().width;
+    const available = mainRect.width - settingsWidth - settingsResizerWidth - resizerWidth;
     const maxLeftWidth = Math.max(deps.minLeftWidth, available - deps.minRightWidth);
     const nextWidth = Math.min(maxLeftWidth, Math.max(deps.minLeftWidth, startWidth + event.clientX - startX));
     setLeftWidth(nextWidth);
@@ -272,6 +317,16 @@ export function createViewportController(deps: ViewportControllerDeps) {
     setEditorSplitHeight(nextHeight);
   };
 
+  const onSettingsPointerMove = (event: PointerEvent) => {
+    if (!isSettingsResizing) return;
+    const nextWidth = startSettingsWidth + (startX - event.clientX);
+    setSettingsWidth(nextWidth);
+    if (viewportMode !== 'desktop') {
+      applyViewportLayout();
+    }
+    schedulePreviewBadge();
+  };
+
   const stopEditorResizing = (event?: PointerEvent) => {
     if (!isEditorResizing) return;
     isEditorResizing = false;
@@ -279,6 +334,20 @@ export function createViewportController(deps: ViewportControllerDeps) {
     if (event) {
       try {
         deps.ui.editorResizer.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore if pointer capture isn't active.
+      }
+    }
+  };
+
+  const stopSettingsResizing = (event?: PointerEvent) => {
+    if (!isSettingsResizing) return;
+    isSettingsResizing = false;
+    deps.ui.app.classList.remove('is-resizing');
+    deps.onSettingsWidthCommit?.(clampSettingsWidth(getCurrentSettingsWidth()));
+    if (event) {
+      try {
+        deps.ui.settingsResizer.releasePointerCapture(event.pointerId);
       } catch {
         // Ignore if pointer capture isn't active.
       }
@@ -317,6 +386,26 @@ export function createViewportController(deps: ViewportControllerDeps) {
   window.addEventListener('pointerup', stopEditorResizing);
   deps.ui.editorResizer.addEventListener('pointerup', stopEditorResizing);
   deps.ui.editorResizer.addEventListener('pointercancel', stopEditorResizing);
+
+  deps.ui.settingsResizer.addEventListener('pointerdown', (event) => {
+    if (isStackedLayout()) {
+      return;
+    }
+    if (deps.ui.settings.getBoundingClientRect().width < 1) {
+      return;
+    }
+    isSettingsResizing = true;
+    startX = event.clientX;
+    startSettingsWidth = deps.ui.settings.getBoundingClientRect().width;
+    deps.ui.app.classList.add('is-resizing');
+    deps.ui.settingsResizer.setPointerCapture(event.pointerId);
+    showPreviewBadge();
+  });
+
+  window.addEventListener('pointermove', onSettingsPointerMove);
+  window.addEventListener('pointerup', stopSettingsResizing);
+  deps.ui.settingsResizer.addEventListener('pointerup', stopSettingsResizing);
+  deps.ui.settingsResizer.addEventListener('pointercancel', stopSettingsResizing);
 
   return {
     applyViewportLayout,

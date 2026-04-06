@@ -37,6 +37,7 @@ type EditorShellRefs = {
   left: HTMLDivElement;
   right: HTMLDivElement;
   resizer: HTMLDivElement;
+  settingsResizer: HTMLDivElement;
   iframe: HTMLIFrameElement;
   previewBadge: HTMLDivElement;
   settings: HTMLElement;
@@ -103,6 +104,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   const left = el('div', 'kayzart-left');
   const resizer = el('div', 'kayzart-resizer');
   const right = el('div', 'kayzart-right');
+  const settingsResizer = el('div', 'kayzart-settingsResizer');
   const settings = el('aside', 'kayzart-settings');
   settings.id = 'kayzart-settings';
   const settingsInner = el('div', 'kayzart-settingsInner');
@@ -244,7 +246,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   previewBadge.setAttribute('aria-atomic', 'true');
   right.append(iframe, previewBadge);
 
-  main.append(left, resizer, right, settings);
+  main.append(left, resizer, right, settingsResizer, settings);
   app.append(toolbar, main);
   root.append(app);
 
@@ -282,6 +284,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     left,
     right,
     resizer,
+    settingsResizer,
     iframe,
     previewBadge,
     settings,

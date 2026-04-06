@@ -15,7 +15,11 @@ import {
   type EditorModel,
 } from './codemirror';
 import { createPreviewController, type PreviewController } from './preview';
-import { getEditableElementAttributes, getEditableElementText } from './element-text';
+import {
+  getEditableElementAttributes,
+  getEditableElementText,
+  getElementContext,
+} from './element-text';
 import {
   createTailwindCompiler,
   type TailwindCompiler,
@@ -38,6 +42,13 @@ import { debounce } from './utils/debounce';
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
+import type {
+  EditorSnapshot,
+  KayzArtExtensionApi,
+  SelectedElementContext,
+  SnapshotReplaceOptions,
+} from './extensions/settings-tab-registry';
+import { presentableDiff } from '@codemirror/merge';
 import { __ } from '@wordpress/i18n';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
@@ -46,12 +57,15 @@ declare const wp: any;
 declare global {
   interface Window {
     KAYZART: AppConfig;
+    KAYZART_EXTENSION_API?: KayzArtExtensionApi;
   }
 }
 
 const COMPACT_EDITOR_BREAKPOINT = 900;
 const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.wordWrap.html';
 const LEGACY_HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
+const SETTINGS_PANEL_WIDTH_STORAGE_KEY = 'kayzart.settingsPanelWidth';
+const PREVIEW_OVERLAY_ACTION_EVENT = 'kayzart-preview-overlay-action';
 type HtmlWordWrapMode = 'off' | 'on';
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
@@ -75,6 +89,131 @@ const saveHtmlWordWrapMode = (mode: HtmlWordWrapMode) => {
   }
 };
 
+const computeEditorBaseHash = (html: string, css: string, js: string) => {
+  const source = `${html}\n\u0000${css}\n\u0000${js}`;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < source.length; i += 1) {
+    hash ^= source.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+    hash >>>= 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+};
+
+type SnapshotLineChanges = {
+  addedLines: number[];
+  removedAnchorLines: number[];
+};
+
+const CHANGE_LINE_ADDED_CLASS = 'kayzart-change-line-added';
+const CHANGE_LINE_REMOVED_CLASS = 'kayzart-change-line-removed';
+
+const buildLineStarts = (text: string): number[] => {
+  const starts = [0];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text.charCodeAt(i) === 10) {
+      starts.push(i + 1);
+    }
+  }
+  return starts;
+};
+
+const getLineNumberAtOffset = (
+  lineStarts: number[],
+  textLength: number,
+  rawOffset: number
+): number => {
+  const offset = Math.max(0, Math.min(rawOffset, textLength));
+  let low = 0;
+  let high = lineStarts.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (lineStarts[mid] <= offset) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return low + 1;
+};
+
+const addCoveredLines = (
+  target: Set<number>,
+  lineStarts: number[],
+  textLength: number,
+  from: number,
+  to: number
+) => {
+  if (to <= from) {
+    return;
+  }
+  const startLine = getLineNumberAtOffset(lineStarts, textLength, from);
+  const endLine = getLineNumberAtOffset(lineStarts, textLength, Math.max(from, to - 1));
+  for (let line = startLine; line <= endLine; line += 1) {
+    target.add(line);
+  }
+};
+
+const readSettingsPanelWidth = (): number | undefined => {
+  try {
+    const saved = window.localStorage.getItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY);
+    if (!saved) {
+      return undefined;
+    }
+    const parsed = Number.parseFloat(saved);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+};
+
+const saveSettingsPanelWidth = (width: number) => {
+  if (!Number.isFinite(width) || width <= 0) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY, `${Math.round(width)}`);
+  } catch {
+    // Ignore storage errors and keep editing.
+  }
+};
+
+const computeSnapshotLineChanges = (beforeText: string, nextText: string): SnapshotLineChanges => {
+  if (beforeText === nextText) {
+    return { addedLines: [], removedAnchorLines: [] };
+  }
+
+  const lineStarts = buildLineStarts(nextText);
+  const added = new Set<number>();
+  const removed = new Set<number>();
+  const diff = presentableDiff(beforeText, nextText, {
+    scanLimit: 500,
+    timeout: 50,
+  });
+
+  diff.forEach((change) => {
+    if (change.toB > change.fromB) {
+      addCoveredLines(added, lineStarts, nextText.length, change.fromB, change.toB);
+    }
+    if (change.toA > change.fromA) {
+      const anchor = getLineNumberAtOffset(lineStarts, nextText.length, change.fromB);
+      removed.add(anchor);
+    }
+  });
+
+  added.forEach((line) => {
+    removed.delete(line);
+  });
+
+  return {
+    addedLines: Array.from(added).sort((a, b) => a - b),
+    removedAnchorLines: Array.from(removed).sort((a, b) => a - b),
+  };
+};
+
 async function main() {
   const cfg = window.KAYZART;
   const postId = cfg.post_id;
@@ -89,9 +228,12 @@ async function main() {
   ui.resizer.setAttribute('aria-orientation', 'vertical');
   ui.editorResizer.setAttribute('role', 'separator');
   ui.editorResizer.setAttribute('aria-orientation', 'horizontal');
+  ui.settingsResizer.setAttribute('role', 'separator');
+  ui.settingsResizer.setAttribute('aria-orientation', 'vertical');
 
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
+  const initialSettingsPanelWidth = readSettingsPanelWidth();
   const viewportController = createViewportController({
     ui,
     compactDesktopViewportWidth: 1280,
@@ -105,6 +247,9 @@ async function main() {
     minRightWidth: 360,
     desktopMinPreviewWidth: 1024,
     minEditorPaneHeight: 160,
+    minSettingsWidth: 260,
+    initialSettingsWidth: initialSettingsPanelWidth,
+    onSettingsWidthCommit: saveSettingsPanelWidth,
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),
@@ -193,6 +338,11 @@ async function main() {
   let sendRenderDebounced: (() => void) | null = null;
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
+  let htmlChangeHighlightIds: string[] = [];
+  let cssChangeHighlightIds: string[] = [];
+  let jsChangeHighlightIds: string[] = [];
+  let suppressChangeHighlightClear = 0;
+  let extensionEditorLock = false;
   let suppressSelectionClear = 0;
   const selectionListeners = new Set<(lcId: string | null) => void>();
   const contentListeners = new Set<() => void>();
@@ -891,6 +1041,15 @@ async function main() {
         settingsApi?.openTab('elements');
       }
     },
+    onOverlayAction: (actionId) => {
+      window.dispatchEvent(
+        new CustomEvent(PREVIEW_OVERLAY_ACTION_EVENT, {
+          detail: {
+            actionId,
+          },
+        })
+      );
+    },
     onMissingMarkers: () => {
       handleMissingMarkers();
     },
@@ -1006,6 +1165,191 @@ async function main() {
     }
   };
 
+  const setEditorLock = (locked: boolean) => {
+    extensionEditorLock = locked;
+    htmlEditor.setLocked(locked);
+    cssEditor.setLocked(locked);
+    jsEditor.setLocked(locked);
+  };
+
+  const getEditorSnapshot = (): EditorSnapshot => {
+    const html = htmlModel.getValue();
+    const css = cssModel.getValue();
+    const js = jsModel.getValue();
+    return {
+      html,
+      css,
+      js,
+      jsMode,
+      baseHash: computeEditorBaseHash(html, css, js),
+    };
+  };
+
+  const replaceModelContent = (model: EditorModel, nextText: string) => {
+    const current = model.getValue();
+    if (current === nextText) {
+      return false;
+    }
+    const end = model.getPositionAt(current.length);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new codemirror.Range(1, 1, end.lineNumber, end.column),
+          text: nextText,
+        },
+      ],
+      () => null
+    );
+    return true;
+  };
+
+  const applySnapshotChangeHighlight = (
+    model: EditorModel,
+    decorationIds: string[],
+    lineChanges: SnapshotLineChanges
+  ) => {
+    const decorations = [
+      ...lineChanges.addedLines.map((lineNumber) => ({
+        range: new codemirror.Range(lineNumber, 1, lineNumber, 1),
+        options: {
+          className: CHANGE_LINE_ADDED_CLASS,
+        },
+      })),
+      ...lineChanges.removedAnchorLines.map((lineNumber) => ({
+        range: new codemirror.Range(lineNumber, 1, lineNumber, 1),
+        options: {
+          className: CHANGE_LINE_REMOVED_CLASS,
+        },
+      })),
+    ];
+    return model.deltaDecorations(decorationIds, decorations);
+  };
+
+  const clearHtmlChangeHighlights = () => {
+    htmlChangeHighlightIds = htmlModel.deltaDecorations(htmlChangeHighlightIds, []);
+  };
+
+  const clearCssChangeHighlights = () => {
+    cssChangeHighlightIds = cssModel.deltaDecorations(cssChangeHighlightIds, []);
+  };
+
+  const clearJsChangeHighlights = () => {
+    jsChangeHighlightIds = jsModel.deltaDecorations(jsChangeHighlightIds, []);
+  };
+
+  const clearSnapshotChangeHighlights = () => {
+    clearHtmlChangeHighlights();
+    clearCssChangeHighlights();
+    clearJsChangeHighlights();
+  };
+
+  const replaceEditorSnapshot = (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return false;
+    }
+
+    const highlightChanges = Boolean(options?.highlightChanges);
+    if (highlightChanges) {
+      const nextHtml = snapshot.html ?? '';
+      const nextCss = snapshot.css ?? '';
+      const nextJs = snapshot.js ?? '';
+      const htmlChanges = computeSnapshotLineChanges(htmlModel.getValue(), nextHtml);
+      const cssChanges = computeSnapshotLineChanges(cssModel.getValue(), nextCss);
+      const jsChanges = computeSnapshotLineChanges(jsModel.getValue(), nextJs);
+
+      suppressChangeHighlightClear += 1;
+      try {
+        replaceModelContent(htmlModel, nextHtml);
+        replaceModelContent(cssModel, nextCss);
+        replaceModelContent(jsModel, nextJs);
+
+        htmlChangeHighlightIds = applySnapshotChangeHighlight(
+          htmlModel,
+          htmlChangeHighlightIds,
+          htmlChanges
+        );
+        cssChangeHighlightIds = applySnapshotChangeHighlight(
+          cssModel,
+          cssChangeHighlightIds,
+          cssChanges
+        );
+        jsChangeHighlightIds = applySnapshotChangeHighlight(
+          jsModel,
+          jsChangeHighlightIds,
+          jsChanges
+        );
+      } finally {
+        suppressChangeHighlightClear = Math.max(0, suppressChangeHighlightClear - 1);
+      }
+    } else {
+      clearSnapshotChangeHighlights();
+      replaceModelContent(htmlModel, snapshot.html ?? '');
+      replaceModelContent(cssModel, snapshot.css ?? '');
+      replaceModelContent(jsModel, snapshot.js ?? '');
+    }
+
+    setJsMode(snapshot.jsMode ?? 'classic');
+    preview?.resetCanonicalCache();
+    preview?.sendRender();
+    if (jsEnabled) {
+      preview?.requestRunJs();
+    } else {
+      preview?.requestDisableJs();
+    }
+    return true;
+  };
+
+  const getSelectedContext = (): SelectedElementContext | null => {
+    if (!selectedLcId) {
+      return null;
+    }
+    const context = getElementContext(htmlModel.getValue(), selectedLcId);
+    if (!context) {
+      return null;
+    }
+    return {
+      lcId: context.lcId,
+      tagName: context.tagName,
+      attributes: context.attributes.map((attr) => ({
+        name: attr.name,
+        value: attr.value,
+      })),
+      text: context.text,
+      outerHTML: context.outerHTML,
+      sourceRange: context.sourceRange
+        ? {
+            startOffset: context.sourceRange.startOffset,
+            endOffset: context.sourceRange.endOffset,
+          }
+        : undefined,
+    };
+  };
+
+  const openSettingsTab = (tabId: string) => {
+    if (!settingsOpen) {
+      setSettingsOpen(true);
+    }
+    settingsApi?.openTab(tabId);
+  };
+
+  const publishExtensionApi = () => {
+    const registerSettingsTab = window.KAYZART_EXTENSION_API?.registerSettingsTab;
+    if (typeof registerSettingsTab !== 'function') {
+      return;
+    }
+    window.KAYZART_EXTENSION_API = {
+      ...window.KAYZART_EXTENSION_API,
+      registerSettingsTab,
+      openSettingsTab,
+      getEditorSnapshot,
+      replaceEditorSnapshot,
+      getSelectedContext,
+      setEditorLock,
+      isEditorLocked: () => extensionEditorLock,
+    };
+  };
+
   settingsApi = initSettings({
     container: ui.settingsBody,
     header: ui.settingsHeader,
@@ -1048,6 +1392,7 @@ async function main() {
     onClosePanel: () => setSettingsOpen(false),
     elementsApi,
   });
+  publishExtensionApi();
 
   const handleViewportResize = debounce(() => {
     editorUiController?.updateCompactEditorMode();
@@ -1063,6 +1408,9 @@ async function main() {
   viewportController.applyViewportLayout(true);
 
   htmlModel.onDidChangeContent(() => {
+    if (suppressChangeHighlightClear === 0) {
+      clearHtmlChangeHighlights();
+    }
     preview?.resetCanonicalCache();
     preview?.clearSelectionHighlight();
     sendRenderDebounced?.();
@@ -1078,6 +1426,9 @@ async function main() {
     syncUnsavedUi();
   });
   cssModel.onDidChangeContent(() => {
+    if (suppressChangeHighlightClear === 0) {
+      clearCssChangeHighlights();
+    }
     if (!tailwindEnabled) {
       sendRenderDebounced?.();
     }
@@ -1091,6 +1442,9 @@ async function main() {
   });
 
   jsModel.onDidChangeContent(() => {
+    if (suppressChangeHighlightClear === 0) {
+      clearJsChangeHighlights();
+    }
     updateUndoRedoState();
     syncUnsavedUi();
   });

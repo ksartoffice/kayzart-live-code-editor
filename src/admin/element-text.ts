@@ -24,6 +24,18 @@ export type ElementAttributesInfo = {
   selfClosing: boolean;
 };
 
+export type ElementContextInfo = {
+  lcId: string;
+  tagName: string;
+  attributes: ElementAttribute[];
+  text: string | null;
+  outerHTML: string;
+  sourceRange?: {
+    startOffset: number;
+    endOffset: number;
+  };
+};
+
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
 const VOID_TAGS = new Set([
@@ -242,6 +254,68 @@ export function getEditableElementAttributes(html: string, lcId: string): Elemen
             tagName: child.tagName,
             isVoid: VOID_TAGS.has(child.tagName),
             selfClosing,
+          };
+          return;
+        }
+        walk(child);
+        if (result) return;
+        if (isTemplateElement(child)) {
+          walk(child.content);
+          if (result) return;
+        }
+      } else if (isParentNode(child)) {
+        walk(child);
+        if (result) return;
+      }
+    }
+  };
+
+  walk(fragment);
+  return result;
+}
+
+export function getElementContext(html: string, lcId: string): ElementContextInfo | null {
+  const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+  let seq = 0;
+  let result: ElementContextInfo | null = null;
+
+  const walk = (node: DefaultTreeAdapterTypes.ParentNode) => {
+    for (const child of node.childNodes || []) {
+      if (isElement(child)) {
+        const existingId = getExistingLcId(child);
+        const id = existingId ?? `kayzart-${++seq}`;
+
+        if (id === lcId) {
+          const outerStart = child.sourceCodeLocation?.startOffset;
+          const outerEnd = child.sourceCodeLocation?.endOffset;
+          const hasOuterRange =
+            typeof outerStart === 'number' &&
+            typeof outerEnd === 'number' &&
+            outerStart <= outerEnd;
+          const sourceRange = hasOuterRange
+            ? { startOffset: outerStart, endOffset: outerEnd }
+            : undefined;
+          const outerHTML = hasOuterRange ? html.slice(outerStart, outerEnd) : '';
+          const attributes = child.attrs
+            .filter((attr) => attr.name !== KAYZART_ATTR_NAME)
+            .map((attr) => ({
+              name: attr.name,
+              value: attr.value ?? '',
+            }));
+          let text: string | null = null;
+          if (!VOID_TAGS.has(child.tagName)) {
+            const innerRange = getInnerRange(html, child.tagName, child.sourceCodeLocation);
+            if (innerRange && (child.childNodes || []).every((entry) => isEditableChild(entry))) {
+              text = html.slice(innerRange.startOffset, innerRange.endOffset);
+            }
+          }
+          result = {
+            lcId: id,
+            tagName: child.tagName,
+            attributes,
+            text,
+            outerHTML,
+            sourceRange,
           };
           return;
         }

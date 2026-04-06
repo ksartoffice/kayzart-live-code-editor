@@ -332,7 +332,7 @@ class Preview {
 		 */
 		$payload = apply_filters( 'kayzart_preview_payload', $payload, self::$post_id );
 
-		$json                   = wp_json_encode( $payload );
+		$json = wp_json_encode( $payload );
 		if ( false === $json ) {
 			$json = '{}';
 		}

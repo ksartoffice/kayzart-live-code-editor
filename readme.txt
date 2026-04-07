@@ -4,7 +4,7 @@ Tags: live preview, code editor, codemirror, tailwind, shortcode
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,10 @@ Development repository and build:
 1. Upload the plugin folder to /wp-content/plugins/kayzart-live-code-editor/.
 2. Activate KayzArt Live Code Editor through the Plugins screen.
 3. Go to KayzArt in the admin menu and create a new KayzArt item.
+
+== Screenshots ==
+1. Editor screen.
+2. Tailwind CSS mode.
 
 == Frequently Asked Questions ==
 = Who can edit KayzArt posts? =
@@ -100,6 +104,9 @@ Build commands:
 4. npm run plugin-zip
 
 == Changelog ==
+= 1.3.5 =
+* Docs: Add screenshots section.
+
 = 1.3.4 =
 * Update: Bump TailwindPHP fork dependency to v1.3.0.2.
 

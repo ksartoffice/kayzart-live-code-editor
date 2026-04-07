@@ -48,6 +48,10 @@ Development repository and build:
 2. Activate KayzArt Live Code Editor through the Plugins screen.
 3. Go to KayzArt in the admin menu and create a new KayzArt item.
 
+== Screenshots ==
+1. Editor screen.
+2. Tailwind CSS mode.
+
 == Frequently Asked Questions ==
 = Who can edit KayzArt posts? =
 Users who can edit the post can use the editor. JavaScript, external scripts/styles, shadow DOM, external embedding, and single-page settings require the unfiltered_html capability.

@@ -102,7 +102,6 @@ Build commands:
 == Changelog ==
 = 1.3.4 =
 * Update: Bump TailwindPHP fork dependency to v1.3.0.2.
-* Improve: Refresh bundled vendor lock and release package consistency.
 
 = 1.3.3 =
 * Improve: Add resizable settings panel with width persistence.

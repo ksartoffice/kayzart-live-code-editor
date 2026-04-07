@@ -7,7 +7,7 @@
  * Requires at least: 6.6
  * Tested up to: 6.9
  * Requires PHP: 8.2
- * Author: KayzArt
+ * Author: K's Art Office
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: kayzart-live-code-editor

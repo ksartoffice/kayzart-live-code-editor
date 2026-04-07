@@ -123,6 +123,38 @@ function Invoke-RobocopyMirror {
     }
 }
 
+function Remove-ExcludedTranslationFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RootPath,
+        [Parameter(Mandatory = $true)]
+        [switch]$PreviewOnly
+    )
+
+    $filesToRemove = Get-ChildItem -LiteralPath $RootPath -Recurse -File | Where-Object {
+        $_.Name -like "*-ja.po" -or $_.Name -like "*-ja.mo" -or $_.Name -like "*-ja-*.json"
+    }
+
+    Write-Host ""
+    Write-Host "==> Exclude bundled ja translation files from SVN release payload"
+
+    if ($null -eq $filesToRemove -or $filesToRemove.Count -eq 0) {
+        Write-Host "No ja translation files matched exclusion patterns."
+        return
+    }
+
+    foreach ($file in $filesToRemove) {
+        $relativePath = $file.FullName.Substring($RootPath.Length).TrimStart('\', '/')
+        if ($PreviewOnly) {
+            Write-Host "[DryRun] Would remove: $relativePath"
+        }
+        else {
+            Remove-Item -LiteralPath $file.FullName -Force
+            Write-Host "Removed: $relativePath"
+        }
+    }
+}
+
 function Get-StableTagVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -224,6 +256,8 @@ try {
 
     $extractedRoot = Join-Path -Path $temporaryRoot -ChildPath $packageName
     Assert-DirectoryExists -DirectoryPath $extractedRoot -Label "Extracted package root"
+
+    Remove-ExcludedTranslationFiles -RootPath $extractedRoot -PreviewOnly:$DryRun
 
     Invoke-RobocopyMirror -SourcePath $extractedRoot -DestinationPath $trunkPath -PreviewOnly:$DryRun
 

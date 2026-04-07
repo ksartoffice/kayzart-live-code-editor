@@ -1,6 +1,6 @@
 {
     "require": {
-        "tailwindphp/tailwindphp": "1.3.0.1"
+        "tailwindphp/tailwindphp": "1.3.0.2"
     },
     "repositories": [
         {

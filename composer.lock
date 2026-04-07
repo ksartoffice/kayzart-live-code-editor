@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "95f9441b0a34f07b13a9b0e4f662eac0",
+    "content-hash": "d5e03ec81030ace37d152c46f200599b",
     "packages": [
         {
             "name": "tailwindphp/tailwindphp",
-            "version": "v1.3.0.1",
+            "version": "v1.3.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ksartoffice/tailwindphp.git",
-                "reference": "82c576b0b04f34cd9d18aa46aa1933079baaa812"
+                "reference": "2e81b77df51d13f3e8b3d4f94043ac87375fa2f7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/82c576b0b04f34cd9d18aa46aa1933079baaa812",
-                "reference": "82c576b0b04f34cd9d18aa46aa1933079baaa812",
+                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/2e81b77df51d13f3e8b3d4f94043ac87375fa2f7",
+                "reference": "2e81b77df51d13f3e8b3d4f94043ac87375fa2f7",
                 "shasum": ""
             },
             "require": {
@@ -196,7 +196,7 @@
                 "issues": "https://github.com/dnnsjsk/tailwindphp/issues",
                 "source": "https://github.com/dnnsjsk/tailwindphp"
             },
-            "time": "2026-04-07T00:14:39+00:00"
+            "time": "2026-04-07T01:26:46+00:00"
         }
     ],
     "packages-dev": [

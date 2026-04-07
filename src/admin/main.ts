@@ -1344,6 +1344,7 @@ async function main() {
       openSettingsTab,
       getEditorSnapshot,
       replaceEditorSnapshot,
+      getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
       getSelectedContext,
       setEditorLock,
       isEditorLocked: () => extensionEditorLock,

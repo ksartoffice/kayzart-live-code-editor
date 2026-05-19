@@ -156,21 +156,6 @@ class Post_Type {
 	}
 
 	/**
-	 * Check whether single page view is enabled for a KayzArt post.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 * @return bool
-	 */
-	public static function is_single_page_enabled( int $post_id ): bool {
-		$value = get_post_meta( $post_id, '_kayzart_single_page_enabled', true );
-		if ( '' === $value ) {
-			return true;
-		}
-
-		return '1' === $value;
-	}
-
-	/**
 	 * Build the editor URL for a KayzArt post.
 	 *
 	 * @param int $post_id KayzArt post ID.

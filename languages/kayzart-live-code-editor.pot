@@ -113,14 +113,6 @@ msgstr ""
 msgid "Default template mode"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:416
-msgid "External embed"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:423
-msgid "Allowed shortcode tags"
-msgstr ""
-
 #: includes/class-kayzart-admin.php:437
 msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add LP to create new entries. Existing legacy KayzArt entries can still be edited."
 msgstr ""
@@ -141,10 +133,6 @@ msgstr ""
 msgid "Choose the default page template mode used by KayzArt previews."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:563
-msgid "Control which shortcode tags are allowed to execute inside external embeds."
-msgstr ""
-
 #: includes/class-kayzart-admin.php:571
 msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr ""
@@ -161,10 +149,6 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:591
 msgid "Applies when template mode is set to Use admin default."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Other tags stay as plain text."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:617
@@ -321,16 +305,6 @@ msgstr ""
 msgid "Invalid JavaScript value."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-import.php:135
-#: assets/dist/main.js:106
-msgid "Invalid shortcodeEnabled value."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:149
-#: assets/dist/main.js:106
-msgid "Invalid singlePageEnabled value."
-msgstr ""
-
 #: includes/rest/class-kayzart-rest-import.php:163
 #: assets/dist/main.js:106
 msgid "Invalid liveHighlightEnabled value."
@@ -407,22 +381,6 @@ msgid "Use default (%s)"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Output settings"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Enable external embedding"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "KayzArt embed code"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Copy embed code"
-msgstr ""
-
-#: assets/dist/main.js:106
 #: assets/dist/main.js:127
 msgid "Copied"
 msgstr ""
@@ -430,22 +388,6 @@ msgstr ""
 #: assets/dist/main.js:106
 #: assets/dist/main.js:127
 msgid "Copy"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Copied."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Copy failed."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Do not publish as single page"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "You can paste this embed code into a Shortcode block in Gutenberg or Elementor."
 msgstr ""
 
 #: assets/dist/main.js:106

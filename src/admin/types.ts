@@ -11,8 +11,6 @@ export type ImportPayload = {
   jsMode?: JsMode;
   externalScripts?: string[];
   externalStyles?: string[];
-  shortcodeEnabled?: boolean;
-  singlePageEnabled?: boolean;
   liveHighlightEnabled?: boolean;
 };
 
@@ -31,7 +29,5 @@ export type ExportPayload = {
   jsMode: JsMode;
   externalScripts: string[];
   externalStyles: string[];
-  shortcodeEnabled: boolean;
-  singlePageEnabled: boolean;
   liveHighlightEnabled: boolean;
 };

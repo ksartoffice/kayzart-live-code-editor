@@ -242,9 +242,8 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$post_id   = $this->create_kayzart_post( $author_id );
 
 		$updates = array(
-			'shortcodeEnabled'  => true,
-			'externalScripts'   => array( 'https://example.com/app.js' ),
-			'externalStyles'    => array( 'https://example.com/app.css' ),
+			'externalScripts' => array( 'https://example.com/app.js' ),
+			'externalStyles'  => array( 'https://example.com/app.css' ),
 		);
 
 		wp_set_current_user( $author_id );

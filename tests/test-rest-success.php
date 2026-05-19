@@ -19,8 +19,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		'viewUrl',
 		'templateMode',
 		'defaultTemplateMode',
-		'shortcodeEnabled',
-		'singlePageEnabled',
 		'liveHighlightEnabled',
 		'canEditJs',
 		'externalScripts',
@@ -150,8 +148,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 				'settingsUpdates' => array(
 					'templateMode'         => 'frame',
 					'shadowDomEnabled'     => true,
-					'shortcodeEnabled'     => true,
-					'singlePageEnabled'    => false,
 					'liveHighlightEnabled' => false,
 					'externalScripts'      => array( 'https://example.com/runtime.js' ),
 					'externalStyles'       => array( 'https://example.com/runtime.css' ),
@@ -167,8 +163,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 
 		$this->assertSame( 'default', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
-		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
 		$this->assertSame(
 			array( 'https://example.com/runtime.js' ),
@@ -181,7 +175,8 @@ class Test_Rest_Success extends WP_UnitTestCase {
 
 		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
 		$this->assertSame( 'default', $data['settings']['templateMode'] ?? null );
-		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
+		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
+		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
 		$this->assertSame(
 			array( 'https://example.com/runtime.js' ),
 			$data['settings']['externalScripts'] ?? null
@@ -200,8 +195,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			'status'               => 'pending',
 			'visibility'           => 'public',
 			'shadowDomEnabled'     => true,
-			'shortcodeEnabled'     => true,
-			'singlePageEnabled'    => false,
 			'liveHighlightEnabled' => false,
 			'externalScripts'      => array( 'https://example.com/app.js' ),
 			'externalStyles'       => array( 'https://example.com/app.css' ),
@@ -229,8 +222,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( '', (string) $post->post_password );
 
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
-		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
 
 		$this->assertSame(
@@ -243,8 +234,8 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		);
 
 		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
-		$this->assertSame( true, $data['settings']['shortcodeEnabled'] ?? null );
-		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
+		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
+		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
 		$this->assertSame( false, $data['settings']['liveHighlightEnabled'] ?? null );
 		$this->assertSame( 'my-custom-slug', $data['settings']['slug'] ?? null );
 		$this->assertSame( array( 'https://example.com/app.js' ), $data['settings']['externalScripts'] ?? null );

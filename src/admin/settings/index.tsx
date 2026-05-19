@@ -28,8 +28,6 @@ export type SettingsData = {
   viewUrl?: string;
   templateMode?: 'default' | 'standalone' | 'theme';
   defaultTemplateMode?: 'standalone' | 'theme';
-  shortcodeEnabled: boolean;
-  singlePageEnabled: boolean;
   liveHighlightEnabled: boolean;
   canEditJs: boolean;
   externalScripts: string[];
@@ -50,8 +48,6 @@ type SettingsConfig = {
   data: SettingsData;
   postId: number;
   onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
-  onShortcodeToggle?: (enabled: boolean) => void;
-  onSinglePageToggle?: (enabled: boolean) => void;
   onLiveHighlightToggle?: (enabled: boolean) => void;
   onExternalScriptsChange?: (scripts: string[]) => void;
   onExternalStylesChange?: (styles: string[]) => void;
@@ -94,11 +90,8 @@ function isValidHttpsUrl(value: string) {
 
 function SettingsSidebar({
   data,
-  postId,
   header,
   onTemplateModeChange,
-  onShortcodeToggle,
-  onSinglePageToggle,
   onLiveHighlightToggle,
   onExternalScriptsChange,
   onExternalStylesChange,
@@ -116,22 +109,15 @@ function SettingsSidebar({
   );
   const externalTabHostRef = useRef<HTMLDivElement | null>(null);
   const externalTabCleanupRef = useRef<(() => void) | null>(null);
-  const resolveSinglePageEnabled = (value?: boolean) =>
-    value === undefined ? true : Boolean(value);
   const resolveLiveHighlightEnabled = (value?: boolean) =>
     value === undefined ? true : Boolean(value);
   const [templateMode, setTemplateMode] = useState(resolveTemplateMode(data.templateMode));
   const [defaultTemplateMode, setDefaultTemplateMode] = useState(
     resolveDefaultTemplateMode(data.defaultTemplateMode)
   );
-  const [shortcodeEnabled, setShortcodeEnabled] = useState(Boolean(data.shortcodeEnabled));
-  const [singlePageEnabled, setSinglePageEnabled] = useState(
-    resolveSinglePageEnabled(data.singlePageEnabled)
-  );
   const [liveHighlightEnabled, setLiveHighlightEnabled] = useState(
     resolveLiveHighlightEnabled(data.liveHighlightEnabled)
   );
-  const [designError, setDesignError] = useState('');
   const [externalScripts, setExternalScripts] = useState<string[]>(data.externalScripts || []);
   const [externalScriptsError, setExternalScriptsError] = useState('');
   const [externalStyles, setExternalStyles] = useState<string[]>(data.externalStyles || []);
@@ -144,12 +130,9 @@ function SettingsSidebar({
     setSettings(nextSettings);
     setTemplateMode(resolveTemplateMode(nextSettings.templateMode));
     setDefaultTemplateMode(resolveDefaultTemplateMode(nextSettings.defaultTemplateMode));
-    setShortcodeEnabled(Boolean(nextSettings.shortcodeEnabled));
-    setSinglePageEnabled(resolveSinglePageEnabled(nextSettings.singlePageEnabled));
     setLiveHighlightEnabled(resolveLiveHighlightEnabled(nextSettings.liveHighlightEnabled));
     setExternalScripts(nextSettings.externalScripts || []);
     setExternalStyles(nextSettings.externalStyles || []);
-    setDesignError('');
     setExternalScriptsError('');
     setExternalStylesError('');
   };
@@ -250,14 +233,6 @@ function SettingsSidebar({
   }, [templateMode, onTemplateModeChange]);
 
   useEffect(() => {
-    onShortcodeToggle?.(shortcodeEnabled);
-  }, [shortcodeEnabled, onShortcodeToggle]);
-
-  useEffect(() => {
-    onSinglePageToggle?.(singlePageEnabled);
-  }, [singlePageEnabled, onSinglePageToggle]);
-
-  useEffect(() => {
     onLiveHighlightToggle?.(liveHighlightEnabled);
   }, [liveHighlightEnabled, onLiveHighlightToggle]);
 
@@ -305,32 +280,10 @@ function SettingsSidebar({
     if (!canEditJs) {
       return;
     }
-    setDesignError('');
     setTemplateMode(next);
   };
 
-  const handleShortcodeToggle = (enabled: boolean) => {
-    if (!canEditJs) {
-      return;
-    }
-    setDesignError('');
-    setShortcodeEnabled(enabled);
-    const shouldEnableSinglePage = !enabled && !singlePageEnabled;
-    if (shouldEnableSinglePage) {
-      setSinglePageEnabled(true);
-    }
-  };
-
-  const handleSinglePageToggle = (enabled: boolean) => {
-    if (!canEditJs) {
-      return;
-    }
-    setDesignError('');
-    setSinglePageEnabled(enabled);
-  };
-
   const handleLiveHighlightToggle = (enabled: boolean) => {
-    setDesignError('');
     setLiveHighlightEnabled(enabled);
   };
 
@@ -365,8 +318,6 @@ function SettingsSidebar({
   const pendingSettingsState = useMemo<PendingSettingsState>(() => {
     const updates: Record<string, unknown> = {};
     const savedTemplateMode = resolveTemplateMode(settings.templateMode);
-    const savedShortcodeEnabled = Boolean(settings.shortcodeEnabled);
-    const savedSinglePageEnabled = resolveSinglePageEnabled(settings.singlePageEnabled);
     const savedLiveHighlightEnabled = resolveLiveHighlightEnabled(settings.liveHighlightEnabled);
     const normalizedExternalScripts = normalizeList(externalScripts);
     const normalizedSavedExternalScripts = normalizeList(settings.externalScripts || []);
@@ -374,8 +325,6 @@ function SettingsSidebar({
     const normalizedSavedExternalStyles = normalizeList(settings.externalStyles || []);
 
     const templateModeChanged = templateMode !== savedTemplateMode;
-    const shortcodeChanged = canEditJs && shortcodeEnabled !== savedShortcodeEnabled;
-    const singlePageChanged = canEditJs && singlePageEnabled !== savedSinglePageEnabled;
     const liveHighlightChanged = liveHighlightEnabled !== savedLiveHighlightEnabled;
     const externalScriptsChanged =
       canEditJs && !isSameList(normalizedExternalScripts, normalizedSavedExternalScripts);
@@ -384,12 +333,6 @@ function SettingsSidebar({
 
     if (templateModeChanged) {
       updates.templateMode = templateMode;
-    }
-    if (shortcodeChanged) {
-      updates.shortcodeEnabled = shortcodeEnabled;
-    }
-    if (singlePageChanged) {
-      updates.singlePageEnabled = singlePageEnabled;
     }
     if (liveHighlightChanged) {
       updates.liveHighlightEnabled = liveHighlightEnabled;
@@ -405,16 +348,13 @@ function SettingsSidebar({
       updates,
       hasUnsavedSettings:
         templateModeChanged ||
-        shortcodeChanged ||
-        singlePageChanged ||
         liveHighlightChanged ||
         externalScriptsChanged ||
         externalStylesChanged,
-      hasValidationErrors: Boolean(designError || externalScriptsError || externalStylesError),
+      hasValidationErrors: Boolean(externalScriptsError || externalStylesError),
     };
   }, [
     canEditJs,
-    designError,
     externalScripts,
     externalScriptsError,
     externalStyles,
@@ -425,10 +365,6 @@ function SettingsSidebar({
     settings.externalStyles,
     settings.templateMode,
     settings.liveHighlightEnabled,
-    settings.shortcodeEnabled,
-    settings.singlePageEnabled,
-    shortcodeEnabled,
-    singlePageEnabled,
   ]);
 
   useEffect(() => {
@@ -477,15 +413,10 @@ function SettingsSidebar({
 
       {activeTab === 'settings' ? (
         <SettingsPanel
-          postId={postId}
           canEditJs={canEditJs}
           templateMode={templateMode}
           defaultTemplateMode={defaultTemplateMode}
           onChangeTemplateMode={handleTemplateModeChange}
-          shortcodeEnabled={shortcodeEnabled}
-          onToggleShortcode={handleShortcodeToggle}
-          singlePageEnabled={singlePageEnabled}
-          onToggleSinglePage={handleSinglePageToggle}
           liveHighlightEnabled={liveHighlightEnabled}
           onToggleLiveHighlight={handleLiveHighlightToggle}
           externalScripts={externalScripts}
@@ -497,7 +428,6 @@ function SettingsSidebar({
           externalScriptsMax={externalScriptsMax}
           externalStylesMax={externalStylesMax}
           disabled={!canEditJs}
-          error={designError}
           externalScriptsError={externalScriptsError}
           externalStylesError={externalStylesError}
         />

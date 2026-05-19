@@ -38,8 +38,6 @@ describe('save export controller', () => {
       getTailwindCss: () => '',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
-      getShortcodeEnabled: () => false,
-      getSinglePageEnabled: () => true,
       getLiveHighlightEnabled: () => true,
       getPendingSettingsState: () => ({
         pendingSettingsUpdates: {},

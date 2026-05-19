@@ -27,8 +27,6 @@ function buildImportedSettings(
     externalStyles: payload.externalStyles ?? [],
     externalScriptsMax: baseSettings.externalScriptsMax,
     externalStylesMax: baseSettings.externalStylesMax,
-    shortcodeEnabled: payload.shortcodeEnabled ?? baseSettings.shortcodeEnabled ?? false,
-    singlePageEnabled: payload.singlePageEnabled ?? baseSettings.singlePageEnabled ?? true,
     liveHighlightEnabled: payload.liveHighlightEnabled ?? baseSettings.liveHighlightEnabled ?? true,
   };
   if (initialViewUrl && !nextSettings.viewUrl) {

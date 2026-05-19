@@ -204,16 +204,6 @@ msgstr "CSS の値が不正です。"
 msgid "Invalid JavaScript value."
 msgstr "JavaScript の値が不正です。"
 
-#: includes/rest/class-kayzart-rest-import.php:135
-#: assets/dist/main.js:106
-msgid "Invalid shortcodeEnabled value."
-msgstr "shortcodeEnabled の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:149
-#: assets/dist/main.js:106
-msgid "Invalid singlePageEnabled value."
-msgstr "singlePageEnabled の値が不正です。"
-
 #: includes/rest/class-kayzart-rest-import.php:163
 #: assets/dist/main.js:106
 msgid "Invalid liveHighlightEnabled value."
@@ -391,10 +381,6 @@ msgid "Use default (%s)"
 msgstr "デフォルト（%s）"
 
 #: assets/dist/main.js:106
-msgid "Output settings"
-msgstr "出力設定"
-
-#: assets/dist/main.js:106
 #: assets/dist/main.js:127
 msgid "Copied"
 msgstr "コピー済み"
@@ -403,18 +389,6 @@ msgstr "コピー済み"
 #: assets/dist/main.js:127
 msgid "Copy"
 msgstr "コピー"
-
-#: assets/dist/main.js:106
-msgid "Copied."
-msgstr "コピーしました。"
-
-#: assets/dist/main.js:106
-msgid "Copy failed."
-msgstr "コピーに失敗しました。"
-
-#: assets/dist/main.js:106
-msgid "Do not publish as single page"
-msgstr "単一ページとして公開しない"
 
 #: assets/dist/main.js:106
 msgid "Requires unfiltered_html capability."
@@ -884,34 +858,3 @@ msgstr "HTML に挿入"
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアには URL がないため、挿入されませんでした。"
 
-#: includes/class-kayzart-admin.php:416
-msgid "External embed"
-msgstr "外部埋め込み"
-
-#: includes/class-kayzart-admin.php:423
-msgid "Allowed shortcode tags"
-msgstr "許可するショートコードタグ"
-
-#: includes/class-kayzart-admin.php:563
-msgid "Control which shortcode tags are allowed to execute inside external embeds."
-msgstr "外部埋め込み内で実行を許可するショートコードタグを設定します。"
-
-#: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Other tags stay as plain text."
-msgstr "1行に1つのショートコードタグを入力してください。外部埋め込み（[kayzart post_id=\"...\"]）内では、ここで指定したタグだけを実行します。指定外のタグはプレーンテキストのまま表示されます。"
-
-#: assets/dist/main.js:106
-msgid "Enable external embedding"
-msgstr "外部埋め込みを有効化"
-
-#: assets/dist/main.js:106
-msgid "KayzArt embed code"
-msgstr "KayzArt 埋め込みコード"
-
-#: assets/dist/main.js:106
-msgid "Copy embed code"
-msgstr "埋め込みコードをコピー"
-
-#: assets/dist/main.js:106
-msgid "You can paste this embed code into a Shortcode block in Gutenberg or Elementor."
-msgstr "この埋め込みコードは Gutenberg または Elementor のショートコードブロックに貼り付けできます。"

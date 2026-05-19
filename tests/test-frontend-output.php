@@ -6,7 +6,6 @@
  */
 
 use KayzArt\Frontend;
-use KayzArt\Admin;
 use KayzArt\Post_Type;
 
 class Test_Frontend_Output extends WP_UnitTestCase {
@@ -21,12 +20,11 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 			Frontend::init();
 		}
 
-		$this->reset_shortcode_state();
+		$this->reset_frontend_state();
 	}
 
 	protected function tearDown(): void {
-		$this->reset_shortcode_state();
-		delete_option( Admin::OPTION_SHORTCODE_ALLOWLIST );
+		$this->reset_frontend_state();
 		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
@@ -67,47 +65,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
 	}
 
-	public function test_shortcode_ignores_legacy_shadow_meta_and_enqueues_runtime(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shadow_dom', '1' );
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		update_post_meta( $post_id, '_kayzart_css', 'body{background:#000;}' );
-		update_post_meta( $post_id, '_kayzart_js', 'console.log("shortcode");' );
-		update_post_meta(
-			$post_id,
-			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/shortcode.css' ) )
-		);
-		update_post_meta(
-			$post_id,
-			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/shortcode.js' ) )
-		);
-
-		wp_set_current_user( $admin_id );
-
-		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-
-		$this->assertStringNotContainsString( '<kayzart-output', $first );
-		$this->assertStringNotContainsString( '<kayzart-output', $second );
-		$this->assertStringNotContainsString( 'shadowrootmode', $first );
-		$this->assertStringNotContainsString( 'shadowrootmode', $second );
-		$this->assertStringContainsString( 'https://example.com/shortcode.css', $first );
-		$this->assertStringNotContainsString( 'https://example.com/shortcode.css', $second );
-		$this->assertStringContainsString( 'body{background:#000;}', $first );
-		$this->assertStringNotContainsString( 'body{background:#000;}', $second );
-		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '"', $first );
-		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '"', $second );
-		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $first );
-		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $second );
-		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
-	}
-
-	public function test_shortcode_non_shadow_outputs_payload_and_enqueues_runtime(): void {
+	public function test_legacy_shortcode_returns_empty_and_does_not_enqueue_assets(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -126,181 +84,12 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( $admin_id );
+		$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-
-		$this->assertStringContainsString( 'https://example.com/inline.css', $first );
-		$this->assertStringContainsString( 'body{font-size:16px;}', $first );
-		$this->assertStringContainsString( '<p>KayzArt content</p>', $first );
-		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $first );
-		$this->assertStringContainsString( 'data-kayzart-js="1"', $first );
-		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $first );
-
-		$this->assertStringNotContainsString( 'https://example.com/inline.css', $second );
-		$this->assertStringNotContainsString( 'body{font-size:16px;}', $second );
-		$this->assertStringContainsString( '<p>KayzArt content</p>', $second );
-		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $second );
-		$this->assertStringContainsString( 'data-kayzart-js="1"', $second );
-
-		$external_handle = 'kayzart-ext-' . $post_id . '-0';
-		$this->assertTrue( wp_script_is( $external_handle, 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
-	}
-
-	public function test_shortcode_embed_runs_only_allowlisted_shortcodes(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[allowed_probe] [blocked_probe]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, "allowed_probe\n" );
-
-		add_shortcode(
-			'allowed_probe',
-			static function (): string {
-				return '<span class="allowed-probe">ok</span>';
-			}
-		);
-		add_shortcode(
-			'blocked_probe',
-			static function (): string {
-				return '<span class="blocked-probe">blocked</span>';
-			}
-		);
-
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'allowed_probe' );
-			remove_shortcode( 'blocked_probe' );
-		}
-
-		$this->assertStringContainsString( '<span class="allowed-probe">ok</span>', $output );
-		$this->assertStringNotContainsString( '<span class="blocked-probe">blocked</span>', $output );
-		$this->assertStringContainsString( '[blocked_probe]', $output );
-	}
-
-	public function test_shortcode_embed_with_empty_allowlist_keeps_shortcodes_as_text(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[allowed_probe]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, '' );
-
-		add_shortcode(
-			'allowed_probe',
-			static function (): string {
-				return '<span class="allowed-probe">ok</span>';
-			}
-		);
-
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'allowed_probe' );
-		}
-
-		$this->assertStringContainsString( '[allowed_probe]', $output );
-		$this->assertStringNotContainsString( '<span class="allowed-probe">ok</span>', $output );
-	}
-
-	public function test_shortcode_embed_allowlist_runs_single_pass_only(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[kayzart_section]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, "kayzart_section\ncontact-form-7" );
-
-		add_shortcode(
-			'kayzart_section',
-			static function (): string {
-				return '[contact-form-7 id="123"]';
-			}
-		);
-		add_shortcode(
-			'contact-form-7',
-			static function ( $atts ): string {
-				$id = isset( $atts['id'] ) ? (string) $atts['id'] : '';
-				return '<form data-cf7-id="' . esc_attr( $id ) . '"></form>';
-			}
-		);
-
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'kayzart_section' );
-			remove_shortcode( 'contact-form-7' );
-		}
-
-		$this->assertStringContainsString( '[contact-form-7 id="123"]', $output );
-		$this->assertStringNotContainsString( '<form data-cf7-id="123"></form>', $output );
-	}
-
-	public function test_shortcode_embed_stops_after_single_pass(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[pass_one]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, "pass_one\npass_two\npass_three" );
-
-		add_shortcode(
-			'pass_one',
-			static function (): string {
-				return '[pass_two]';
-			}
-		);
-		add_shortcode(
-			'pass_two',
-			static function (): string {
-				return '[pass_three]';
-			}
-		);
-		add_shortcode(
-			'pass_three',
-			static function (): string {
-				return '<span class="pass-three">ok</span>';
-			}
-		);
-
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'pass_one' );
-			remove_shortcode( 'pass_two' );
-			remove_shortcode( 'pass_three' );
-		}
-
-		$this->assertStringContainsString( '[pass_two]', $output );
-		$this->assertStringNotContainsString( '[pass_three]', $output );
-		$this->assertStringNotContainsString( '<span class="pass-three">ok</span>', $output );
+		$this->assertSame( '', $output );
+		$this->assertFalse( wp_style_is( 'kayzart-shortcode-style-' . $post_id, 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
 	}
 
 	public function test_enqueue_css_preserves_tailwind_escaped_arbitrary_values(): void {
@@ -350,7 +139,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertTrue( wp_style_is( 'kayzart', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 
-		$this->reset_shortcode_state();
+		$this->reset_frontend_state();
 		wp_dequeue_style( 'kayzart' );
 		wp_deregister_style( 'kayzart' );
 		wp_dequeue_script( 'kayzart-runtime' );
@@ -408,11 +197,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		}
 	}
 
-	private function reset_shortcode_state(): void {
-		$assets_property = new ReflectionProperty( Frontend::class, 'shortcode_assets_loaded' );
-		$assets_property->setAccessible( true );
-		$assets_property->setValue( null, array() );
-
+	private function reset_frontend_state(): void {
 		$external_property = new ReflectionProperty( Frontend::class, 'external_script_handles' );
 		$external_property->setAccessible( true );
 		$external_property->setValue( null, array() );

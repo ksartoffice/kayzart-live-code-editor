@@ -136,34 +136,6 @@ class Rest_Import {
 			$js_mode = Rest_Save::normalize_js_mode( $raw_js_mode );
 		}
 
-		$shortcode_enabled = false;
-		if ( array_key_exists( 'shortcodeEnabled', $payload ) ) {
-			if ( ! is_bool( $payload['shortcodeEnabled'] ) ) {
-				return new \WP_REST_Response(
-					array(
-						'ok'    => false,
-						'error' => __( 'Invalid shortcodeEnabled value.', 'kayzart-live-code-editor' ),
-					),
-					400
-				);
-			}
-			$shortcode_enabled = $payload['shortcodeEnabled'];
-		}
-
-		$single_page_enabled = null;
-		if ( array_key_exists( 'singlePageEnabled', $payload ) ) {
-			if ( ! is_bool( $payload['singlePageEnabled'] ) ) {
-				return new \WP_REST_Response(
-					array(
-						'ok'    => false,
-						'error' => __( 'Invalid singlePageEnabled value.', 'kayzart-live-code-editor' ),
-					),
-					400
-				);
-			}
-			$single_page_enabled = $payload['singlePageEnabled'];
-		}
-
 		$live_highlight_enabled = null;
 		if ( array_key_exists( 'liveHighlightEnabled', $payload ) ) {
 			if ( ! is_bool( $payload['liveHighlightEnabled'] ) ) {
@@ -303,10 +275,6 @@ class Rest_Import {
 		update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
 		update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
 		delete_post_meta( $post_id, '_kayzart_js_enabled' );
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', $shortcode_enabled ? '1' : '0' );
-		if ( null !== $single_page_enabled ) {
-			update_post_meta( $post_id, '_kayzart_single_page_enabled', $single_page_enabled ? '1' : '0' );
-		}
 		if ( null !== $live_highlight_enabled ) {
 			update_post_meta( $post_id, '_kayzart_live_highlight', $live_highlight_enabled ? '1' : '0' );
 		}

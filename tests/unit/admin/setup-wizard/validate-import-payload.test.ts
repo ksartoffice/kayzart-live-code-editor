@@ -12,8 +12,6 @@ describe('validateImportPayload', () => {
       jsMode: 'module',
       externalScripts: ['https://example.com/a.js'],
       externalStyles: ['https://example.com/a.css'],
-      shortcodeEnabled: false,
-      singlePageEnabled: true,
       liveHighlightEnabled: true,
     });
 
@@ -68,5 +66,20 @@ describe('validateImportPayload', () => {
 
     expect(result.error).toBeUndefined();
     expect(result.data?.jsMode).toBe('classic');
+  });
+
+  it('ignores removed legacy embed fields', () => {
+    const result = validateImportPayload({
+      version: 1,
+      html: '<div>Hello</div>',
+      css: 'body{}',
+      tailwindEnabled: false,
+      shortcodeEnabled: 1,
+      singlePageEnabled: 'true',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).not.toHaveProperty('shortcodeEnabled');
+    expect(result.data).not.toHaveProperty('singlePageEnabled');
   });
 });

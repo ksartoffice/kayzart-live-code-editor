@@ -54,7 +54,6 @@ class Rest_Settings {
 
 		$highlight_meta         = get_post_meta( $post_id, '_kayzart_live_highlight', true );
 		$live_highlight_enabled = '' === $highlight_meta ? true : rest_sanitize_boolean( $highlight_meta );
-		$single_page_enabled    = Post_Type::is_single_page_enabled( $post_id );
 		$template_mode_meta     = get_post_meta( $post_id, '_kayzart_template_mode', true );
 		$template_mode          = self::normalize_template_mode( $template_mode_meta );
 		$default_template_mode  = self::normalize_default_template_mode(
@@ -65,11 +64,9 @@ class Rest_Settings {
 			'title'                => (string) $post->post_title,
 			'slug'                 => (string) $post->post_name,
 			'status'               => (string) $post->post_status,
-			'viewUrl'              => $single_page_enabled ? (string) get_permalink( $post_id ) : '',
+			'viewUrl'              => (string) get_permalink( $post_id ),
 			'templateMode'         => $template_mode,
 			'defaultTemplateMode'  => $default_template_mode,
-			'shortcodeEnabled'     => '1' === get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ),
-			'singlePageEnabled'    => $single_page_enabled,
 			'liveHighlightEnabled' => $live_highlight_enabled,
 			'canEditJs'            => current_user_can( 'unfiltered_html' ),
 			'externalScripts'      => External_Scripts::get_external_scripts( $post_id, Limits::MAX_EXTERNAL_SCRIPTS ),
@@ -183,30 +180,6 @@ class Rest_Settings {
 
 		if ( array_key_exists( 'templateMode', $updates ) ) {
 			$prepared['meta_updates']['_kayzart_template_mode'] = self::normalize_template_mode( $updates['templateMode'] );
-		}
-
-		if ( array_key_exists( 'shortcodeEnabled', $updates ) ) {
-			if ( ! current_user_can( 'unfiltered_html' ) ) {
-				return new \WP_Error(
-					'kayzart_permission_denied',
-					__( 'Permission denied.', 'kayzart-live-code-editor' ),
-					array( 'status' => 403 )
-				);
-			}
-			$shortcode_enabled                                      = rest_sanitize_boolean( $updates['shortcodeEnabled'] );
-			$prepared['meta_updates']['_kayzart_shortcode_enabled'] = $shortcode_enabled ? '1' : '0';
-		}
-
-		if ( array_key_exists( 'singlePageEnabled', $updates ) ) {
-			if ( ! current_user_can( 'unfiltered_html' ) ) {
-					return new \WP_Error(
-						'kayzart_permission_denied',
-						__( 'Permission denied.', 'kayzart-live-code-editor' ),
-						array( 'status' => 403 )
-					);
-			}
-			$single_page_enabled                                      = rest_sanitize_boolean( $updates['singlePageEnabled'] );
-			$prepared['meta_updates']['_kayzart_single_page_enabled'] = $single_page_enabled ? '1' : '0';
 		}
 
 		if ( array_key_exists( 'liveHighlightEnabled', $updates ) ) {

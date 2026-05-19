@@ -1,16 +1,11 @@
-import { createElement, Fragment, useEffect, useRef, useState } from '@wordpress/element';
+import { createElement, Fragment } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 
 type SettingsPanelProps = {
-  postId: number;
   canEditJs: boolean;
   templateMode: 'default' | 'standalone' | 'theme';
   defaultTemplateMode: 'standalone' | 'theme';
   onChangeTemplateMode: (mode: 'default' | 'standalone' | 'theme') => void;
-  shortcodeEnabled: boolean;
-  onToggleShortcode: (enabled: boolean) => void;
-  singlePageEnabled: boolean;
-  onToggleSinglePage: (enabled: boolean) => void;
   liveHighlightEnabled: boolean;
   onToggleLiveHighlight: (enabled: boolean) => void;
   externalScripts: string[];
@@ -22,21 +17,15 @@ type SettingsPanelProps = {
   onCommitExternalStyles: (styles: string[]) => void;
   externalStylesMax: number;
   disabled?: boolean;
-  error?: string;
   externalScriptsError?: string;
   externalStylesError?: string;
 };
 
 export function SettingsPanel({
-  postId,
   canEditJs,
   templateMode,
   defaultTemplateMode,
   onChangeTemplateMode,
-  shortcodeEnabled,
-  onToggleShortcode,
-  singlePageEnabled,
-  onToggleSinglePage,
   liveHighlightEnabled,
   onToggleLiveHighlight,
   externalScripts,
@@ -48,18 +37,13 @@ export function SettingsPanel({
   onCommitExternalStyles,
   externalStylesMax,
   disabled = false,
-  error,
   externalScriptsError,
   externalStylesError,
 }: SettingsPanelProps) {
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
-  const copyTimeoutRef = useRef<number | null>(null);
-  const shortcodeInputRef = useRef<HTMLInputElement | null>(null);
   const canAddScript = !disabled && externalScripts.length < externalScriptsMax;
   const hasScripts = externalScripts.length > 0;
   const canAddStyle = !disabled && externalStyles.length < externalStylesMax;
   const hasStyles = externalStyles.length > 0;
-  const shortcodeText = `[kayzart post_id="${postId}"]`;
   const templateModeLabels: Record<'standalone' | 'theme', string> = {
     standalone: __( 'Standalone', 'kayzart-live-code-editor'),
     theme: __( 'Theme', 'kayzart-live-code-editor'),
@@ -72,24 +56,6 @@ export function SettingsPanel({
       : templateMode === 'standalone'
         ? __( 'Standalone hides the theme header and footer.', 'kayzart-live-code-editor')
         : __( 'Theme uses the active theme template.', 'kayzart-live-code-editor');
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) {
-        window.clearTimeout(copyTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const setCopyFeedback = (state: 'copied' | 'error') => {
-    setCopyState(state);
-    if (copyTimeoutRef.current) {
-      window.clearTimeout(copyTimeoutRef.current);
-    }
-    copyTimeoutRef.current = window.setTimeout(() => {
-      setCopyState('idle');
-    }, 2000);
-  };
 
   const updateScriptAt = (index: number, value: string, commit: boolean) => {
     const next = externalScripts.map((entry, idx) => (idx === index ? value : entry));
@@ -133,32 +99,6 @@ export function SettingsPanel({
     onCommitExternalStyles(next);
   };
 
-  const handleCopyShortcode = async () => {
-    if (!shortcodeText) return;
-    let copied = false;
-    if (window.navigator?.clipboard?.writeText) {
-      try {
-        await window.navigator.clipboard.writeText(shortcodeText);
-        copied = true;
-      } catch {
-        copied = false;
-      }
-    }
-
-    if (!copied && shortcodeInputRef.current) {
-      shortcodeInputRef.current.focus();
-      shortcodeInputRef.current.select();
-      try {
-        copied = document.execCommand('copy');
-      } catch {
-        copied = false;
-      }
-      shortcodeInputRef.current.setSelectionRange(0, 0);
-    }
-
-    setCopyFeedback(copied ? 'copied' : 'error');
-  };
-
   return (
     <Fragment>
       <div className="kayzart-settingsSection">
@@ -183,82 +123,6 @@ export function SettingsPanel({
           </select>
         </div>
         {templateHelp ? <div className="kayzart-settingsHelp">{templateHelp}</div> : null}
-      </div>
-
-      <div className="kayzart-settingsSection">
-        <div className="kayzart-settingsSectionTitle">
-          {__( 'Output settings', 'kayzart-live-code-editor')}
-        </div>
-        <div className="kayzart-settingsItem kayzart-settingsToggle">
-          <div className="kayzart-settingsItemLabel">
-            {__( 'Enable external embedding', 'kayzart-live-code-editor')}
-          </div>
-          <label className="kayzart-toggle">
-            <input
-              type="checkbox"
-              checked={shortcodeEnabled}
-              aria-label={__( 'Enable external embedding', 'kayzart-live-code-editor')}
-              onChange={(event) => onToggleShortcode(event.target.checked)}
-              disabled={disabled}
-            />
-            <span className="kayzart-toggleTrack" aria-hidden="true" />
-          </label>
-        </div>
-        {shortcodeEnabled ? (
-          <Fragment>
-            <div className="kayzart-settingsScriptRow">
-              <input
-                ref={shortcodeInputRef}
-                type="text"
-                className="kayzart-formInput kayzart-settingsScriptInput"
-                value={shortcodeText}
-                readOnly
-                aria-label={__( 'KayzArt embed code', 'kayzart-live-code-editor')}
-              />
-              <button
-                className="kayzart-btn kayzart-btn-secondary"
-                type="button"
-                onClick={handleCopyShortcode}
-                aria-label={__( 'Copy embed code', 'kayzart-live-code-editor')}
-              >
-                {copyState === 'copied'
-                  ? __( 'Copied', 'kayzart-live-code-editor')
-                  : __( 'Copy', 'kayzart-live-code-editor')}
-              </button>
-            </div>
-            {copyState === 'copied' ? (
-              <div className="kayzart-settingsHelp">{__( 'Copied.', 'kayzart-live-code-editor')}</div>
-            ) : null}
-            {copyState === 'error' ? (
-              <div className="kayzart-settingsError">{__( 'Copy failed.', 'kayzart-live-code-editor')}</div>
-            ) : null}
-            <div className="kayzart-settingsItem kayzart-settingsToggle">
-              <div className="kayzart-settingsItemLabel">
-                {__( 'Do not publish as single page', 'kayzart-live-code-editor')}
-              </div>
-              <label className="kayzart-toggle">
-                <input
-                  type="checkbox"
-                  checked={!singlePageEnabled}
-                  aria-label={__( 'Do not publish as single page', 'kayzart-live-code-editor')}
-                  onChange={(event) => onToggleSinglePage(!event.target.checked)}
-                  disabled={disabled}
-                />
-                <span className="kayzart-toggleTrack" aria-hidden="true" />
-              </label>
-            </div>
-            <div className="kayzart-settingsHelp">
-              {__(
-                'You can paste this embed code into a Shortcode block in Gutenberg or Elementor.', 'kayzart-live-code-editor')}
-            </div>
-          </Fragment>
-        ) : null}
-        {disabled ? (
-          <div className="kayzart-settingsHelp">
-            {__( 'Requires unfiltered_html capability.', 'kayzart-live-code-editor')}
-          </div>
-        ) : null}
-        {error ? <div className="kayzart-settingsError">{error}</div> : null}
       </div>
 
       <div className="kayzart-settingsSection">

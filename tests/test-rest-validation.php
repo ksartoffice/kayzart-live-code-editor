@@ -146,7 +146,7 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Legacy shadowDomEnabled should be ignored.' );
 	}
 
-	public function test_import_rejects_invalid_shortcode_enabled_type(): void {
+	public function test_import_ignores_legacy_shortcode_enabled_value(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -161,10 +161,11 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 400, $response->get_status(), 'shortcodeEnabled must be boolean.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy shortcodeEnabled should be ignored.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
 	}
 
-	public function test_import_rejects_invalid_single_page_enabled_type(): void {
+	public function test_import_ignores_legacy_single_page_enabled_value(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -179,7 +180,8 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 400, $response->get_status(), 'singlePageEnabled must be boolean.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy singlePageEnabled should be ignored.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
 	}
 
 	public function test_import_rejects_invalid_live_highlight_enabled_type(): void {

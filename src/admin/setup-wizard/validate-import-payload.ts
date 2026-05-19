@@ -49,14 +49,6 @@ export function validateImportPayload(raw: unknown): ValidationResult {
     }
   }
 
-  if (payload.shortcodeEnabled !== undefined && typeof payload.shortcodeEnabled !== 'boolean') {
-    return { error: __('Invalid shortcodeEnabled value.', 'kayzart-live-code-editor') };
-  }
-
-  if (payload.singlePageEnabled !== undefined && typeof payload.singlePageEnabled !== 'boolean') {
-    return { error: __('Invalid singlePageEnabled value.', 'kayzart-live-code-editor') };
-  }
-
   if (payload.liveHighlightEnabled !== undefined && typeof payload.liveHighlightEnabled !== 'boolean') {
     return { error: __('Invalid liveHighlightEnabled value.', 'kayzart-live-code-editor') };
   }
@@ -80,8 +72,6 @@ export function validateImportPayload(raw: unknown): ValidationResult {
       jsMode: normalizeJsMode(payload.jsMode),
       externalScripts: payload.externalScripts ?? [],
       externalStyles: payload.externalStyles ?? [],
-      shortcodeEnabled: payload.shortcodeEnabled ?? false,
-      singlePageEnabled: payload.singlePageEnabled ?? true,
       liveHighlightEnabled: payload.liveHighlightEnabled as boolean | undefined,
     },
   };

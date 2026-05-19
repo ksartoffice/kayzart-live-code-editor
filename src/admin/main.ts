@@ -308,8 +308,6 @@ async function main() {
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
-  let shortcodeEnabled = Boolean(initialState.settingsData?.shortcodeEnabled);
-  let singlePageEnabled = initialState.settingsData?.singlePageEnabled ?? true;
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
   let externalScripts = Array.isArray(initialState.settingsData?.externalScripts)
     ? [...initialState.settingsData.externalScripts]
@@ -411,8 +409,6 @@ async function main() {
     postStatus = nextSettings.status || postStatus;
     postTitle = nextSettings.title || postTitle;
     postSlug = nextSettings.slug || postSlug;
-    shortcodeEnabled = Boolean(nextSettings.shortcodeEnabled);
-    singlePageEnabled = nextSettings.singlePageEnabled ?? singlePageEnabled;
     liveHighlightEnabled = nextSettings.liveHighlightEnabled ?? liveHighlightEnabled;
     externalScripts = Array.isArray(nextSettings.externalScripts)
       ? [...nextSettings.externalScripts]
@@ -454,8 +450,6 @@ async function main() {
     getTailwindCss: () => tailwindCss,
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
-    getShortcodeEnabled: () => shortcodeEnabled,
-    getSinglePageEnabled: () => singlePageEnabled,
     getLiveHighlightEnabled: () => liveHighlightEnabled,
     getPendingSettingsState: () => ({
       pendingSettingsUpdates,
@@ -1328,12 +1322,6 @@ async function main() {
       if (nextResolved !== currentResolved && basePreviewUrl) {
         ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
       }
-    },
-    onShortcodeToggle: (enabled) => {
-      shortcodeEnabled = enabled;
-    },
-    onSinglePageToggle: (enabled) => {
-      singlePageEnabled = enabled;
     },
     onLiveHighlightToggle: setLiveHighlightEnabled,
     onExternalScriptsChange: (scripts) => {

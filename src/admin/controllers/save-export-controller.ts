@@ -29,8 +29,6 @@ type SaveExportControllerDeps = {
   getTailwindCss: () => string;
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
-  getShortcodeEnabled: () => boolean;
-  getSinglePageEnabled: () => boolean;
   getLiveHighlightEnabled: () => boolean;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
@@ -159,8 +157,6 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
       jsMode: deps.getJsMode(),
       externalScripts: deps.getExternalScripts(),
       externalStyles: deps.getExternalStyles(),
-      shortcodeEnabled: deps.getShortcodeEnabled(),
-      singlePageEnabled: deps.getSinglePageEnabled(),
       liveHighlightEnabled: deps.getLiveHighlightEnabled(),
     });
 

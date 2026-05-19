@@ -1,6 +1,6 @@
 === KayzArt Live Code Editor ===
 Contributors: ksartoffice
-Tags: live preview, code editor, codemirror, tailwind, shortcode
+Tags: live preview, code editor, codemirror, tailwind, landing page
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
@@ -22,9 +22,6 @@ Features:
 * Import/export JSON projects
 * Per-post template mode control: Default/Standalone/Theme
 * External scripts/styles (https only), live edit highlight, and real-time DOM selection
-* External embedding (enable in settings): [kayzart post_id="123"]
-* Allowlist for shortcode execution inside external embeds (one shortcode tag per line)
-* Optional single-page disable for external-embed output
 
 External connections and privacy:
 * By default, KayzArt does not load external scripts or styles and does not send telemetry.
@@ -54,16 +51,10 @@ Development repository and build:
 
 == Frequently Asked Questions ==
 = Who can edit KayzArt posts? =
-Users who can edit the post can use the editor. JavaScript, external scripts/styles, external embedding, and single-page settings require the unfiltered_html capability.
+Users who can edit the post can use the editor. JavaScript and external scripts/styles require the unfiltered_html capability.
 
 = Does KayzArt contact external servers by default? =
 No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.
-
-= How do I embed a page created with KayzArt? =
-Enable external embedding in KayzArt settings, then use [kayzart post_id="123"] with the post ID of the page you created in KayzArt. For shortcode execution inside the embedded content, add allowed tags in KayzArt settings (one tag per line). Non-allowlisted tags remain plain text.
-
-= Can I disable the single page view? =
-Yes. Enable external embedding and turn on "Do not publish as single page." Disabled single pages are marked noindex and excluded from search/archives, and the single-page request is redirected (or can be forced to 404 via the kayzart_single_page_redirect filter).
 
 = Can I switch between Normal and Tailwind modes? =
 The setup wizard lets you choose Normal or Tailwind. The choice is locked per KayzArt post.
@@ -105,7 +96,7 @@ Build commands:
 
 == Changelog ==
 = 1.3.6 =
-* Update: Minor changes.
+* Remove external embedding and single-page disable settings. Existing [kayzart] shortcodes no longer render content.
 
 = 1.3.5 =
 * Docs: Add screenshots section.
@@ -143,7 +134,7 @@ Build commands:
 * Security: Implemented security-related improvements and hardening updates.
 
 = 1.1.0 =
-* Add allowlist settings for shortcode execution in external embeds.
+* Add external embed allowlist settings.
 * Other: Internal improvements and maintenance updates.
 
 = 1.0.1 =

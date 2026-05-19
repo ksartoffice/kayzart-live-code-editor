@@ -69,8 +69,28 @@
     });
   };
 
+  var findBlockToolbar = function () {
+    return document.querySelector(
+      [
+        '.editor-document-tools',
+        '.edit-post-header__toolbar',
+        '.editor-header__toolbar',
+        '.edit-post-header-toolbar'
+      ].join(', ')
+    );
+  };
+
+  var findBlockObserverTarget = function () {
+    return (
+      document.querySelector('.interface-interface-skeleton__header') ||
+      document.querySelector('.editor-header') ||
+      document.querySelector('.edit-post-header') ||
+      document.body
+    );
+  };
+
   var insertBlockToolbarButton = function () {
-    var toolbar = document.querySelector('.edit-post-header-toolbar');
+    var toolbar = findBlockToolbar();
     if (!toolbar) {
       return;
     }
@@ -99,19 +119,13 @@
 
     container.appendChild(button);
 
-    if (toolbar.children.length > 1) {
-      toolbar.insertBefore(container, toolbar.children[1]);
-    } else {
-      toolbar.appendChild(container);
-    }
+    toolbar.appendChild(container);
   };
 
   var setupBlockEditor = function () {
     insertBlockToolbarButton();
 
-    var observerTarget =
-      document.querySelector('.interface-interface-skeleton__header') ||
-      document.body;
+    var observerTarget = findBlockObserverTarget();
     var observer = new MutationObserver(function () {
       insertBlockToolbarButton();
     });

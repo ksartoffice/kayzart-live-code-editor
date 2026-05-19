@@ -35,10 +35,6 @@ function createUi() {
     jsControls: document.createElement('div'),
     runButton: document.createElement('button'),
     compactRunButton: document.createElement('button'),
-    tailwindHintButton: document.createElement('button'),
-    compactTailwindHintButton: document.createElement('button'),
-    shadowHintButton: document.createElement('button'),
-    compactShadowHintButton: document.createElement('button'),
   } as any;
 }
 
@@ -58,12 +54,8 @@ describe('editor ui controller', () => {
       compactEditorBreakpoint: 900,
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
-      getShadowDomEnabled: () => true,
-      getTailwindEnabled: () => false,
       onOpenMedia: () => {},
       onRunJs: () => {},
-      onOpenShadowHint: () => {},
-      onOpenTailwindHint: () => {},
     });
 
     controller.initialize();
@@ -91,12 +83,8 @@ describe('editor ui controller', () => {
       compactEditorBreakpoint: 900,
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
-      getShadowDomEnabled: () => true,
-      getTailwindEnabled: () => false,
       onOpenMedia: () => {},
       onRunJs: () => {},
-      onOpenShadowHint: () => {},
-      onOpenTailwindHint: () => {},
     });
 
     controller.initialize();

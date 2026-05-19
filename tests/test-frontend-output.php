@@ -31,7 +31,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	public function test_filter_content_wraps_shadow_dom_with_assets(): void {
+	public function test_filter_content_ignores_legacy_shadow_meta_and_uses_normal_dom(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 		$post     = get_post( $post_id );
@@ -56,20 +56,18 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$output            = Frontend::filter_content( (string) $post->post_content );
 		$this->restore_query( $original_wp_query );
 
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $output );
-		$this->assertStringContainsString( '<template shadowrootmode="open">', $output );
-		$this->assertStringContainsString( 'https://example.com/app.css', $output );
-		$this->assertStringContainsString( 'body{color:red;}', $output );
+		$this->assertStringNotContainsString( '<kayzart-output', $output );
+		$this->assertStringNotContainsString( 'shadowrootmode', $output );
+		$this->assertStringNotContainsString( 'https://example.com/app.css', $output );
+		$this->assertStringNotContainsString( 'body{color:red;}', $output );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
 		$this->assertStringNotContainsString( '<script id="kayzart-script">console.log("x");</script>', $output );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
 		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
-		$this->assertStringContainsString( '</template>', $output );
-		$this->assertStringContainsString( '</kayzart-output>', $output );
 	}
 
-	public function test_shortcode_renders_shadow_dom_with_unique_ids(): void {
+	public function test_shortcode_ignores_legacy_shadow_meta_and_enqueues_runtime(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -93,17 +91,19 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $first );
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $second );
+		$this->assertStringNotContainsString( '<kayzart-output', $first );
+		$this->assertStringNotContainsString( '<kayzart-output', $second );
+		$this->assertStringNotContainsString( 'shadowrootmode', $first );
+		$this->assertStringNotContainsString( 'shadowrootmode', $second );
 		$this->assertStringContainsString( 'https://example.com/shortcode.css', $first );
-		$this->assertStringContainsString( 'https://example.com/shortcode.css', $second );
+		$this->assertStringNotContainsString( 'https://example.com/shortcode.css', $second );
 		$this->assertStringContainsString( 'body{background:#000;}', $first );
-		$this->assertStringContainsString( 'body{background:#000;}', $second );
-		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-1"', $first );
-		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-2"', $second );
+		$this->assertStringNotContainsString( 'body{background:#000;}', $second );
+		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '"', $first );
+		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '"', $second );
 		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $first );
 		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $second );
-		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
 	}
 
@@ -145,7 +145,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 
 		$external_handle = 'kayzart-ext-' . $post_id . '-0';
 		$this->assertTrue( wp_script_is( $external_handle, 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 	}
 
 	public function test_shortcode_embed_runs_only_allowlisted_shortcodes(): void {
@@ -365,10 +365,6 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 	}
 
 	private function reset_shortcode_state(): void {
-		$instance_property = new ReflectionProperty( Frontend::class, 'shortcode_instance' );
-		$instance_property->setAccessible( true );
-		$instance_property->setValue( null, 0 );
-
 		$assets_property = new ReflectionProperty( Frontend::class, 'shortcode_assets_loaded' );
 		$assets_property->setAccessible( true );
 		$assets_property->setValue( null, array() );
@@ -377,12 +373,8 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$external_property->setAccessible( true );
 		$external_property->setValue( null, array() );
 
-		$runtime_property = new ReflectionProperty( Frontend::class, 'shadow_runtime_enqueued' );
+		$runtime_property = new ReflectionProperty( Frontend::class, 'runtime_enqueued' );
 		$runtime_property->setAccessible( true );
 		$runtime_property->setValue( null, false );
-
-		$style_count_property = new ReflectionProperty( Frontend::class, 'shadow_style_render_count' );
-		$style_count_property->setAccessible( true );
-		$style_count_property->setValue( null, 0 );
 	}
 }

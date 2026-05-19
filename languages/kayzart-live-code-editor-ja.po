@@ -201,11 +201,6 @@ msgstr "CSS の値が不正です。"
 msgid "Invalid JavaScript value."
 msgstr "JavaScript の値が不正です。"
 
-#: includes/rest/class-kayzart-rest-import.php:121
-#: assets/dist/main.js:106
-msgid "Invalid shadowDomEnabled value."
-msgstr "shadowDomEnabled の値が不正です。"
-
 #: includes/rest/class-kayzart-rest-import.php:135
 #: assets/dist/main.js:106
 msgid "Invalid shortcodeEnabled value."
@@ -417,18 +412,6 @@ msgstr "単一ページとして公開しない"
 #: assets/dist/main.js:106
 msgid "Requires unfiltered_html capability."
 msgstr "unfiltered_html 権限が必要です。"
-
-#: assets/dist/main.js:106
-msgid "Rendering settings"
-msgstr "レンダリング設定"
-
-#: assets/dist/main.js:106
-msgid "Enable Shadow DOM (DSD)"
-msgstr "Shadow DOM（DSD）を有効化"
-
-#: assets/dist/main.js:106
-msgid "Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected."
-msgstr "既存テーマの CSS との干渉を防ぎます。※ Shadow DOM に未対応の外部 CSS / JS ライブラリは、スタイルや動作が期待どおりにならない場合があります。"
 
 #: assets/dist/main.js:106
 msgid "External resource settings"
@@ -786,16 +769,6 @@ msgstr "メディアを追加"
 msgid "Run"
 msgstr "実行"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:125
-msgid "Shadow DOM Hint"
-msgstr "Shadow DOM ヒント"
-
-#: assets/dist/main.js:106
-#: assets/dist/main.js:125
-msgid "Tailwind CSS Hint"
-msgstr "Tailwind CSS ヒント"
-
 #: assets/dist/main.js:125
 msgid "Tailwind compile failed."
 msgstr "Tailwind のコンパイルに失敗しました。"
@@ -843,30 +816,6 @@ msgstr "エクスポートエラー: %s"
 #: assets/dist/main.js:125
 msgid "Export failed."
 msgstr "エクスポートに失敗しました。"
-
-#: assets/dist/main.js:125
-msgid "When Shadow DOM is enabled, HTML is rendered inside the Shadow Root."
-msgstr "Shadow DOM を有効にすると、HTML は Shadow Root 内にレンダリングされます。"
-
-#: assets/dist/main.js:125
-msgid "Use the root below (scoped to this script) instead of document to query elements."
-msgstr "要素の取得には document の代わりに、下記の root（このスクリプト内で有効）を使用してください。"
-
-#: assets/dist/main.js:125
-msgid "Note: root can be Document or ShadowRoot; create* APIs are only on Document."
-msgstr "注: root は Document または ShadowRoot です。create* API は Document でのみ利用できます。"
-
-#: assets/dist/main.js:125
-msgid "In module mode, use the default export function to receive runtime context."
-msgstr "module モードでは、default export 関数を使ってランタイムコンテキストを受け取ってください。"
-
-#: assets/dist/main.js:125
-msgid "Shadow DOM ON: root is ShadowRoot. Shadow DOM OFF: root is document."
-msgstr "Shadow DOM ON: root は ShadowRoot です。Shadow DOM OFF: root は document です。"
-
-#: assets/dist/main.js:125
-msgid "To disable Tailwind CSS preflight (reset CSS), replace `@import \"tailwindcss\";` with the imports below."
-msgstr "Tailwind CSS の preflight（リセット CSS）を無効にするには、`@import \"tailwindcss\";` を下記の import に置き換えてください。"
 
 #: assets/dist/main.js:127
 msgid "Theme template unavailable"

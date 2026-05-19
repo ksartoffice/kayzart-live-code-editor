@@ -27,7 +27,6 @@ function buildImportedSettings(
     externalStyles: payload.externalStyles ?? [],
     externalScriptsMax: baseSettings.externalScriptsMax,
     externalStylesMax: baseSettings.externalStylesMax,
-    shadowDomEnabled: payload.shadowDomEnabled ?? false,
     shortcodeEnabled: payload.shortcodeEnabled ?? baseSettings.shortcodeEnabled ?? false,
     singlePageEnabled: payload.singlePageEnabled ?? baseSettings.singlePageEnabled ?? true,
     liveHighlightEnabled: payload.liveHighlightEnabled ?? baseSettings.liveHighlightEnabled ?? true,

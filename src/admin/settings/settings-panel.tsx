@@ -7,8 +7,6 @@ type SettingsPanelProps = {
   templateMode: 'default' | 'standalone' | 'theme';
   defaultTemplateMode: 'standalone' | 'theme';
   onChangeTemplateMode: (mode: 'default' | 'standalone' | 'theme') => void;
-  shadowDomEnabled: boolean;
-  onToggleShadowDom: (enabled: boolean) => void;
   shortcodeEnabled: boolean;
   onToggleShortcode: (enabled: boolean) => void;
   singlePageEnabled: boolean;
@@ -35,8 +33,6 @@ export function SettingsPanel({
   templateMode,
   defaultTemplateMode,
   onChangeTemplateMode,
-  shadowDomEnabled,
-  onToggleShadowDom,
   shortcodeEnabled,
   onToggleShortcode,
   singlePageEnabled,
@@ -263,33 +259,6 @@ export function SettingsPanel({
           </div>
         ) : null}
         {error ? <div className="kayzart-settingsError">{error}</div> : null}
-      </div>
-
-      <div className="kayzart-settingsSection">
-        <div className="kayzart-settingsSectionTitle">
-          {__( 'Rendering settings', 'kayzart-live-code-editor')}
-        </div>
-        <div className="kayzart-settingsItem kayzart-settingsToggle">
-          <div className="kayzart-settingsItemLabel">
-            {__( 'Enable Shadow DOM (DSD)', 'kayzart-live-code-editor')}
-          </div>
-          <label className="kayzart-toggle">
-            <input
-              type="checkbox"
-              checked={shadowDomEnabled}
-              aria-label={__( 'Enable Shadow DOM (DSD)', 'kayzart-live-code-editor')}
-              onChange={(event) => onToggleShadowDom(event.target.checked)}
-              disabled={disabled}
-            />
-            <span className="kayzart-toggleTrack" aria-hidden="true" />
-          </label>
-        </div>
-        <div className="kayzart-settingsHelp">
-          {__(
-            'Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected.',
-            'kayzart-live-code-editor'
-          )}
-        </div>
       </div>
 
       <div className="kayzart-settingsSection">

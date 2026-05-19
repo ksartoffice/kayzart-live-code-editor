@@ -1,6 +1,6 @@
 import { __ } from '@wordpress/i18n';
 
-import { ImagePlus, Lightbulb, Play } from 'lucide';
+import { ImagePlus, Play } from 'lucide';
 import { renderLucideIcon } from './lucide-icons';
 
 type EditorShellRefs = {
@@ -14,8 +14,6 @@ type EditorShellRefs = {
   compactJsModeSelect: HTMLSelectElement;
   compactAddMediaButton: HTMLButtonElement;
   compactRunButton: HTMLButtonElement;
-  compactShadowHintButton: HTMLButtonElement;
-  compactTailwindHintButton: HTMLButtonElement;
   htmlHeader: HTMLDivElement;
   htmlTitle: HTMLSpanElement;
   addMediaButton: HTMLButtonElement;
@@ -30,8 +28,6 @@ type EditorShellRefs = {
   jsModeSelect: HTMLSelectElement;
   jsControls: HTMLDivElement;
   runButton: HTMLButtonElement;
-  shadowHintButton: HTMLButtonElement;
-  tailwindHintButton: HTMLButtonElement;
   editorResizer: HTMLDivElement;
   main: HTMLDivElement;
   left: HTMLDivElement;
@@ -120,9 +116,6 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     run: renderLucideIcon(Play, {
       class: 'lucide lucide-play-icon lucide-play',
     }),
-    hint: renderLucideIcon(Lightbulb, {
-      class: 'lucide lucide-lightbulb-icon lucide-lightbulb',
-    }),
   };
 
   const compactEditorTabs = el('div', 'kayzart-compactEditorTabs');
@@ -152,22 +145,10 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     __( 'Run', 'kayzart-live-code-editor'),
     compactIcons.run
   );
-  const compactShadowHintButton = createCompactActionButton(
-    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-hint',
-    __( 'Shadow DOM Hint', 'kayzart-live-code-editor'),
-    compactIcons.hint
-  );
-  const compactTailwindHintButton = createCompactActionButton(
-    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-hint',
-    __( 'Tailwind CSS Hint', 'kayzart-live-code-editor'),
-    compactIcons.hint
-  );
   compactEditorActions.append(
     compactAddMediaButton,
     compactJsModeSelect,
-    compactShadowHintButton,
     compactRunButton,
-    compactTailwindHintButton,
   );
   compactEditorTabs.append(compactEditorTabsList, compactEditorActions);
 
@@ -211,15 +192,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   runButton.type = 'button';
   runButton.className = 'kayzart-editorAction';
   runButton.textContent = __( 'Run', 'kayzart-live-code-editor');
-  const shadowHintButton = document.createElement('button');
-  shadowHintButton.type = 'button';
-  shadowHintButton.className = 'kayzart-editorAction kayzart-editorAction-hint';
-  shadowHintButton.textContent = __( 'Shadow DOM Hint', 'kayzart-live-code-editor');
-  const tailwindHintButton = document.createElement('button');
-  tailwindHintButton.type = 'button';
-  tailwindHintButton.className = 'kayzart-editorAction kayzart-editorAction-hint';
-  tailwindHintButton.textContent = __( 'Tailwind CSS Hint', 'kayzart-live-code-editor');
-  jsControls.append(jsModeSelect, shadowHintButton, runButton, tailwindHintButton);
+  jsControls.append(jsModeSelect, runButton);
 
   cssHeader.append(cssTabs, jsControls);
   const cssWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
@@ -261,8 +234,6 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactJsModeSelect,
     compactAddMediaButton,
     compactRunButton,
-    compactShadowHintButton,
-    compactTailwindHintButton,
     htmlHeader,
     htmlTitle,
     addMediaButton,
@@ -277,8 +248,6 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     jsModeSelect,
     jsControls,
     runButton,
-    shadowHintButton,
-    tailwindHintButton,
     editorResizer,
     main,
     left,

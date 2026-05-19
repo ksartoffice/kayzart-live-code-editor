@@ -36,16 +36,12 @@ describe('editor shell iframe security attributes', () => {
     expect(ui.jsModeSelect.parentElement).toBe(ui.jsControls);
     expect(Array.from(ui.jsControls.children)).toEqual([
       ui.jsModeSelect,
-      ui.shadowHintButton,
       ui.runButton,
-      ui.tailwindHintButton,
     ]);
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
       ui.compactAddMediaButton,
       ui.compactJsModeSelect,
-      ui.compactShadowHintButton,
       ui.compactRunButton,
-      ui.compactTailwindHintButton,
     ]);
   });
 });

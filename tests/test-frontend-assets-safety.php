@@ -57,7 +57,9 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 		$wp_query->queried_object    = $post;
 
 		$output = Frontend::filter_content( (string) $post->post_content );
+		Frontend::enqueue_css();
 		Frontend::enqueue_js();
+		$styles  = wp_styles();
 		$scripts = wp_scripts();
 
 		if ( null !== $original_wp_query ) {
@@ -66,9 +68,12 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 			unset( $wp_query );
 		}
 
-		$this->assertStringContainsString( 'https://example.com/good.css', $output, 'Valid https styles should render.' );
 		$this->assertStringNotContainsString( 'http://example.com/bad.css', $output, 'Invalid style URLs should be filtered.' );
 		$this->assertStringNotContainsString( 'javascript:', $output, 'javascript: URLs should be filtered.' );
+
+		$good_style_handle = 'kayzart-ext-style-' . $post_id . '-0';
+		$this->assertTrue( wp_style_is( $good_style_handle, 'enqueued' ), 'Valid https styles should enqueue.' );
+		$this->assertSame( 'https://example.com/good.css', $styles->registered[ $good_style_handle ]->src );
 
 		$good_handle = 'kayzart-ext-' . $post_id . '-0';
 		$this->assertTrue( wp_script_is( $good_handle, 'enqueued' ), 'Valid https scripts should enqueue.' );

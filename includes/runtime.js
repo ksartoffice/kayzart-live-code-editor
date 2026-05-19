@@ -64,13 +64,12 @@
     return 'classic';
   }
 
-  function buildRuntimeContext(payload, host) {
+  function buildRuntimeContext(payload) {
     const state = getRuntimeState(payload);
-    const root = host && host.shadowRoot ? host.shadowRoot : document;
     return {
-      root: root,
+      root: document,
       document: document,
-      host: host || null,
+      host: null,
       onCleanup: (fn) => {
         if (typeof fn === 'function') {
           state.cleanups.push(fn);
@@ -79,14 +78,14 @@
     };
   }
 
-  function runClassicPayload(host, jsText) {
+  function runClassicPayload(jsText) {
     const scriptEl = document.createElement('script');
     scriptEl.type = 'text/javascript';
     scriptEl.text = jsText;
-    (host || document.body || document.documentElement).appendChild(scriptEl);
+    (document.body || document.documentElement).appendChild(scriptEl);
   }
 
-  async function runModulePayload(payload, host, jsText) {
+  async function runModulePayload(payload, jsText) {
     const state = getRuntimeState(payload);
     const runToken = ++state.runToken;
     const moduleUrl = URL.createObjectURL(
@@ -100,7 +99,7 @@
       }
       const entry = moduleExports && moduleExports.default;
       if (typeof entry === 'function') {
-        const context = buildRuntimeContext(payload, host);
+        const context = buildRuntimeContext(payload);
         const maybeCleanup = entry(context);
         if (typeof maybeCleanup === 'function') {
           state.cleanups.push(maybeCleanup);
@@ -124,7 +123,6 @@
 
   function runPayload(payload) {
     if (!payload || payload.hasAttribute(processedAttr)) return;
-    const host = payload.closest('kayzart-output');
     const raw = payload.textContent || '';
     const jsText = decodePayload(raw);
     runCleanupCallbacks(payload);
@@ -134,9 +132,9 @@
     }
     const scriptMode = normalizeScriptMode(payload.getAttribute(modeAttr));
     if (scriptMode === 'module') {
-      void runModulePayload(payload, host, jsText);
+      void runModulePayload(payload, jsText);
     } else {
-      runClassicPayload(host, jsText);
+      runClassicPayload(jsText);
     }
     payload.setAttribute(processedAttr, '1');
   }

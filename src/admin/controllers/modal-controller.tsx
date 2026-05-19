@@ -1,16 +1,13 @@
 import { createElement, Fragment, createRoot, render } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { X } from 'lucide';
 import {
   resolveDefaultTemplateMode,
   resolveTemplateMode,
   type DefaultTemplateMode,
   type TemplateMode,
 } from '../logic/template-mode';
-import { renderLucideIcon } from '../lucide-icons';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
-import type { JsMode } from '../types/js-mode';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -18,9 +15,6 @@ type ModalControllerDeps = {
   apiFetch: ApiFetch;
   settingsRestUrl?: string;
   postId: number;
-  getShadowDomEnabled: () => boolean;
-  getJsMode: () => JsMode;
-  getTailwindEnabled: () => boolean;
   isThemeTemplateModeActive: () => boolean;
   getDefaultTemplateMode: () => DefaultTemplateMode;
   setTemplateModes: (templateMode: TemplateMode, defaultTemplateMode: DefaultTemplateMode) => void;
@@ -38,18 +32,6 @@ type ModalControllerDeps = {
   noticeErrorMs: number;
 };
 
-type ShadowHintModalProps = {
-  title: string;
-  lead: string;
-  detail: string;
-  note: string;
-  code: string;
-  closeLabel: string;
-  copyLabel: string;
-  onClose: () => void;
-  onCopy: () => void;
-};
-
 type MissingMarkersModalProps = {
   title: string;
   body: string;
@@ -57,57 +39,6 @@ type MissingMarkersModalProps = {
   inFlight: boolean;
   onConfirm: () => void;
 };
-
-const closeIcon = renderLucideIcon(X, {
-  class: 'lucide lucide-x-icon lucide-x',
-});
-
-function ShadowHintModal({
-  title,
-  lead,
-  detail,
-  note,
-  code,
-  closeLabel,
-  copyLabel,
-  onClose,
-  onCopy,
-}: ShadowHintModalProps) {
-  return (
-    <div className="kayzart-modal">
-      <div className="kayzart-modalBackdrop" onClick={onClose} />
-      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="kayzart-modalHeader">
-          <div className="kayzart-modalTitle">{title}</div>
-          <button
-            type="button"
-            className="kayzart-modalClose"
-            aria-label={closeLabel}
-            onClick={onClose}
-          >
-            <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: closeIcon }} />
-          </button>
-        </div>
-        <div className="kayzart-modalBody">
-          <div className="kayzart-hintBody">
-            <p className="kayzart-hintText">{lead}</p>
-            {detail ? <p className="kayzart-hintText">{detail}</p> : null}
-            <pre className="kayzart-hintCode">{code}</pre>
-            {note ? <p className="kayzart-hintText">{note}</p> : null}
-          </div>
-        </div>
-        <div className="kayzart-modalActions">
-          <button type="button" className="kayzart-btn kayzart-btn-secondary" onClick={onCopy}>
-            {copyLabel}
-          </button>
-          <button type="button" className="kayzart-btn kayzart-btn-primary" onClick={onClose}>
-            {closeLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function MissingMarkersModal({
   title,
@@ -142,31 +73,6 @@ function MissingMarkersModal({
 }
 
 export function createModalController(deps: ModalControllerDeps) {
-  const shadowHintTitle = __('Shadow DOM Hint', 'kayzart-live-code-editor');
-  const shadowHintClassicLead = __(
-    'When Shadow DOM is enabled, HTML is rendered inside the Shadow Root.', 'kayzart-live-code-editor');
-  const shadowHintClassicDetail = __(
-    'Use the root below (scoped to this script) instead of document to query elements.', 'kayzart-live-code-editor');
-  const shadowHintClassicCode =
-    "const root = document.currentScript?.closest('kayzart-output')?.shadowRoot || document;";
-  const shadowHintClassicNote = __(
-    'Note: root can be Document or ShadowRoot; create* APIs are only on Document.', 'kayzart-live-code-editor');
-  const shadowHintModuleLead = __(
-    'In module mode, use the default export function to receive runtime context.', 'kayzart-live-code-editor');
-  const shadowHintModuleDetail = __(
-    'Shadow DOM ON: root is ShadowRoot. Shadow DOM OFF: root is document.', 'kayzart-live-code-editor');
-  const shadowHintModuleCode = 'export default ({ root }) => { // write code here };';
-  const tailwindHintTitle = __('Tailwind CSS Hint', 'kayzart-live-code-editor');
-  const tailwindHintLead = __(
-    'To disable Tailwind CSS preflight (reset CSS), replace `@import "tailwindcss";` with the imports below.', 'kayzart-live-code-editor');
-  const tailwindHintCode =
-    '@layer theme, base, components, utilities;\n' +
-    '@import "tailwindcss/theme.css" layer(theme);\n' +
-    '@import "tailwindcss/utilities.css" layer(utilities);';
-  const closeLabel = __('Close', 'kayzart-live-code-editor');
-  const copyLabel = __('Copy', 'kayzart-live-code-editor');
-  const copiedLabel = __('Copied', 'kayzart-live-code-editor');
-
   const missingMarkersTitle = __('Theme template unavailable', 'kayzart-live-code-editor');
   const missingMarkersBody = __(
     'This theme does not output "the_content", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone.', 'kayzart-live-code-editor');
@@ -177,33 +83,10 @@ export function createModalController(deps: ModalControllerDeps) {
 
   let modalHost: HTMLDivElement | null = null;
   let modalRoot: ReturnType<typeof createRoot> | null = null;
-  let shadowHintOpen = false;
-  let shadowHintCopied = false;
-  let shadowHintCopiedTimer: number | undefined;
-  let tailwindHintOpen = false;
-  let tailwindHintCopied = false;
-  let tailwindHintCopiedTimer: number | undefined;
   let missingMarkersOpen = false;
   let missingMarkersInFlight = false;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
-
-  const getShadowHintContent = () => {
-    if (deps.getJsMode() === 'module') {
-      return {
-        lead: shadowHintModuleLead,
-        detail: shadowHintModuleDetail,
-        note: '',
-        code: shadowHintModuleCode,
-      };
-    }
-    return {
-      lead: shadowHintClassicLead,
-      detail: shadowHintClassicDetail,
-      note: shadowHintClassicNote,
-      code: shadowHintClassicCode,
-    };
-  };
 
   const ensureMounted = () => {
     if (modalHost) {
@@ -215,20 +98,12 @@ export function createModalController(deps: ModalControllerDeps) {
     if (typeof createRoot === 'function') {
       modalRoot = createRoot(modalHost);
     }
-    window.addEventListener('keydown', handleKeydown);
   };
 
   const unmountIfIdle = () => {
-    if (shadowHintOpen || tailwindHintOpen || missingMarkersOpen) {
+    if (missingMarkersOpen) {
       return;
     }
-    window.removeEventListener('keydown', handleKeydown);
-    window.clearTimeout(shadowHintCopiedTimer);
-    shadowHintCopiedTimer = undefined;
-    shadowHintCopied = false;
-    window.clearTimeout(tailwindHintCopiedTimer);
-    tailwindHintCopiedTimer = undefined;
-    tailwindHintCopied = false;
     if (modalRoot?.unmount) {
       modalRoot.unmount();
     } else if (modalHost) {
@@ -243,39 +118,8 @@ export function createModalController(deps: ModalControllerDeps) {
     if (!modalHost) {
       return;
     }
-    const shadowHintContent = getShadowHintContent();
     const node = (
       <Fragment>
-        {shadowHintOpen ? (
-          <ShadowHintModal
-            title={shadowHintTitle}
-            lead={shadowHintContent.lead}
-            detail={shadowHintContent.detail}
-            note={shadowHintContent.note}
-            code={shadowHintContent.code}
-            closeLabel={closeLabel}
-            copyLabel={shadowHintCopied ? copiedLabel : copyLabel}
-            onClose={closeShadowHintModal}
-            onCopy={() => {
-              void copyShadowHintCode();
-            }}
-          />
-        ) : null}
-        {tailwindHintOpen ? (
-          <ShadowHintModal
-            title={tailwindHintTitle}
-            lead={tailwindHintLead}
-            detail=""
-            note=""
-            code={tailwindHintCode}
-            closeLabel={closeLabel}
-            copyLabel={tailwindHintCopied ? copiedLabel : copyLabel}
-            onClose={closeTailwindHintModal}
-            onCopy={() => {
-              void copyTailwindHintCode();
-            }}
-          />
-        ) : null}
         {missingMarkersOpen ? (
           <MissingMarkersModal
             title={missingMarkersTitle}
@@ -294,113 +138,6 @@ export function createModalController(deps: ModalControllerDeps) {
       return;
     }
     render(node, modalHost);
-  };
-
-  const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape') {
-      return;
-    }
-    if (shadowHintOpen) {
-      closeShadowHintModal();
-      return;
-    }
-    if (tailwindHintOpen) {
-      closeTailwindHintModal();
-    }
-  };
-
-  const copyToClipboard = async (text: string): Promise<boolean> => {
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return true;
-      } catch {
-        // fallback below
-      }
-    }
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', 'true');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    let ok = false;
-    try {
-      ok = document.execCommand('copy');
-    } catch {
-      ok = false;
-    }
-    textarea.remove();
-    return ok;
-  };
-
-  const copyShadowHintCode = async () => {
-    const ok = await copyToClipboard(getShadowHintContent().code);
-    if (!ok || !shadowHintOpen) {
-      return;
-    }
-    shadowHintCopied = true;
-    renderModals();
-    window.clearTimeout(shadowHintCopiedTimer);
-    shadowHintCopiedTimer = window.setTimeout(() => {
-      shadowHintCopied = false;
-      if (shadowHintOpen) {
-        renderModals();
-      }
-    }, 1400);
-  };
-
-  const copyTailwindHintCode = async () => {
-    const ok = await copyToClipboard(tailwindHintCode);
-    if (!ok || !tailwindHintOpen) {
-      return;
-    }
-    tailwindHintCopied = true;
-    renderModals();
-    window.clearTimeout(tailwindHintCopiedTimer);
-    tailwindHintCopiedTimer = window.setTimeout(() => {
-      tailwindHintCopied = false;
-      if (tailwindHintOpen) {
-        renderModals();
-      }
-    }, 1400);
-  };
-
-  const closeShadowHintModal = () => {
-    if (!shadowHintOpen) return;
-    shadowHintOpen = false;
-    shadowHintCopied = false;
-    window.clearTimeout(shadowHintCopiedTimer);
-    shadowHintCopiedTimer = undefined;
-    renderModals();
-    unmountIfIdle();
-  };
-
-  const openShadowHintModal = () => {
-    if (shadowHintOpen || tailwindHintOpen || !deps.getShadowDomEnabled()) return;
-    ensureMounted();
-    shadowHintOpen = true;
-    shadowHintCopied = false;
-    renderModals();
-  };
-
-  const closeTailwindHintModal = () => {
-    if (!tailwindHintOpen) return;
-    tailwindHintOpen = false;
-    tailwindHintCopied = false;
-    window.clearTimeout(tailwindHintCopiedTimer);
-    tailwindHintCopiedTimer = undefined;
-    renderModals();
-    unmountIfIdle();
-  };
-
-  const openTailwindHintModal = () => {
-    if (tailwindHintOpen || shadowHintOpen || !deps.getTailwindEnabled()) return;
-    ensureMounted();
-    tailwindHintOpen = true;
-    tailwindHintCopied = false;
-    renderModals();
   };
 
   const closeMissingMarkersModal = () => {
@@ -506,10 +243,6 @@ export function createModalController(deps: ModalControllerDeps) {
   };
 
   return {
-    openShadowHintModal,
-    closeShadowHintModal,
-    openTailwindHintModal,
-    closeTailwindHintModal,
     handleMissingMarkers,
   };
 }

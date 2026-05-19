@@ -136,20 +136,6 @@ class Rest_Import {
 			$js_mode = Rest_Save::normalize_js_mode( $raw_js_mode );
 		}
 
-		$shadow_dom_enabled = false;
-		if ( array_key_exists( 'shadowDomEnabled', $payload ) ) {
-			if ( ! is_bool( $payload['shadowDomEnabled'] ) ) {
-				return new \WP_REST_Response(
-					array(
-						'ok'    => false,
-						'error' => __( 'Invalid shadowDomEnabled value.', 'kayzart-live-code-editor' ),
-					),
-					400
-				);
-			}
-			$shadow_dom_enabled = $payload['shadowDomEnabled'];
-		}
-
 		$shortcode_enabled = false;
 		if ( array_key_exists( 'shortcodeEnabled', $payload ) ) {
 			if ( ! is_bool( $payload['shortcodeEnabled'] ) ) {
@@ -288,7 +274,7 @@ class Rest_Import {
 		$compiled_css = '';
 		if ( $tailwind_enabled ) {
 			if ( '' !== $generated_css_input ) {
-				$compiled_css = Rest_Save::append_tailwind_shadow_fallbacks( $generated_css_input );
+				$compiled_css = $generated_css_input;
 			} else {
 				try {
 					$compiled_css = tw::generate(
@@ -297,7 +283,6 @@ class Rest_Import {
 							'css'     => $css_input,
 						)
 					);
-					$compiled_css = Rest_Save::append_tailwind_shadow_fallbacks( $compiled_css );
 				} catch ( \Throwable $e ) {
 					return new \WP_REST_Response(
 						array(
@@ -318,7 +303,6 @@ class Rest_Import {
 		update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
 		update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
 		delete_post_meta( $post_id, '_kayzart_js_enabled' );
-		update_post_meta( $post_id, '_kayzart_shadow_dom', $shadow_dom_enabled ? '1' : '0' );
 		update_post_meta( $post_id, '_kayzart_shortcode_enabled', $shortcode_enabled ? '1' : '0' );
 		if ( null !== $single_page_enabled ) {
 			update_post_meta( $post_id, '_kayzart_single_page_enabled', $single_page_enabled ? '1' : '0' );

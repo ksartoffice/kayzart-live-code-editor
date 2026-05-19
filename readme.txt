@@ -21,7 +21,7 @@ Features:
 * Tailwind mode with on-demand Tailwind CSS v4 compilation
 * Import/export JSON projects
 * Per-post template mode control: Default/Standalone/Theme
-* External scripts/styles (https only), live edit highlight, real-time DOM selection, and optional Shadow DOM isolation
+* External scripts/styles (https only), live edit highlight, and real-time DOM selection
 * External embedding (enable in settings): [kayzart post_id="123"]
 * Allowlist for shortcode execution inside external embeds (one shortcode tag per line)
 * Optional single-page disable for external-embed output
@@ -54,7 +54,7 @@ Development repository and build:
 
 == Frequently Asked Questions ==
 = Who can edit KayzArt posts? =
-Users who can edit the post can use the editor. JavaScript, external scripts/styles, shadow DOM, external embedding, and single-page settings require the unfiltered_html capability.
+Users who can edit the post can use the editor. JavaScript, external scripts/styles, external embedding, and single-page settings require the unfiltered_html capability.
 
 = Does KayzArt contact external servers by default? =
 No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.

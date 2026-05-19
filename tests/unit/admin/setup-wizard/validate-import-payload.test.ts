@@ -12,7 +12,6 @@ describe('validateImportPayload', () => {
       jsMode: 'module',
       externalScripts: ['https://example.com/a.js'],
       externalStyles: ['https://example.com/a.css'],
-      shadowDomEnabled: true,
       shortcodeEnabled: false,
       singlePageEnabled: true,
       liveHighlightEnabled: true,

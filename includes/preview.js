@@ -1,8 +1,6 @@
 (function () {
   const styleId = 'kayzart-style';
   const scriptId = 'kayzart-script';
-  const shadowContentId = 'kayzart-shadow-content';
-  const shadowScriptsId = 'kayzart-shadow-scripts';
   const externalScriptAttr = 'data-kayzart-external-script';
   const externalStyleAttr = 'data-kayzart-external-style';
   const KAYZART_ATTR_NAME = 'data-kayzart-id';
@@ -32,9 +30,6 @@
   let externalScriptsReady = Promise.resolve();
   let externalScriptsToken = 0;
   let externalStyles = [];
-  let shadowEnabled = false;
-  let shadowHost = null;
-  let shadowRoot = null;
   let jsRunToken = 0;
   let jsCleanupCallbacks = [];
   let activeModuleUrl = '';
@@ -60,131 +55,16 @@
     }
   }
 
-  function clearShadowHost() {
-    if (shadowHost) {
-      shadowHost.remove();
-    }
-    shadowHost = null;
-    shadowRoot = null;
-  }
-
-  function ensureShadowHost() {
-    if (shadowHost && shadowHost.isConnected) return shadowHost;
-    const markers = findMarkers();
-    if (!markers) return null;
-
-    const range = document.createRange();
-    range.setStartAfter(markers.start);
-    range.setEndBefore(markers.end);
-    range.deleteContents();
-
-    const host = document.createElement('kayzart-output');
-    if (postId) {
-      host.setAttribute('data-post-id', String(postId));
-    }
-    range.insertNode(host);
-    range.detach();
-
-    shadowHost = host;
-    shadowRoot = null;
-    if (host.attachShadow) {
-      try {
-        shadowRoot = host.attachShadow({ mode: 'open' });
-      } catch (e) {
-        shadowRoot = null;
-      }
-    }
-    const root = shadowRoot || host;
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    const contentEl = document.createElement('div');
-    contentEl.id = shadowContentId;
-    const scriptsEl = document.createElement('div');
-    scriptsEl.id = shadowScriptsId;
-    root.appendChild(styleEl);
-    root.appendChild(contentEl);
-    root.appendChild(scriptsEl);
-    return shadowHost;
-  }
-
-  function ensureShadowRoot() {
-    if (shadowRoot && shadowRoot.host && shadowRoot.host.isConnected) {
-      return shadowRoot;
-    }
-    const host = ensureShadowHost();
-    if (host && host.shadowRoot) {
-      shadowRoot = host.shadowRoot;
-    }
-    return shadowRoot;
-  }
-
-  function ensureShadowContent(root) {
-    let content = root.querySelector('#' + shadowContentId);
-    if (!content) {
-      content = document.createElement('div');
-      content.id = shadowContentId;
-      root.appendChild(content);
-    }
-    return content;
-  }
-
-  function ensureShadowScripts(root) {
-    let scripts = root.querySelector('#' + shadowScriptsId);
-    if (!scripts) {
-      scripts = document.createElement('div');
-      scripts.id = shadowScriptsId;
-      root.appendChild(scripts);
-    }
-    return scripts;
-  }
-
   function getStyleRoot() {
-    if (!shadowEnabled) {
-      return document.head || document.body;
-    }
-    const root = ensureShadowRoot();
-    return root || null;
+    return document.head || document.body;
   }
 
   function getScriptHost() {
-    if (!shadowEnabled) {
-      return document.head || document.body;
-    }
-    const root = ensureShadowRoot();
-    if (!root) return document.head || document.body;
-    return ensureShadowScripts(root);
+    return document.head || document.body;
   }
 
   function getInlineScriptHost() {
-    if (!shadowEnabled) {
-      return document.body || document.head;
-    }
-    const root = ensureShadowRoot();
-    if (root && root.host) {
-      return root.host;
-    }
     return document.body || document.head;
-  }
-
-  function setShadowDomEnabled(enabled) {
-    const next = Boolean(enabled);
-    if (shadowEnabled === next) return;
-    stopJsRuntime();
-    shadowEnabled = next;
-    removeStyleElement();
-    clearExternalScripts();
-    clearExternalStyles();
-    if (!shadowEnabled) {
-      clearShadowHost();
-    } else {
-      ensureShadowHost();
-    }
-    if (externalScripts.length) {
-      externalScriptsReady = loadExternalScripts(externalScripts);
-    }
-    if (externalStyles.length) {
-      loadExternalStyles(externalStyles);
-    }
   }
 
   function setDomSelectorEnabled(enabled) {
@@ -516,31 +396,17 @@
   }
 
   function removeScriptElement() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
+    const scriptEl = document.querySelector('#' + scriptId);
+    if (scriptEl) {
+      scriptEl.remove();
     }
-    roots.push(document);
-    roots.forEach((root) => {
-      const scriptEl = root.querySelector('#' + scriptId);
-      if (scriptEl) {
-        scriptEl.remove();
-      }
-    });
   }
 
   function removeStyleElement() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
+    const styleEl = document.querySelector('#' + styleId);
+    if (styleEl) {
+      styleEl.remove();
     }
-    roots.push(document);
-    roots.forEach((root) => {
-      const styleEl = root.querySelector('#' + styleId);
-      if (styleEl) {
-        styleEl.remove();
-      }
-    });
   }
 
   function normalizeJsMode(mode) {
@@ -554,24 +420,11 @@
     return 'classic';
   }
 
-  function getRuntimeHost() {
-    if (shadowEnabled) {
-      const host = ensureShadowHost();
-      if (host) {
-        return host;
-      }
-    }
-    const existing = document.querySelector('kayzart-output');
-    return existing instanceof HTMLElement ? existing : null;
-  }
-
   function buildModuleRuntimeContext() {
-    const host = getRuntimeHost();
-    const root = shadowEnabled ? ensureShadowRoot() || document : document;
     return {
-      root: root,
+      root: document,
       document: document,
-      host: host,
+      host: null,
       onCleanup: (fn) => {
         if (typeof fn === 'function') {
           jsCleanupCallbacks.push(fn);
@@ -742,27 +595,13 @@
   }
 
   function clearExternalScripts() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
-    }
-    roots.push(document);
-    roots.forEach((root) => {
-      const nodes = root.querySelectorAll('script[' + externalScriptAttr + ']');
-      nodes.forEach((node) => node.remove());
-    });
+    const nodes = document.querySelectorAll('script[' + externalScriptAttr + ']');
+    nodes.forEach((node) => node.remove());
   }
 
   function clearExternalStyles() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
-    }
-    roots.push(document);
-    roots.forEach((root) => {
-      const nodes = root.querySelectorAll('link[' + externalStyleAttr + ']');
-      nodes.forEach((node) => node.remove());
-    });
+    const nodes = document.querySelectorAll('link[' + externalStyleAttr + ']');
+    nodes.forEach((node) => node.remove());
   }
 
   function loadExternalScripts(list) {
@@ -917,27 +756,12 @@
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
-    hydrateDeclarativeShadowDom(wrapper);
     const frag = document.createDocumentFragment();
     while (wrapper.firstChild) {
       frag.appendChild(wrapper.firstChild);
     }
     range.insertNode(frag);
     range.detach();
-  }
-
-  function renderShadow(html, css) {
-    const root = ensureShadowRoot();
-    if (!root) return;
-    const content = ensureShadowContent(root);
-    content.innerHTML = html || '';
-    hydrateDeclarativeShadowDom(content);
-    const styleEl = ensureStyleElement();
-    if (styleEl) {
-      styleEl.textContent = css || '';
-    }
-    clearHighlight();
-    clearSelection();
   }
 
   function clearMarkerRetryTimer() {
@@ -985,12 +809,6 @@
     pendingRenderPayload = null;
     clearMarkerRetryTimer();
 
-    if (shadowEnabled) {
-      renderShadow(html, css);
-      reply('KAYZART_RENDERED');
-      return;
-    }
-    clearShadowHost();
     replaceEditableContent(html);
     clearHighlight();
     clearSelection();
@@ -999,26 +817,6 @@
       styleEl.textContent = css || '';
     }
     reply('KAYZART_RENDERED');
-  }
-
-  function hydrateDeclarativeShadowDom(root) {
-    if (!root || typeof root.querySelectorAll !== 'function') return;
-    const templates = root.querySelectorAll('template[shadowrootmode]');
-    templates.forEach((tpl) => {
-      const host = tpl.parentElement;
-      if (!host) return;
-      if (host.hasAttribute('data-kayzart-shadow-hydrated')) return;
-      const modeAttr = tpl.getAttribute('shadowrootmode');
-      const mode = modeAttr === 'closed' ? 'closed' : 'open';
-      try {
-        const shadow = host.attachShadow({ mode: mode });
-        shadow.appendChild(tpl.content.cloneNode(true));
-        host.setAttribute('data-kayzart-shadow-hydrated', '1');
-        tpl.remove();
-      } catch (e) {
-        // noop
-      }
-    });
   }
 
   function setCssText(css) {
@@ -1058,7 +856,6 @@
     }
     if (data.type === 'KAYZART_RENDER') {
       if (!isReady) return;
-      setShadowDomEnabled(Boolean(data.shadowDomEnabled));
       if ('liveHighlightEnabled' in data) {
         setDomSelectorEnabled(Boolean(data.liveHighlightEnabled));
       }

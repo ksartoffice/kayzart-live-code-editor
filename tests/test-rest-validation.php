@@ -128,7 +128,7 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status(), 'generatedCss must be string when provided.' );
 	}
 
-	public function test_import_rejects_invalid_shadow_dom_enabled_type(): void {
+	public function test_import_ignores_legacy_shadow_dom_enabled_value(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -143,7 +143,7 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 400, $response->get_status(), 'shadowDomEnabled must be boolean.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy shadowDomEnabled should be ignored.' );
 	}
 
 	public function test_import_rejects_invalid_shortcode_enabled_type(): void {

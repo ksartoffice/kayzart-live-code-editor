@@ -308,7 +308,6 @@ async function main() {
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
-  let shadowDomEnabled = Boolean(initialState.settingsData?.shadowDomEnabled);
   let shortcodeEnabled = Boolean(initialState.settingsData?.shortcodeEnabled);
   let singlePageEnabled = initialState.settingsData?.singlePageEnabled ?? true;
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
@@ -412,7 +411,6 @@ async function main() {
     postStatus = nextSettings.status || postStatus;
     postTitle = nextSettings.title || postTitle;
     postSlug = nextSettings.slug || postSlug;
-    shadowDomEnabled = Boolean(nextSettings.shadowDomEnabled);
     shortcodeEnabled = Boolean(nextSettings.shortcodeEnabled);
     singlePageEnabled = nextSettings.singlePageEnabled ?? singlePageEnabled;
     liveHighlightEnabled = nextSettings.liveHighlightEnabled ?? liveHighlightEnabled;
@@ -431,7 +429,6 @@ async function main() {
       defaultTemplateMode = nextDefaultTemplateMode;
     }
     templateMode = nextTemplateMode;
-    setShadowDomEnabled(shadowDomEnabled);
     setLiveHighlightEnabled(liveHighlightEnabled);
     toolbarApi?.update({ viewPostUrl, postStatus, postTitle, postSlug });
     syncDocumentTitle(postTitle);
@@ -457,7 +454,6 @@ async function main() {
     getTailwindCss: () => tailwindCss,
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
-    getShadowDomEnabled: () => shadowDomEnabled,
     getShortcodeEnabled: () => shortcodeEnabled,
     getSinglePageEnabled: () => singlePageEnabled,
     getLiveHighlightEnabled: () => liveHighlightEnabled,
@@ -622,9 +618,6 @@ async function main() {
     apiFetch: wp.apiFetch,
     settingsRestUrl: cfg.settingsRestUrl,
     postId,
-    getShadowDomEnabled: () => shadowDomEnabled,
-    getJsMode: () => jsMode,
-    getTailwindEnabled: () => tailwindEnabled,
     isThemeTemplateModeActive,
     getDefaultTemplateMode: () => defaultTemplateMode,
     setTemplateModes: (nextTemplateMode, nextDefaultTemplateMode) => {
@@ -974,10 +967,6 @@ async function main() {
     toolbarApi?.update({ canUndo, canRedo });
   };
 
-  const openShadowHintModal = () => modalController?.openShadowHintModal();
-  const closeShadowHintModal = () => modalController?.closeShadowHintModal();
-  const openTailwindHintModal = () => modalController?.openTailwindHintModal();
-  const closeTailwindHintModal = () => modalController?.closeTailwindHintModal();
   const handleMissingMarkers = () => modalController?.handleMissingMarkers();
 
   editorUiController = createEditorUiController({
@@ -989,8 +978,6 @@ async function main() {
     compactEditorBreakpoint: COMPACT_EDITOR_BREAKPOINT,
     getViewportWidth: () => Math.round(window.visualViewport?.width ?? window.innerWidth),
     getJsEnabled: () => jsEnabled,
-    getShadowDomEnabled: () => shadowDomEnabled,
-    getTailwindEnabled: () => tailwindEnabled,
     onActiveEditorChange: () => {
       updateUndoRedoState();
     },
@@ -1000,8 +987,6 @@ async function main() {
     },
     onOpenMedia: openMediaModal,
     onRunJs: () => preview?.requestRunJs(),
-    onOpenShadowHint: openShadowHintModal,
-    onOpenTailwindHint: openTailwindHintModal,
   });
   editorUiController.initialize();
 
@@ -1022,7 +1007,6 @@ async function main() {
     cssEditor,
     focusHtmlEditor,
     getPreviewCss,
-    getShadowDomEnabled: () => shadowDomEnabled,
     getLiveHighlightEnabled: () => liveHighlightEnabled,
     getJsEnabled: () => jsEnabled,
     getJsMode: () => jsMode,
@@ -1124,22 +1108,6 @@ async function main() {
     setJsMode(normalizeJsMode(target.value));
   });
 
-  const setShadowDomEnabled = (enabled: boolean) => {
-    shadowDomEnabled = enabled;
-    editorUiController?.syncShadowDomState();
-    if (!shadowDomEnabled) {
-      closeShadowHintModal();
-    }
-    preview?.sendExternalScripts(jsEnabled ? externalScripts : []);
-    preview?.sendExternalStyles(externalStyles);
-    if (!jsEnabled) {
-      preview?.sendRender();
-      preview?.requestDisableJs();
-      return;
-    }
-    preview?.requestRunJs();
-  };
-
   const setLiveHighlightEnabled = (enabled: boolean) => {
     liveHighlightEnabled = enabled;
     preview?.sendLiveHighlightUpdate(enabled);
@@ -1150,9 +1118,6 @@ async function main() {
     ui.app.classList.toggle('is-tailwind', enabled);
     editorUiController?.syncTailwindState();
     toolbarApi?.update({ tailwindEnabled: enabled });
-    if (!enabled) {
-      closeTailwindHintModal();
-    }
     if (enabled) {
       preview?.sendRender();
       tailwindCompiler?.compile();
@@ -1364,7 +1329,6 @@ async function main() {
         ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
       }
     },
-    onShadowDomToggle: setShadowDomEnabled,
     onShortcodeToggle: (enabled) => {
       shortcodeEnabled = enabled;
     },

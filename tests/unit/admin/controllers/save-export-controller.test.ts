@@ -38,7 +38,6 @@ describe('save export controller', () => {
       getTailwindCss: () => '',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
-      getShadowDomEnabled: () => false,
       getShortcodeEnabled: () => false,
       getSinglePageEnabled: () => true,
       getLiveHighlightEnabled: () => true,

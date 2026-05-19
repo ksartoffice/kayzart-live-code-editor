@@ -186,7 +186,7 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save jsMode.' );
 	}
 
-	public function test_rest_save_requires_unfiltered_html_for_js_related_settings_updates(): void {
+	public function test_rest_save_ignores_legacy_shadow_setting_without_extra_permission(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id   = $this->create_kayzart_post( $author_id );
@@ -203,11 +203,11 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 
 		wp_set_current_user( $author_id );
 		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
-		$this->assertSame( 403, $response->get_status(), 'Saving JS-related settings should require unfiltered_html.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy shadowDomEnabled should be ignored.' );
 
 		wp_set_current_user( $admin_id );
 		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
-		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save JS-related settings.' );
+		$this->assertSame( 200, $response->get_status(), 'Admins should also ignore legacy shadowDomEnabled.' );
 	}
 
 	public function test_rest_settings_requires_unfiltered_html_for_js_related_updates(): void {
@@ -216,7 +216,6 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$post_id   = $this->create_kayzart_post( $author_id );
 
 		$updates = array(
-			'shadowDomEnabled'  => true,
 			'shortcodeEnabled'  => true,
 			'externalScripts'   => array( 'https://example.com/app.js' ),
 			'externalStyles'    => array( 'https://example.com/app.css' ),

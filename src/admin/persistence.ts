@@ -182,7 +182,6 @@ type ExportParams = {
   jsMode: JsMode;
   externalScripts: string[];
   externalStyles: string[];
-  shadowDomEnabled: boolean;
   shortcodeEnabled: boolean;
   singlePageEnabled: boolean;
   liveHighlightEnabled: boolean;
@@ -224,7 +223,6 @@ export async function exportKayzArt(
       jsMode: params.jsMode,
       externalScripts: [...params.externalScripts],
       externalStyles: [...params.externalStyles],
-      shadowDomEnabled: params.shadowDomEnabled,
       shortcodeEnabled: params.shortcodeEnabled,
       singlePageEnabled: params.singlePageEnabled,
       liveHighlightEnabled: params.liveHighlightEnabled,

@@ -68,7 +68,6 @@ class Rest_Settings {
 			'viewUrl'              => $single_page_enabled ? (string) get_permalink( $post_id ) : '',
 			'templateMode'         => $template_mode,
 			'defaultTemplateMode'  => $default_template_mode,
-			'shadowDomEnabled'     => '1' === get_post_meta( $post_id, '_kayzart_shadow_dom', true ),
 			'shortcodeEnabled'     => '1' === get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ),
 			'singlePageEnabled'    => $single_page_enabled,
 			'liveHighlightEnabled' => $live_highlight_enabled,
@@ -180,18 +179,6 @@ class Rest_Settings {
 					array( 'status' => 403 )
 				);
 			}
-		}
-
-		if ( array_key_exists( 'shadowDomEnabled', $updates ) ) {
-			if ( ! current_user_can( 'unfiltered_html' ) ) {
-				return new \WP_Error(
-					'kayzart_permission_denied',
-					__( 'Permission denied.', 'kayzart-live-code-editor' ),
-					array( 'status' => 403 )
-				);
-			}
-			$shadow_dom_enabled                              = rest_sanitize_boolean( $updates['shadowDomEnabled'] );
-			$prepared['meta_updates']['_kayzart_shadow_dom'] = $shadow_dom_enabled ? '1' : '0';
 		}
 
 		if ( array_key_exists( 'templateMode', $updates ) ) {

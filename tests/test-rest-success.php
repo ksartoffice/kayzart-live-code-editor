@@ -9,7 +9,6 @@ use KayzArt\External_Scripts;
 use KayzArt\External_Styles;
 use KayzArt\Admin;
 use KayzArt\Post_Type;
-use KayzArt\Rest_Save;
 use KayzArt\Rest_Settings;
 
 class Test_Rest_Success extends WP_UnitTestCase {
@@ -20,7 +19,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		'viewUrl',
 		'templateMode',
 		'defaultTemplateMode',
-		'shadowDomEnabled',
 		'shortcodeEnabled',
 		'singlePageEnabled',
 		'liveHighlightEnabled',
@@ -168,7 +166,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assert_settings_payload_keys( $data['settings'] );
 
 		$this->assertSame( 'default', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
@@ -181,7 +179,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			External_Styles::get_external_styles( $post_id )
 		);
 
-		$this->assertSame( true, $data['settings']['shadowDomEnabled'] ?? null );
+		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
 		$this->assertSame( 'default', $data['settings']['templateMode'] ?? null );
 		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
 		$this->assertSame(
@@ -230,7 +228,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 'pending', (string) $post->post_status );
 		$this->assertSame( '', (string) $post->post_password );
 
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
@@ -244,7 +242,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			External_Styles::get_external_styles( $post_id )
 		);
 
-		$this->assertSame( true, $data['settings']['shadowDomEnabled'] ?? null );
+		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
 		$this->assertSame( true, $data['settings']['shortcodeEnabled'] ?? null );
 		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
 		$this->assertSame( false, $data['settings']['liveHighlightEnabled'] ?? null );
@@ -398,21 +396,13 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$generated_css = (string) get_post_meta( $post_id, '_kayzart_generated_css', true );
 		$this->assertNotSame( '', $generated_css, 'Generated CSS should not be empty.' );
 		$this->assertStringContainsString( '.text-sm', $generated_css, 'Generated CSS should include the expected utility.' );
-		$this->assertStringContainsString( '@layer base {', $generated_css );
-		$this->assertStringContainsString( ':host,', $generated_css );
-		$this->assertStringContainsString( ':host ::backdrop{', $generated_css );
-		$this->assertStringContainsString( '--tw-border-style: solid;', $generated_css );
-		$this->assertStringContainsString( '--tw-gradient-position: initial;', $generated_css );
-		$this->assertStringContainsString( '--tw-gradient-from-position: 0%;', $generated_css );
-		$this->assertStringContainsString( '--tw-shadow-color: initial;', $generated_css );
-		$this->assertStringContainsString( '--tw-ring-offset-color: #fff;', $generated_css );
-		$this->assertStringContainsString( '--radius: 0.25rem;', $generated_css );
+		$this->assertStringNotContainsString( ':host', $generated_css );
 
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
 	}
 
-	public function test_compile_tailwind_response_includes_shadow_fallbacks(): void {
+	public function test_compile_tailwind_response_does_not_include_shadow_fallbacks(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -430,34 +420,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should succeed for admins.' );
 		$data = $response->get_data();
 		$this->assertSame( true, $data['ok'] ?? false );
-		$this->assertStringContainsString( ':host,', (string) ( $data['css'] ?? '' ) );
-		$this->assertStringContainsString( ':host ::backdrop{', (string) ( $data['css'] ?? '' ) );
-		$this->assertStringContainsString(
-			'--tw-gradient-from-position: 0%;',
-			(string) ( $data['css'] ?? '' )
-		);
-		$this->assertStringContainsString(
-			'--tw-ring-offset-color: #fff;',
-			(string) ( $data['css'] ?? '' )
-		);
-		$this->assertStringContainsString( '--radius: 0.25rem;', (string) ( $data['css'] ?? '' ) );
-	}
-
-	public function test_append_tailwind_shadow_fallbacks_is_idempotent(): void {
-		$base_css = '.text-sm{font-size:.875rem;}';
-		$once     = Rest_Save::append_tailwind_shadow_fallbacks( $base_css );
-		$twice    = Rest_Save::append_tailwind_shadow_fallbacks( $once );
-
-		$this->assertSame(
-			1,
-			substr_count( $twice, '@layer base {' ),
-			'Fallback block should be injected only once.'
-		);
-		$this->assertSame(
-			1,
-			substr_count( $twice, '--tw-gradient-from-position: 0%;' ),
-			'Fallback declarations should not be duplicated.'
-		);
+		$this->assertStringNotContainsString( ':host', (string) ( $data['css'] ?? '' ) );
 	}
 
 	private function create_kayzart_post( int $author_id ): int {

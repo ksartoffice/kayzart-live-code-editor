@@ -50,7 +50,6 @@ type PreviewControllerDeps = {
   cssEditor: CodeEditorInstance;
   focusHtmlEditor: () => void;
   getPreviewCss: () => string;
-  getShadowDomEnabled: () => boolean;
   getLiveHighlightEnabled: () => boolean;
   getJsEnabled: () => boolean;
   getJsMode: () => JsMode;
@@ -247,7 +246,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     const payload = {
       type: 'KAYZART_RENDER',
       cssText: deps.getPreviewCss(),
-      shadowDomEnabled: deps.getShadowDomEnabled(),
       liveHighlightEnabled: deps.getLiveHighlightEnabled(),
     };
     if (!previewReady) {

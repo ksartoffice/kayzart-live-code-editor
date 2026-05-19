@@ -29,7 +29,6 @@ type SaveExportControllerDeps = {
   getTailwindCss: () => string;
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
-  getShadowDomEnabled: () => boolean;
   getShortcodeEnabled: () => boolean;
   getSinglePageEnabled: () => boolean;
   getLiveHighlightEnabled: () => boolean;
@@ -160,7 +159,6 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
       jsMode: deps.getJsMode(),
       externalScripts: deps.getExternalScripts(),
       externalStyles: deps.getExternalStyles(),
-      shadowDomEnabled: deps.getShadowDomEnabled(),
       shortcodeEnabled: deps.getShortcodeEnabled(),
       singlePageEnabled: deps.getSinglePageEnabled(),
       liveHighlightEnabled: deps.getLiveHighlightEnabled(),

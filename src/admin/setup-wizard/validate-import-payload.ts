@@ -49,10 +49,6 @@ export function validateImportPayload(raw: unknown): ValidationResult {
     }
   }
 
-  if (payload.shadowDomEnabled !== undefined && typeof payload.shadowDomEnabled !== 'boolean') {
-    return { error: __('Invalid shadowDomEnabled value.', 'kayzart-live-code-editor') };
-  }
-
   if (payload.shortcodeEnabled !== undefined && typeof payload.shortcodeEnabled !== 'boolean') {
     return { error: __('Invalid shortcodeEnabled value.', 'kayzart-live-code-editor') };
   }
@@ -84,7 +80,6 @@ export function validateImportPayload(raw: unknown): ValidationResult {
       jsMode: normalizeJsMode(payload.jsMode),
       externalScripts: payload.externalScripts ?? [],
       externalStyles: payload.externalStyles ?? [],
-      shadowDomEnabled: payload.shadowDomEnabled ?? false,
       shortcodeEnabled: payload.shortcodeEnabled ?? false,
       singlePageEnabled: payload.singlePageEnabled ?? true,
       liveHighlightEnabled: payload.liveHighlightEnabled as boolean | undefined,

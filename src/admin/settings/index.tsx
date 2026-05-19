@@ -28,7 +28,6 @@ export type SettingsData = {
   viewUrl?: string;
   templateMode?: 'default' | 'standalone' | 'theme';
   defaultTemplateMode?: 'standalone' | 'theme';
-  shadowDomEnabled: boolean;
   shortcodeEnabled: boolean;
   singlePageEnabled: boolean;
   liveHighlightEnabled: boolean;
@@ -51,7 +50,6 @@ type SettingsConfig = {
   data: SettingsData;
   postId: number;
   onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
-  onShadowDomToggle?: (enabled: boolean) => void;
   onShortcodeToggle?: (enabled: boolean) => void;
   onSinglePageToggle?: (enabled: boolean) => void;
   onLiveHighlightToggle?: (enabled: boolean) => void;
@@ -99,7 +97,6 @@ function SettingsSidebar({
   postId,
   header,
   onTemplateModeChange,
-  onShadowDomToggle,
   onShortcodeToggle,
   onSinglePageToggle,
   onLiveHighlightToggle,
@@ -127,7 +124,6 @@ function SettingsSidebar({
   const [defaultTemplateMode, setDefaultTemplateMode] = useState(
     resolveDefaultTemplateMode(data.defaultTemplateMode)
   );
-  const [shadowDomEnabled, setShadowDomEnabled] = useState(Boolean(data.shadowDomEnabled));
   const [shortcodeEnabled, setShortcodeEnabled] = useState(Boolean(data.shortcodeEnabled));
   const [singlePageEnabled, setSinglePageEnabled] = useState(
     resolveSinglePageEnabled(data.singlePageEnabled)
@@ -146,7 +142,6 @@ function SettingsSidebar({
   const applySettingsSnapshot = (nextSettings: SettingsData) => {
     settingsRef.current = nextSettings;
     setSettings(nextSettings);
-    setShadowDomEnabled(Boolean(nextSettings.shadowDomEnabled));
     setTemplateMode(resolveTemplateMode(nextSettings.templateMode));
     setDefaultTemplateMode(resolveDefaultTemplateMode(nextSettings.defaultTemplateMode));
     setShortcodeEnabled(Boolean(nextSettings.shortcodeEnabled));
@@ -255,10 +250,6 @@ function SettingsSidebar({
   }, [templateMode, onTemplateModeChange]);
 
   useEffect(() => {
-    onShadowDomToggle?.(shadowDomEnabled);
-  }, [shadowDomEnabled, onShadowDomToggle]);
-
-  useEffect(() => {
     onShortcodeToggle?.(shortcodeEnabled);
   }, [shortcodeEnabled, onShortcodeToggle]);
 
@@ -308,14 +299,6 @@ function SettingsSidebar({
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
-  };
-
-  const handleShadowDomToggle = (enabled: boolean) => {
-    if (!canEditJs) {
-      return;
-    }
-    setDesignError('');
-    setShadowDomEnabled(enabled);
   };
 
   const handleTemplateModeChange = (next: 'default' | 'standalone' | 'theme') => {
@@ -382,7 +365,6 @@ function SettingsSidebar({
   const pendingSettingsState = useMemo<PendingSettingsState>(() => {
     const updates: Record<string, unknown> = {};
     const savedTemplateMode = resolveTemplateMode(settings.templateMode);
-    const savedShadowDomEnabled = Boolean(settings.shadowDomEnabled);
     const savedShortcodeEnabled = Boolean(settings.shortcodeEnabled);
     const savedSinglePageEnabled = resolveSinglePageEnabled(settings.singlePageEnabled);
     const savedLiveHighlightEnabled = resolveLiveHighlightEnabled(settings.liveHighlightEnabled);
@@ -392,7 +374,6 @@ function SettingsSidebar({
     const normalizedSavedExternalStyles = normalizeList(settings.externalStyles || []);
 
     const templateModeChanged = templateMode !== savedTemplateMode;
-    const shadowDomChanged = canEditJs && shadowDomEnabled !== savedShadowDomEnabled;
     const shortcodeChanged = canEditJs && shortcodeEnabled !== savedShortcodeEnabled;
     const singlePageChanged = canEditJs && singlePageEnabled !== savedSinglePageEnabled;
     const liveHighlightChanged = liveHighlightEnabled !== savedLiveHighlightEnabled;
@@ -403,9 +384,6 @@ function SettingsSidebar({
 
     if (templateModeChanged) {
       updates.templateMode = templateMode;
-    }
-    if (shadowDomChanged) {
-      updates.shadowDomEnabled = shadowDomEnabled;
     }
     if (shortcodeChanged) {
       updates.shortcodeEnabled = shortcodeEnabled;
@@ -427,7 +405,6 @@ function SettingsSidebar({
       updates,
       hasUnsavedSettings:
         templateModeChanged ||
-        shadowDomChanged ||
         shortcodeChanged ||
         singlePageChanged ||
         liveHighlightChanged ||
@@ -448,10 +425,8 @@ function SettingsSidebar({
     settings.externalStyles,
     settings.templateMode,
     settings.liveHighlightEnabled,
-    settings.shadowDomEnabled,
     settings.shortcodeEnabled,
     settings.singlePageEnabled,
-    shadowDomEnabled,
     shortcodeEnabled,
     singlePageEnabled,
   ]);
@@ -507,8 +482,6 @@ function SettingsSidebar({
           templateMode={templateMode}
           defaultTemplateMode={defaultTemplateMode}
           onChangeTemplateMode={handleTemplateModeChange}
-          shadowDomEnabled={shadowDomEnabled}
-          onToggleShadowDom={handleShadowDomToggle}
           shortcodeEnabled={shortcodeEnabled}
           onToggleShortcode={handleShortcodeToggle}
           singlePageEnabled={singlePageEnabled}

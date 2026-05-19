@@ -12,15 +12,15 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertTrue( post_type_exists( Post_Type::POST_TYPE ) );
 	}
 
-	public function test_post_type_uses_lp_admin_labels() {
+	public function test_post_type_uses_legacy_admin_labels_and_disables_creation() {
 		$post_type = get_post_type_object( Post_Type::POST_TYPE );
 
 		$this->assertNotNull( $post_type );
-		$this->assertSame( __( 'KayzArt LP', 'kayzart-live-code-editor' ), $post_type->label );
-		$this->assertSame( __( 'KayzArt LP', 'kayzart-live-code-editor' ), $post_type->labels->name );
-		$this->assertSame( __( 'KayzArt LP', 'kayzart-live-code-editor' ), $post_type->labels->singular_name );
-		$this->assertSame( __( 'LP list', 'kayzart-live-code-editor' ), $post_type->labels->all_items );
-		$this->assertSame( __( 'Create New LP', 'kayzart-live-code-editor' ), $post_type->labels->add_new_item );
+		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->label );
+		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->labels->name );
+		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->labels->singular_name );
+		$this->assertSame( __( '旧KayzArt一覧', 'kayzart-live-code-editor' ), $post_type->labels->all_items );
+		$this->assertSame( 'do_not_allow', $post_type->cap->create_posts );
 	}
 
 	public function test_is_kayzart_post_accepts_marked_pages_only(): void {

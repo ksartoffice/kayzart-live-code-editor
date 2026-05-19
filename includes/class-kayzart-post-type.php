@@ -52,10 +52,10 @@ class Post_Type {
 	public static function register(): void {
 		$slug   = self::get_slug();
 		$labels = array(
-			'name'               => _x( 'KayzArt LP', 'post type general name', 'kayzart-live-code-editor' ),
-			'singular_name'      => _x( 'KayzArt LP', 'post type singular name', 'kayzart-live-code-editor' ),
-			'add_new'            => _x( 'Create New', 'kayzart', 'kayzart-live-code-editor' ),
-			'add_new_item'       => __( 'Create New LP', 'kayzart-live-code-editor' ),
+			'name'               => _x( '旧KayzArt', 'post type general name', 'kayzart-live-code-editor' ),
+			'singular_name'      => _x( '旧KayzArt', 'post type singular name', 'kayzart-live-code-editor' ),
+			'add_new'            => _x( 'Add New', 'kayzart', 'kayzart-live-code-editor' ),
+			'add_new_item'       => __( 'Add New', 'kayzart-live-code-editor' ),
 			'edit_item'          => __( 'Edit KayzArt', 'kayzart-live-code-editor' ),
 			'new_item'           => __( 'New KayzArt', 'kayzart-live-code-editor' ),
 			'view_item'          => __( 'View on front end', 'kayzart-live-code-editor' ),
@@ -63,20 +63,20 @@ class Post_Type {
 			'search_items'       => __( 'Search KayzArt', 'kayzart-live-code-editor' ),
 			'not_found'          => __( 'No KayzArt found', 'kayzart-live-code-editor' ),
 			'not_found_in_trash' => __( 'No KayzArt found in Trash', 'kayzart-live-code-editor' ),
-			'all_items'          => __( 'LP list', 'kayzart-live-code-editor' ),
+			'all_items'          => __( '旧KayzArt一覧', 'kayzart-live-code-editor' ),
 			'archives'           => __( 'KayzArt Archives', 'kayzart-live-code-editor' ),
 		);
 
 		$args = array(
-			'label'               => __( 'KayzArt LP', 'kayzart-live-code-editor' ),
+			'label'               => __( '旧KayzArt', 'kayzart-live-code-editor' ),
 			'labels'              => $labels,
 			'public'              => true,
 			'exclude_from_search' => false,
 			'publicly_queryable'  => true,
 			'show_ui'             => true,
-			'show_in_menu'        => true,
+			'show_in_menu'        => self::has_legacy_posts(),
 			'show_in_nav_menus'   => true,
-			'show_in_admin_bar'   => true,
+			'show_in_admin_bar'   => false,
 			'has_archive'         => true,
 			'rewrite'             => array(
 				'slug'       => $slug,
@@ -84,6 +84,10 @@ class Post_Type {
 			),
 			'supports'            => array( 'title', 'editor', 'author', 'thumbnail' ),
 			'show_in_rest'        => true,
+			'capabilities'        => array(
+				'create_posts' => 'do_not_allow',
+			),
+			'map_meta_cap'        => true,
 			'menu_position'       => 21,
 			'menu_icon'           => 'dashicons-editor-code',
 		);
@@ -101,6 +105,25 @@ class Post_Type {
 		$slug  = sanitize_title( (string) $value );
 
 		return '' !== $slug ? $slug : self::SLUG;
+	}
+
+	/**
+	 * Check whether legacy KayzArt CPT posts exist.
+	 *
+	 * @return bool
+	 */
+	public static function has_legacy_posts(): bool {
+		global $wpdb;
+
+		$post_id = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type = %s AND post_status <> %s LIMIT 1",
+				self::POST_TYPE,
+				'auto-draft'
+			)
+		);
+
+		return (int) $post_id > 0;
 	}
 
 	/**

@@ -47,6 +47,7 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'admin_title', array( __CLASS__, 'filter_admin_title' ), 10, 2 );
 		add_action( 'current_screen', array( __CLASS__, 'maybe_suppress_editor_notices' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'render_legacy_cpt_notice' ) );
 		add_action( 'admin_action_kayzart', array( __CLASS__, 'action_redirect' ) ); // admin.php?action=kayzart.
 		add_action( 'admin_action_' . self::NEW_POST_ACTION, array( __CLASS__, 'action_create_new_post' ) );
 		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
@@ -235,16 +236,7 @@ class Admin {
 			return;
 		}
 
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-
-		$post_type_object = get_post_type_object( $post_type );
-		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-		wp_safe_redirect( self::get_new_post_action_url() );
+		wp_safe_redirect( self::get_new_page_action_url() );
 		exit;
 	}
 
@@ -266,34 +258,10 @@ class Admin {
 	}
 
 	/**
-	 * Create a new KayzArt draft post from a nonce-protected admin action.
+	 * Redirect legacy KayzArt CPT creation requests to the page-based LP flow.
 	 */
 	public static function action_create_new_post(): void {
-
-		$post_type = Post_Type::POST_TYPE;
-
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-
-		$post_type_object = get_post_type_object( $post_type );
-		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-		$post_id = wp_insert_post(
-			array(
-				'post_type'   => $post_type,
-				'post_status' => 'draft',
-				'post_title'  => __( 'Untitled KayzArt Page', 'kayzart-live-code-editor' ),
-			),
-			true
-		);
-		if ( is_wp_error( $post_id ) ) {
-			wp_die( esc_html( $post_id->get_error_message() ) );
-		}
-
-		wp_safe_redirect( Post_Type::get_editor_url( (int) $post_id ) );
+		wp_safe_redirect( self::get_new_page_action_url() );
 		exit;
 	}
 
@@ -379,7 +347,7 @@ class Admin {
 			return $url;
 		}
 
-		return self::get_new_post_action_url();
+		return self::get_new_page_action_url();
 	}
 
 	/**
@@ -393,8 +361,7 @@ class Admin {
 			return;
 		}
 
-		$node->href = self::get_new_post_action_url();
-		$admin_bar->add_node( $node );
+		$admin_bar->remove_node( 'new-' . Post_Type::POST_TYPE );
 	}
 
 	/**
@@ -431,38 +398,44 @@ class Admin {
 	}
 
 	/**
-	 * Replace the default KayzArt "Add New" submenu URL with the nonce-protected action URL.
+	 * Build the LP settings page URL.
+	 *
+	 * @param string $tab Optional tab ID.
+	 * @return string
+	 */
+	public static function get_settings_url( string $tab = '' ): string {
+		$args = array(
+			'page' => self::SETTINGS_SLUG,
+		);
+		if ( '' !== $tab ) {
+			$args['tab'] = sanitize_key( $tab );
+		}
+
+		return add_query_arg( $args, admin_url( 'options-general.php' ) );
+	}
+
+	/**
+	 * Remove legacy KayzArt CPT creation/settings submenu entries.
 	 */
 	public static function override_new_submenu_link(): void {
 		$parent_slug = 'edit.php?post_type=' . Post_Type::POST_TYPE;
-		$post_type   = get_post_type_object( Post_Type::POST_TYPE );
-		if ( ! $post_type || empty( $post_type->cap->create_posts ) ) {
+
+		remove_submenu_page( $parent_slug, 'post-new.php?post_type=' . Post_Type::POST_TYPE );
+		remove_submenu_page( $parent_slug, self::SETTINGS_SLUG );
+	}
+
+	/**
+	 * Display a migration notice on the legacy KayzArt CPT list screen.
+	 */
+	public static function render_legacy_cpt_notice(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen instanceof \WP_Screen || 'edit-' . Post_Type::POST_TYPE !== $screen->id ) {
 			return;
 		}
 
-		remove_submenu_page( $parent_slug, 'post-new.php?post_type=' . Post_Type::POST_TYPE );
-		add_submenu_page(
-			$parent_slug,
-			(string) $post_type->labels->add_new_item,
-			(string) $post_type->labels->add_new_item,
-			(string) $post_type->cap->create_posts,
-			self::get_new_post_action_url(),
-			'',
-			10
-		);
-
-		$settings_item = remove_submenu_page( $parent_slug, self::SETTINGS_SLUG );
-		if ( false !== $settings_item ) {
-			add_submenu_page(
-				$parent_slug,
-				__( 'Settings', 'kayzart-live-code-editor' ),
-				__( 'Settings', 'kayzart-live-code-editor' ),
-				'manage_options',
-				self::SETTINGS_SLUG,
-				array( __CLASS__, 'render_settings_page' ),
-				40
-			);
-		}
+		echo '<div class="notice notice-warning"><p>';
+		echo esc_html__( 'Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add LP to create new entries. Existing legacy KayzArt entries can still be edited.', 'kayzart-live-code-editor' );
+		echo '</p></div>';
 	}
 	/**
 	 * Register the hidden admin page entry.
@@ -493,14 +466,12 @@ class Admin {
 			);
 		}
 
-		add_submenu_page(
-			'edit.php?post_type=' . Post_Type::POST_TYPE,
-			__( 'Settings', 'kayzart-live-code-editor' ),
-			__( 'Settings', 'kayzart-live-code-editor' ),
+		add_options_page(
+			__( 'LP設定', 'kayzart-live-code-editor' ),
+			__( 'LP設定', 'kayzart-live-code-editor' ),
 			'manage_options',
 			self::SETTINGS_SLUG,
-			array( __CLASS__, 'render_settings_page' ),
-			40
+			array( __CLASS__, 'render_settings_page' )
 		);
 	}
 
@@ -813,14 +784,100 @@ class Admin {
 			return;
 		}
 
+		$tabs       = self::get_settings_tabs();
+		$active_tab = self::get_active_settings_tab( $tabs );
+
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'KayzArt Live Code Editor Settings', 'kayzart-live-code-editor' ) . '</h1>';
-		echo '<form action="options.php" method="post">';
-		settings_fields( self::SETTINGS_GROUP );
-		do_settings_sections( self::SETTINGS_SLUG );
-		submit_button();
-		echo '</form>';
+		echo '<h1>' . esc_html__( 'LP設定', 'kayzart-live-code-editor' ) . '</h1>';
+		self::render_settings_tabs_nav( $tabs, $active_tab );
+		if ( 'basic' === $active_tab ) {
+			echo '<form action="options.php" method="post">';
+			settings_fields( self::SETTINGS_GROUP );
+			do_settings_sections( self::SETTINGS_SLUG );
+			submit_button();
+			echo '</form>';
+		} else {
+			/**
+			 * Render a custom LP settings tab.
+			 *
+			 * The dynamic portion of the hook name is the tab ID.
+			 */
+			do_action( 'kayzart_render_settings_tab_' . $active_tab );
+		}
 		echo '</div>';
+	}
+
+	/**
+	 * Resolve registered LP settings tabs.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function get_settings_tabs(): array {
+		$tabs = array(
+			'basic' => __( '基本設定', 'kayzart-live-code-editor' ),
+		);
+
+		/**
+		 * Filter LP settings tabs.
+		 *
+		 * @param array<string,string> $tabs Tab ID to label map.
+		 */
+		$tabs = apply_filters( 'kayzart_settings_tabs', $tabs );
+		if ( ! is_array( $tabs ) || empty( $tabs ) ) {
+			return array(
+				'basic' => __( '基本設定', 'kayzart-live-code-editor' ),
+			);
+		}
+
+		$normalized = array();
+		foreach ( $tabs as $id => $label ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || ! is_string( $label ) || '' === $label ) {
+				continue;
+			}
+			$normalized[ $id ] = $label;
+		}
+
+		if ( empty( $normalized ) ) {
+			$normalized['basic'] = __( '基本設定', 'kayzart-live-code-editor' );
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Resolve the active LP settings tab.
+	 *
+	 * @param array<string,string> $tabs Registered tabs.
+	 * @return string
+	 */
+	private static function get_active_settings_tab( array $tabs ): string {
+		$active = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return isset( $tabs[ $active ] ) ? $active : 'basic';
+	}
+
+	/**
+	 * Render LP settings tab navigation.
+	 *
+	 * @param array<string,string> $tabs       Registered tabs.
+	 * @param string               $active_tab Active tab ID.
+	 */
+	private static function render_settings_tabs_nav( array $tabs, string $active_tab ): void {
+		if ( count( $tabs ) < 2 ) {
+			return;
+		}
+
+		echo '<nav class="nav-tab-wrapper">';
+		foreach ( $tabs as $id => $label ) {
+			$class = 'nav-tab';
+			if ( $active_tab === $id ) {
+				$class .= ' nav-tab-active';
+			}
+			echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( self::get_settings_url( 'basic' === $id ? '' : $id ) ) . '">';
+			echo esc_html( $label );
+			echo '</a>';
+		}
+		echo '</nav>';
 	}
 	/**
 	 * Enqueue admin assets for the KayzArt editor.

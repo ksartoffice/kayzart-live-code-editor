@@ -56,7 +56,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_filter_admin_url_rewrites_kayzart_add_new_url_with_nonce(): void {
+	public function test_filter_admin_url_rewrites_kayzart_add_new_url_to_page_lp_flow(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -70,8 +70,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			parse_str( (string) $parts['query'], $query );
 		}
 
-		$this->assertSame( Admin::NEW_POST_ACTION, $query['action'] ?? '' );
-		$this->assertSame( Post_Type::POST_TYPE, $query['post_type'] ?? '' );
+		$this->assertSame( Admin::NEW_PAGE_ACTION, $query['action'] ?? '' );
+		$this->assertArrayNotHasKey( 'post_type', $query );
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 	}
 
@@ -83,7 +83,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( $url, $result );
 	}
 
-	public function test_override_admin_bar_new_link_replaces_href(): void {
+	public function test_override_admin_bar_new_link_removes_legacy_cpt_node(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -98,13 +98,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::override_admin_bar_new_link( $admin_bar );
 		$node = $admin_bar->get_node( 'new-' . Post_Type::POST_TYPE );
 
-		$this->assertNotNull( $node );
-		$this->assertStringNotContainsString( '&amp;', (string) $node->href );
-		$this->assertStringContainsString( 'action=' . Admin::NEW_POST_ACTION, $node->href );
-		$this->assertStringContainsString( '_wpnonce=', $node->href );
+		$this->assertNull( $node );
 	}
 
-	public function test_override_new_submenu_link_replaces_add_new_slug(): void {
+	public function test_override_new_submenu_link_removes_legacy_create_and_settings_items(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -120,32 +117,22 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		Admin::override_new_submenu_link();
 
-		$updated_slug = '';
-		$updated_label = '';
-		$updated_index = -1;
-		$settings_index = -1;
+		$has_add_new  = false;
+		$has_settings = false;
 		$items = array_values( (array) ( $submenu[ $parent_slug ] ?? array() ) );
-		foreach ( $items as $index => $item ) {
+		foreach ( $items as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( str_contains( $slug, 'action=' . Admin::NEW_POST_ACTION ) ) {
-				$updated_slug  = $slug;
-				$updated_label = isset( $item[0] ) ? (string) $item[0] : '';
-				$updated_index = (int) $index;
+			if ( 'post-new.php?post_type=' . Post_Type::POST_TYPE === $slug ) {
+				$has_add_new = true;
 			}
 			if ( Admin::SETTINGS_SLUG === $slug ) {
-				$settings_index = (int) $index;
+				$has_settings = true;
 			}
 		}
 		$submenu      = $original_submenu;
 
-		$this->assertNotSame( '', $updated_slug );
-		$this->assertSame( __( 'Create New LP', 'kayzart-live-code-editor' ), $updated_label );
-		$this->assertNotSame( -1, $updated_index );
-		$this->assertNotSame( -1, $settings_index );
-		$this->assertLessThan( $settings_index, $updated_index );
-		$this->assertStringContainsString( 'action=' . Admin::NEW_POST_ACTION, $updated_slug );
-		$this->assertStringContainsString( 'post_type=' . Post_Type::POST_TYPE, $updated_slug );
-		$this->assertStringContainsString( '_wpnonce=', $updated_slug );
+		$this->assertFalse( $has_add_new );
+		$this->assertFalse( $has_settings );
 	}
 
 	public function test_register_menu_adds_page_lp_create_submenu(): void {
@@ -176,6 +163,73 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( __( 'LPを追加', 'kayzart-live-code-editor' ), $matched_label );
 		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
 		$this->assertStringContainsString( '_wpnonce=', $matched_slug );
+	}
+
+	public function test_register_menu_adds_lp_settings_under_options_not_legacy_cpt(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $submenu;
+		$original_submenu = $submenu;
+		$options_parent   = 'options-general.php';
+		$legacy_parent    = 'edit.php?post_type=' . Post_Type::POST_TYPE;
+		$submenu          = is_array( $submenu ) ? $submenu : array();
+		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ] );
+
+		Admin::register_menu();
+
+		$options_has_settings = false;
+		foreach ( (array) ( $submenu[ $options_parent ] ?? array() ) as $item ) {
+			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
+				$options_has_settings = true;
+				$this->assertSame( __( 'LP設定', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
+				break;
+			}
+		}
+
+		$legacy_has_settings = false;
+		foreach ( (array) ( $submenu[ $legacy_parent ] ?? array() ) as $item ) {
+			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
+				$legacy_has_settings = true;
+				break;
+			}
+		}
+
+		$submenu = $original_submenu;
+
+		$this->assertTrue( $options_has_settings );
+		$this->assertFalse( $legacy_has_settings );
+	}
+
+	public function test_render_settings_page_supports_extension_tabs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$tabs_filter = static function ( $tabs ) {
+			$tabs['sample'] = 'Sample Tab';
+			return $tabs;
+		};
+		$tab_action = static function (): void {
+			echo '<div id="sample-settings-tab">Sample content</div>';
+		};
+		add_filter( 'kayzart_settings_tabs', $tabs_filter );
+		add_action( 'kayzart_render_settings_tab_sample', $tab_action );
+
+		$original_get = $_GET;
+		$_GET['tab'] = 'sample';
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$_GET = $original_get;
+		remove_filter( 'kayzart_settings_tabs', $tabs_filter );
+		remove_action( 'kayzart_render_settings_tab_sample', $tab_action );
+
+		$this->assertStringContainsString( __( 'LP設定', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( '基本設定', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'Sample Tab', $output );
+		$this->assertStringContainsString( 'id="sample-settings-tab"', $output );
 	}
 
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {

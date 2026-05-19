@@ -121,6 +121,10 @@ msgstr ""
 msgid "Allowed shortcode tags"
 msgstr ""
 
+#: includes/class-kayzart-admin.php:437
+msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add LP to create new entries. Existing legacy KayzArt entries can still be edited."
+msgstr ""
+
 #: includes/class-kayzart-admin.php:430
 msgid "Cleanup"
 msgstr ""

@@ -103,37 +103,17 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( Post_Type::get_editor_url( $post_id ), $location );
 	}
 
-	public function test_maybe_redirect_new_post_denies_user_without_create_posts(): void {
+	public function test_maybe_redirect_new_post_redirects_legacy_cpt_creation_to_page_flow(): void {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
 		wp_set_current_user( $subscriber_id );
-		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
-
-		$original_get         = $_GET;
-		$_GET['_wpnonce']     = wp_create_nonce( Admin::NEW_POST_NONCE_ACTION );
-
-		$message = $this->capture_wp_die(
-			function () {
-				Admin::maybe_redirect_new_post();
-			}
-		);
-
-		$_GET = $original_get;
-
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
-	}
-
-	public function test_maybe_redirect_new_post_without_nonce_is_denied(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-
-		wp_set_current_user( $admin_id );
 		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
 
 		$before       = $this->get_kayzart_post_ids();
 		$original_get = $_GET;
 		$_GET         = array();
 
-		$message = $this->capture_wp_die(
+		$location = $this->capture_redirect(
 			function () {
 				Admin::maybe_redirect_new_post();
 			}
@@ -142,36 +122,12 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$_GET = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
+		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $location );
+		$this->assertStringContainsString( '_wpnonce=', $location );
 	}
 
-	public function test_maybe_redirect_new_post_rejects_invalid_nonce(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-
-		wp_set_current_user( $admin_id );
-		$this->set_new_post_screen_context( Post_Type::POST_TYPE );
-
-		$before       = $this->get_kayzart_post_ids();
-		$original_get = $_GET;
-		$_GET         = array(
-			'_wpnonce'  => 'invalid-nonce',
-		);
-
-		$message = $this->capture_wp_die(
-			function () {
-				Admin::maybe_redirect_new_post();
-			}
-		);
-
-		$_GET = $original_get;
-		$after = $this->get_kayzart_post_ids();
-
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
-		$this->assertSame( $before, $after, 'Invalid nonce access must not create drafts.' );
-	}
-
-	public function test_maybe_redirect_new_post_valid_nonce_redirects_to_action_without_creating_post(): void {
+	public function test_maybe_redirect_new_post_valid_nonce_redirects_to_page_action_without_creating_post(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
@@ -200,8 +156,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		}
 
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
-		$this->assertSame( Admin::NEW_POST_ACTION, $query['action'] ?? '' );
-		$this->assertSame( Post_Type::POST_TYPE, $query['post_type'] ?? '' );
+		$this->assertSame( Admin::NEW_PAGE_ACTION, $query['action'] ?? '' );
+		$this->assertArrayNotHasKey( 'post_type', $query );
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 	}
 
@@ -222,7 +178,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( $before, $after, 'Non-KayzArt post-new context should be ignored.' );
 	}
 
-	public function test_action_create_new_post_requires_valid_nonce(): void {
+	public function test_action_create_new_post_redirects_to_page_flow_without_creating_legacy_post(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
@@ -233,7 +189,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			'post_type' => Post_Type::POST_TYPE,
 		);
 
-		$message = $this->capture_wp_die(
+		$location = $this->capture_redirect(
 			function () {
 				Admin::action_create_new_post();
 			}
@@ -242,41 +198,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$_GET = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
 		$this->assertSame( $before, $after, 'Action without nonce must not create drafts.' );
-	}
-
-	public function test_action_create_new_post_creates_draft_and_redirects_to_editor(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-
-		wp_set_current_user( $admin_id );
-
-		$before_ids   = $this->get_kayzart_post_ids();
-		$original_get = $_GET;
-		$_GET         = array(
-			'post_type' => Post_Type::POST_TYPE,
-			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
-		);
-
-		$location = $this->capture_redirect(
-			function () {
-				Admin::action_create_new_post();
-			}
-		);
-
-		$_GET = $original_get;
-		$after_ids = $this->get_kayzart_post_ids();
-		$created   = array_values( array_diff( $after_ids, $before_ids ) );
-
-		$this->assertCount( 1, $created, 'Exactly one draft should be created.' );
-		$created_id = (int) $created[0];
-		$created    = get_post( $created_id );
-
-		$this->assertInstanceOf( WP_Post::class, $created );
-		$this->assertSame( Post_Type::POST_TYPE, $created->post_type );
-		$this->assertSame( 'draft', $created->post_status );
-		$this->assertSame( $admin_id, (int) $created->post_author );
-		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
+		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $location );
 	}
 
 	public function test_action_create_new_page_creates_marked_draft_page_and_redirects_to_editor(): void {

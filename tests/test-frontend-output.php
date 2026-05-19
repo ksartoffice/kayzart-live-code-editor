@@ -163,6 +163,64 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 	}
 
+	public function test_standalone_mode_dequeues_core_global_styles(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		wp_register_style( 'global-styles', false, array(), KAYZART_VERSION );
+		wp_enqueue_style( 'global-styles' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertFalse( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
+	public function test_theme_mode_preserves_core_global_styles(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+		wp_register_style( 'global-styles', false, array(), KAYZART_VERSION );
+		wp_enqueue_style( 'global-styles' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertTrue( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
+	public function test_standalone_style_filter_preserves_core_global_styles(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		wp_register_style( 'global-styles', false, array(), KAYZART_VERSION );
+		wp_enqueue_style( 'global-styles' );
+
+		add_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		remove_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
+
+		$this->assertTrue( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
 	private function create_kayzart_post( int $author_id, string $status ): int {
 		return (int) self::factory()->post->create(
 			array(
@@ -205,6 +263,10 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$runtime_property = new ReflectionProperty( Frontend::class, 'runtime_enqueued' );
 		$runtime_property->setAccessible( true );
 		$runtime_property->setValue( null, false );
+
+		remove_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
+		wp_dequeue_style( 'global-styles' );
+		wp_deregister_style( 'global-styles' );
 	}
 
 	private function create_page( int $author_id, string $status, bool $kayzart_enabled ): int {

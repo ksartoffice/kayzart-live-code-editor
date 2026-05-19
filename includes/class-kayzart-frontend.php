@@ -34,6 +34,7 @@ class Frontend {
 	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'theme' );
 	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'theme' );
 	private const JS_MODE_META_KEY             = '_kayzart_js_mode';
+	private const WP_GLOBAL_STYLES_HANDLE      = 'global-styles';
 	/**
 	 * Register front-end hooks.
 	 */
@@ -193,6 +194,7 @@ class Frontend {
 
 		if ( apply_filters( 'kayzart_standalone_dequeue_theme_styles', true ) ) {
 			self::dequeue_theme_styles_for_standalone();
+			self::dequeue_core_global_styles_for_standalone();
 		}
 
 		if ( apply_filters( 'kayzart_standalone_dequeue_theme_scripts', true ) ) {
@@ -217,6 +219,13 @@ class Frontend {
 
 			wp_dequeue_style( $handle );
 		}
+	}
+
+	/**
+	 * Remove WordPress core global styles from standalone mode.
+	 */
+	private static function dequeue_core_global_styles_for_standalone(): void {
+		wp_dequeue_style( self::WP_GLOBAL_STYLES_HANDLE );
 	}
 
 	/**

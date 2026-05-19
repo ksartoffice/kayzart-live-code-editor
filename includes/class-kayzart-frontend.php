@@ -68,6 +68,7 @@ class Frontend {
 		// Enqueue late so KayzArt styles can override theme styles on the front-end.
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_css' ), 999 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_js' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'dequeue_theme_assets_for_standalone' ), 9999 );
 		add_filter( 'the_content', array( __CLASS__, 'filter_content' ), 20 );
 		add_filter( 'template_include', array( __CLASS__, 'maybe_override_template' ), 20 );
 		add_shortcode( 'kayzart', array( __CLASS__, 'shortcode' ) );
@@ -287,6 +288,151 @@ class Frontend {
 		}
 
 		return $template_mode;
+	}
+
+	/**
+	 * Check whether the current KayzArt request resolves to standalone mode.
+	 *
+	 * @param int|null $post_id KayzArt post ID. Defaults to queried object ID.
+	 * @return bool
+	 */
+	public static function is_standalone_mode( ?int $post_id = null ): bool {
+		if ( is_admin() ) {
+			return false;
+		}
+
+		if ( null === $post_id ) {
+			if ( ! is_singular( Post_Type::POST_TYPE ) ) {
+				return false;
+			}
+
+			$post_id = get_queried_object_id();
+		}
+
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return false;
+		}
+
+		return 'standalone' === self::resolve_template_mode( $post_id );
+	}
+
+	/**
+	 * Remove active theme assets from standalone mode while leaving plugin assets intact.
+	 */
+	public static function dequeue_theme_assets_for_standalone(): void {
+		if ( ! self::is_standalone_mode() ) {
+			return;
+		}
+
+		if ( ! apply_filters( 'kayzart_standalone_dequeue_theme_assets', true ) ) {
+			return;
+		}
+
+		if ( apply_filters( 'kayzart_standalone_dequeue_theme_styles', true ) ) {
+			self::dequeue_theme_styles_for_standalone();
+		}
+
+		if ( apply_filters( 'kayzart_standalone_dequeue_theme_scripts', true ) ) {
+			self::dequeue_theme_scripts_for_standalone();
+		}
+	}
+
+	/**
+	 * Remove active theme styles from the current queue.
+	 */
+	private static function dequeue_theme_styles_for_standalone(): void {
+		$wp_styles = wp_styles();
+		if ( ! $wp_styles ) {
+			return;
+		}
+
+		foreach ( (array) $wp_styles->queue as $handle ) {
+			$style = $wp_styles->registered[ $handle ] ?? null;
+			if ( ! $style || ! self::is_theme_asset_src( $style->src ) ) {
+				continue;
+			}
+
+			wp_dequeue_style( $handle );
+		}
+	}
+
+	/**
+	 * Remove active theme scripts from the current queue.
+	 */
+	private static function dequeue_theme_scripts_for_standalone(): void {
+		$wp_scripts = wp_scripts();
+		if ( ! $wp_scripts ) {
+			return;
+		}
+
+		foreach ( (array) $wp_scripts->queue as $handle ) {
+			$script = $wp_scripts->registered[ $handle ] ?? null;
+			if ( ! $script || ! self::is_theme_asset_src( $script->src ) ) {
+				continue;
+			}
+
+			wp_dequeue_script( $handle );
+		}
+	}
+
+	/**
+	 * Check whether an asset source points inside the active parent or child theme.
+	 *
+	 * @param mixed $src Asset source.
+	 * @return bool
+	 */
+	private static function is_theme_asset_src( $src ): bool {
+		if ( ! is_string( $src ) || '' === $src ) {
+			return false;
+		}
+
+		$theme_urls = array_unique(
+			array_filter(
+				array(
+					get_template_directory_uri(),
+					get_stylesheet_directory_uri(),
+				)
+			)
+		);
+
+		foreach ( $theme_urls as $theme_url ) {
+			if ( self::asset_src_matches_base_url( $src, $theme_url ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether an asset source is within a base URL.
+	 *
+	 * @param string $src      Asset source.
+	 * @param string $base_url Base URL.
+	 * @return bool
+	 */
+	private static function asset_src_matches_base_url( string $src, string $base_url ): bool {
+		$src_without_query  = strtok( $src, '?#' );
+		$base_without_query = strtok( $base_url, '?#' );
+
+		if ( is_string( $src_without_query ) && is_string( $base_without_query ) ) {
+			$base = trailingslashit( $base_without_query );
+			if ( str_starts_with( $src_without_query, $base ) ) {
+				return true;
+			}
+		}
+
+		$src_path  = wp_parse_url( $src, PHP_URL_PATH );
+		$base_path = wp_parse_url( $base_url, PHP_URL_PATH );
+		if ( ! is_string( $src_path ) || ! is_string( $base_path ) ) {
+			return false;
+		}
+
+		return str_starts_with( $src_path, trailingslashit( $base_path ) );
 	}
 
 	/**

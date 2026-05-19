@@ -45,6 +45,18 @@ require_once KAYZART_PATH . 'includes/class-kayzart-rest.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
 
+if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
+	/**
+	 * Check whether the current KayzArt request resolves to standalone mode.
+	 *
+	 * @param int|null $post_id KayzArt post ID. Defaults to queried object ID.
+	 * @return bool
+	 */
+	function kayzart_is_standalone_mode( ?int $post_id = null ): bool {
+		return \KayzArt\Frontend::is_standalone_mode( $post_id );
+	}
+}
+
 add_action(
 	'plugins_loaded',
 	function () {

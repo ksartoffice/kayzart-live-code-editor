@@ -206,6 +206,90 @@ class Test_Frontend_Single_Page_Controls extends WP_UnitTestCase {
 		$this->restore_query( $original_wp_query );
 	}
 
+	/**
+	 * Standalone mode removes theme assets while preserving plugin and inline assets.
+	 */
+	public function test_standalone_mode_dequeues_theme_assets_only(): void {
+		$post_id = $this->create_kayzart_post();
+		$post    = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+
+		wp_register_style( 'kayzart-test-theme-style', get_stylesheet_directory_uri() . '/standalone-theme.css', array(), '1.0.0' );
+		wp_register_style( 'kayzart-test-plugin-style', plugins_url( 'contact-form-7/includes/css/styles.css' ), array(), '1.0.0' );
+		wp_register_style( 'kayzart-test-inline-style', false, array(), '1.0.0' );
+		wp_register_script( 'kayzart-test-theme-script', get_template_directory_uri() . '/standalone-theme.js', array(), '1.0.0', true );
+		wp_register_script( 'kayzart-test-plugin-script', plugins_url( 'contact-form-7/includes/js/index.js' ), array(), '1.0.0', true );
+
+		wp_enqueue_style( 'kayzart-test-theme-style' );
+		wp_enqueue_style( 'kayzart-test-plugin-style' );
+		wp_enqueue_style( 'kayzart-test-inline-style' );
+		wp_enqueue_script( 'kayzart-test-theme-script' );
+		wp_enqueue_script( 'kayzart-test-plugin-script' );
+
+		try {
+			$this->assertTrue( Frontend::is_standalone_mode() );
+			$this->assertTrue( kayzart_is_standalone_mode() );
+
+			Frontend::dequeue_theme_assets_for_standalone();
+
+			$this->assertFalse( wp_style_is( 'kayzart-test-theme-style', 'enqueued' ) );
+			$this->assertTrue( wp_style_is( 'kayzart-test-plugin-style', 'enqueued' ) );
+			$this->assertTrue( wp_style_is( 'kayzart-test-inline-style', 'enqueued' ) );
+			$this->assertFalse( wp_script_is( 'kayzart-test-theme-script', 'enqueued' ) );
+			$this->assertTrue( wp_script_is( 'kayzart-test-plugin-script', 'enqueued' ) );
+		} finally {
+			$this->cleanup_asset_handles(
+				array(
+					'kayzart-test-theme-style',
+					'kayzart-test-plugin-style',
+					'kayzart-test-inline-style',
+				),
+				array(
+					'kayzart-test-theme-script',
+					'kayzart-test-plugin-script',
+				)
+			);
+			$this->restore_query( $original_wp_query );
+		}
+	}
+
+	/**
+	 * Theme asset dequeue can be disabled for integrations that need theme assets.
+	 */
+	public function test_theme_asset_dequeue_can_be_disabled_for_standalone(): void {
+		$post_id = $this->create_kayzart_post();
+		$post    = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+
+		wp_register_style( 'kayzart-test-filtered-theme-style', get_stylesheet_directory_uri() . '/filtered-theme.css', array(), '1.0.0' );
+		wp_register_script( 'kayzart-test-filtered-theme-script', get_template_directory_uri() . '/filtered-theme.js', array(), '1.0.0', true );
+		wp_enqueue_style( 'kayzart-test-filtered-theme-style' );
+		wp_enqueue_script( 'kayzart-test-filtered-theme-script' );
+
+		$disable_dequeue = '__return_false';
+		add_filter( 'kayzart_standalone_dequeue_theme_assets', $disable_dequeue );
+
+		try {
+			Frontend::dequeue_theme_assets_for_standalone();
+
+			$this->assertTrue( wp_style_is( 'kayzart-test-filtered-theme-style', 'enqueued' ) );
+			$this->assertTrue( wp_script_is( 'kayzart-test-filtered-theme-script', 'enqueued' ) );
+		} finally {
+			remove_filter( 'kayzart_standalone_dequeue_theme_assets', $disable_dequeue );
+			$this->cleanup_asset_handles(
+				array( 'kayzart-test-filtered-theme-style' ),
+				array( 'kayzart-test-filtered-theme-script' )
+			);
+			$this->restore_query( $original_wp_query );
+		}
+	}
+
 	private function create_kayzart_post(): int {
 		$author_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		return (int) self::factory()->post->create(
@@ -241,5 +325,22 @@ class Test_Frontend_Single_Page_Controls extends WP_UnitTestCase {
 			unset( $wp_query );
 		}
 	}
-}
 
+	/**
+	 * Clean up test asset handles.
+	 *
+	 * @param array<int,string> $style_handles  Style handles.
+	 * @param array<int,string> $script_handles Script handles.
+	 */
+	private function cleanup_asset_handles( array $style_handles, array $script_handles ): void {
+		foreach ( $style_handles as $handle ) {
+			wp_dequeue_style( $handle );
+			wp_deregister_style( $handle );
+		}
+
+		foreach ( $script_handles as $handle ) {
+			wp_dequeue_script( $handle );
+			wp_deregister_script( $handle );
+		}
+	}
+}

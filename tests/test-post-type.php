@@ -65,7 +65,31 @@ class Test_Post_Type extends WP_UnitTestCase {
 		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
 
 		$states = Post_Type::add_tailwind_state( array(), $page );
-		$this->assertSame( __( 'LP', 'kayzart-live-code-editor' ), $states['kayzart_lp'] ?? '' );
+		$this->assertSame( __( 'Landing page', 'kayzart-live-code-editor' ), $states['kayzart_lp'] ?? '' );
+	}
+
+	public function test_row_action_uses_landing_page_edit_label_for_marked_pages(): void {
+		$user_id = (int) self::factory()->user->create(
+			array(
+				'role' => 'administrator',
+			)
+		);
+		wp_set_current_user( $user_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type' => Post_Type::PAGE_TYPE,
+			)
+		);
+		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
+
+		$page = get_post( $page_id );
+		$this->assertInstanceOf( WP_Post::class, $page );
+
+		$actions = Post_Type::add_kayzart_row_action( array(), $page );
+
+		$this->assertArrayHasKey( 'kayzart_edit', $actions );
+		$this->assertStringContainsString( esc_html__( 'Edit landing page', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
 	}
 }
 

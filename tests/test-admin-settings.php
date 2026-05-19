@@ -101,7 +101,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$parent_slug      = 'edit.php?post_type=' . Post_Type::POST_TYPE;
 		$submenu          = is_array( $submenu ) ? $submenu : array();
 		$submenu[ $parent_slug ] = array(
-			array( __( 'LP list', 'kayzart-live-code-editor' ), 'edit_posts', 'edit.php?post_type=' . Post_Type::POST_TYPE ),
+			array( __( 'Pages', 'kayzart-live-code-editor' ), 'edit_posts', 'edit.php?post_type=' . Post_Type::POST_TYPE ),
 			array( __( 'Add New', 'kayzart-live-code-editor' ), 'edit_posts', 'post-new.php?post_type=' . Post_Type::POST_TYPE ),
 			array( __( 'Settings', 'kayzart-live-code-editor' ), 'manage_options', Admin::SETTINGS_SLUG ),
 		);
@@ -151,7 +151,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$submenu = $original_submenu;
 
-		$this->assertSame( __( 'LPを追加', 'kayzart-live-code-editor' ), $matched_label );
+		$this->assertSame( __( 'Add landing page', 'kayzart-live-code-editor' ), $matched_label );
 		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
 		$this->assertStringContainsString( '_wpnonce=', $matched_slug );
 	}
@@ -173,7 +173,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		foreach ( (array) ( $submenu[ $options_parent ] ?? array() ) as $item ) {
 			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
 				$options_has_settings = true;
-				$this->assertSame( __( 'LP設定', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
+				$this->assertSame( __( 'Landing page settings', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
 				break;
 			}
 		}
@@ -217,7 +217,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		remove_filter( 'kayzart_settings_tabs', $tabs_filter );
 		remove_action( 'kayzart_render_settings_tab_sample', $tab_action );
 
-		$this->assertStringContainsString( __( 'LP設定', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Landing page settings', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( __( '基本設定', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'Sample Tab', $output );
 		$this->assertStringContainsString( 'id="sample-settings-tab"', $output );

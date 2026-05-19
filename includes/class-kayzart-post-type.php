@@ -185,7 +185,7 @@ class Post_Type {
 		}
 
 		if ( self::PAGE_TYPE === $post->post_type ) {
-			$states['kayzart_lp'] = __( 'LP', 'kayzart-live-code-editor' );
+			$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
 		}
 
 		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
@@ -215,7 +215,7 @@ class Post_Type {
 		$actions['kayzart_edit'] = sprintf(
 			'<a href="%s">%s</a>',
 			esc_url( self::get_editor_url( $post->ID ) ),
-			esc_html__( 'Edit in KayzArt', 'kayzart-live-code-editor' )
+			esc_html__( 'Edit landing page', 'kayzart-live-code-editor' )
 		);
 
 		return $actions;

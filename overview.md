@@ -5,7 +5,7 @@ Overview
 --------
 - WordPress pages and legacy `kayzart` custom post type entries can be edited in the dedicated KayzArt editor.
 - The editor provides CodeMirror 6 HTML/CSS/JavaScript tabs and a live iframe preview.
-- New LP work is page-based. Public output is the page permalink, not shortcode embedding.
+- New landing page work is page-based. Public output is the page permalink, not shortcode embedding.
 
 Editor UI
 ---------

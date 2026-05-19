@@ -256,7 +256,7 @@ class Admin {
 	}
 
 	/**
-	 * Redirect legacy KayzArt CPT creation requests to the page-based LP flow.
+	 * Redirect legacy KayzArt CPT creation requests to the page-based landing page flow.
 	 */
 	public static function action_create_new_post(): void {
 		wp_safe_redirect( self::get_new_page_action_url() );
@@ -284,7 +284,7 @@ class Admin {
 			array(
 				'post_type'   => $post_type,
 				'post_status' => 'draft',
-				'post_title'  => __( 'Untitled KayzArt Page', 'kayzart-live-code-editor' ),
+				'post_title'  => __( 'Untitled landing page', 'kayzart-live-code-editor' ),
 			),
 			true
 		);
@@ -396,7 +396,7 @@ class Admin {
 	}
 
 	/**
-	 * Build the LP settings page URL.
+	 * Build the landing page settings page URL.
 	 *
 	 * @param string $tab Optional tab ID.
 	 * @return string
@@ -432,7 +432,7 @@ class Admin {
 		}
 
 		echo '<div class="notice notice-warning"><p>';
-		echo esc_html__( 'Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add LP to create new entries. Existing legacy KayzArt entries can still be edited.', 'kayzart-live-code-editor' );
+		echo esc_html__( 'Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add landing page to create new entries. Existing legacy KayzArt entries can still be edited.', 'kayzart-live-code-editor' );
 		echo '</p></div>';
 	}
 	/**
@@ -455,8 +455,8 @@ class Admin {
 		if ( $page_type && ! empty( $page_type->cap->create_posts ) ) {
 			add_submenu_page(
 				'edit.php?post_type=' . Post_Type::PAGE_TYPE,
-				__( 'LPを追加', 'kayzart-live-code-editor' ),
-				__( 'LPを追加', 'kayzart-live-code-editor' ),
+				__( 'Add landing page', 'kayzart-live-code-editor' ),
+				__( 'Add landing page', 'kayzart-live-code-editor' ),
 				(string) $page_type->cap->create_posts,
 				self::get_new_page_action_url(),
 				'',
@@ -465,8 +465,8 @@ class Admin {
 		}
 
 		add_options_page(
-			__( 'LP設定', 'kayzart-live-code-editor' ),
-			__( 'LP設定', 'kayzart-live-code-editor' ),
+			__( 'Landing page settings', 'kayzart-live-code-editor' ),
+			__( 'Landing page settings', 'kayzart-live-code-editor' ),
 			'manage_options',
 			self::SETTINGS_SLUG,
 			array( __CLASS__, 'render_settings_page' )
@@ -711,7 +711,7 @@ class Admin {
 		$active_tab = self::get_active_settings_tab( $tabs );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'LP設定', 'kayzart-live-code-editor' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Landing page settings', 'kayzart-live-code-editor' ) . '</h1>';
 		self::render_settings_tabs_nav( $tabs, $active_tab );
 		if ( 'basic' === $active_tab ) {
 			echo '<form action="options.php" method="post">';
@@ -721,7 +721,7 @@ class Admin {
 			echo '</form>';
 		} else {
 			/**
-			 * Render a custom LP settings tab.
+			 * Render a custom landing page settings tab.
 			 *
 			 * The dynamic portion of the hook name is the tab ID.
 			 */
@@ -731,7 +731,7 @@ class Admin {
 	}
 
 	/**
-	 * Resolve registered LP settings tabs.
+	 * Resolve registered landing page settings tabs.
 	 *
 	 * @return array<string,string>
 	 */
@@ -741,7 +741,7 @@ class Admin {
 		);
 
 		/**
-		 * Filter LP settings tabs.
+		 * Filter landing page settings tabs.
 		 *
 		 * @param array<string,string> $tabs Tab ID to label map.
 		 */
@@ -769,7 +769,7 @@ class Admin {
 	}
 
 	/**
-	 * Resolve the active LP settings tab.
+	 * Resolve the active landing page settings tab.
 	 *
 	 * @param array<string,string> $tabs Registered tabs.
 	 * @return string
@@ -780,7 +780,7 @@ class Admin {
 	}
 
 	/**
-	 * Render LP settings tab navigation.
+	 * Render landing page settings tab navigation.
 	 *
 	 * @param array<string,string> $tabs       Registered tabs.
 	 * @param string               $active_tab Active tab ID.

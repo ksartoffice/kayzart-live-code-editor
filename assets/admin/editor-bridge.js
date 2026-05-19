@@ -84,7 +84,7 @@
     var button = document.createElement('a');
     button.className = 'components-button is-primary kayzart-editor-toolbar__button';
     button.href = '#';
-    button.textContent = __( 'Edit with KayzArt', 'kayzart-live-code-editor');
+    button.textContent = __( 'Edit landing page', 'kayzart-live-code-editor');
 
     button.addEventListener('click', function (event) {
       event.preventDefault();
@@ -132,7 +132,7 @@
 
     var button = document.createElement('a');
     button.className = 'button button-primary kayzart-editor-bridge__button';
-    button.textContent = __( 'Edit with KayzArt', 'kayzart-live-code-editor');
+    button.textContent = __( 'Edit landing page', 'kayzart-live-code-editor');
     button.href = '#';
 
     container.appendChild(button);

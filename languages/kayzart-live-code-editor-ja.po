@@ -28,8 +28,8 @@ msgid "KayzArt"
 msgstr "KayzArt"
 
 #: includes/class-kayzart-post-type.php:68
-msgid "KayzArt LP"
-msgstr "KayzArt LP"
+msgid "KayzArt landing page"
+msgstr "KayzArt ランディングページ"
 
 #. Plugin URI of the plugin
 #: kayzart-live-code-editor.php
@@ -109,17 +109,17 @@ msgstr "外部スタイルが上限を超えています。"
 
 #: includes/class-kayzart-post-type.php:52
 msgctxt "post type general name"
-msgid "KayzArt LP"
-msgstr "KayzArt LP"
+msgid "KayzArt landing page"
+msgstr "KayzArt ランディングページ"
 
 #: includes/class-kayzart-post-type.php:53
 msgctxt "post type singular name"
-msgid "KayzArt LP"
-msgstr "KayzArt LP"
+msgid "KayzArt landing page"
+msgstr "KayzArt ランディングページ"
 
 #: includes/class-kayzart-post-type.php:55
-msgid "Create New LP"
-msgstr "新規LPを作成"
+msgid "Add landing page"
+msgstr "ランディングページを追加"
 
 #: includes/class-kayzart-post-type.php:56
 msgid "Edit KayzArt"
@@ -150,18 +150,18 @@ msgstr "ゴミ箱に KayzArt はありません"
 msgid "KayzArt Archives"
 msgstr "KayzArt アーカイブ"
 
-#: includes/class-kayzart-post-type.php:184
-msgid "Edit in KayzArt"
-msgstr "KayzArtで編集"
-
 #: includes/class-kayzart-post-type.php:159
 #: assets/dist/main.js:106
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
+#: includes/class-kayzart-post-type.php:188
+msgid "Landing page"
+msgstr "ランディングページ"
+
 #: includes/class-kayzart-admin.php:223
-msgid "Untitled KayzArt Page"
-msgstr "無題の KayzArt ページ"
+msgid "Untitled landing page"
+msgstr "無題のランディングページ"
 
 #: includes/class-kayzart-preview.php:88
 msgid "Invalid preview token."
@@ -250,10 +250,16 @@ msgstr "テーマ"
 msgid "Settings"
 msgstr "設定"
 
+#: includes/class-kayzart-admin.php:468
+#: includes/class-kayzart-admin.php:469
+#: includes/class-kayzart-admin.php:714
+msgid "Landing page settings"
+msgstr "ランディングページ設定"
+
 #: includes/class-kayzart-post-type.php:63
 #: assets/dist/main.js:106
-msgid "LP list"
-msgstr "LP一覧"
+msgid "Pages"
+msgstr "固定ページ一覧"
 
 #: includes/class-kayzart-admin.php:386
 msgid "Permalink"
@@ -272,8 +278,8 @@ msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr "使用可能: 英小文字、数字、ハイフン。初期値: kayzart。"
 
 #: includes/class-kayzart-admin.php:437
-msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add LP to create new entries. Existing legacy KayzArt entries can still be edited."
-msgstr "旧KayzArt の新規作成は終了しました。今後は「固定ページ > LPを追加」から作成してください。既存の旧KayzArtは引き続き編集できます。"
+msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add landing page to create new entries. Existing legacy KayzArt entries can still be edited."
+msgstr "旧KayzArt の新規作成は終了しました。今後は「固定ページ > ランディングページを追加」から作成してください。既存の旧KayzArtは引き続き編集できます。"
 
 #: includes/class-kayzart-admin.php:430
 msgid "Cleanup"
@@ -354,10 +360,11 @@ msgstr "Tailwind の CSS 入力が最大サイズを超えています。"
 msgid "Saving..."
 msgstr "保存中..."
 
+#: includes/class-kayzart-post-type.php:184
 #: assets/admin/editor-bridge.js:87
 #: assets/admin/editor-bridge.js:135
-msgid "Edit with KayzArt"
-msgstr "KayzArtで編集"
+msgid "Edit landing page"
+msgstr "ランディングページを編集"
 
 #: assets/dist/main.js:106
 msgid "Use default follows the default template mode from plugin settings."

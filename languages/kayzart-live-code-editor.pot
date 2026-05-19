@@ -38,7 +38,7 @@ msgid "KayzArt"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:68
-msgid "KayzArt LP"
+msgid "KayzArt landing page"
 msgstr ""
 
 #. translators: %s: post title.
@@ -87,13 +87,19 @@ msgid "This editor is only available for KayzArt posts."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:223
-msgid "Untitled KayzArt Page"
+msgid "Untitled landing page"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:332
 #: includes/class-kayzart-admin.php:333
 #: assets/dist/main.js:106
 msgid "Settings"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:468
+#: includes/class-kayzart-admin.php:469
+#: includes/class-kayzart-admin.php:714
+msgid "Landing page settings"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:386
@@ -114,7 +120,7 @@ msgid "Default template mode"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:437
-msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add LP to create new entries. Existing legacy KayzArt entries can still be edited."
+msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add landing page to create new entries. Existing legacy KayzArt entries can still be edited."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:430
@@ -199,12 +205,12 @@ msgstr ""
 
 #: includes/class-kayzart-post-type.php:52
 msgctxt "post type general name"
-msgid "KayzArt LP"
+msgid "KayzArt landing page"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:53
 msgctxt "post type singular name"
-msgid "KayzArt LP"
+msgid "KayzArt landing page"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:54
@@ -213,7 +219,7 @@ msgid "Create New"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:55
-msgid "Create New LP"
+msgid "Add landing page"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:56
@@ -243,7 +249,7 @@ msgstr ""
 
 #: includes/class-kayzart-post-type.php:63
 #: assets/dist/main.js:106
-msgid "LP list"
+msgid "Pages"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:64
@@ -255,8 +261,8 @@ msgstr ""
 msgid "TailwindCSS"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:184
-msgid "Edit in KayzArt"
+#: includes/class-kayzart-post-type.php:188
+msgid "Landing page"
 msgstr ""
 
 #: includes/class-kayzart-preview.php:88
@@ -354,9 +360,10 @@ msgstr ""
 msgid "Saving..."
 msgstr ""
 
+#: includes/class-kayzart-post-type.php:184
 #: assets/admin/editor-bridge.js:87
 #: assets/admin/editor-bridge.js:135
-msgid "Edit with KayzArt"
+msgid "Edit landing page"
 msgstr ""
 
 #: assets/dist/main.js:106

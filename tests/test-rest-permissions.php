@@ -128,6 +128,32 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_rest_routes_allow_marked_page_and_forbid_unmarked_page(): void {
+		$admin_id        = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$marked_page_id  = $this->create_page( $admin_id, true );
+		$normal_page_id  = $this->create_page( $admin_id, false );
+
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id' => $marked_page_id,
+				'html'    => '<p>Page</p>',
+			)
+		);
+		$this->assertSame( 200, $response->get_status(), 'Marked pages should be editable through KayzArt REST.' );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id' => $normal_page_id,
+				'html'    => '<p>Page</p>',
+			)
+		);
+		$this->assertSame( 403, $response->get_status(), 'Unmarked pages should not be editable through KayzArt REST.' );
+	}
+
 	public function test_rest_import_requires_unfiltered_html(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
@@ -279,6 +305,22 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'post_author' => $author_id,
 			)
 		);
+	}
+
+	private function create_page( int $author_id, bool $kayzart_enabled ): int {
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_status' => 'draft',
+				'post_author' => $author_id,
+			)
+		);
+
+		if ( $kayzart_enabled ) {
+			update_post_meta( $post_id, Post_Type::ENABLED_META, '1' );
+		}
+
+		return $post_id;
 	}
 
 	private function dispatch_route( string $route, array $params, bool $with_nonce = true ): WP_REST_Response {

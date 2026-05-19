@@ -15,8 +15,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Registers and manages the KayzArt custom post type.
  */
 class Post_Type {
-	const POST_TYPE = 'kayzart';
-	const SLUG      = 'kayzart';
+	const POST_TYPE    = 'kayzart';
+	const SLUG         = 'kayzart';
+	const PAGE_TYPE    = 'page';
+	const ENABLED_META = '_kayzart_enabled';
 
 	/**
 	 * Register hooks for the post type.
@@ -26,6 +28,7 @@ class Post_Type {
 		add_filter( 'display_post_states', array( __CLASS__, 'add_tailwind_state' ), 10, 2 );
 		add_filter( 'get_edit_post_link', array( __CLASS__, 'filter_edit_post_link' ), 10, 2 );
 		add_filter( 'post_row_actions', array( __CLASS__, 'add_kayzart_row_action' ), 10, 2 );
+		add_filter( 'page_row_actions', array( __CLASS__, 'add_kayzart_row_action' ), 10, 2 );
 	}
 
 	/**
@@ -108,7 +111,25 @@ class Post_Type {
 	 */
 	public static function is_kayzart_post( $post ): bool {
 		$post = get_post( $post );
-		return $post && self::POST_TYPE === $post->post_type;
+		if ( ! $post ) {
+			return false;
+		}
+
+		if ( self::POST_TYPE === $post->post_type ) {
+			return true;
+		}
+
+		return self::PAGE_TYPE === $post->post_type && self::is_kayzart_page( (int) $post->ID );
+	}
+
+	/**
+	 * Check whether a page was created as a KayzArt page.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_kayzart_page( int $post_id ): bool {
+		return '1' === get_post_meta( $post_id, self::ENABLED_META, true );
 	}
 
 	/**
@@ -151,8 +172,12 @@ class Post_Type {
 	 * @return array
 	 */
 	public static function add_tailwind_state( array $states, \WP_Post $post ): array {
-		if ( self::POST_TYPE !== $post->post_type ) {
+		if ( ! self::is_kayzart_post( $post ) ) {
 			return $states;
+		}
+
+		if ( self::PAGE_TYPE === $post->post_type ) {
+			$states['kayzart_lp'] = __( 'LP', 'kayzart-live-code-editor' );
 		}
 
 		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
@@ -171,7 +196,7 @@ class Post_Type {
 	 * @return array
 	 */
 	public static function add_kayzart_row_action( array $actions, \WP_Post $post ): array {
-		if ( self::POST_TYPE !== $post->post_type ) {
+		if ( ! self::is_kayzart_post( $post ) ) {
 			return $actions;
 		}
 

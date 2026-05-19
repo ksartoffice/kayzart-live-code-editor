@@ -155,8 +155,12 @@
   };
 
   domReady(function () {
-    if (!document.body.classList.contains('post-type-kayzart')) {
+    if (!data.enabled && !document.body.classList.contains('post-type-kayzart')) {
       return;
+    }
+
+    if (data.enabled) {
+      document.body.classList.add('kayzart-editor-locked');
     }
 
     if (document.body.classList.contains('block-editor-page')) {

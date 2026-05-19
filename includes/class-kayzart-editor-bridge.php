@@ -65,6 +65,7 @@ class Editor_Bridge {
 	 * Set up the enqueue data for both editors.
 	 */
 	private static function enqueue_assets(): void {
+		$post_id = self::resolve_post_id();
 		wp_register_script(
 			self::SCRIPT_HANDLE,
 			KAYZART_URL . 'assets/admin/editor-bridge.js',
@@ -83,10 +84,16 @@ class Editor_Bridge {
 		wp_enqueue_script( self::SCRIPT_HANDLE );
 		wp_enqueue_style( self::STYLE_HANDLE );
 
+		$post_type = get_post_type( $post_id );
+		if ( ! is_string( $post_type ) || '' === $post_type ) {
+			$post_type = Post_Type::POST_TYPE;
+		}
+
 		$data = array(
-			'postId'    => self::resolve_post_id(),
-			'postType'  => Post_Type::POST_TYPE,
+			'postId'    => $post_id,
+			'postType'  => $post_type,
 			'actionUrl' => Admin::get_action_redirect_url(),
+			'enabled'   => $post_id > 0,
 		);
 		$json = wp_json_encode( $data );
 		if ( false === $json ) {
@@ -122,7 +129,7 @@ class Editor_Bridge {
 			return;
 		}
 
-		if ( Post_Type::POST_TYPE !== $post->post_type ) {
+		if ( ! Post_Type::is_kayzart_post( $post ) ) {
 			return;
 		}
 
@@ -140,7 +147,13 @@ class Editor_Bridge {
 	 */
 	private static function resolve_post_id(): int {
 		$post = get_post();
-		if ( ! $post || Post_Type::POST_TYPE !== $post->post_type ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
+		if ( ! $post && isset( $_GET['post'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
+			$post = get_post( absint( wp_unslash( (string) $_GET['post'] ) ) );
+		}
+
+		if ( ! $post || ! Post_Type::is_kayzart_post( $post ) ) {
 			return 0;
 		}
 
@@ -158,6 +171,25 @@ class Editor_Bridge {
 	 * @return bool
 	 */
 	private static function is_kayzart_screen( $screen ): bool {
-		return $screen && Post_Type::POST_TYPE === $screen->post_type;
+		if ( ! $screen ) {
+			return false;
+		}
+
+		if ( Post_Type::POST_TYPE === $screen->post_type ) {
+			return true;
+		}
+
+		if ( Post_Type::PAGE_TYPE !== $screen->post_type ) {
+			return false;
+		}
+
+		$post = get_post();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
+		if ( ! $post && isset( $_GET['post'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
+			$post = get_post( absint( wp_unslash( (string) $_GET['post'] ) ) );
+		}
+
+		return $post instanceof \WP_Post && Post_Type::is_kayzart_post( $post );
 	}
 }

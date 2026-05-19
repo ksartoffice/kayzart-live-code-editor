@@ -279,6 +279,62 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
 	}
 
+	public function test_action_create_new_page_creates_marked_draft_page_and_redirects_to_editor(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+
+		wp_set_current_user( $admin_id );
+
+		$before_ids   = $this->get_page_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'_wpnonce' => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET     = $original_get;
+		$after_ids = $this->get_page_ids();
+		$created   = array_values( array_diff( $after_ids, $before_ids ) );
+
+		$this->assertCount( 1, $created, 'Exactly one page draft should be created.' );
+		$created_id = (int) $created[0];
+		$created    = get_post( $created_id );
+
+		$this->assertInstanceOf( WP_Post::class, $created );
+		$this->assertSame( Post_Type::PAGE_TYPE, $created->post_type );
+		$this->assertSame( 'draft', $created->post_status );
+		$this->assertSame( $admin_id, (int) $created->post_author );
+		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
+		$this->assertSame( '1', get_post_meta( $created_id, '_kayzart_setup_required', true ) );
+		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
+	}
+
+	public function test_action_create_new_page_requires_valid_nonce(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+
+		wp_set_current_user( $admin_id );
+
+		$before       = $this->get_page_ids();
+		$original_get = $_GET;
+		$_GET         = array();
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET = $original_get;
+		$after = $this->get_page_ids();
+
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
+		$this->assertSame( $before, $after, 'Action without nonce must not create page drafts.' );
+	}
+
 	private function create_kayzart_post( int $author_id ): int {
 		return (int) self::factory()->post->create(
 			array(
@@ -293,6 +349,23 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		return get_posts(
 			array(
 				'post_type'              => Post_Type::POST_TYPE,
+				'post_status'            => 'any',
+				'fields'                 => 'ids',
+				'posts_per_page'         => -1,
+				'orderby'                => 'ID',
+				'order'                  => 'ASC',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
+				'suppress_filters'       => true,
+			)
+		);
+	}
+
+	private function get_page_ids(): array {
+		return get_posts(
+			array(
+				'post_type'              => Post_Type::PAGE_TYPE,
 				'post_status'            => 'any',
 				'fields'                 => 'ids',
 				'posts_per_page'         => -1,

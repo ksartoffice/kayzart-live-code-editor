@@ -21,12 +21,19 @@
 .block-editor-page.post-type-kayzart .block-editor-inserter__toggle,
 .block-editor-page.post-type-kayzart .block-editor-default-block-appender,
 .block-editor-page.post-type-kayzart .block-editor-block-list__insertion-point,
-.block-editor-page.post-type-kayzart .block-editor-block-list__block-appender {
+.block-editor-page.post-type-kayzart .block-editor-block-list__block-appender,
+.block-editor-page.kayzart-editor-locked .block-editor-inserter,
+.block-editor-page.kayzart-editor-locked .block-editor-inserter__toggle,
+.block-editor-page.kayzart-editor-locked .block-editor-default-block-appender,
+.block-editor-page.kayzart-editor-locked .block-editor-block-list__insertion-point,
+.block-editor-page.kayzart-editor-locked .block-editor-block-list__block-appender {
   display: none !important;
 }
 
 .block-editor-page.post-type-kayzart .block-editor-block-list__layout,
-.block-editor-page.post-type-kayzart .block-editor-writing-flow {
+.block-editor-page.post-type-kayzart .block-editor-writing-flow,
+.block-editor-page.kayzart-editor-locked .block-editor-block-list__layout,
+.block-editor-page.kayzart-editor-locked .block-editor-writing-flow {
   pointer-events: none;
   user-select: none;
 }

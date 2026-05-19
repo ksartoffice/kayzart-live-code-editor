@@ -148,6 +148,36 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( '_wpnonce=', $updated_slug );
 	}
 
+	public function test_register_menu_adds_page_lp_create_submenu(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $submenu;
+		$original_submenu = $submenu;
+		$page_parent_slug = 'edit.php?post_type=' . Post_Type::PAGE_TYPE;
+		$submenu          = is_array( $submenu ) ? $submenu : array();
+		unset( $submenu[ $page_parent_slug ] );
+
+		Admin::register_menu();
+
+		$matched_label = '';
+		$matched_slug  = '';
+		foreach ( (array) ( $submenu[ $page_parent_slug ] ?? array() ) as $item ) {
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
+			if ( str_contains( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+				$matched_label = isset( $item[0] ) ? (string) $item[0] : '';
+				$matched_slug  = $slug;
+				break;
+			}
+		}
+
+		$submenu = $original_submenu;
+
+		$this->assertSame( __( 'LPを追加', 'kayzart-live-code-editor' ), $matched_label );
+		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
+		$this->assertStringContainsString( '_wpnonce=', $matched_slug );
+	}
+
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {
 		update_option( Admin::OPTION_FLUSH_REWRITE, '0' );
 

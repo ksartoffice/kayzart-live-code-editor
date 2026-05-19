@@ -62,13 +62,13 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( '', get_post_meta( $normal_id, '_kayzart_setup_required', true ) );
 	}
 
-	public function test_resolve_post_id_uses_global_post_with_edit_permission(): void {
+	public function test_resolve_post_id_uses_request_or_global_post_with_edit_permission(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
 		$first_id = $this->create_post( Post_Type::POST_TYPE );
 		$_GET['post'] = (string) $first_id;
-		$this->assertSame( 0, $this->invoke_private_int_method( 'resolve_post_id' ) );
+		$this->assertSame( $first_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
 
 		unset( $_GET['post'] );
 
@@ -108,6 +108,25 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 
 		$this->reset_assets();
 		$screen->post_type = 'post';
+		Editor_Bridge::enqueue_block_assets();
+		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
+	}
+
+	public function test_enqueue_block_assets_runs_for_marked_page_only(): void {
+		$page_id = $this->create_post( Post_Type::PAGE_TYPE );
+		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
+		$GLOBALS['post'] = get_post( $page_id );
+
+		set_current_screen( 'post' );
+		$screen            = get_current_screen();
+		$screen->post_type = Post_Type::PAGE_TYPE;
+
+		Editor_Bridge::enqueue_block_assets();
+		$this->assertTrue( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
+		$this->assertTrue( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
+
+		$this->reset_assets();
+		delete_post_meta( $page_id, Post_Type::ENABLED_META );
 		Editor_Bridge::enqueue_block_assets();
 		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 	}

@@ -36,13 +36,13 @@ class Frontend {
 	 *
 	 * @var bool
 	 */
-	private static bool $runtime_enqueued = false;
-	private const TEMPLATE_MODE_META_KEY          = '_kayzart_template_mode';
-	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'theme' );
-	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
-	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
-	private const SHORTCODE_RENDER_MAX_PASSES     = 1;
+	private static bool $runtime_enqueued      = false;
+	private const TEMPLATE_MODE_META_KEY       = '_kayzart_template_mode';
+	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'theme' );
+	private const JS_MODE_META_KEY             = '_kayzart_js_mode';
+	private const JS_MODE_VALUES               = array( 'classic', 'module' );
+	private const SHORTCODE_RENDER_MAX_PASSES  = 1;
 	/**
 	 * Register front-end hooks.
 	 */
@@ -71,6 +71,20 @@ class Frontend {
 	}
 
 	/**
+	 * Check whether the current request is a singular KayzArt-managed post.
+	 *
+	 * @return bool
+	 */
+	private static function is_kayzart_singular(): bool {
+		if ( ! is_singular() ) {
+			return false;
+		}
+
+		$post_id = get_queried_object_id();
+		return $post_id > 0 && Post_Type::is_kayzart_post( $post_id );
+	}
+
+	/**
 	 * Redirect single page requests when disabled.
 	 */
 	public static function maybe_redirect_single_page(): void {
@@ -78,7 +92,7 @@ class Frontend {
 			return;
 		}
 
-		if ( ! is_singular( Post_Type::POST_TYPE ) ) {
+		if ( ! self::is_kayzart_singular() ) {
 			return;
 		}
 
@@ -115,7 +129,7 @@ class Frontend {
 			return;
 		}
 
-		if ( ! is_singular( Post_Type::POST_TYPE ) ) {
+		if ( ! self::is_kayzart_singular() ) {
 			return;
 		}
 
@@ -278,7 +292,7 @@ class Frontend {
 		}
 
 		if ( null === $post_id ) {
-			if ( ! is_singular( Post_Type::POST_TYPE ) ) {
+			if ( ! self::is_kayzart_singular() ) {
 				return false;
 			}
 
@@ -422,7 +436,7 @@ class Frontend {
 			return $template;
 		}
 
-		if ( ! is_singular( Post_Type::POST_TYPE ) ) {
+		if ( ! self::is_kayzart_singular() ) {
 			return $template;
 		}
 

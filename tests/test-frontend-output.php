@@ -330,6 +330,50 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '.text-[2rem]', $inline_css );
 	}
 
+	public function test_marked_page_receives_frontend_assets_and_unmarked_page_does_not(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$page_id  = $this->create_page( $admin_id, 'publish', true );
+		$page     = get_post( $page_id );
+
+		$this->assertInstanceOf( WP_Post::class, $page );
+
+		update_post_meta( $page_id, '_kayzart_css', 'body{color:green;}' );
+		update_post_meta( $page_id, '_kayzart_js', 'console.log("page");' );
+
+		$original_wp_query = $this->set_query_for_post( $page_id, $page );
+		$output            = Frontend::filter_content( (string) $page->post_content );
+		Frontend::enqueue_css();
+		Frontend::enqueue_js();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
+		$this->assertTrue( wp_style_is( 'kayzart', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
+
+		$this->reset_shortcode_state();
+		wp_dequeue_style( 'kayzart' );
+		wp_deregister_style( 'kayzart' );
+		wp_dequeue_script( 'kayzart-runtime' );
+		wp_deregister_script( 'kayzart-runtime' );
+
+		$normal_page_id = $this->create_page( $admin_id, 'publish', false );
+		$normal_page    = get_post( $normal_page_id );
+		$this->assertInstanceOf( WP_Post::class, $normal_page );
+
+		update_post_meta( $normal_page_id, '_kayzart_css', 'body{color:red;}' );
+		update_post_meta( $normal_page_id, '_kayzart_js', 'console.log("normal");' );
+
+		$original_wp_query = $this->set_query_for_post( $normal_page_id, $normal_page );
+		$output            = Frontend::filter_content( (string) $normal_page->post_content );
+		Frontend::enqueue_css();
+		Frontend::enqueue_js();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringNotContainsString( 'data-kayzart-js="1"', $output );
+		$this->assertFalse( wp_style_is( 'kayzart', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
+	}
+
 	private function create_kayzart_post( int $author_id, string $status ): int {
 		return (int) self::factory()->post->create(
 			array(
@@ -376,5 +420,22 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$runtime_property = new ReflectionProperty( Frontend::class, 'runtime_enqueued' );
 		$runtime_property->setAccessible( true );
 		$runtime_property->setValue( null, false );
+	}
+
+	private function create_page( int $author_id, string $status, bool $kayzart_enabled ): int {
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_status'  => $status,
+				'post_author'  => $author_id,
+				'post_content' => '<p>Page content</p>',
+			)
+		);
+
+		if ( $kayzart_enabled ) {
+			update_post_meta( $post_id, Post_Type::ENABLED_META, '1' );
+		}
+
+		return $post_id;
 	}
 }

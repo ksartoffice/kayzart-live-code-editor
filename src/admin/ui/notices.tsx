@@ -12,7 +12,7 @@ const NOTICE_OFFSET_GAP_PX = 8;
 export const NOTICE_IDS = {
   editor: 'kayzart-editor',
   save: 'kayzart-save',
-  export: 'kayzart-export',
+  copy: 'kayzart-copy',
   templateFallback: 'kayzart-template-fallback',
   media: 'kayzart-media',
 } as const;

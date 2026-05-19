@@ -33,35 +33,6 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	public function test_maybe_mark_setup_required_sets_meta_for_new_kayzart_post(): void {
-		$post_id = $this->create_post( Post_Type::POST_TYPE );
-		$post    = get_post( $post_id );
-		$this->assertInstanceOf( WP_Post::class, $post );
-
-		delete_post_meta( $post_id, '_kayzart_setup_required' );
-		Editor_Bridge::maybe_mark_setup_required( $post_id, $post, false );
-
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_setup_required', true ) );
-	}
-
-	public function test_maybe_mark_setup_required_skips_updates_and_non_kayzart_posts(): void {
-		$kayzart_id = $this->create_post( Post_Type::POST_TYPE );
-		$kayzart    = get_post( $kayzart_id );
-		$this->assertInstanceOf( WP_Post::class, $kayzart );
-
-		delete_post_meta( $kayzart_id, '_kayzart_setup_required' );
-		Editor_Bridge::maybe_mark_setup_required( $kayzart_id, $kayzart, true );
-		$this->assertSame( '', get_post_meta( $kayzart_id, '_kayzart_setup_required', true ) );
-
-		$normal_id = $this->create_post( 'post' );
-		$normal    = get_post( $normal_id );
-		$this->assertInstanceOf( WP_Post::class, $normal );
-
-		delete_post_meta( $normal_id, '_kayzart_setup_required' );
-		Editor_Bridge::maybe_mark_setup_required( $normal_id, $normal, false );
-		$this->assertSame( '', get_post_meta( $normal_id, '_kayzart_setup_required', true ) );
-	}
-
 	public function test_resolve_post_id_uses_request_or_global_post_with_edit_permission(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );

@@ -17,8 +17,7 @@ Features:
 * Custom KayzArt post type and dedicated editor
 * CodeMirror 6 editor with HTML/CSS/JS tabs and live iframe preview
 * JavaScript ES Module support with execution type switch (Classic / Module)
-* Setup wizard with blank editor and Import JSON options
-* Import/export JSON projects
+* Copy All button for copying the current HTML/CSS/JS as labeled text blocks
 * Per-post template mode control: Default/Standalone/Theme
 * External scripts/styles (https only), live edit highlight, and real-time DOM selection
 

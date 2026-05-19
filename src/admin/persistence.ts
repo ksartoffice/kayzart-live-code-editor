@@ -1,4 +1,3 @@
-import type { ExportPayload } from './types';
 import type { SettingsData } from './settings';
 import { __ } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
@@ -81,55 +80,6 @@ export async function saveKayzArt(
     return {
       ok: false,
       error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
-    };
-  }
-}
-
-type ExportParams = {
-  postId: number;
-  html: string;
-  css: string;
-  js: string;
-  jsMode: JsMode;
-  externalScripts: string[];
-  externalStyles: string[];
-  liveHighlightEnabled: boolean;
-};
-
-export async function exportKayzArt(
-  params: ExportParams
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const payload: ExportPayload = {
-      version: 1,
-      html: params.html,
-      css: params.css,
-      js: params.js,
-      jsMode: params.jsMode,
-      externalScripts: [...params.externalScripts],
-      externalStyles: [...params.externalStyles],
-      liveHighlightEnabled: params.liveHighlightEnabled,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
-    });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `kayzart-${params.postId}.json`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => {
-      window.URL.revokeObjectURL(url);
-    }, 500);
-
-    return { ok: true };
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      error: resolveUnknownErrorMessage(error, __('Export failed.', 'kayzart-live-code-editor')),
     };
   }
 }

@@ -333,35 +333,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 'theme', $settings['defaultTemplateMode'] ?? null );
 	}
 
-	public function test_import_returns_minimal_settings_payload(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => array(
-					'version'         => 1,
-					'html'            => '<p>Imported</p>',
-					'css'             => '',
-					'jsMode'          => 'auto',
-				),
-			)
-		);
-
-		$this->assertSame( 200, $response->get_status(), 'Import should succeed for admins.' );
-
-		$data = $response->get_data();
-		$this->assertSame( true, $data['ok'] ?? false, 'Response should include ok=true.' );
-		$this->assertIsArray( $data['settingsData'] ?? null, 'Response should include settingsData payload.' );
-		$this->assert_settings_payload_keys( $data['settingsData'] );
-		$this->assertArrayNotHasKey( 'authors', $data['settingsData'], 'Authors should not be returned.' );
-		$this->assertSame( 'classic', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
-	}
-
 	public function test_save_ignores_legacy_tailwind_enabled_payload(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );

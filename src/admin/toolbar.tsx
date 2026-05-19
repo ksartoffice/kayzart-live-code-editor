@@ -10,7 +10,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
   ChevronLeft,
   ChevronDown,
-  Download,
+  Copy,
   ExternalLink,
   Monitor,
   PanelBottomClose,
@@ -55,7 +55,7 @@ type ToolbarHandlers = {
   onRedo: () => void;
   onToggleEditor: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
-  onExport: () => void;
+  onCopyAll: () => void;
   onToggleSettings: () => void;
   onViewportChange: (mode: ViewportMode) => void;
   onUpdatePostIdentity: (payload: {
@@ -87,8 +87,8 @@ const ICONS = {
   save: renderLucideIcon(Save, {
     class: 'lucide lucide-save-icon lucide-save',
   }),
-  export: renderLucideIcon(Download, {
-    class: 'lucide lucide-download-icon lucide-download',
+  copy: renderLucideIcon(Copy, {
+    class: 'lucide lucide-copy-icon lucide-copy',
   }),
   viewPost: renderLucideIcon(ExternalLink, {
     class: 'lucide lucide-external-link-icon lucide-external-link',
@@ -152,7 +152,7 @@ function Toolbar({
   onRedo,
   onToggleEditor,
   onSave,
-  onExport,
+  onCopyAll,
   onToggleSettings,
   onViewportChange,
   onUpdatePostIdentity,
@@ -208,7 +208,7 @@ function Toolbar({
         : normalizedStatus === 'private'
           ? __( 'Update as private', 'kayzart-live-code-editor')
           : __( 'Update', 'kayzart-live-code-editor');
-  const exportLabel = __( 'Export', 'kayzart-live-code-editor');
+  const copyAllLabel = __( 'Copy All', 'kayzart-live-code-editor');
   const statusActions = [
     { value: 'publish' as const, label: __( 'Publish', 'kayzart-live-code-editor') },
     { value: 'pending' as const, label: __( 'Move to review', 'kayzart-live-code-editor') },
@@ -614,13 +614,13 @@ function Toolbar({
           </button>
           {afterSettingsActions.map(renderExternalToolbarAction)}
           <button
-            className="kayzart-btn kayzart-btn-export"
+            className="kayzart-btn kayzart-btn-copyAll"
             type="button"
-            onClick={onExport}
-            aria-label={exportLabel}
-            data-tooltip={exportLabel}
+            onClick={onCopyAll}
+            aria-label={copyAllLabel}
+            data-tooltip={copyAllLabel}
           >
-            <IconLabel label={exportLabel} svg={ICONS.export} />
+            <IconLabel label={copyAllLabel} svg={ICONS.copy} />
           </button>
         </div>
       </div>

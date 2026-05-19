@@ -38,42 +38,6 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
-			'/setup',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( Rest_Setup::class, 'setup_mode' ),
-				'permission_callback' => array( __CLASS__, 'permission_check' ),
-				'args'                => array(
-					'post_id' => array(
-						'type'     => 'integer',
-						'required' => true,
-					),
-				),
-			)
-		);
-
-		register_rest_route(
-			'kayzart/v1',
-			'/import',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( Rest_Import::class, 'import_payload' ),
-				'permission_callback' => array( __CLASS__, 'permission_check' ),
-				'args'                => array(
-					'post_id' => array(
-						'type'     => 'integer',
-						'required' => true,
-					),
-					'payload' => array(
-						'type'     => 'object',
-						'required' => true,
-					),
-				),
-			)
-		);
-
-		register_rest_route(
-			'kayzart/v1',
 			'/settings',
 			array(
 				'methods'             => 'POST',

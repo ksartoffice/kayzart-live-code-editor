@@ -154,22 +154,6 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 403, $response->get_status(), 'Unmarked pages should not be editable through KayzArt REST.' );
 	}
 
-	public function test_rest_import_requires_unfiltered_html(): void {
-		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
-		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id   = $this->create_kayzart_post( $author_id );
-
-		$import_params = $this->get_import_params( $post_id );
-
-		wp_set_current_user( $author_id );
-		$response = $this->dispatch_route( '/kayzart/v1/import', $import_params );
-		$this->assertSame( 403, $response->get_status(), 'Import should require unfiltered_html.' );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route( '/kayzart/v1/import', $import_params );
-		$this->assertSame( 200, $response->get_status(), 'Admins should be able to import.' );
-	}
-
 	public function test_rest_save_requires_unfiltered_html_for_js_payload(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
@@ -343,33 +327,15 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'post_id' => $post_id,
 				'html'    => '<p>Test</p>',
 			),
-			'/kayzart/v1/setup' => array(
-				'post_id' => $post_id,
-			),
 			'/kayzart/v1/settings' => array(
 				'post_id' => $post_id,
 				'updates' => array(),
 			),
-			'/kayzart/v1/import' => $this->get_import_params( $post_id ),
 		);
 	}
 
 	private function get_author_allowed_routes( int $post_id ): array {
-		$routes = $this->get_rest_routes_with_params( $post_id );
-		unset( $routes['/kayzart/v1/import'] );
-		return $routes;
-	}
-
-	private function get_import_params( int $post_id ): array {
-		return array(
-			'post_id' => $post_id,
-			'payload' => array(
-				'version'         => 1,
-				'html'            => '<p>Import</p>',
-				'css'             => '',
-				'tailwindEnabled' => false,
-			),
-		);
+		return $this->get_rest_routes_with_params( $post_id );
 	}
 }
 

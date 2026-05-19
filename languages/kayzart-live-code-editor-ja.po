@@ -62,7 +62,6 @@ msgstr "このエディターは KayzArt 投稿でのみ利用できます。"
 #: includes/class-kayzart-admin.php:645
 #: includes/class-kayzart-preview.php:84
 #: includes/class-kayzart-rest.php:153
-#: includes/rest/class-kayzart-rest-import.php:45
 #: includes/rest/class-kayzart-rest-save.php:92
 #: includes/rest/class-kayzart-rest-settings.php:184
 #: includes/rest/class-kayzart-rest-settings.php:194
@@ -74,8 +73,6 @@ msgid "Permission denied."
 msgstr "権限がありません。"
 
 #: includes/class-kayzart-external-scripts.php:56
-#: includes/rest/class-kayzart-rest-import.php:191
-#: includes/rest/class-kayzart-rest-import.php:207
 #: assets/dist/main.js:106
 msgid "Invalid externalScripts value."
 msgstr "externalScripts の値が不正です。"
@@ -91,8 +88,6 @@ msgid "External scripts exceed the maximum allowed."
 msgstr "外部スクリプトが上限を超えています。"
 
 #: includes/class-kayzart-external-styles.php:56
-#: includes/rest/class-kayzart-rest-import.php:220
-#: includes/rest/class-kayzart-rest-import.php:236
 #: assets/dist/main.js:106
 msgid "Invalid externalStyles value."
 msgstr "externalStyles の値が不正です。"
@@ -117,7 +112,10 @@ msgctxt "post type singular name"
 msgid "KayzArt landing page"
 msgstr "KayzArt ランディングページ"
 
+#: includes/class-kayzart-admin.php:457
+#: includes/class-kayzart-admin.php:458
 #: includes/class-kayzart-post-type.php:55
+#: assets/admin/page-list.js:30
 msgid "Add landing page"
 msgstr "ランディングページを追加"
 
@@ -163,10 +161,8 @@ msgid "Invalid preview token."
 msgstr "プレビュートークンが無効です。"
 
 #: includes/class-kayzart-preview.php:92
-#: includes/rest/class-kayzart-rest-import.php:35
 #: includes/rest/class-kayzart-rest-save.php:82
 #: includes/rest/class-kayzart-rest-save.php:327
-#: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr "投稿タイプが無効です。"
 
@@ -174,40 +170,6 @@ msgstr "投稿タイプが無効です。"
 #: includes/rest/class-kayzart-rest-settings.php:136
 msgid "Post not found."
 msgstr "投稿が見つかりません。"
-
-#: includes/rest/class-kayzart-rest-import.php:55
-msgid "Invalid import payload."
-msgstr "インポートのペイロードが無効です。"
-
-#: includes/rest/class-kayzart-rest-import.php:66
-#: assets/dist/main.js:106
-msgid "Unsupported import version."
-msgstr "サポートされていないインポートバージョンです。"
-
-#: includes/rest/class-kayzart-rest-import.php:76
-#: assets/dist/main.js:106
-msgid "Invalid HTML value."
-msgstr "HTML の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:86
-#: assets/dist/main.js:106
-msgid "Invalid CSS value."
-msgstr "CSS の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:107
-#: assets/dist/main.js:106
-msgid "Invalid JavaScript value."
-msgstr "JavaScript の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:163
-#: assets/dist/main.js:106
-msgid "Invalid liveHighlightEnabled value."
-msgstr "liveHighlightEnabled の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:177
-#: assets/dist/main.js:106
-msgid "Invalid generatedCss value."
-msgstr "generatedCss の値が不正です。"
 
 #: includes/rest/class-kayzart-rest-save.php:103
 #: includes/rest/class-kayzart-rest-settings.php:98
@@ -221,10 +183,6 @@ msgstr "外部スクリプトのペイロードが不正です。"
 #: includes/rest/class-kayzart-rest-settings.php:288
 msgid "Invalid external styles payload."
 msgstr "外部スタイルのペイロードが不正です。"
-
-#: includes/rest/class-kayzart-rest-setup.php:42
-msgid "Invalid setup mode."
-msgstr "セットアップモードが不正です。"
 
 #: includes/class-kayzart-admin.php:584
 #: assets/dist/main.js:106
@@ -281,8 +239,8 @@ msgid "Choose whether KayzArt posts should be deleted when the plugin is uninsta
 msgstr "プラグインをアンインストールする際に KayzArt 投稿を削除するかどうかを選択します。"
 
 #: includes/class-kayzart-admin.php:628
-msgid "Delete all KayzArt posts on uninstall (imported media is kept)."
-msgstr "アンインストール時に KayzArt 投稿をすべて削除します（取り込んだメディアは保持します）。"
+msgid "Delete all KayzArt posts on uninstall (media is kept)."
+msgstr "アンインストール時に KayzArt 投稿をすべて削除します（メディアは保持します）。"
 
 #: includes/class-kayzart-admin.php:582
 #: assets/dist/main.js:106
@@ -292,11 +250,6 @@ msgstr "スタンドアロン"
 #: includes/class-kayzart-admin.php:661
 msgid "KayzArt Live Code Editor Settings"
 msgstr "KayzArt Live Code Editor 設定"
-
-#: includes/rest/class-kayzart-rest-import.php:96
-#: assets/dist/main.js:106
-msgid "Invalid tailwindEnabled value."
-msgstr "tailwindEnabled の値が不正です。"
 
 #: includes/class-kayzart-admin.php:115
 #: assets/dist/main.js:106
@@ -492,79 +445,6 @@ msgid "Close settings panel"
 msgstr "設定パネルを閉じる"
 
 #: assets/dist/main.js:106
-msgid "Import file is not a valid JSON object."
-msgstr "インポートファイルは有効な JSON オブジェクトではありません。"
-
-#: assets/dist/main.js:106
-msgid "Invalid JSON file."
-msgstr "JSON ファイルが不正です。"
-
-#: assets/dist/main.js:106
-msgid "Import unavailable."
-msgstr "インポートを利用できません。"
-
-#: assets/dist/main.js:106
-msgid "Select a JSON file to import."
-msgstr "インポートする JSON ファイルを選択してください。"
-
-#: assets/dist/main.js:106
-msgid "Import failed."
-msgstr "インポートに失敗しました。"
-
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
-msgid "Setup failed."
-msgstr "セットアップに失敗しました。"
-
-#: assets/dist/main.js:106
-msgid "Set up KayzArt"
-msgstr "KayzArt をセットアップ"
-
-#: assets/dist/main.js:106
-msgid "Start with a blank editor or restore from a KayzArt JSON file."
-msgstr "空のエディターから始めるか、KayzArt JSON ファイルから復元します。"
-
-#: assets/dist/main.js:106
-msgid "Normal (HTML/CSS)"
-msgstr "Normal（HTML/CSS）"
-
-#: assets/dist/main.js:106
-msgid "Edit HTML and CSS directly in the code editor."
-msgstr "コードエディターで HTML と CSS を直接編集します。"
-
-#: assets/dist/main.js:106
-msgid "Import JSON"
-msgstr "JSON をインポート"
-
-#: assets/dist/main.js:106
-msgid "Restore from an exported KayzArt JSON file."
-msgstr "エクスポートした KayzArt JSON ファイルから復元します。"
-
-#: assets/dist/main.js:106
-msgid "Choose JSON file"
-msgstr "JSON ファイルを選択"
-
-#: assets/dist/main.js:106
-msgid "No file selected."
-msgstr "ファイルが選択されていません。"
-
-#: assets/dist/main.js:106
-msgid "Back"
-msgstr "戻る"
-
-#: assets/dist/main.js:106
-msgid "Continue"
-msgstr "続行"
-
-#: assets/dist/main.js:106
-msgid "Setup unavailable."
-msgstr "セットアップを利用できません。"
-
-#: assets/dist/main.js:106
-msgid "wp.apiFetch is unavailable."
-msgstr "wp.apiFetch を利用できません。"
-
-#: assets/dist/main.js:106
 msgid "Show code"
 msgstr "コードを表示"
 
@@ -621,8 +501,8 @@ msgid "Update"
 msgstr "更新"
 
 #: assets/dist/main.js:106
-msgid "Export"
-msgstr "エクスポート"
+msgid "Copy All"
+msgstr "すべてコピー"
 
 #: assets/dist/main.js:106
 msgid "Publish"
@@ -743,25 +623,12 @@ msgid "Save error: %s"
 msgstr "保存エラー: %s"
 
 #: assets/dist/main.js:125
-msgid "Export unavailable."
-msgstr "エクスポートを利用できません。"
+msgid "Copy failed."
+msgstr "コピーに失敗しました。"
 
 #: assets/dist/main.js:125
-msgid "Exporting..."
-msgstr "エクスポート中..."
-
-#: assets/dist/main.js:125
-msgid "Exported."
-msgstr "エクスポートしました。"
-
-#: assets/dist/main.js:125
-#, js-format
-msgid "Export error: %s"
-msgstr "エクスポートエラー: %s"
-
-#: assets/dist/main.js:125
-msgid "Export failed."
-msgstr "エクスポートに失敗しました。"
+msgid "Copied all code."
+msgstr "すべてのコードをコピーしました。"
 
 #: assets/dist/main.js:127
 msgid "Theme template unavailable"
@@ -782,10 +649,6 @@ msgstr "テンプレートモードを切り替えてもプレビューマーカ
 #: assets/dist/main.js:127
 msgid "Settings unavailable."
 msgstr "設定を利用できません。"
-
-#: assets/dist/main.js:127
-msgid "Setup wizard unavailable."
-msgstr "セットアップウィザードを利用できません。"
 
 #: assets/dist/main.js:127
 msgid "Wrap: On"

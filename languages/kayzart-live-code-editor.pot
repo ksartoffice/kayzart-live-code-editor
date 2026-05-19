@@ -70,7 +70,6 @@ msgstr ""
 #: includes/class-kayzart-admin.php:645
 #: includes/class-kayzart-preview.php:84
 #: includes/class-kayzart-rest.php:153
-#: includes/rest/class-kayzart-rest-import.php:45
 #: includes/rest/class-kayzart-rest-save.php:92
 #: includes/rest/class-kayzart-rest-settings.php:184
 #: includes/rest/class-kayzart-rest-settings.php:194
@@ -162,7 +161,7 @@ msgid "Choose whether KayzArt posts should be deleted when the plugin is uninsta
 msgstr ""
 
 #: includes/class-kayzart-admin.php:628
-msgid "Delete all KayzArt posts on uninstall (imported media is kept)."
+msgid "Delete all KayzArt posts on uninstall (media is kept)."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:661
@@ -170,8 +169,6 @@ msgid "KayzArt Live Code Editor Settings"
 msgstr ""
 
 #: includes/class-kayzart-external-scripts.php:56
-#: includes/rest/class-kayzart-rest-import.php:191
-#: includes/rest/class-kayzart-rest-import.php:207
 #: assets/dist/main.js:106
 msgid "Invalid externalScripts value."
 msgstr ""
@@ -187,8 +184,6 @@ msgid "External scripts exceed the maximum allowed."
 msgstr ""
 
 #: includes/class-kayzart-external-styles.php:56
-#: includes/rest/class-kayzart-rest-import.php:220
-#: includes/rest/class-kayzart-rest-import.php:236
 #: assets/dist/main.js:106
 msgid "Invalid externalStyles value."
 msgstr ""
@@ -265,55 +260,14 @@ msgid "Invalid preview token."
 msgstr ""
 
 #: includes/class-kayzart-preview.php:92
-#: includes/rest/class-kayzart-rest-import.php:35
 #: includes/rest/class-kayzart-rest-save.php:82
 #: includes/rest/class-kayzart-rest-save.php:327
-#: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr ""
 
 #: includes/class-kayzart-preview.php:96
 #: includes/rest/class-kayzart-rest-settings.php:136
 msgid "Post not found."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:55
-msgid "Invalid import payload."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:66
-#: assets/dist/main.js:106
-msgid "Unsupported import version."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:76
-#: assets/dist/main.js:106
-msgid "Invalid HTML value."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:86
-#: assets/dist/main.js:106
-msgid "Invalid CSS value."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:96
-#: assets/dist/main.js:106
-msgid "Invalid tailwindEnabled value."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:107
-#: assets/dist/main.js:106
-msgid "Invalid JavaScript value."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:163
-#: assets/dist/main.js:106
-msgid "Invalid liveHighlightEnabled value."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-import.php:177
-#: assets/dist/main.js:106
-msgid "Invalid generatedCss value."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-save.php:103
@@ -488,83 +442,6 @@ msgid "Close settings panel"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Import file is not a valid JSON object."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Invalid JSON file."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Import unavailable."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Select a JSON file to import."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Import failed."
-msgstr ""
-
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
-msgid "Setup failed."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Set up KayzArt"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Start with a blank editor or restore from a KayzArt JSON file."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Normal (HTML/CSS)"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Edit HTML and CSS directly in the code editor."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Use utility classes. CSS is compiled automatically."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Import JSON"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Restore from an exported KayzArt JSON file."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Choose JSON file"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "No file selected."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Back"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Continue"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Setup unavailable."
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "wp.apiFetch is unavailable."
-msgstr ""
-
-#: assets/dist/main.js:106
 msgid "Show code"
 msgstr ""
 
@@ -621,7 +498,7 @@ msgid "Update"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Export"
+msgid "Copy All"
 msgstr ""
 
 #: assets/dist/main.js:106
@@ -743,24 +620,11 @@ msgid "Save error: %s"
 msgstr ""
 
 #: assets/dist/main.js:125
-msgid "Export unavailable."
+msgid "Copy failed."
 msgstr ""
 
 #: assets/dist/main.js:125
-msgid "Exporting..."
-msgstr ""
-
-#: assets/dist/main.js:125
-msgid "Exported."
-msgstr ""
-
-#: assets/dist/main.js:125
-#, js-format
-msgid "Export error: %s"
-msgstr ""
-
-#: assets/dist/main.js:125
-msgid "Export failed."
+msgid "Copied all code."
 msgstr ""
 
 #: assets/dist/main.js:127
@@ -781,10 +645,6 @@ msgstr ""
 
 #: assets/dist/main.js:127
 msgid "Settings unavailable."
-msgstr ""
-
-#: assets/dist/main.js:127
-msgid "Setup wizard unavailable."
 msgstr ""
 
 #: assets/dist/main.js:127

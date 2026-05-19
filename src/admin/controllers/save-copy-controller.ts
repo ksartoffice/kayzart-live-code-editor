@@ -1,5 +1,5 @@
 import { __, sprintf } from '@wordpress/i18n';
-import { exportKayzArt, saveKayzArt } from '../persistence';
+import { saveKayzArt } from '../persistence';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
@@ -15,7 +15,7 @@ type UnsavedFlags = {
   hasAny: boolean;
 };
 
-type SaveExportControllerDeps = {
+type SaveCopyControllerDeps = {
   apiFetch: ApiFetch;
   restUrl: string;
   postId: number;
@@ -24,9 +24,6 @@ type SaveExportControllerDeps = {
   getCssModel: () => EditorModel | undefined;
   getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
-  getExternalScripts: () => string[];
-  getExternalStyles: () => string[];
-  getLiveHighlightEnabled: () => boolean;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
     hasUnsavedSettings: boolean;
@@ -43,7 +40,7 @@ type SaveExportControllerDeps = {
   ) => void;
   noticeIds: {
     save: string;
-    export: string;
+    copy: string;
   };
   noticeSuccessMs: number;
   noticeErrorMs: number;
@@ -59,7 +56,39 @@ type SaveExportControllerDeps = {
   onSaveSuccess?: () => void;
 };
 
-export function createSaveExportController(deps: SaveExportControllerDeps) {
+function buildCopyAllText(html: string, css: string, js: string, jsMode: JsMode): string {
+  return `--- HTML ---\n${html}\n\n--- CSS ---\n${css}\n\n--- JavaScript (${jsMode}) ---\n${js}`;
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall back to the textarea copy path below.
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', 'readonly');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  document.body.append(textarea);
+  textarea.focus();
+  textarea.select();
+  try {
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
+export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
   let hasUnsavedChanges = false;
   let lastSaved: { html: string; css: string; js: string; jsMode: JsMode } = {
@@ -126,59 +155,43 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     syncUnsavedUi();
   };
 
-  const handleExport = async () => {
+  const handleCopyAll = async () => {
     const htmlModel = deps.getHtmlModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
     if (!htmlModel || !cssModel || !jsModel) {
       deps.createSnackbar(
         'error',
-        __('Export unavailable.', 'kayzart-live-code-editor'),
-        deps.noticeIds.export,
+        __('Copy failed.', 'kayzart-live-code-editor'),
+        deps.noticeIds.copy,
         deps.noticeErrorMs
       );
       return;
     }
 
-    deps.createSnackbar('info', __('Exporting...', 'kayzart-live-code-editor'), deps.noticeIds.export);
+    const text = buildCopyAllText(
+      htmlModel.getValue(),
+      cssModel.getValue(),
+      jsModel.getValue(),
+      deps.getJsMode()
+    );
 
-    const result = await exportKayzArt({
-      postId: deps.postId,
-      html: htmlModel.getValue(),
-      css: cssModel.getValue(),
-      js: jsModel.getValue(),
-      jsMode: deps.getJsMode(),
-      externalScripts: deps.getExternalScripts(),
-      externalStyles: deps.getExternalStyles(),
-      liveHighlightEnabled: deps.getLiveHighlightEnabled(),
-    });
-
-    if (result.ok) {
+    if (await copyTextToClipboard(text)) {
       deps.createSnackbar(
         'success',
-        __('Exported.', 'kayzart-live-code-editor'),
-        deps.noticeIds.export,
+        __('Copied all code.', 'kayzart-live-code-editor'),
+        deps.noticeIds.copy,
         deps.noticeSuccessMs
       );
       return;
     }
 
-    if (result.error) {
-      /* translators: %s: error message. */
-      deps.createSnackbar(
-        'error',
-        sprintf(__('Export error: %s', 'kayzart-live-code-editor'), result.error),
-        deps.noticeIds.export,
-        deps.noticeErrorMs
-      );
-    } else {
-      deps.createSnackbar(
-        'error',
-        __('Export failed.', 'kayzart-live-code-editor'),
-        deps.noticeIds.export,
-        deps.noticeErrorMs
-      );
-    }
+    deps.createSnackbar(
+      'error',
+      __('Copy failed.', 'kayzart-live-code-editor'),
+      deps.noticeIds.copy,
+      deps.noticeErrorMs
+    );
   };
 
   const handleSave = async (): Promise<{ ok: boolean; error?: string }> => {
@@ -271,7 +284,6 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     syncUnsavedUi,
     markSavedState,
     handleSave,
-    handleExport,
+    handleCopyAll,
   };
 }
-

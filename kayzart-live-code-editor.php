@@ -39,8 +39,6 @@ require_once KAYZART_PATH . 'includes/class-kayzart-upgrader.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-external-scripts.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-external-styles.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
-require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
-require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-import.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-rest.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';

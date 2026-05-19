@@ -11,13 +11,10 @@ export type AppConfig = {
   previewUrl: string;
   iframePreviewUrl?: string;
   restUrl: string;
-  setupRestUrl: string;
-  importRestUrl: string;
   settingsRestUrl: string;
   settingsData: SettingsData;
   backUrl?: string;
   listUrl?: string;
-  setupRequired?: boolean;
   restNonce: string;
   adminTitleSeparators?: string[];
 };

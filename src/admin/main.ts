@@ -5,7 +5,6 @@ import {
   type SettingsApi,
   type SettingsData,
 } from './settings';
-import { runSetupWizard } from './setup-wizard';
 import { mountToolbar, type ToolbarApi } from './toolbar';
 import { buildEditorShell } from './editor-shell';
 import {
@@ -24,7 +23,7 @@ import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/templat
 import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml } from './logic/media-html';
 import { buildStatusUpdates } from './logic/status-updates';
-import { createSaveExportController } from './controllers/save-export-controller';
+import { createSaveCopyController } from './controllers/save-copy-controller';
 import { createModalController } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
@@ -250,43 +249,12 @@ async function main() {
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),
   });
-  let setupResult: Awaited<ReturnType<typeof runSetupWizard>> | undefined;
-
   // REST nonce middleware
   if (wp?.apiFetch?.createNonceMiddleware) {
     wp.apiFetch.use(wp.apiFetch.createNonceMiddleware(cfg.restNonce));
   }
 
-  if (cfg.setupRequired) {
-    if (!cfg.setupRestUrl || !wp?.apiFetch) {
-      ui.app.textContent = __( 'Setup wizard unavailable.', 'kayzart-live-code-editor');
-      return;
-    }
-
-    const setupHost = document.createElement('div');
-    setupHost.className = 'kayzart-setupHost';
-    document.body.append(setupHost);
-
-    try {
-      setupResult = await runSetupWizard({
-        container: setupHost,
-        postId,
-        restUrl: cfg.setupRestUrl,
-        importRestUrl: cfg.importRestUrl,
-        apiFetch: wp?.apiFetch,
-        backUrl: cfg.listUrl || cfg.backUrl,
-      });
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[KayzArt] Setup failed', error);
-      ui.app.textContent = __( 'Setup failed.', 'kayzart-live-code-editor');
-      return;
-    } finally {
-      setupHost.remove();
-    }
-  }
-
-  const initialState = resolveInitialState(cfg, setupResult);
+  const initialState = resolveInitialState(cfg);
   let htmlWordWrapMode: HtmlWordWrapMode = readHtmlWordWrapMode();
 
   let codemirror: CodeMirrorType;
@@ -354,10 +322,10 @@ async function main() {
     return () => contentListeners.delete(listener);
   };
 
-  let saveExportController: ReturnType<typeof createSaveExportController> | null = null;
+  let saveCopyController: ReturnType<typeof createSaveCopyController> | null = null;
 
   const getUnsavedFlags = () => {
-    if (!saveExportController) {
+    if (!saveCopyController) {
       return {
         html: false,
         css: false,
@@ -366,15 +334,15 @@ async function main() {
         hasAny: hasUnsavedSettings,
       };
     }
-    return saveExportController.getUnsavedFlags();
+    return saveCopyController.getUnsavedFlags();
   };
 
   const syncUnsavedUi = () => {
-    saveExportController?.syncUnsavedUi();
+    saveCopyController?.syncUnsavedUi();
   };
 
   const markSavedState = () => {
-    saveExportController?.markSavedState();
+    saveCopyController?.markSavedState();
   };
 
   const syncElementsTabState = () => {
@@ -427,7 +395,7 @@ async function main() {
     }
   };
 
-  saveExportController = createSaveExportController({
+  saveCopyController = createSaveCopyController({
     apiFetch: wp.apiFetch,
     restUrl: cfg.restUrl,
     postId,
@@ -436,9 +404,6 @@ async function main() {
     getCssModel: () => cssModel,
     getJsModel: () => jsModel,
     getJsMode: () => jsMode,
-    getExternalScripts: () => externalScripts,
-    getExternalStyles: () => externalStyles,
-    getLiveHighlightEnabled: () => liveHighlightEnabled,
     getPendingSettingsState: () => ({
       pendingSettingsUpdates,
       hasUnsavedSettings,
@@ -454,7 +419,7 @@ async function main() {
     createSnackbar,
     noticeIds: {
       save: NOTICE_IDS.save,
-      export: NOTICE_IDS.export,
+      copy: NOTICE_IDS.copy,
     },
     noticeSuccessMs: NOTICE_SUCCESS_DURATION_MS,
     noticeErrorMs: NOTICE_ERROR_DURATION_MS,
@@ -478,15 +443,15 @@ async function main() {
     },
   });
 
-  async function handleExport() {
-    await saveExportController?.handleExport();
+  async function handleCopyAll() {
+    await saveCopyController?.handleCopyAll();
   }
 
   async function handleSave(): Promise<{ ok: boolean; error?: string }> {
-    if (!saveExportController) {
+    if (!saveCopyController) {
       return { ok: false, error: __('Save failed.', 'kayzart-live-code-editor') };
     }
-    return await saveExportController.handleSave();
+    return await saveCopyController.handleSave();
   }
 
   const runSaveShortcut = async () => {
@@ -642,7 +607,7 @@ async function main() {
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
       onSave: handleSave,
-      onExport: handleExport,
+      onCopyAll: handleCopyAll,
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),
       onUpdatePostIdentity: async ({ title, slug }) => {

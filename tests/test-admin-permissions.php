@@ -233,7 +233,6 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( __( 'Untitled landing page', 'kayzart-live-code-editor' ), $created->post_title );
 		$this->assertSame( $admin_id, (int) $created->post_author );
 		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
-		$this->assertSame( '1', get_post_meta( $created_id, '_kayzart_setup_required', true ) );
 		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
 	}
 

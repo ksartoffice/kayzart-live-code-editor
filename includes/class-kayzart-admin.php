@@ -293,7 +293,6 @@ class Admin {
 		}
 
 		update_post_meta( (int) $post_id, Post_Type::ENABLED_META, '1' );
-		update_post_meta( (int) $post_id, '_kayzart_setup_required', '1' );
 
 		wp_safe_redirect( Post_Type::get_editor_url( (int) $post_id ) );
 		exit;
@@ -685,7 +684,7 @@ class Admin {
 		$value = get_option( self::OPTION_DELETE_ON_UNINSTALL, '0' );
 		echo '<label>';
 		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_DELETE_ON_UNINSTALL ) . '" value="1" ' . checked( '1', $value, false ) . ' />';
-		echo ' ' . esc_html__( 'Delete all KayzArt posts on uninstall (imported media is kept).', 'kayzart-live-code-editor' );
+		echo ' ' . esc_html__( 'Delete all KayzArt posts on uninstall (media is kept).', 'kayzart-live-code-editor' );
 		echo '</label>';
 	}
 
@@ -893,13 +892,10 @@ class Admin {
 			'previewUrl'           => $preview_url,
 			'iframePreviewUrl'     => $iframe_preview_url,
 			'restUrl'              => rest_url( 'kayzart/v1/save' ),
-			'setupRestUrl'         => rest_url( 'kayzart/v1/setup' ),
-			'importRestUrl'        => rest_url( 'kayzart/v1/import' ),
 			'backUrl'              => $back_url,
 			'listUrl'              => $list_url,
 			'settingsRestUrl'      => rest_url( 'kayzart/v1/settings' ),
 			'settingsData'         => Rest::build_settings_payload( $post_id ),
-			'setupRequired'        => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 			'adminTitleSeparators' => array_values( self::ADMIN_TITLE_SEPARATORS ),
 		);

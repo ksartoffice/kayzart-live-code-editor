@@ -24,7 +24,6 @@ class Editor_Bridge {
 	public static function init(): void {
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_block_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_classic_assets' ) );
-		add_action( 'save_post_' . Post_Type::POST_TYPE, array( __CLASS__, 'maybe_mark_setup_required' ), 10, 3 );
 	}
 
 	/**
@@ -111,33 +110,6 @@ class Editor_Bridge {
 			'kayzart-live-code-editor',
 			KAYZART_PATH . 'languages'
 		);
-	}
-
-	/**
-	 * Mark new KayzArt posts as requiring setup.
-	 *
-	 * @param int      $post_id Post ID.
-	 * @param \WP_Post $post Post object.
-	 * @param bool     $update Whether this is an existing post.
-	 */
-	public static function maybe_mark_setup_required( int $post_id, \WP_Post $post, bool $update ): void {
-		if ( $update ) {
-			return;
-		}
-
-		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
-			return;
-		}
-
-		if ( ! Post_Type::is_kayzart_post( $post ) ) {
-			return;
-		}
-
-		if ( get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1' ) {
-			return;
-		}
-
-		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
 	}
 
 	/**

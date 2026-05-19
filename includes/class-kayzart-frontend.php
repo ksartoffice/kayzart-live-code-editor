@@ -262,9 +262,9 @@ class Frontend {
 	 * @return string
 	 */
 	private static function resolve_default_template_mode(): string {
-		$template_mode = get_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+		$template_mode = get_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'standalone' );
 		$template_mode = Admin::sanitize_default_template_mode( $template_mode );
-		return in_array( $template_mode, self::DEFAULT_TEMPLATE_MODE_VALUES, true ) ? $template_mode : 'theme';
+		return in_array( $template_mode, self::DEFAULT_TEMPLATE_MODE_VALUES, true ) ? $template_mode : 'standalone';
 	}
 
 	/**

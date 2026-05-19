@@ -69,7 +69,7 @@ export function SettingsPanel({
     theme: __( 'Theme', 'kayzart-live-code-editor'),
   };
   const resolvedDefaultTemplateMode =
-    templateModeLabels[defaultTemplateMode] || templateModeLabels.theme;
+    templateModeLabels[defaultTemplateMode] || templateModeLabels.standalone;
   const templateHelp =
     templateMode === 'default'
       ? __( 'Use default follows the default template mode from plugin settings.', 'kayzart-live-code-editor')

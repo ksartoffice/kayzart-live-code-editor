@@ -37,8 +37,9 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 	public function test_sanitize_default_template_mode_allows_known_values_only(): void {
 		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'standalone' ) );
-		$this->assertSame( 'theme', Admin::sanitize_default_template_mode( 'frame' ) );
-		$this->assertSame( 'theme', Admin::sanitize_default_template_mode( 'invalid' ) );
+		$this->assertSame( 'theme', Admin::sanitize_default_template_mode( 'theme' ) );
+		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'frame' ) );
+		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'invalid' ) );
 	}
 
 	public function test_sanitize_delete_on_uninstall_accepts_only_string_one(): void {

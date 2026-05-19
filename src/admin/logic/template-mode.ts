@@ -12,5 +12,5 @@ export function resolveDefaultTemplateMode(value?: string): DefaultTemplateMode 
   if (value === 'standalone' || value === 'theme') {
     return value;
   }
-  return 'theme';
+  return 'standalone';
 }

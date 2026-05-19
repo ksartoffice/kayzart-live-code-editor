@@ -7,6 +7,7 @@
 
 use KayzArt\External_Scripts;
 use KayzArt\External_Styles;
+use KayzArt\Admin;
 use KayzArt\Post_Type;
 use KayzArt\Rest_Save;
 use KayzArt\Rest_Settings;
@@ -61,6 +62,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 	}
 
 	protected function tearDown(): void {
+		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
@@ -326,7 +328,20 @@ class Test_Rest_Success extends WP_UnitTestCase {
 
 		$this->assertIsArray( $settings, 'Settings payload should be an array.' );
 		$this->assert_settings_payload_keys( $settings );
+		$this->assertSame( 'standalone', $settings['defaultTemplateMode'] ?? null );
 		$this->assertArrayNotHasKey( 'authors', $settings, 'Authors should not be returned.' );
+	}
+
+	public function test_build_settings_payload_preserves_explicit_theme_default(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+		update_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+
+		$settings = Rest_Settings::build_settings_payload( $post_id );
+
+		$this->assertSame( 'theme', $settings['defaultTemplateMode'] ?? null );
 	}
 
 	public function test_import_returns_minimal_settings_payload(): void {

@@ -453,7 +453,7 @@ class Admin {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => array( __CLASS__, 'sanitize_default_template_mode' ),
-				'default'           => 'theme',
+				'default'           => 'standalone',
 			)
 		);
 
@@ -568,7 +568,7 @@ class Admin {
 
 		$template_mode = is_string( $value ) ? sanitize_key( $value ) : '';
 		$valid         = array( 'standalone', 'theme' );
-		return in_array( $template_mode, $valid, true ) ? $template_mode : 'theme';
+		return in_array( $template_mode, $valid, true ) ? $template_mode : 'standalone';
 	}
 
 	/**
@@ -671,7 +671,7 @@ class Admin {
 	 */
 	public static function render_default_template_mode_field(): void {
 
-		$value          = get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+		$value          = get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'standalone' );
 		$value          = self::sanitize_default_template_mode( $value );
 		$template_modes = array(
 			'standalone' => __( 'Standalone', 'kayzart-live-code-editor' ),

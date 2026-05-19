@@ -186,8 +186,8 @@ class Test_Frontend_Single_Page_Controls extends WP_UnitTestCase {
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
 
 		update_post_meta( $post_id, '_kayzart_template_mode', 'frame' );
-		$legacy_template = Frontend::maybe_override_template( 'theme-template.php' );
-		$this->assertSame( 'theme-template.php', $legacy_template );
+		$invalid_template_mode_template = Frontend::maybe_override_template( 'theme-template.php' );
+		$this->assertStringContainsString( 'templates/single-kayzart-standalone.php', str_replace( '\\', '/', $invalid_template_mode_template ) );
 
 		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
 		$standalone_template = Frontend::maybe_override_template( 'theme-template.php' );
@@ -198,11 +198,20 @@ class Test_Frontend_Single_Page_Controls extends WP_UnitTestCase {
 		$this->assertSame( 'theme-template.php', $theme_template );
 
 		update_post_meta( $post_id, '_kayzart_template_mode', 'default' );
+		delete_option( \KayzArt\Admin::OPTION_DEFAULT_TEMPLATE_MODE );
+		$default_standalone_template = Frontend::maybe_override_template( 'theme-template.php' );
+		$this->assertStringContainsString( 'templates/single-kayzart-standalone.php', str_replace( '\\', '/', $default_standalone_template ) );
+
+		update_option( \KayzArt\Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+		$explicit_theme_default_template = Frontend::maybe_override_template( 'theme-template.php' );
+		$this->assertSame( 'theme-template.php', $explicit_theme_default_template );
+
 		$GLOBALS['wp_query']->set( 'kayzart_preview', '1' );
 		$GLOBALS['wp_query']->set( 'kayzart_template_mode', 'standalone' );
 		$preview_template = Frontend::maybe_override_template( 'theme-template.php' );
 		$this->assertStringContainsString( 'templates/single-kayzart-standalone.php', str_replace( '\\', '/', $preview_template ) );
 
+		delete_option( \KayzArt\Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		$this->restore_query( $original_wp_query );
 	}
 

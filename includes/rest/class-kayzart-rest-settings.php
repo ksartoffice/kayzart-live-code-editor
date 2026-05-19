@@ -37,7 +37,7 @@ class Rest_Settings {
 	 */
 	private static function normalize_default_template_mode( $value ): string {
 		$template_mode = is_string( $value ) ? $value : '';
-		return in_array( $template_mode, self::DEFAULT_TEMPLATE_MODE_VALUES, true ) ? $template_mode : 'theme';
+		return in_array( $template_mode, self::DEFAULT_TEMPLATE_MODE_VALUES, true ) ? $template_mode : 'standalone';
 	}
 
 	/**
@@ -58,7 +58,7 @@ class Rest_Settings {
 		$template_mode_meta     = get_post_meta( $post_id, '_kayzart_template_mode', true );
 		$template_mode          = self::normalize_template_mode( $template_mode_meta );
 		$default_template_mode  = self::normalize_default_template_mode(
-			get_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' )
+			get_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'standalone' )
 		);
 
 		return array(

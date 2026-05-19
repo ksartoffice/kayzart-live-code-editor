@@ -37,7 +37,6 @@ describe('preview shortcode handling', () => {
       getJsMode: () => 'classic',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
-      isTailwindEnabled: () => false,
     });
 
     controller.handleMessage({
@@ -80,7 +79,6 @@ describe('preview shortcode handling', () => {
       getJsMode: () => 'classic',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
-      isTailwindEnabled: () => false,
     });
 
     controller.handleMessage({
@@ -118,7 +116,6 @@ describe('preview shortcode handling', () => {
       getJsMode: () => 'classic',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
-      isTailwindEnabled: () => false,
       onOverlayAction,
     });
 

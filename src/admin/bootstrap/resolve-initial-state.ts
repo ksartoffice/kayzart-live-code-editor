@@ -10,8 +10,6 @@ export type ResolvedInitialState = {
   initialCss: string;
   initialJs: string;
   initialJsMode: JsMode;
-  tailwindEnabled: boolean;
-  importedGeneratedCss: string;
   settingsData: SettingsData;
 };
 
@@ -41,7 +39,6 @@ export function resolveInitialState(
 ): ResolvedInitialState {
   const initialViewUrl = cfg.settingsData?.viewUrl || '';
   const imported = setupResult?.imported;
-  const defaultTailwindEnabled = Boolean(setupResult?.tailwindEnabled ?? cfg.tailwindEnabled);
 
   if (!imported) {
     return {
@@ -49,8 +46,6 @@ export function resolveInitialState(
       initialCss: cfg.initialCss ?? '',
       initialJs: cfg.initialJs ?? '',
       initialJsMode: normalizeJsMode(cfg.initialJsMode),
-      tailwindEnabled: defaultTailwindEnabled,
-      importedGeneratedCss: '',
       settingsData: cfg.settingsData,
     };
   }
@@ -61,8 +56,6 @@ export function resolveInitialState(
     initialCss: payload.css,
     initialJs: payload.js ?? '',
     initialJsMode: normalizeJsMode(payload.jsMode),
-    tailwindEnabled: payload.tailwindEnabled,
-    importedGeneratedCss: payload.generatedCss || '',
     settingsData:
       imported.settingsData ||
       buildImportedSettings(cfg.settingsData, payload, initialViewUrl),

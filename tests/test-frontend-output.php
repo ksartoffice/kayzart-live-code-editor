@@ -92,17 +92,15 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
 	}
 
-	public function test_enqueue_css_preserves_tailwind_escaped_arbitrary_values(): void {
+	public function test_enqueue_css_preserves_escaped_arbitrary_values(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 		$post     = get_post( $post_id );
 
 		$this->assertInstanceOf( WP_Post::class, $post );
 
-		update_post_meta( $post_id, '_kayzart_tailwind', '1' );
-
-		$generated_css = '.text-\\[2rem\\]{font-size:2rem;}';
-		update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $generated_css ) );
+		$css = '.text-\\[2rem\\]{font-size:2rem;}';
+		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css ) );
 
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
 		Frontend::enqueue_css();
@@ -115,7 +113,7 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertIsArray( $inline_rules );
 		$inline_css = implode( "\n", $inline_rules );
 
-		$this->assertStringContainsString( $generated_css, $inline_css );
+		$this->assertStringContainsString( $css, $inline_css );
 		$this->assertStringNotContainsString( '.text-[2rem]', $inline_css );
 	}
 

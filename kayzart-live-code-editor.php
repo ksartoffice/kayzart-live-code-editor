@@ -2,7 +2,7 @@
 /**
  * Plugin Name: KayzArt Live Code Editor
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
- * Description: Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress.
+ * Description: Live HTML/CSS/JS editor with real-time preview for WordPress.
  * Version: 1.3.6
  * Requires at least: 6.6
  * Tested up to: 6.9
@@ -35,6 +35,7 @@ require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-admin.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-editor-bridge.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-limits.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-upgrader.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-external-scripts.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-external-styles.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
@@ -66,6 +67,7 @@ add_action(
 		// Admin UI.
 		\KayzArt\Admin::init();
 		\KayzArt\Editor_Bridge::init();
+		\KayzArt\Upgrader::init();
 
 		// REST endpoints.
 		\KayzArt\Rest::init();

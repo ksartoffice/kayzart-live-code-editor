@@ -413,60 +413,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( $resolved_slug, (string) $post->post_name );
 	}
 
-	public function test_compile_tailwind_rejects_html_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/compile-tailwind',
-			array(
-				'post_id' => $post_id,
-				'html'    => str_repeat( 'a', Limits::MAX_TAILWIND_HTML_BYTES + 1 ),
-				'css'     => $this->get_tailwind_css_base(),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Tailwind compile should reject oversized HTML.' );
-	}
-
-	public function test_compile_tailwind_rejects_css_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/compile-tailwind',
-			array(
-				'post_id' => $post_id,
-				'html'    => '<div class="text-sm"></div>',
-				'css'     => $this->build_tailwind_css_of_size( Limits::MAX_TAILWIND_CSS_BYTES + 1 ),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Tailwind compile should reject oversized CSS.' );
-	}
-
-	public function test_compile_tailwind_accepts_exact_limit_sizes(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/compile-tailwind',
-			array(
-				'post_id' => $post_id,
-				'html'    => str_repeat( 'a', Limits::MAX_TAILWIND_HTML_BYTES ),
-				'css'     => $this->build_tailwind_css_of_size( Limits::MAX_TAILWIND_CSS_BYTES ),
-			)
-		);
-
-		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should accept exact-limit HTML/CSS.' );
-	}
-
 	public function test_save_rejects_invalid_settings_updates_and_preserves_content(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -517,35 +463,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 400, $response->get_status(), 'Invalid jsMode should fail save.' );
-	}
-
-	public function test_save_rejects_tailwind_input_over_limit_and_preserves_content(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => 'Before save',
-			)
-		);
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/save',
-			array(
-				'post_id'         => $post_id,
-				'html'            => str_repeat( 'a', Limits::MAX_TAILWIND_HTML_BYTES + 1 ),
-				'css'             => $this->get_tailwind_css_base(),
-				'tailwindEnabled' => true,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Save should reject oversized Tailwind input.' );
-
-		$post = get_post( $post_id );
-		$this->assertInstanceOf( WP_Post::class, $post );
-		$this->assertSame( 'Before save', (string) $post->post_content, 'Content should stay unchanged when Tailwind input is oversized.' );
 	}
 
 	public function test_save_strips_xss_from_html_for_author(): void {
@@ -655,24 +572,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			'css'             => '',
 			'tailwindEnabled' => false,
 		);
-	}
-
-	private function get_tailwind_css_base(): string {
-		return "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n";
-	}
-
-	private function build_tailwind_css_of_size( int $bytes ): string {
-		$base = $this->get_tailwind_css_base();
-		if ( strlen( $base ) >= $bytes ) {
-			return substr( $base, 0, $bytes );
-		}
-
-		$pad = $bytes - strlen( $base );
-		if ( $pad < 4 ) {
-			return $base . str_repeat( 'a', $pad );
-		}
-
-		return $base . '/*' . str_repeat( 'a', $pad - 4 ) . '*/';
 	}
 
 }

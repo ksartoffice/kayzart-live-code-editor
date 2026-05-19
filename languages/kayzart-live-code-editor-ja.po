@@ -38,8 +38,8 @@ msgstr "https://wordpress.org/plugins/kayzart-live-code-editor/"
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress."
-msgstr "リアルタイムプレビューと Tailwind CSS 対応を備えた WordPress 用の HTML/CSS/JS エディター。"
+msgid "Live HTML/CSS/JS editor with real-time preview for WordPress."
+msgstr "リアルタイムプレビューを備えた WordPress 用の HTML/CSS/JS エディター。"
 
 #: includes/class-kayzart-admin.php:161
 #: includes/class-kayzart-admin.php:638
@@ -150,11 +150,6 @@ msgstr "ゴミ箱に KayzArt はありません"
 msgid "KayzArt Archives"
 msgstr "KayzArt アーカイブ"
 
-#: includes/class-kayzart-post-type.php:159
-#: assets/dist/main.js:106
-msgid "TailwindCSS"
-msgstr "TailwindCSS"
-
 #: includes/class-kayzart-post-type.php:188
 msgid "Landing page"
 msgstr "ランディングページ"
@@ -213,14 +208,6 @@ msgstr "liveHighlightEnabled の値が不正です。"
 #: assets/dist/main.js:106
 msgid "Invalid generatedCss value."
 msgstr "generatedCss の値が不正です。"
-
-#. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-import.php:283
-#: includes/rest/class-kayzart-rest-save.php:178
-#: includes/rest/class-kayzart-rest-save.php:358
-#, php-format
-msgid "Tailwind compile failed: %s"
-msgstr "Tailwind のコンパイルに失敗しました: %s"
 
 #: includes/rest/class-kayzart-rest-save.php:103
 #: includes/rest/class-kayzart-rest-settings.php:98
@@ -345,14 +332,6 @@ msgstr "テンプレートモードが「デフォルト」に設定されてい
 msgctxt "kayzart"
 msgid "Create New"
 msgstr "新規作成"
-
-#: includes/rest/class-kayzart-rest-save.php:296
-msgid "Tailwind HTML input exceeds the maximum size."
-msgstr "Tailwind の HTML 入力が最大サイズを超えています。"
-
-#: includes/rest/class-kayzart-rest-save.php:304
-msgid "Tailwind CSS input exceeds the maximum size."
-msgstr "Tailwind の CSS 入力が最大サイズを超えています。"
 
 #: assets/admin/editor-bridge.js:56
 #: assets/dist/main.js:106
@@ -538,12 +517,12 @@ msgid "Setup failed."
 msgstr "セットアップに失敗しました。"
 
 #: assets/dist/main.js:106
-msgid "Choose editor mode"
-msgstr "エディターモードを選択"
+msgid "Set up KayzArt"
+msgstr "KayzArt をセットアップ"
 
 #: assets/dist/main.js:106
-msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
-msgstr "TailwindCSS または Normal モードを選択してください。この選択は後から変更できません。"
+msgid "Start with a blank editor or restore from a KayzArt JSON file."
+msgstr "空のエディターから始めるか、KayzArt JSON ファイルから復元します。"
 
 #: assets/dist/main.js:106
 msgid "Normal (HTML/CSS)"
@@ -552,10 +531,6 @@ msgstr "Normal（HTML/CSS）"
 #: assets/dist/main.js:106
 msgid "Edit HTML and CSS directly in the code editor."
 msgstr "コードエディターで HTML と CSS を直接編集します。"
-
-#: assets/dist/main.js:106
-msgid "Use utility classes. CSS is compiled automatically."
-msgstr "ユーティリティクラスを使用します。CSS は自動でコンパイルされます。"
 
 #: assets/dist/main.js:106
 msgid "Import JSON"
@@ -628,14 +603,6 @@ msgstr "WordPress に戻る"
 #: assets/dist/main.js:106
 msgid "(Draft)"
 msgstr "（下書き）"
-
-#: assets/dist/main.js:106
-msgid "Tailwind CSS"
-msgstr "Tailwind CSS"
-
-#: assets/dist/main.js:106
-msgid "Editing in Tailwind CSS mode"
-msgstr "Tailwind CSS モードで編集中"
 
 #: assets/dist/main.js:106
 msgid "Save draft"
@@ -756,15 +723,6 @@ msgstr "メディアを追加"
 #: assets/dist/main.js:106
 msgid "Run"
 msgstr "実行"
-
-#: assets/dist/main.js:125
-msgid "Tailwind compile failed."
-msgstr "Tailwind のコンパイルに失敗しました。"
-
-#: assets/dist/main.js:125
-#, js-format
-msgid "Tailwind error: %s"
-msgstr "Tailwind エラー: %s"
 
 #: assets/dist/main.js:125
 #: assets/dist/main.js:127

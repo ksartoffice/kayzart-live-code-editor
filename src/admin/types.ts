@@ -5,7 +5,7 @@ export type ImportPayload = {
   version: number;
   html: string;
   css: string;
-  tailwindEnabled: boolean;
+  tailwindEnabled?: boolean;
   generatedCss?: string;
   js?: string;
   jsMode?: JsMode;
@@ -23,8 +23,6 @@ export type ExportPayload = {
   version: 1;
   html: string;
   css: string;
-  tailwindEnabled: boolean;
-  generatedCss: string;
   js: string;
   jsMode: JsMode;
   externalScripts: string[];

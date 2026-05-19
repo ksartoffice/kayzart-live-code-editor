@@ -166,8 +166,6 @@ type CodeMirrorInitOptions = {
   initialCss: string;
   initialJs: string;
   htmlWordWrap: WordWrapMode;
-  tailwindEnabled: boolean;
-  useTailwindDefault: boolean;
   canEditJs: boolean;
   htmlContainer: HTMLElement;
   cssContainer: HTMLElement;
@@ -185,13 +183,6 @@ type EditorWrapper = {
   model: EditorModel;
   editor: CodeEditorInstance;
 };
-
-const DEFAULT_TAILWIND_CSS =
-  '@import "tailwindcss";\n' +
-  '\n' +
-  '@theme {\n' +
-  '  /* ... */\n' +
-  '}\n';
 
 const DECORATION_EFFECT = StateEffect.define<DecorationSpec[]>();
 
@@ -603,11 +594,6 @@ const createEditorWrapper = (options: {
 };
 
 export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Promise<CodeMirrorSetup> {
-  const initialCss =
-    options.tailwindEnabled && options.initialCss.trim() === '' && options.useTailwindDefault
-      ? DEFAULT_TAILWIND_CSS
-      : options.initialCss;
-
   const htmlWrapper = createEditorWrapper({
     parent: options.htmlContainer,
     initialValue: options.initialHtml ?? '',
@@ -619,7 +605,7 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
 
   const cssWrapper = createEditorWrapper({
     parent: options.cssContainer,
-    initialValue: initialCss ?? '',
+    initialValue: options.initialCss ?? '',
     language: cssLanguage(),
     emmet: EmmetKnownSyntax.css,
   });

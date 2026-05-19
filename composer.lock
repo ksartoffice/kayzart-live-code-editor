@@ -4,214 +4,21 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d5e03ec81030ace37d152c46f200599b",
-    "packages": [
-        {
-            "name": "tailwindphp/tailwindphp",
-            "version": "v1.3.0.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/ksartoffice/tailwindphp.git",
-                "reference": "2e81b77df51d13f3e8b3d4f94043ac87375fa2f7"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/2e81b77df51d13f3e8b3d4f94043ac87375fa2f7",
-                "reference": "2e81b77df51d13f3e8b3d4f94043ac87375fa2f7",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^8.2"
-            },
-            "require-dev": {
-                "brianium/paratest": "^7.4",
-                "laravel/pint": "^1.26",
-                "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^10.0"
-            },
-            "bin": [
-                "bin/tailwindphp"
-            ],
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "TailwindPHP\\": "src/"
-                },
-                "files": [
-                    "src/_tailwindphp/LightningCss.php",
-                    "src/_tailwindphp/CssMinifier.php",
-                    "src/attribute-selector-parser.php",
-                    "src/utils/segment.php",
-                    "src/utils/escape.php",
-                    "src/utils/default-map.php",
-                    "src/utils/to-key-path.php",
-                    "src/utils/brace-expansion.php",
-                    "src/utils/compare.php",
-                    "src/utils/compare-breakpoints.php",
-                    "src/utils/dimensions.php",
-                    "src/utils/topological-sort.php",
-                    "src/utils/replace-shadow-colors.php",
-                    "src/utils/is-color.php",
-                    "src/utils/math-operators.php",
-                    "src/utils/is-valid-arbitrary.php",
-                    "src/utils/infer-data-type.php",
-                    "src/ast.php",
-                    "src/css-parser.php",
-                    "src/walk.php",
-                    "src/value-parser.php",
-                    "src/selector-parser.php",
-                    "src/constant-fold-declaration.php",
-                    "src/property-order.php",
-                    "src/expand-declaration.php",
-                    "src/theme.php",
-                    "src/utils/decode-arbitrary-value.php",
-                    "src/candidate.php",
-                    "src/compile.php",
-                    "src/utilities.php",
-                    "src/variants.php",
-                    "src/design-system.php",
-                    "src/apply.php",
-                    "src/at-import.php",
-                    "src/css-functions.php",
-                    "src/plugin.php",
-                    "src/plugin/plugins/typography-plugin.php",
-                    "src/plugin/plugins/forms-plugin.php",
-                    "src/index.php"
-                ]
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "TailwindPHP\\": "src/",
-                    "TailwindPHP\\Tests\\": "tests/"
-                },
-                "classmap": [
-                    "src/"
-                ],
-                "exclude-from-classmap": [
-                    "src/*.php",
-                    "src/**/*.php",
-                    "!src/*.test.php",
-                    "!src/**/*.test.php"
-                ]
-            },
-            "scripts": {
-                "extract": [
-                    "php test-coverage/extract-run-tests.php",
-                    "php test-coverage/extract-index-tests.php",
-                    "php test-coverage/extract-css-functions-tests.php",
-                    "php test-coverage/extract-candidate-tests.php",
-                    "php test-coverage/extract-ui-spec-tests.php"
-                ],
-                "extract-libs": [
-                    "php test-coverage/lib/extract-clsx-tests.php",
-                    "php test-coverage/lib/extract-tailwind-merge-tests.php",
-                    "php test-coverage/lib/extract-cva-tests.php"
-                ],
-                "extract-plugins": [
-                    "php test-coverage/plugins/extract-typography-tests.php"
-                ],
-                "extract-all": [
-                    "@extract",
-                    "@extract-libs",
-                    "@extract-plugins"
-                ],
-                "test": [
-                    "paratest --processes 8"
-                ],
-                "test-serial": [
-                    "phpunit"
-                ],
-                "test-libs": [
-                    "phpunit src/_tailwindphp/lib/"
-                ],
-                "test-plugins": [
-                    "phpunit src/plugin/"
-                ],
-                "extract-and-test": [
-                    "@extract-all",
-                    "phpunit"
-                ],
-                "update-and-test": [
-                    "@update-all",
-                    "@extract-all",
-                    "@test"
-                ],
-                "update-all": [
-                    "@update-tailwind",
-                    "@update-libs",
-                    "@update-plugins"
-                ],
-                "update-tailwind": [
-                    "php scripts/update-tailwind.php"
-                ],
-                "update-libs": [
-                    "php scripts/update-libs.php"
-                ],
-                "update-plugins": [
-                    "php scripts/update-plugins.php"
-                ],
-                "versions": [
-                    "php scripts/update-tailwind.php --check",
-                    "php scripts/update-libs.php --check",
-                    "php scripts/update-plugins.php --check"
-                ],
-                "bench": [
-                    "php scripts/benchmark.php"
-                ],
-                "bench:save": [
-                    "php scripts/benchmark.php --save"
-                ],
-                "lint": [
-                    "pint --test"
-                ],
-                "format": [
-                    "pint"
-                ],
-                "analyse": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "quality": [
-                    "@lint",
-                    "@analyse"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Dennis Josek"
-                }
-            ],
-            "description": "A full port of TailwindCSS 4.x to PHP",
-            "homepage": "https://github.com/dnnsjsk/tailwindphp",
-            "keywords": [
-                "css",
-                "php",
-                "tailwind",
-                "tailwindcss",
-                "utility-css"
-            ],
-            "support": {
-                "issues": "https://github.com/dnnsjsk/tailwindphp/issues",
-                "source": "https://github.com/dnnsjsk/tailwindphp"
-            },
-            "time": "2026-04-07T01:26:46+00:00"
-        }
-    ],
+    "content-hash": "c73484b31000528a11a24d05ab00bb03",
+    "packages": [],
     "packages-dev": [
         {
             "name": "dealerdirect/phpcodesniffer-composer-installer",
-            "version": "v1.2.0",
+            "version": "v1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPCSStandards/composer-installer.git",
-                "reference": "845eb62303d2ca9b289ef216356568ccc075ffd1"
+                "reference": "963f0c67bffde0eac41b56be71ac0e8ba132f0bd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/composer-installer/zipball/845eb62303d2ca9b289ef216356568ccc075ffd1",
-                "reference": "845eb62303d2ca9b289ef216356568ccc075ffd1",
+                "url": "https://api.github.com/repos/PHPCSStandards/composer-installer/zipball/963f0c67bffde0eac41b56be71ac0e8ba132f0bd",
+                "reference": "963f0c67bffde0eac41b56be71ac0e8ba132f0bd",
                 "shasum": ""
             },
             "require": {
@@ -294,7 +101,7 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2025-11-11T04:32:07+00:00"
+            "time": "2026-05-06T08:26:05+00:00"
         },
         {
             "name": "doctrine/instantiator",
@@ -1311,16 +1118,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "9.6.31",
+            "version": "9.6.34",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "945d0b7f346a084ce5549e95289962972c4272e5"
+                "reference": "b36f02317466907a230d3aa1d34467041271ef4a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/945d0b7f346a084ce5549e95289962972c4272e5",
-                "reference": "945d0b7f346a084ce5549e95289962972c4272e5",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/b36f02317466907a230d3aa1d34467041271ef4a",
+                "reference": "b36f02317466907a230d3aa1d34467041271ef4a",
                 "shasum": ""
             },
             "require": {
@@ -1342,7 +1149,7 @@
                 "phpunit/php-timer": "^5.0.3",
                 "sebastian/cli-parser": "^1.0.2",
                 "sebastian/code-unit": "^1.0.8",
-                "sebastian/comparator": "^4.0.9",
+                "sebastian/comparator": "^4.0.10",
                 "sebastian/diff": "^4.0.6",
                 "sebastian/environment": "^5.1.5",
                 "sebastian/exporter": "^4.0.8",
@@ -1394,7 +1201,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.31"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.34"
             },
             "funding": [
                 {
@@ -1418,7 +1225,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-12-06T07:45:52+00:00"
+            "time": "2026-01-27T05:45:00+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -1589,16 +1396,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "4.0.9",
+            "version": "4.0.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "67a2df3a62639eab2cc5906065e9805d4fd5dfc5"
+                "reference": "e4df00b9b3571187db2831ae9aada2c6efbd715d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/67a2df3a62639eab2cc5906065e9805d4fd5dfc5",
-                "reference": "67a2df3a62639eab2cc5906065e9805d4fd5dfc5",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/e4df00b9b3571187db2831ae9aada2c6efbd715d",
+                "reference": "e4df00b9b3571187db2831ae9aada2c6efbd715d",
                 "shasum": ""
             },
             "require": {
@@ -1651,7 +1458,7 @@
             ],
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/4.0.9"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/4.0.10"
             },
             "funding": [
                 {
@@ -1671,7 +1478,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-08-10T06:51:50+00:00"
+            "time": "2026-01-24T09:22:56+00:00"
         },
         {
             "name": "sebastian/complexity",

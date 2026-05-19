@@ -42,7 +42,6 @@ type ToolbarState = {
   editorCollapsed: boolean;
   compactEditorMode: boolean;
   settingsOpen: boolean;
-  tailwindEnabled: boolean;
   viewportMode: ViewportMode;
   hasUnsavedChanges: boolean;
   viewPostUrl: string;
@@ -143,7 +142,6 @@ function Toolbar({
   editorCollapsed,
   compactEditorMode,
   settingsOpen,
-  tailwindEnabled,
   hasUnsavedChanges,
   viewPostUrl,
   postStatus,
@@ -201,8 +199,6 @@ function Toolbar({
   const titleText = draftSuffix ? `${resolvedTitle} ${draftSuffix}` : resolvedTitle;
   const titleTooltip = resolvedTitle;
   const normalizedStatus = postStatus === 'auto-draft' ? 'draft' : postStatus;
-  const tailwindBadgeLabel = __( 'Tailwind CSS', 'kayzart-live-code-editor');
-  const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
   const listLabel = __( 'Pages', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'
@@ -592,16 +588,6 @@ function Toolbar({
           </div>
         </div>
         <div className="kayzart-toolbarCluster kayzart-toolbarCluster-rightSecondary">
-          {tailwindEnabled ? (
-            <span
-              className="kayzart-tailwindBadge"
-              title={tailwindTooltip}
-              aria-label={tailwindTooltip}
-              data-tooltip={tailwindTooltip}
-            >
-              {tailwindBadgeLabel}
-            </span>
-          ) : null}
           {showViewPost ? (
             <a
               className="kayzart-btn kayzart-btn-icon kayzart-btn-view"

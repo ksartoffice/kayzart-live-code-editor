@@ -1,6 +1,6 @@
 === KayzArt Live Code Editor ===
 Contributors: ksartoffice
-Tags: live preview, code editor, codemirror, tailwind, landing page
+Tags: live preview, code editor, codemirror, landing page
 Requires at least: 6.6
 Tested up to: 6.9
 Requires PHP: 8.2
@@ -8,7 +8,7 @@ Stable tag: 1.3.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-KayzArt Live Code Editor - Live HTML/CSS/JS Editor with Tailwind CSS v4 support.
+KayzArt Live Code Editor - Live HTML/CSS/JS Editor for WordPress.
 
 == Description ==
 KayzArt Live Code Editor provides a dedicated editor for building HTML, CSS, and JavaScript snippets with a live preview. It adds a "KayzArt" custom post type, opens new KayzArt posts in the editor, and adds an "Edit with KayzArt" button to the standard editor.
@@ -17,8 +17,7 @@ Features:
 * Custom KayzArt post type and dedicated editor
 * CodeMirror 6 editor with HTML/CSS/JS tabs and live iframe preview
 * JavaScript ES Module support with execution type switch (Classic / Module)
-* Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
-* Tailwind mode with on-demand Tailwind CSS v4 compilation
+* Setup wizard with blank editor and Import JSON options
 * Import/export JSON projects
 * Per-post template mode control: Default/Standalone/Theme
 * External scripts/styles (https only), live edit highlight, and real-time DOM selection
@@ -47,7 +46,7 @@ Development repository and build:
 
 == Screenshots ==
 1. Editor screen.
-2. Tailwind CSS mode.
+2. Settings and preview controls.
 
 == Frequently Asked Questions ==
 = Who can edit KayzArt posts? =
@@ -55,12 +54,6 @@ Users who can edit the post can use the editor. JavaScript and external scripts/
 
 = Does KayzArt contact external servers by default? =
 No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.
-
-= Can I switch between Normal and Tailwind modes? =
-The setup wizard lets you choose Normal or Tailwind. The choice is locked per KayzArt post.
-
-= Which Tailwind CSS version is supported? =
-Tailwind mode supports Tailwind CSS v4.
 
 = How does template mode work? =
 Each KayzArt post can use Default, Standalone, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Standalone.
@@ -97,12 +90,13 @@ Build commands:
 == Changelog ==
 = 1.3.6 =
 * Remove external embedding and single-page disable settings. Existing [kayzart] shortcodes no longer render content.
+* Remove Tailwind CSS mode and convert legacy generated CSS to normal CSS.
 
 = 1.3.5 =
 * Docs: Add screenshots section.
 
 = 1.3.4 =
-* Update: Bump TailwindPHP fork dependency to v1.3.0.2.
+* Update: Dependency maintenance.
 
 = 1.3.3 =
 * Improve: Add resizable settings panel with width persistence.
@@ -144,4 +138,3 @@ Build commands:
 This plugin bundles third-party libraries:
 * CodeMirror - MIT License - https://github.com/codemirror
 * Emmet CodeMirror 6 Plugin - MIT License - https://github.com/emmetio/codemirror6-plugin
-* TailwindPHP (fork) - MIT License - https://github.com/ksartoffice/tailwindphp (upstream: https://github.com/dnnsjsk/tailwindphp)

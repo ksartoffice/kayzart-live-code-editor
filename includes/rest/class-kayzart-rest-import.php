@@ -7,8 +7,6 @@
 
 namespace KayzArt;
 
-use TailwindPHP\tw;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -89,7 +87,7 @@ class Rest_Import {
 			);
 		}
 
-		if ( ! array_key_exists( 'tailwindEnabled', $payload ) || ! is_bool( $payload['tailwindEnabled'] ) ) {
+		if ( array_key_exists( 'tailwindEnabled', $payload ) && ! is_bool( $payload['tailwindEnabled'] ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -98,6 +96,7 @@ class Rest_Import {
 				400
 			);
 		}
+
 		$js_input = '';
 		if ( array_key_exists( 'js', $payload ) ) {
 			if ( ! is_string( $payload['js'] ) ) {
@@ -223,8 +222,11 @@ class Rest_Import {
 		}
 
 		$html             = $payload['html'];
-		$css_input        = self::sanitize_css_input( $payload['css'] );
-		$tailwind_enabled = $payload['tailwindEnabled'];
+		$tailwind_enabled = isset( $payload['tailwindEnabled'] ) && true === $payload['tailwindEnabled'];
+		$css_source       = $tailwind_enabled && '' !== $generated_css_input
+			? $generated_css_input
+			: $payload['css'];
+		$css_input        = self::sanitize_css_input( $css_source );
 		$result           = wp_update_post(
 			array(
 				'ID'           => $post_id,
@@ -243,34 +245,6 @@ class Rest_Import {
 			);
 		}
 
-		$compiled_css = '';
-		if ( $tailwind_enabled ) {
-			if ( '' !== $generated_css_input ) {
-				$compiled_css = $generated_css_input;
-			} else {
-				try {
-					$compiled_css = tw::generate(
-						array(
-							'content' => $html,
-							'css'     => $css_input,
-						)
-					);
-				} catch ( \Throwable $e ) {
-					return new \WP_REST_Response(
-						array(
-							'ok'    => false,
-							'error' => sprintf(
-								/* translators: %s: error message. */
-								__( 'Tailwind compile failed: %s', 'kayzart-live-code-editor' ),
-								$e->getMessage()
-							),
-						),
-						500
-					);
-				}
-			}
-		}
-
 		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
 		update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
 		update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
@@ -278,15 +252,10 @@ class Rest_Import {
 		if ( null !== $live_highlight_enabled ) {
 			update_post_meta( $post_id, '_kayzart_live_highlight', $live_highlight_enabled ? '1' : '0' );
 		}
-		update_post_meta( $post_id, '_kayzart_tailwind', $tailwind_enabled ? '1' : '0' );
-		update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
 		delete_post_meta( $post_id, '_kayzart_setup_required' );
-
-		if ( $tailwind_enabled ) {
-			update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $compiled_css ) );
-		} else {
-			delete_post_meta( $post_id, '_kayzart_generated_css' );
-		}
+		delete_post_meta( $post_id, '_kayzart_tailwind' );
+		delete_post_meta( $post_id, '_kayzart_tailwind_locked' );
+		delete_post_meta( $post_id, '_kayzart_generated_css' );
 
 		if ( empty( $external_scripts ) ) {
 			delete_post_meta( $post_id, '_kayzart_external_scripts' );
@@ -309,10 +278,9 @@ class Rest_Import {
 		}
 
 		$response = array(
-			'ok'              => true,
-			'html'            => $html,
-			'tailwindEnabled' => $tailwind_enabled,
-			'settingsData'    => Rest_Settings::build_settings_payload( $post_id ),
+			'ok'           => true,
+			'html'         => $html,
+			'settingsData' => Rest_Settings::build_settings_payload( $post_id ),
 		);
 
 		return new \WP_REST_Response( $response, 200 );

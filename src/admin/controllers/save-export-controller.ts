@@ -18,15 +18,12 @@ type UnsavedFlags = {
 type SaveExportControllerDeps = {
   apiFetch: ApiFetch;
   restUrl: string;
-  restCompileUrl: string;
   postId: number;
   canEditJs: boolean;
   getHtmlModel: () => EditorModel | undefined;
   getCssModel: () => EditorModel | undefined;
   getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
-  getTailwindEnabled: () => boolean;
-  getTailwindCss: () => string;
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
   getLiveHighlightEnabled: () => boolean;
@@ -146,13 +143,9 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     deps.createSnackbar('info', __('Exporting...', 'kayzart-live-code-editor'), deps.noticeIds.export);
 
     const result = await exportKayzArt({
-      apiFetch: deps.apiFetch,
-      restCompileUrl: deps.restCompileUrl,
       postId: deps.postId,
       html: htmlModel.getValue(),
       css: cssModel.getValue(),
-      tailwindEnabled: deps.getTailwindEnabled(),
-      tailwindCss: deps.getTailwindCss(),
       js: jsModel.getValue(),
       jsMode: deps.getJsMode(),
       externalScripts: deps.getExternalScripts(),
@@ -223,7 +216,6 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
         postId: deps.postId,
         html: htmlModel.getValue(),
         css: cssModel.getValue(),
-        tailwindEnabled: deps.getTailwindEnabled(),
         canEditJs: deps.canEditJs,
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),

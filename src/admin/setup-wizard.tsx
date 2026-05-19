@@ -19,11 +19,9 @@ type SetupWizardConfig = {
   importRestUrl?: string;
   apiFetch?: ApiFetch;
   backUrl?: string;
-  initialTailwindEnabled?: boolean;
 };
 
 export type SetupWizardResult = {
-  tailwindEnabled: boolean;
   imported?: {
     payload: ImportPayload;
     settingsData?: SettingsData;
@@ -36,7 +34,6 @@ type SetupWizardProps = {
   importRestUrl?: string;
   apiFetch: ApiFetch;
   backUrl?: string;
-  initialTailwindEnabled?: boolean;
   onComplete: (result: SetupWizardResult) => void;
 };
 
@@ -46,12 +43,9 @@ function SetupWizard({
   importRestUrl,
   apiFetch,
   backUrl,
-  initialTailwindEnabled,
   onComplete,
 }: SetupWizardProps) {
-  const [mode, setMode] = useState<'normal' | 'tailwind' | 'import'>(
-    initialTailwindEnabled ? 'tailwind' : 'normal'
-  );
+  const [mode, setMode] = useState<'normal' | 'import'>('normal');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [importPayload, setImportPayload] = useState<ImportPayload | null>(null);
@@ -120,7 +114,6 @@ function SetupWizard({
           : importPayload;
 
         onComplete({
-          tailwindEnabled: Boolean(response.tailwindEnabled ?? importPayload.tailwindEnabled),
           imported: {
             payload: normalizedPayload,
             settingsData: response.settingsData,
@@ -132,7 +125,6 @@ function SetupWizard({
           method: 'POST',
           data: {
             post_id: postId,
-            mode,
           },
         });
 
@@ -140,7 +132,7 @@ function SetupWizard({
           throw new Error(response?.error || __('Setup failed.', 'kayzart-live-code-editor'));
         }
 
-        onComplete({ tailwindEnabled: Boolean(response.tailwindEnabled) });
+        onComplete({});
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -156,10 +148,9 @@ function SetupWizard({
   return (
     <div className="kayzart-setupOverlay">
       <div className="kayzart-setupCard" role="dialog" aria-modal="true">
-        <div className="kayzart-setupTitle">{__('Choose editor mode', 'kayzart-live-code-editor')}</div>
+        <div className="kayzart-setupTitle">{__('Set up KayzArt', 'kayzart-live-code-editor')}</div>
         <div className="kayzart-setupIntro">
-          {__(
-            'Select TailwindCSS or Normal mode. This choice cannot be changed later.', 'kayzart-live-code-editor')}
+          {__('Start with a blank editor or restore from a KayzArt JSON file.', 'kayzart-live-code-editor')}
         </div>
         <div className="kayzart-setupOptions">
           <label className={`kayzart-setupOption${mode === 'normal' ? ' is-active' : ''}`}>
@@ -176,23 +167,6 @@ function SetupWizard({
               </span>
               <span className="kayzart-setupOptionDesc">
                 {__('Edit HTML and CSS directly in the code editor.', 'kayzart-live-code-editor')}
-              </span>
-            </span>
-          </label>
-          <label className={`kayzart-setupOption${mode === 'tailwind' ? ' is-active' : ''}`}>
-            <input
-              type="radio"
-              name="kayzart-setup-mode"
-              value="tailwind"
-              checked={mode === 'tailwind'}
-              onChange={() => setMode('tailwind')}
-            />
-            <span className="kayzart-setupOptionBody">
-              <span className="kayzart-setupOptionTitle">
-                {__('TailwindCSS', 'kayzart-live-code-editor')}
-              </span>
-              <span className="kayzart-setupOptionDesc">
-                {__('Use utility classes. CSS is compiled automatically.', 'kayzart-live-code-editor')}
               </span>
             </span>
           </label>
@@ -277,7 +251,6 @@ export function runSetupWizard(config: SetupWizardConfig): Promise<SetupWizardRe
         importRestUrl={config.importRestUrl}
         apiFetch={apiFetch}
         backUrl={config.backUrl}
-        initialTailwindEnabled={config.initialTailwindEnabled}
         onComplete={onComplete}
       />
     );

@@ -26,7 +26,7 @@ msgstr ""
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress."
+msgid "Live HTML/CSS/JS editor with real-time preview for WordPress."
 msgstr ""
 
 #. Author of the plugin
@@ -256,11 +256,6 @@ msgstr ""
 msgid "KayzArt Archives"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:159
-#: assets/dist/main.js:106
-msgid "TailwindCSS"
-msgstr ""
-
 #: includes/class-kayzart-post-type.php:188
 msgid "Landing page"
 msgstr ""
@@ -321,25 +316,9 @@ msgstr ""
 msgid "Invalid generatedCss value."
 msgstr ""
 
-#. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-import.php:283
-#: includes/rest/class-kayzart-rest-save.php:178
-#: includes/rest/class-kayzart-rest-save.php:358
-#, php-format
-msgid "Tailwind compile failed: %s"
-msgstr ""
-
 #: includes/rest/class-kayzart-rest-save.php:103
 #: includes/rest/class-kayzart-rest-settings.php:98
 msgid "Invalid payload."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-save.php:296
-msgid "Tailwind HTML input exceeds the maximum size."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-save.php:304
-msgid "Tailwind CSS input exceeds the maximum size."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-settings.php:246
@@ -348,10 +327,6 @@ msgstr ""
 
 #: includes/rest/class-kayzart-rest-settings.php:288
 msgid "Invalid external styles payload."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-setup.php:42
-msgid "Invalid setup mode."
 msgstr ""
 
 #: assets/admin/editor-bridge.js:56
@@ -538,11 +513,11 @@ msgid "Setup failed."
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Choose editor mode"
+msgid "Set up KayzArt"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
+msgid "Start with a blank editor or restore from a KayzArt JSON file."
 msgstr ""
 
 #: assets/dist/main.js:106
@@ -627,14 +602,6 @@ msgstr ""
 
 #: assets/dist/main.js:106
 msgid "(Draft)"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Tailwind CSS"
-msgstr ""
-
-#: assets/dist/main.js:106
-msgid "Editing in Tailwind CSS mode"
 msgstr ""
 
 #: assets/dist/main.js:106
@@ -755,15 +722,6 @@ msgstr ""
 
 #: assets/dist/main.js:106
 msgid "Run"
-msgstr ""
-
-#: assets/dist/main.js:125
-msgid "Tailwind compile failed."
-msgstr ""
-
-#: assets/dist/main.js:125
-#, js-format
-msgid "Tailwind error: %s"
 msgstr ""
 
 #: assets/dist/main.js:125

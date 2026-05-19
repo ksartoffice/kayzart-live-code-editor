@@ -20,10 +20,6 @@ import {
   getEditableElementText,
   getElementContext,
 } from './element-text';
-import {
-  createTailwindCompiler,
-  type TailwindCompiler,
-} from './persistence';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml } from './logic/media-html';
@@ -279,7 +275,6 @@ async function main() {
         importRestUrl: cfg.importRestUrl,
         apiFetch: wp?.apiFetch,
         backUrl: cfg.listUrl || cfg.backUrl,
-        initialTailwindEnabled: Boolean(cfg.tailwindEnabled),
       });
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -292,7 +287,6 @@ async function main() {
   }
 
   const initialState = resolveInitialState(cfg, setupResult);
-  let tailwindEnabled = initialState.tailwindEnabled;
   let htmlWordWrapMode: HtmlWordWrapMode = readHtmlWordWrapMode();
 
   let codemirror: CodeMirrorType;
@@ -302,7 +296,6 @@ async function main() {
   let htmlEditor: CodeEditorInstance;
   let cssEditor: CodeEditorInstance;
   let jsEditor: CodeEditorInstance;
-  let tailwindCss = initialState.importedGeneratedCss;
   let settingsOpen = false;
   let activeSettingsTab = 'settings';
   const canEditJs = Boolean(cfg.canEditJs);
@@ -331,9 +324,7 @@ async function main() {
   let preview: PreviewController | null = null;
   let settingsApi: SettingsApi | null = null;
   let modalController: ReturnType<typeof createModalController> | null = null;
-  let tailwindCompiler: TailwindCompiler | null = null;
   let sendRenderDebounced: (() => void) | null = null;
-  let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let htmlChangeHighlightIds: string[] = [];
   let cssChangeHighlightIds: string[] = [];
@@ -439,15 +430,12 @@ async function main() {
   saveExportController = createSaveExportController({
     apiFetch: wp.apiFetch,
     restUrl: cfg.restUrl,
-    restCompileUrl: cfg.restCompileUrl,
     postId,
     canEditJs,
     getHtmlModel: () => htmlModel,
     getCssModel: () => cssModel,
     getJsModel: () => jsModel,
     getJsMode: () => jsMode,
-    getTailwindEnabled: () => tailwindEnabled,
-    getTailwindCss: () => tailwindCss,
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
     getLiveHighlightEnabled: () => liveHighlightEnabled,
@@ -641,7 +629,6 @@ async function main() {
       editorCollapsed: viewportController.isEditorCollapsed(),
       compactEditorMode: false,
       settingsOpen,
-      tailwindEnabled,
       viewportMode: viewportController.getViewportMode(),
       hasUnsavedChanges: false,
       viewPostUrl,
@@ -751,12 +738,10 @@ async function main() {
 
   // CodeMirror
   const codeMirrorSetup = await initCodeMirrorEditors({
-        initialHtml: initialState.initialHtml,
+    initialHtml: initialState.initialHtml,
     initialCss: initialState.initialCss,
     initialJs: initialState.initialJs,
     htmlWordWrap: htmlWordWrapMode,
-    tailwindEnabled,
-    useTailwindDefault: !setupResult?.imported,
     canEditJs,
     htmlContainer: ui.htmlEditorDiv,
     cssContainer: ui.cssEditorDiv,
@@ -988,7 +973,7 @@ async function main() {
     editorUiController?.focusHtmlEditor();
   };
 
-  const getPreviewCss = () => (tailwindEnabled ? tailwindCss : cssModel.getValue());
+  const getPreviewCss = () => cssModel.getValue();
 
   preview = createPreviewController({
     iframe: ui.iframe,
@@ -1006,7 +991,6 @@ async function main() {
     getJsMode: () => jsMode,
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
-    isTailwindEnabled: () => tailwindEnabled,
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();
@@ -1038,23 +1022,7 @@ async function main() {
   }
   syncElementsTabState();
 
-  tailwindCompiler = createTailwindCompiler({
-    apiFetch: wp.apiFetch,
-    restCompileUrl: cfg.restCompileUrl,
-    postId,
-    getHtml: () => htmlModel.getValue(),
-    getCss: () => cssModel.getValue(),
-    isTailwindEnabled: () => tailwindEnabled,
-    onCssCompiled: (css) => {
-      tailwindCss = css;
-      preview?.sendCssUpdate(css);
-    },
-    onStatus: (text) => createSnackbar('error', text, NOTICE_IDS.tailwind, NOTICE_ERROR_DURATION_MS),
-    onStatusClear: () => removeNotice(NOTICE_IDS.tailwind),
-  });
-
   sendRenderDebounced = debounce(() => preview?.sendRender(), 120);
-  compileTailwindDebounced = debounce(() => tailwindCompiler?.compile(), 300);
 
   const setJsEnabled = (enabled: boolean) => {
     jsEnabled = enabled;
@@ -1105,23 +1073,6 @@ async function main() {
   const setLiveHighlightEnabled = (enabled: boolean) => {
     liveHighlightEnabled = enabled;
     preview?.sendLiveHighlightUpdate(enabled);
-  };
-
-  const setTailwindEnabled = (enabled: boolean) => {
-    tailwindEnabled = enabled;
-    ui.app.classList.toggle('is-tailwind', enabled);
-    editorUiController?.syncTailwindState();
-    toolbarApi?.update({ tailwindEnabled: enabled });
-    if (enabled) {
-      preview?.sendRender();
-      tailwindCompiler?.compile();
-    } else {
-      const editorSplitState = viewportController.getEditorSplitState();
-      if (editorSplitState.active && editorSplitState.lastHtmlHeight > 0) {
-        viewportController.setEditorSplitHeight(editorSplitState.lastHtmlHeight);
-      }
-      preview?.sendRender();
-    }
   };
 
   const setEditorLock = (locked: boolean) => {
@@ -1303,7 +1254,7 @@ async function main() {
       openSettingsTab,
       getEditorSnapshot,
       replaceEditorSnapshot,
-      getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
+      getEditorMode: () => 'normal',
       getSelectedContext,
       setEditorLock,
       isEditorLocked: () => extensionEditorLock,
@@ -1355,7 +1306,6 @@ async function main() {
   window.addEventListener('resize', handleViewportResize);
   window.visualViewport?.addEventListener('resize', handleViewportResize);
 
-  setTailwindEnabled(tailwindEnabled);
   setJsEnabled(jsEnabled);
   preview?.flushPendingJsAction();
   viewportController.applyViewportLayout(true);
@@ -1367,9 +1317,6 @@ async function main() {
     preview?.resetCanonicalCache();
     preview?.clearSelectionHighlight();
     sendRenderDebounced?.();
-    if (tailwindEnabled) {
-      compileTailwindDebounced?.();
-    }
     updateUndoRedoState();
     if (suppressSelectionClear === 0) {
       selectedLcId = null;
@@ -1382,12 +1329,7 @@ async function main() {
     if (suppressChangeHighlightClear === 0) {
       clearCssChangeHighlights();
     }
-    if (!tailwindEnabled) {
-      sendRenderDebounced?.();
-    }
-    if (tailwindEnabled) {
-      compileTailwindDebounced?.();
-    }
+    sendRenderDebounced?.();
     preview?.clearSelectionHighlight();
     preview?.clearCssSelectionHighlight();
     updateUndoRedoState();

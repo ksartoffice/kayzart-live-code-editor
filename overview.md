@@ -21,8 +21,8 @@ Preview
 
 Import/Export
 -------------
-- JSON v1 includes HTML, CSS, JS, Tailwind settings, generated CSS, external scripts/styles, and live highlight settings.
-- Removed legacy fields such as shortcode embedding and single-page disable are ignored on import.
+- JSON v1 includes HTML, CSS, JS, external scripts/styles, and live highlight settings.
+- Removed legacy fields such as Tailwind settings, generated CSS, shortcode embedding, and single-page disable are ignored on import. Legacy Tailwind exports use generated CSS as normal CSS when available.
 
 Front-End Output
 ----------------
@@ -34,10 +34,10 @@ Stored Data
 -----------
 - Main content: `post_content`
 - Post meta: `_kayzart_css`, `_kayzart_js`, `_kayzart_js_mode`
-- Tailwind: `_kayzart_tailwind`, `_kayzart_tailwind_locked`, `_kayzart_generated_css`
 - Template/display: `_kayzart_template_mode`, `_kayzart_live_highlight`, `_kayzart_setup_required`
 - External assets: `_kayzart_external_scripts`, `_kayzart_external_styles`
 - Legacy ignored meta: `_kayzart_shadow_dom`, `_kayzart_shortcode_enabled`, `_kayzart_single_page_enabled`
+- Legacy removed meta: `_kayzart_tailwind`, `_kayzart_tailwind_locked`, `_kayzart_generated_css`
 
 Admin Settings
 --------------
@@ -48,8 +48,7 @@ Admin Settings
 REST API
 --------
 - `/kayzart/v1/save`: save HTML/CSS/JS and settings updates.
-- `/kayzart/v1/compile-tailwind`: compile Tailwind CSS for preview/export.
-- `/kayzart/v1/setup`: setup wizard mode selection.
+- `/kayzart/v1/setup`: complete setup wizard.
 - `/kayzart/v1/import`: import JSON payloads.
 - `/kayzart/v1/settings`: update editor settings.
 

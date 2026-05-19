@@ -25,7 +25,7 @@ class Post_Type {
 	 */
 	public static function init(): void {
 		add_action( 'init', array( __CLASS__, 'register' ) );
-		add_filter( 'display_post_states', array( __CLASS__, 'add_tailwind_state' ), 10, 2 );
+		add_filter( 'display_post_states', array( __CLASS__, 'add_post_states' ), 10, 2 );
 		add_filter( 'get_edit_post_link', array( __CLASS__, 'filter_edit_post_link' ), 10, 2 );
 		add_filter( 'post_row_actions', array( __CLASS__, 'add_kayzart_row_action' ), 10, 2 );
 		add_filter( 'page_row_actions', array( __CLASS__, 'add_kayzart_row_action' ), 10, 2 );
@@ -173,24 +173,19 @@ class Post_Type {
 	}
 
 	/**
-	 * Add TailwindCSS label in the post list.
+	 * Add KayzArt labels in post lists.
 	 *
 	 * @param array    $states Post states.
 	 * @param \WP_Post $post Post object.
 	 * @return array
 	 */
-	public static function add_tailwind_state( array $states, \WP_Post $post ): array {
+	public static function add_post_states( array $states, \WP_Post $post ): array {
 		if ( ! self::is_kayzart_post( $post ) ) {
 			return $states;
 		}
 
 		if ( self::PAGE_TYPE === $post->post_type ) {
 			$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
-		}
-
-		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
-		if ( $is_tailwind ) {
-			$states['kayzart_tailwind'] = __( 'TailwindCSS', 'kayzart-live-code-editor' );
 		}
 
 		return $states;

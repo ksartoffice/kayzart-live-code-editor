@@ -7,7 +7,6 @@ describe('validateImportPayload', () => {
       version: 1,
       html: '<div>Hello</div>',
       css: 'body{}',
-      tailwindEnabled: false,
       js: 'console.log(1);',
       jsMode: 'module',
       externalScripts: ['https://example.com/a.js'],
@@ -25,7 +24,6 @@ describe('validateImportPayload', () => {
       version: 2,
       html: '<div>Hello</div>',
       css: 'body{}',
-      tailwindEnabled: false,
     });
 
     expect(result.error).toBe('Unsupported import version.');
@@ -36,7 +34,6 @@ describe('validateImportPayload', () => {
       version: 1,
       html: '<div>Hello</div>',
       css: 'body{}',
-      tailwindEnabled: false,
       externalScripts: ['https://example.com/a.js', 1],
     });
 
@@ -48,7 +45,6 @@ describe('validateImportPayload', () => {
       version: 1,
       html: '<div>Hello</div>',
       css: 'body{}',
-      tailwindEnabled: false,
       jsMode: 'esm',
     });
 
@@ -60,7 +56,6 @@ describe('validateImportPayload', () => {
       version: 1,
       html: '<div>Hello</div>',
       css: 'body{}',
-      tailwindEnabled: false,
       jsMode: 'auto',
     });
 
@@ -73,7 +68,6 @@ describe('validateImportPayload', () => {
       version: 1,
       html: '<div>Hello</div>',
       css: 'body{}',
-      tailwindEnabled: false,
       shortcodeEnabled: 1,
       singlePageEnabled: 'true',
     });
@@ -81,5 +75,20 @@ describe('validateImportPayload', () => {
     expect(result.error).toBeUndefined();
     expect(result.data).not.toHaveProperty('shortcodeEnabled');
     expect(result.data).not.toHaveProperty('singlePageEnabled');
+  });
+
+  it('imports legacy Tailwind JSON as normal CSS using generatedCss', () => {
+    const result = validateImportPayload({
+      version: 1,
+      html: '<div class="text-sm">Hello</div>',
+      css: '@import "tailwindcss";',
+      tailwindEnabled: true,
+      generatedCss: '.text-sm{font-size:.875rem;}',
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.data?.css).toBe('.text-sm{font-size:.875rem;}');
+    expect(result.data).not.toHaveProperty('tailwindEnabled');
+    expect(result.data).not.toHaveProperty('generatedCss');
   });
 });

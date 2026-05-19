@@ -26,7 +26,7 @@ export function validateImportPayload(raw: unknown): ValidationResult {
     return { error: __('Invalid CSS value.', 'kayzart-live-code-editor') };
   }
 
-  if (typeof payload.tailwindEnabled !== 'boolean') {
+  if (payload.tailwindEnabled !== undefined && typeof payload.tailwindEnabled !== 'boolean') {
     return { error: __('Invalid tailwindEnabled value.', 'kayzart-live-code-editor') };
   }
 
@@ -61,13 +61,16 @@ export function validateImportPayload(raw: unknown): ValidationResult {
     return { error: __('Invalid externalStyles value.', 'kayzart-live-code-editor') };
   }
 
+  const importCss =
+    payload.tailwindEnabled === true && typeof payload.generatedCss === 'string' && payload.generatedCss !== ''
+      ? payload.generatedCss
+      : payload.css;
+
   return {
     data: {
       version: 1,
       html: payload.html,
-      css: payload.css,
-      tailwindEnabled: payload.tailwindEnabled,
-      generatedCss: payload.generatedCss,
+      css: importCss,
       js: payload.js ?? '',
       jsMode: normalizeJsMode(payload.jsMode),
       externalScripts: payload.externalScripts ?? [],

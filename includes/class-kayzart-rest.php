@@ -38,32 +38,6 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
-			'/compile-tailwind',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( Rest_Save::class, 'compile_tailwind' ),
-				'permission_callback' => array( __CLASS__, 'permission_check' ),
-				'args'                => array(
-					'post_id' => array(
-						'type'     => 'integer',
-						'required' => true,
-					),
-					'html'    => array(
-						'type'      => 'string',
-						'required'  => true,
-						'maxLength' => Limits::MAX_TAILWIND_HTML_BYTES,
-					),
-					'css'     => array(
-						'type'      => 'string',
-						'required'  => false,
-						'maxLength' => Limits::MAX_TAILWIND_CSS_BYTES,
-					),
-				),
-			)
-		);
-
-		register_rest_route(
-			'kayzart/v1',
 			'/setup',
 			array(
 				'methods'             => 'POST',
@@ -72,10 +46,6 @@ class Rest {
 				'args'                => array(
 					'post_id' => array(
 						'type'     => 'integer',
-						'required' => true,
-					),
-					'mode'    => array(
-						'type'     => 'string',
 						'required' => true,
 					),
 				),

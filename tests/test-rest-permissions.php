@@ -338,20 +338,13 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 	}
 
 	private function get_rest_routes_with_params( int $post_id ): array {
-		$tailwind_css = "@tailwind base;\n@tailwind components;\n@tailwind utilities;";
 		return array(
 			'/kayzart/v1/save' => array(
 				'post_id' => $post_id,
 				'html'    => '<p>Test</p>',
 			),
-			'/kayzart/v1/compile-tailwind' => array(
-				'post_id' => $post_id,
-				'html'    => '<div class="text-sm"></div>',
-				'css'     => $tailwind_css,
-			),
 			'/kayzart/v1/setup' => array(
 				'post_id' => $post_id,
-				'mode'    => 'normal',
 			),
 			'/kayzart/v1/settings' => array(
 				'post_id' => $post_id,

@@ -57,7 +57,7 @@ export type EditorSnapshot = {
   baseHash: string;
 };
 
-export type EditorMode = 'normal' | 'tailwind';
+export type EditorMode = 'normal';
 
 export type SnapshotReplaceOptions = {
   highlightChanges?: boolean;

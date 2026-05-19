@@ -50,7 +50,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertTrue( Post_Type::is_kayzart_page( $page_id ) );
 	}
 
-	public function test_add_tailwind_state_marks_kayzart_pages_as_lp(): void {
+	public function test_add_post_states_marks_kayzart_pages_as_lp(): void {
 		$page_id = (int) self::factory()->post->create(
 			array(
 				'post_type' => Post_Type::PAGE_TYPE,
@@ -59,12 +59,12 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$page    = get_post( $page_id );
 		$this->assertInstanceOf( WP_Post::class, $page );
 
-		$states = Post_Type::add_tailwind_state( array(), $page );
+		$states = Post_Type::add_post_states( array(), $page );
 		$this->assertArrayNotHasKey( 'kayzart_lp', $states );
 
 		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
 
-		$states = Post_Type::add_tailwind_state( array(), $page );
+		$states = Post_Type::add_post_states( array(), $page );
 		$this->assertSame( __( 'Landing page', 'kayzart-live-code-editor' ), $states['kayzart_lp'] ?? '' );
 	}
 

@@ -391,7 +391,9 @@ class Admin {
 			(string) $post_type->labels->add_new_item,
 			(string) $post_type->labels->add_new_item,
 			(string) $post_type->cap->create_posts,
-			self::get_new_post_action_url()
+			self::get_new_post_action_url(),
+			'',
+			10
 		);
 
 		$settings_item = remove_submenu_page( $parent_slug, self::SETTINGS_SLUG );
@@ -402,7 +404,8 @@ class Admin {
 				__( 'Settings', 'kayzart-live-code-editor' ),
 				'manage_options',
 				self::SETTINGS_SLUG,
-				array( __CLASS__, 'render_settings_page' )
+				array( __CLASS__, 'render_settings_page' ),
+				40
 			);
 		}
 	}
@@ -428,7 +431,8 @@ class Admin {
 			__( 'Settings', 'kayzart-live-code-editor' ),
 			'manage_options',
 			self::SETTINGS_SLUG,
-			array( __CLASS__, 'render_settings_page' )
+			array( __CLASS__, 'render_settings_page' ),
+			40
 		);
 	}
 

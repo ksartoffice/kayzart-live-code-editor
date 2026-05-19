@@ -113,7 +113,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$parent_slug      = 'edit.php?post_type=' . Post_Type::POST_TYPE;
 		$submenu          = is_array( $submenu ) ? $submenu : array();
 		$submenu[ $parent_slug ] = array(
-			array( __( 'All KayzArt Pages', 'kayzart-live-code-editor' ), 'edit_posts', 'edit.php?post_type=' . Post_Type::POST_TYPE ),
+			array( __( 'LP list', 'kayzart-live-code-editor' ), 'edit_posts', 'edit.php?post_type=' . Post_Type::POST_TYPE ),
 			array( __( 'Add New', 'kayzart-live-code-editor' ), 'edit_posts', 'post-new.php?post_type=' . Post_Type::POST_TYPE ),
 			array( __( 'Settings', 'kayzart-live-code-editor' ), 'manage_options', Admin::SETTINGS_SLUG ),
 		);
@@ -139,7 +139,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$submenu      = $original_submenu;
 
 		$this->assertNotSame( '', $updated_slug );
-		$this->assertSame( __( 'Add New KayzArt Page', 'kayzart-live-code-editor' ), $updated_label );
+		$this->assertSame( __( 'Create New LP', 'kayzart-live-code-editor' ), $updated_label );
 		$this->assertNotSame( -1, $updated_index );
 		$this->assertNotSame( -1, $settings_index );
 		$this->assertLessThan( $settings_index, $updated_index );

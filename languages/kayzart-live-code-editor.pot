@@ -34,8 +34,11 @@ msgstr ""
 #: includes/class-kayzart-admin.php:323
 #: includes/class-kayzart-admin.php:324
 #: includes/class-kayzart-admin.php:638
-#: includes/class-kayzart-post-type.php:68
 msgid "KayzArt"
+msgstr ""
+
+#: includes/class-kayzart-post-type.php:68
+msgid "KayzArt LP"
 msgstr ""
 
 #. translators: %s: post title.
@@ -208,21 +211,21 @@ msgstr ""
 
 #: includes/class-kayzart-post-type.php:52
 msgctxt "post type general name"
-msgid "KayzArt"
+msgid "KayzArt LP"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:53
 msgctxt "post type singular name"
-msgid "KayzArt"
+msgid "KayzArt LP"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:54
 msgctxt "kayzart"
-msgid "Add New"
+msgid "Create New"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:55
-msgid "Add New KayzArt Page"
+msgid "Create New LP"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:56
@@ -252,7 +255,7 @@ msgstr ""
 
 #: includes/class-kayzart-post-type.php:63
 #: assets/dist/main.js:106
-msgid "KayzArt pages"
+msgid "LP list"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:64

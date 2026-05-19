@@ -203,7 +203,7 @@ function Toolbar({
   const normalizedStatus = postStatus === 'auto-draft' ? 'draft' : postStatus;
   const tailwindBadgeLabel = __( 'Tailwind CSS', 'kayzart-live-code-editor');
   const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
-  const listLabel = __( 'KayzArt pages', 'kayzart-live-code-editor');
+  const listLabel = __( 'LP list', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'
       ? __( 'Save draft', 'kayzart-live-code-editor')

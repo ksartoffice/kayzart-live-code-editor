@@ -24,9 +24,12 @@ msgstr "KayzArt Live Code Editor"
 #: includes/class-kayzart-admin.php:323
 #: includes/class-kayzart-admin.php:324
 #: includes/class-kayzart-admin.php:638
-#: includes/class-kayzart-post-type.php:68
 msgid "KayzArt"
 msgstr "KayzArt"
+
+#: includes/class-kayzart-post-type.php:68
+msgid "KayzArt LP"
+msgstr "KayzArt LP"
 
 #. Plugin URI of the plugin
 #: kayzart-live-code-editor.php
@@ -106,17 +109,17 @@ msgstr "外部スタイルが上限を超えています。"
 
 #: includes/class-kayzart-post-type.php:52
 msgctxt "post type general name"
-msgid "KayzArt"
-msgstr "KayzArt"
+msgid "KayzArt LP"
+msgstr "KayzArt LP"
 
 #: includes/class-kayzart-post-type.php:53
 msgctxt "post type singular name"
-msgid "KayzArt"
-msgstr "KayzArt"
+msgid "KayzArt LP"
+msgstr "KayzArt LP"
 
 #: includes/class-kayzart-post-type.php:55
-msgid "Add New KayzArt Page"
-msgstr "KayzArtページを新規追加"
+msgid "Create New LP"
+msgstr "新規LPを作成"
 
 #: includes/class-kayzart-post-type.php:56
 msgid "Edit KayzArt"
@@ -259,8 +262,8 @@ msgstr "設定"
 
 #: includes/class-kayzart-post-type.php:63
 #: assets/dist/main.js:106
-msgid "KayzArt pages"
-msgstr "KayzArtページ一覧"
+msgid "LP list"
+msgstr "LP一覧"
 
 #: includes/class-kayzart-admin.php:386
 msgid "Permalink"
@@ -340,8 +343,8 @@ msgstr "テンプレートモードが「デフォルト」に設定されてい
 
 #: includes/class-kayzart-post-type.php:54
 msgctxt "kayzart"
-msgid "Add New"
-msgstr "新規追加"
+msgid "Create New"
+msgstr "新規作成"
 
 #: includes/rest/class-kayzart-rest-save.php:296
 msgid "Tailwind HTML input exceeds the maximum size."

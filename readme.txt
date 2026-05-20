@@ -64,7 +64,7 @@ Yes. Go to KayzArt > Settings and update the KayzArt slug.
 Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Theme).
 
 = Does the plugin delete data on uninstall? =
-By default, KayzArt posts are kept when the plugin is uninstalled. You can enable data removal from the KayzArt > Settings screen.
+No. KayzArt posts and KayzArt-managed WordPress posts are kept when the plugin is uninstalled.
 
 = Where is the code stored? =
 HTML is stored in the post content. CSS/JS and other settings are stored in post meta.

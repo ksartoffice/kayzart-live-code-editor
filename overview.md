@@ -41,7 +41,6 @@ Admin Settings
 --------------
 - `kayzart_post_slug`: slug for legacy KayzArt CPT URLs.
 - `kayzart_default_template_mode`: default template mode, Standalone or Theme.
-- `kayzart_delete_on_uninstall`: delete plugin data during uninstall.
 
 REST API
 --------

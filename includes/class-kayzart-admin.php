@@ -29,7 +29,6 @@ class Admin {
 	const OPTION_ENABLED_POST_TYPES    = 'kayzart_enabled_post_types';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
-	const OPTION_DELETE_ON_UNINSTALL   = 'kayzart_delete_on_uninstall';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
 		' ' . "\xE2\x80\xB9" . ' ',
@@ -493,16 +492,6 @@ class Admin {
 			)
 		);
 
-		register_setting(
-			self::SETTINGS_GROUP,
-			self::OPTION_DELETE_ON_UNINSTALL,
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_delete_on_uninstall' ),
-				'default'           => '0',
-			)
-		);
-
 		if ( self::should_show_post_slug_settings() ) {
 			add_settings_section(
 				'kayzart_permalink',
@@ -544,13 +533,6 @@ class Admin {
 			self::SETTINGS_SLUG
 		);
 
-		add_settings_section(
-			'kayzart_cleanup',
-			__( 'Cleanup', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_cleanup_section' ),
-			self::SETTINGS_SLUG
-		);
-
 		add_settings_field(
 			self::OPTION_ENABLED_POST_TYPES,
 			__( 'Enabled post types', 'kayzart-live-code-editor' ),
@@ -559,24 +541,6 @@ class Admin {
 			'kayzart_post_types'
 		);
 
-		add_settings_field(
-			self::OPTION_DELETE_ON_UNINSTALL,
-			__( 'Delete data on uninstall', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_delete_on_uninstall_field' ),
-			self::SETTINGS_SLUG,
-			'kayzart_cleanup'
-		);
-	}
-
-	/**
-	 * Sanitize delete-on-uninstall value.
-	 *
-	 * @param mixed $value Raw value.
-	 * @return string
-	 */
-	public static function sanitize_delete_on_uninstall( $value ): string {
-
-		return '1' === $value ? '1' : '0';
 	}
 
 	/**
@@ -727,26 +691,6 @@ class Admin {
 		}
 
 		echo '<p class="description">' . esc_html__( 'Existing posts are not converted until they are opened in the KayzArt editor or created with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
-	}
-
-	/**
-	 * Render cleanup section description.
-	 */
-	public static function render_cleanup_section(): void {
-
-		echo '<p>' . esc_html__( 'Choose whether KayzArt posts should be deleted when the plugin is uninstalled.', 'kayzart-live-code-editor' ) . '</p>';
-	}
-
-	/**
-	 * Render delete-on-uninstall checkbox field.
-	 */
-	public static function render_delete_on_uninstall_field(): void {
-
-		$value = get_option( self::OPTION_DELETE_ON_UNINSTALL, '0' );
-		echo '<label>';
-		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_DELETE_ON_UNINSTALL ) . '" value="1" ' . checked( '1', $value, false ) . ' />';
-		echo ' ' . esc_html__( 'Delete all KayzArt posts on uninstall (media is kept).', 'kayzart-live-code-editor' );
-		echo '</label>';
 	}
 
 	/**

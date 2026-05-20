@@ -26,7 +26,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_POST_SLUG );
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
-		delete_option( Admin::OPTION_DELETE_ON_UNINSTALL );
+		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
 
@@ -63,12 +63,6 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 'theme', Admin::sanitize_default_template_mode( 'theme' ) );
 		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'frame' ) );
 		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'invalid' ) );
-	}
-
-	public function test_sanitize_delete_on_uninstall_accepts_only_string_one(): void {
-		$this->assertSame( '1', Admin::sanitize_delete_on_uninstall( '1' ) );
-		$this->assertSame( '0', Admin::sanitize_delete_on_uninstall( '0' ) );
-		$this->assertSame( '0', Admin::sanitize_delete_on_uninstall( 1 ) );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -282,6 +276,22 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( __( 'KayzArt slug', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
+	}
+
+	public function test_render_settings_page_hides_delete_on_uninstall_field(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		update_option( 'kayzart_delete_on_uninstall', '1' );
+		$this->reset_kayzart_settings_api_state();
+		Admin::register_settings();
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringNotContainsString( 'Delete data on uninstall', $output );
+		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {

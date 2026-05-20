@@ -122,14 +122,6 @@ msgstr ""
 msgid "Creating new legacy KayzArt entries has ended. Please use Pages &gt; Add landing page to create new entries. Existing legacy KayzArt entries can still be edited."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:430
-msgid "Cleanup"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:437
-msgid "Delete data on uninstall"
-msgstr ""
-
 #: includes/class-kayzart-admin.php:547
 msgid "Change the URL slug for KayzArt posts. Existing URLs will change after saving."
 msgstr ""
@@ -154,14 +146,6 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:591
 msgid "Applies when template mode is set to Use admin default."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:617
-msgid "Choose whether KayzArt posts should be deleted when the plugin is uninstalled."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:628
-msgid "Delete all KayzArt posts on uninstall (media is kept)."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:661

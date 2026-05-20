@@ -666,3 +666,47 @@ msgstr ""
 #: assets/dist/main.js:127
 msgid "The selected media has no URL and was not inserted."
 msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Setup failed."
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Choose editor mode"
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Normal (HTML/CSS)"
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Edit HTML and CSS directly in the code editor."
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "TailwindCSS"
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Use utility classes. CSS is compiled automatically."
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Back"
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Continue"
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "Setup unavailable."
+msgstr ""
+
+#: assets/dist/main.js:152
+msgid "wp.apiFetch is unavailable."
+msgstr ""

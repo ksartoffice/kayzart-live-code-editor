@@ -670,3 +670,47 @@ msgstr "HTML に挿入"
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアには URL がないため、挿入されませんでした。"
 
+#: assets/dist/main.js:152
+msgid "Setup failed."
+msgstr "セットアップに失敗しました。"
+
+#: assets/dist/main.js:152
+msgid "Choose editor mode"
+msgstr "エディターモードを選択"
+
+#: assets/dist/main.js:152
+msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
+msgstr "TailwindCSS またはノーマルモードを選択してください。この選択は後から変更できません。"
+
+#: assets/dist/main.js:152
+msgid "Normal (HTML/CSS)"
+msgstr "ノーマル（HTML/CSS）"
+
+#: assets/dist/main.js:152
+msgid "Edit HTML and CSS directly in the code editor."
+msgstr "コードエディターで HTML と CSS を直接編集します。"
+
+#: assets/dist/main.js:152
+msgid "TailwindCSS"
+msgstr "TailwindCSS"
+
+#: assets/dist/main.js:152
+msgid "Use utility classes. CSS is compiled automatically."
+msgstr "ユーティリティクラスを使用します。CSS は自動的にコンパイルされます。"
+
+#: assets/dist/main.js:152
+msgid "Back"
+msgstr "戻る"
+
+#: assets/dist/main.js:152
+msgid "Continue"
+msgstr "続行"
+
+#: assets/dist/main.js:152
+msgid "Setup unavailable."
+msgstr "セットアップを利用できません。"
+
+#: assets/dist/main.js:152
+msgid "wp.apiFetch is unavailable."
+msgstr "wp.apiFetch を利用できません。"
+

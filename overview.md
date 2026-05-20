@@ -32,11 +32,10 @@ Front-End Output
 Stored Data
 -----------
 - Main content: `post_content`
-- Post meta: `_kayzart_css`, `_kayzart_js`, `_kayzart_js_mode`
+- Post meta: `_kayzart_css`, `_kayzart_js`, `_kayzart_js_mode`, `_kayzart_tailwind`, `_kayzart_tailwind_locked`, `_kayzart_generated_css`
 - Template/display: `_kayzart_template_mode`, `_kayzart_live_highlight`
 - External assets: `_kayzart_external_scripts`, `_kayzart_external_styles`
 - Legacy ignored meta: `_kayzart_shadow_dom`, `_kayzart_shortcode_enabled`, `_kayzart_single_page_enabled`
-- Legacy removed meta: `_kayzart_tailwind`, `_kayzart_tailwind_locked`, `_kayzart_generated_css`
 
 Admin Settings
 --------------

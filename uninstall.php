@@ -34,4 +34,3 @@ delete_option( 'kayzart_delete_on_uninstall' );
 delete_option( 'kayzart_post_slug' );
 delete_option( 'kayzart_shortcode_allowlist' );
 delete_option( 'kayzart_flush_rewrite' );
-delete_option( 'kayzart_tailwind_removed_migrated' );

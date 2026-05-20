@@ -7,6 +7,8 @@
 
 namespace KayzArt;
 
+use TailwindPHP\tw;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -343,13 +345,40 @@ class Frontend {
 	}
 
 	/**
-	 * Resolve CSS for a post.
+	 * Resolve CSS for a post, handling Tailwind compilation where needed.
 	 *
 	 * @param int $post_id KayzArt post ID.
 	 * @return string
 	 */
 	private static function get_css_for_post( int $post_id ): string {
-		return (string) get_post_meta( $post_id, '_kayzart_css', true );
+		$is_tailwind   = '1' === get_post_meta( $post_id, '_kayzart_tailwind', true );
+		$stored_css    = (string) get_post_meta( $post_id, '_kayzart_css', true );
+		$generated_css = (string) get_post_meta( $post_id, '_kayzart_generated_css', true );
+		$css           = $is_tailwind ? $generated_css : $stored_css;
+
+		$has_unescaped_arbitrary = ! $is_tailwind
+			&& '' !== $stored_css
+			&& false !== strpos( $stored_css, '-[' )
+			&& false === strpos( $stored_css, '-\\[' );
+		$should_compile          = ! $is_tailwind && $has_unescaped_arbitrary;
+
+		if ( $should_compile ) {
+			$post = get_post( $post_id );
+			if ( $post instanceof \WP_Post ) {
+				try {
+					$css = tw::generate(
+						array(
+							'content' => (string) $post->post_content,
+							'css'     => '@import "tailwindcss";',
+						)
+					);
+				} catch ( \Throwable $e ) {
+					$css = $stored_css;
+				}
+			}
+		}
+
+		return $css;
 	}
 
 	/**

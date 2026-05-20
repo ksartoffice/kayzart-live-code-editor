@@ -89,7 +89,7 @@ Build commands:
 == Changelog ==
 = 1.3.6 =
 * Remove external embedding and single-page disable settings. Existing [kayzart] shortcodes no longer render content.
-* Remove Tailwind CSS mode and convert legacy generated CSS to normal CSS.
+* Restore Tailwind CSS mode using tailwindphp 1.3.2.2 with PHP 7.4 support.
 
 = 1.3.5 =
 * Docs: Add screenshots section.

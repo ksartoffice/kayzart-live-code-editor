@@ -4,8 +4,202 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f9926138ec1af95a9e804f83264c20dd",
-    "packages": [],
+    "content-hash": "0ed9457fe7421fb59b9c6479037354cc",
+    "packages": [
+        {
+            "name": "tailwindphp/tailwindphp",
+            "version": "v1.3.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ksartoffice/tailwindphp.git",
+                "reference": "78b65b26ba35599fbfdf8063820ae836ef2cef0e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/78b65b26ba35599fbfdf8063820ae836ef2cef0e",
+                "reference": "78b65b26ba35599fbfdf8063820ae836ef2cef0e",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "brianium/paratest": "^6.11",
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "phpstan/phpstan": "^1.12",
+                "phpunit/phpunit": "^9.6"
+            },
+            "bin": [
+                "bin/tailwindphp"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "TailwindPHP\\": "src/"
+                },
+                "files": [
+                    "src/_tailwindphp/polyfills.php",
+                    "src/_tailwindphp/LightningCss.php",
+                    "src/_tailwindphp/CssMinifier.php",
+                    "src/attribute-selector-parser.php",
+                    "src/utils/segment.php",
+                    "src/utils/escape.php",
+                    "src/utils/default-map.php",
+                    "src/utils/to-key-path.php",
+                    "src/utils/brace-expansion.php",
+                    "src/utils/compare.php",
+                    "src/utils/compare-breakpoints.php",
+                    "src/utils/dimensions.php",
+                    "src/utils/topological-sort.php",
+                    "src/utils/replace-shadow-colors.php",
+                    "src/utils/is-color.php",
+                    "src/utils/math-operators.php",
+                    "src/utils/is-valid-arbitrary.php",
+                    "src/utils/infer-data-type.php",
+                    "src/ast.php",
+                    "src/css-parser.php",
+                    "src/walk.php",
+                    "src/value-parser.php",
+                    "src/selector-parser.php",
+                    "src/constant-fold-declaration.php",
+                    "src/property-order.php",
+                    "src/expand-declaration.php",
+                    "src/theme.php",
+                    "src/utils/decode-arbitrary-value.php",
+                    "src/candidate.php",
+                    "src/compile.php",
+                    "src/utilities.php",
+                    "src/variants.php",
+                    "src/design-system.php",
+                    "src/apply.php",
+                    "src/at-import.php",
+                    "src/css-functions.php",
+                    "src/plugin.php",
+                    "src/plugin/plugins/typography-plugin.php",
+                    "src/plugin/plugins/forms-plugin.php",
+                    "src/index.php"
+                ]
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "TailwindPHP\\": "src/",
+                    "TailwindPHP\\Tests\\": "tests/"
+                },
+                "classmap": [
+                    "src/"
+                ],
+                "exclude-from-classmap": [
+                    "src/*.php",
+                    "src/**/*.php",
+                    "!src/*.test.php",
+                    "!src/**/*.test.php"
+                ]
+            },
+            "scripts": {
+                "extract": [
+                    "@php test-coverage/extract-run-tests.php",
+                    "@php test-coverage/extract-index-tests.php",
+                    "@php test-coverage/extract-css-functions-tests.php",
+                    "@php test-coverage/extract-candidate-tests.php",
+                    "@php test-coverage/extract-ui-spec-tests.php"
+                ],
+                "extract-libs": [
+                    "@php test-coverage/lib/extract-clsx-tests.php",
+                    "@php test-coverage/lib/extract-tailwind-merge-tests.php",
+                    "@php test-coverage/lib/extract-cva-tests.php"
+                ],
+                "extract-plugins": [
+                    "@php test-coverage/plugins/extract-typography-tests.php"
+                ],
+                "extract-all": [
+                    "@extract",
+                    "@extract-libs",
+                    "@extract-plugins"
+                ],
+                "test": [
+                    "@php vendor/bin/phpunit"
+                ],
+                "test-serial": [
+                    "@php vendor/bin/phpunit"
+                ],
+                "test-libs": [
+                    "@php vendor/bin/phpunit src/_tailwindphp/lib/"
+                ],
+                "test-plugins": [
+                    "@php vendor/bin/phpunit src/plugin/"
+                ],
+                "extract-and-test": [
+                    "@extract-all",
+                    "@php vendor/bin/phpunit"
+                ],
+                "update-and-test": [
+                    "@update-all",
+                    "@extract-all",
+                    "@test"
+                ],
+                "update-all": [
+                    "@update-tailwind",
+                    "@update-libs",
+                    "@update-plugins"
+                ],
+                "update-tailwind": [
+                    "@php scripts/update-tailwind.php"
+                ],
+                "update-libs": [
+                    "@php scripts/update-libs.php"
+                ],
+                "update-plugins": [
+                    "@php scripts/update-plugins.php"
+                ],
+                "versions": [
+                    "@php scripts/update-tailwind.php --check",
+                    "@php scripts/update-libs.php --check",
+                    "@php scripts/update-plugins.php --check"
+                ],
+                "bench": [
+                    "@php scripts/benchmark.php"
+                ],
+                "bench:save": [
+                    "@php scripts/benchmark.php --save"
+                ],
+                "lint": [
+                    "@php vendor/bin/php-cs-fixer fix --dry-run --diff"
+                ],
+                "format": [
+                    "@php vendor/bin/php-cs-fixer fix"
+                ],
+                "analyse": [
+                    "@php vendor/bin/phpstan analyse --memory-limit=512M"
+                ],
+                "quality": [
+                    "@lint",
+                    "@analyse"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Dennis Josek"
+                }
+            ],
+            "description": "A full port of TailwindCSS 4.x to PHP",
+            "homepage": "https://github.com/dnnsjsk/tailwindphp",
+            "keywords": [
+                "css",
+                "php",
+                "tailwind",
+                "tailwindcss",
+                "utility-css"
+            ],
+            "support": {
+                "issues": "https://github.com/dnnsjsk/tailwindphp/issues",
+                "source": "https://github.com/dnnsjsk/tailwindphp"
+            },
+            "time": "2026-05-20T02:16:00+00:00"
+        }
+    ],
     "packages-dev": [
         {
             "name": "dealerdirect/phpcodesniffer-composer-installer",

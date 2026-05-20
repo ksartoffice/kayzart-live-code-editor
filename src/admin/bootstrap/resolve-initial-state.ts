@@ -8,15 +8,17 @@ export type ResolvedInitialState = {
   initialCss: string;
   initialJs: string;
   initialJsMode: JsMode;
+  tailwindEnabled: boolean;
   settingsData: SettingsData;
 };
 
-export function resolveInitialState(cfg: AppConfig): ResolvedInitialState {
+export function resolveInitialState(cfg: AppConfig, tailwindEnabled?: boolean): ResolvedInitialState {
   return {
     initialHtml: cfg.initialHtml ?? '',
     initialCss: cfg.initialCss ?? '',
     initialJs: cfg.initialJs ?? '',
     initialJsMode: normalizeJsMode(cfg.initialJsMode),
+    tailwindEnabled: Boolean(tailwindEnabled ?? cfg.tailwindEnabled),
     settingsData: cfg.settingsData,
   };
 }

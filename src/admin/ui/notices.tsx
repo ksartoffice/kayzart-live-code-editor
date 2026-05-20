@@ -13,6 +13,7 @@ export const NOTICE_IDS = {
   editor: 'kayzart-editor',
   save: 'kayzart-save',
   copy: 'kayzart-copy',
+  tailwind: 'kayzart-tailwind',
   templateFallback: 'kayzart-template-fallback',
   media: 'kayzart-media',
 } as const;

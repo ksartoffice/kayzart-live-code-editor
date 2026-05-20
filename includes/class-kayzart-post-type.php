@@ -188,6 +188,11 @@ class Post_Type {
 			$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
 		}
 
+		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
+		if ( $is_tailwind ) {
+			$states['kayzart_tailwind'] = __( 'TailwindCSS', 'kayzart-live-code-editor' );
+		}
+
 		return $states;
 	}
 

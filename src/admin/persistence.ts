@@ -1,7 +1,7 @@
 import type { SettingsData } from './settings';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
-import type { SaveResponse } from './types/rest';
+import type { CompileTailwindResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
 
 const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
@@ -31,12 +31,93 @@ const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): st
   return fallbackMessage;
 };
 
+type TailwindCompilerDeps = {
+  apiFetch: ApiFetch;
+  restCompileUrl: string;
+  postId: number;
+  getHtml: () => string;
+  getCss: () => string;
+  isTailwindEnabled: () => boolean;
+  onCssCompiled: (css: string) => void;
+  onStatus: (text: string) => void;
+  onStatusClear: () => void;
+};
+
+export type TailwindCompiler = {
+  compile: () => Promise<void>;
+  isInFlight: () => boolean;
+};
+
+export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindCompiler {
+  let tailwindCompileToken = 0;
+  let tailwindCompileInFlight = false;
+  let tailwindCompileQueued = false;
+
+  const compile = async () => {
+    if (!deps.isTailwindEnabled()) return;
+    if (tailwindCompileInFlight) {
+      tailwindCompileQueued = true;
+      return;
+    }
+    tailwindCompileInFlight = true;
+    tailwindCompileQueued = false;
+    const currentToken = ++tailwindCompileToken;
+
+    try {
+      const res = await deps.apiFetch<CompileTailwindResponse>({
+        url: deps.restCompileUrl,
+        method: 'POST',
+        data: {
+          post_id: deps.postId,
+          html: deps.getHtml(),
+          css: deps.getCss(),
+        },
+      });
+
+      if (currentToken !== tailwindCompileToken || !deps.isTailwindEnabled()) {
+        return;
+      }
+
+      if (res?.ok && typeof res.css === 'string') {
+        deps.onCssCompiled(res.css);
+        deps.onStatusClear();
+      } else {
+        deps.onStatus(__( 'Tailwind compile failed.', 'kayzart-live-code-editor'));
+      }
+    } catch (error: unknown) {
+      if (currentToken !== tailwindCompileToken) {
+        return;
+      }
+      const message = resolveUnknownErrorMessage(
+        error,
+        __('Tailwind compile failed.', 'kayzart-live-code-editor')
+      );
+      /* translators: %s: error message. */
+      deps.onStatus(sprintf(__( 'Tailwind error: %s', 'kayzart-live-code-editor'), message));
+    } finally {
+      if (currentToken === tailwindCompileToken) {
+        tailwindCompileInFlight = false;
+      }
+      if (deps.isTailwindEnabled() && tailwindCompileQueued) {
+        tailwindCompileQueued = false;
+        compile();
+      }
+    }
+  };
+
+  return {
+    compile,
+    isInFlight: () => tailwindCompileInFlight,
+  };
+}
+
 type SaveParams = {
   apiFetch: ApiFetch;
   restUrl: string;
   postId: number;
   html: string;
   css: string;
+  tailwindEnabled: boolean;
   canEditJs: boolean;
   js: string;
   jsMode: JsMode;
@@ -51,6 +132,7 @@ export async function saveKayzArt(
       post_id: params.postId,
       html: params.html,
       css: params.css,
+      tailwindEnabled: params.tailwindEnabled,
     };
     if (params.canEditJs) {
       payload.js = params.js;

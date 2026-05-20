@@ -46,6 +46,7 @@ describe('save copy controller', () => {
       getCssModel: () => cssModel,
       getJsModel: () => jsModel,
       getJsMode: () => 'module',
+      getTailwindEnabled: () => false,
       getPendingSettingsState: () => ({
         pendingSettingsUpdates: {},
         hasUnsavedSettings: false,
@@ -83,7 +84,9 @@ describe('save copy controller', () => {
 
     expect(result.ok).toBe(true);
     expect(onSaveSuccess).toHaveBeenCalledTimes(1);
-    expect(saveKayzArt).toHaveBeenCalledWith(expect.objectContaining({ jsMode: 'classic' }));
+    expect(saveKayzArt).toHaveBeenCalledWith(
+      expect.objectContaining({ jsMode: 'classic', tailwindEnabled: false })
+    );
   });
 
   it('copies all editor content in three blocks', async () => {

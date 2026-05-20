@@ -24,6 +24,7 @@ type SaveCopyControllerDeps = {
   getCssModel: () => EditorModel | undefined;
   getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
+  getTailwindEnabled: () => boolean;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
     hasUnsavedSettings: boolean;
@@ -229,6 +230,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         postId: deps.postId,
         html: htmlModel.getValue(),
         css: cssModel.getValue(),
+        tailwindEnabled: deps.getTailwindEnabled(),
         canEditJs: deps.canEditJs,
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),

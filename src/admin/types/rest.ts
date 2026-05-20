@@ -5,3 +5,15 @@ export type SaveResponse = {
   error?: string;
   settings?: SettingsData;
 };
+
+export type SetupResponse = {
+  ok?: boolean;
+  error?: string;
+  tailwindEnabled?: boolean;
+};
+
+export type CompileTailwindResponse = {
+  ok?: boolean;
+  error?: string;
+  css?: string;
+};

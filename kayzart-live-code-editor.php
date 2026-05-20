@@ -35,10 +35,10 @@ require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-admin.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-editor-bridge.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-limits.php';
-require_once KAYZART_PATH . 'includes/class-kayzart-upgrader.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-external-scripts.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-external-styles.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
+require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-rest.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';
@@ -65,7 +65,6 @@ add_action(
 		// Admin UI.
 		\KayzArt\Admin::init();
 		\KayzArt\Editor_Bridge::init();
-		\KayzArt\Upgrader::init();
 
 		// REST endpoints.
 		\KayzArt\Rest::init();

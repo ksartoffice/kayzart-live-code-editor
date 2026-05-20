@@ -169,6 +169,10 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     updateJsUi();
   };
 
+  const syncTailwindState = () => {
+    updateJsUi();
+  };
+
   const isEditorWidgetClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Node)) {
@@ -251,6 +255,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     updateCompactEditorMode,
     focusHtmlEditor,
     syncJsState,
+    syncTailwindState,
   };
 }
 

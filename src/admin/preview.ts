@@ -55,6 +55,7 @@ type PreviewControllerDeps = {
   getJsMode: () => JsMode;
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
+  isTailwindEnabled: () => boolean;
   onSelect?: (lcId: string) => void;
   onOpenElementsTab?: () => void;
   onOverlayAction?: (actionId: string) => void;
@@ -407,6 +408,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
 
   const highlightCssByLcId = (lcId: string) => {
     lastSelectedLcId = lcId;
+    if (deps.isTailwindEnabled()) {
+      cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      return;
+    }
     const cssText = deps.cssModel.getValue();
     if (!cssText.trim()) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);

@@ -97,8 +97,8 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( $js, get_post_meta( $post_id, '_kayzart_js', true ) );
 		$this->assertSame( 'module', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
 
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_generated_css', true ) );
 	}
 
@@ -128,8 +128,8 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( $html, (string) $post->post_content, 'Post content should be saved.' );
 		$this->assertSame( $css, get_post_meta( $post_id, '_kayzart_css', true ) );
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_js', true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
 	}
 
 	public function test_save_applies_settings_updates_and_returns_settings_payload(): void {
@@ -333,14 +333,14 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 'theme', $settings['defaultTemplateMode'] ?? null );
 	}
 
-	public function test_save_ignores_legacy_tailwind_enabled_payload(): void {
+	public function test_save_compiles_tailwind_and_stores_generated_css(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
 		wp_set_current_user( $admin_id );
 
-		$css  = '.text-sm{font-size:.875rem;}';
-		$html = '<div class="text-sm">Content</div>';
+		$css  = '@import "tailwindcss";';
+		$html = '<div class="text-sm">Tailwind</div>';
 
 		$response = $this->dispatch_route(
 			'/kayzart/v1/save',
@@ -352,14 +352,16 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 200, $response->get_status(), 'Save should succeed for admins.' );
+		$this->assertSame( 200, $response->get_status(), 'Tailwind save should succeed for admins.' );
 		$this->assertSame( $css, get_post_meta( $post_id, '_kayzart_css', true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_generated_css', true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$generated_css = (string) get_post_meta( $post_id, '_kayzart_generated_css', true );
+		$this->assertNotSame( '', $generated_css, 'Generated CSS should not be empty.' );
+		$this->assertStringContainsString( '.text-sm', $generated_css, 'Generated CSS should include the expected utility.' );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
 	}
 
-	public function test_compile_tailwind_route_is_removed(): void {
+	public function test_compile_tailwind_response_returns_generated_css(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -370,11 +372,14 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			array(
 				'post_id' => $post_id,
 				'html'    => '<div class="text-sm">Tailwind</div>',
-				'css'     => "@tailwind base;\n@tailwind components;\n@tailwind utilities;",
+				'css'     => '@import "tailwindcss";',
 			)
 		);
 
-		$this->assertSame( 404, $response->get_status(), 'Tailwind compile route should be removed.' );
+		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should succeed for admins.' );
+		$data = $response->get_data();
+		$this->assertSame( true, $data['ok'] ?? false );
+		$this->assertStringContainsString( '.text-sm', (string) ( $data['css'] ?? '' ) );
 	}
 
 	private function create_kayzart_post( int $author_id ): int {

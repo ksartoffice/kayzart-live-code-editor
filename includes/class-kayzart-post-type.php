@@ -109,17 +109,18 @@ class Post_Type {
 	 * @return bool
 	 */
 	public static function has_legacy_posts(): bool {
-		global $wpdb;
-
-		$post_id = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT ID FROM {$wpdb->posts} WHERE post_type = %s AND post_status <> %s LIMIT 1",
-				self::POST_TYPE,
-				'auto-draft'
+		$post_statuses = array_diff( get_post_stati(), array( 'auto-draft' ) );
+		$post_ids      = get_posts(
+			array(
+				'post_type'      => self::POST_TYPE,
+				'post_status'    => array_values( $post_statuses ),
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
 			)
 		);
 
-		return (int) $post_id > 0;
+		return ! empty( $post_ids );
 	}
 
 	/**

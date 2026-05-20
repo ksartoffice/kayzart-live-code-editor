@@ -540,7 +540,6 @@ class Admin {
 			self::SETTINGS_SLUG,
 			'kayzart_post_types'
 		);
-
 	}
 
 	/**

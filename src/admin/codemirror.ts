@@ -172,6 +172,7 @@ type CodeMirrorInitOptions = {
   htmlContainer: HTMLElement;
   cssContainer: HTMLElement;
   jsContainer: HTMLElement;
+  onHtmlPaste?: (text: string) => boolean;
 };
 
 type DecorationSpec = {
@@ -365,6 +366,7 @@ const createEditorWrapper = (options: {
   language: Extension;
   emmet?: EmmetKnownSyntax;
   htmlIntellisense?: boolean;
+  onPaste?: (text: string) => boolean;
   readOnly?: boolean;
   wordWrap?: WordWrapMode;
 }): EditorWrapper => {
@@ -417,6 +419,23 @@ const createEditorWrapper = (options: {
   }
   if (options.htmlIntellisense) {
     extensions.push(...htmlIntellisenseExtensions());
+  }
+  if (options.onPaste) {
+    extensions.push(
+      EditorView.domEventHandlers({
+        paste: (event) => {
+          const text = event.clipboardData?.getData('text/plain') ?? '';
+          if (!text || !options.onPaste) {
+            return false;
+          }
+          const handled = options.onPaste(text);
+          if (handled) {
+            event.preventDefault();
+          }
+          return handled;
+        },
+      })
+    );
   }
 
   const state = EditorState.create({
@@ -614,6 +633,7 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
     language: htmlLanguage(),
     emmet: EmmetKnownSyntax.html,
     htmlIntellisense: true,
+    onPaste: options.onHtmlPaste,
     wordWrap: options.htmlWordWrap,
   });
 

@@ -6,6 +6,7 @@ import {
   type DefaultTemplateMode,
   type TemplateMode,
 } from '../logic/template-mode';
+import type { FullHtmlImportResult } from '../logic/full-html-import';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 
@@ -40,6 +41,14 @@ type MissingMarkersModalProps = {
   onConfirm: () => void;
 };
 
+export type FullHtmlImportAction = 'split' | 'keep' | 'cancel';
+
+type FullHtmlImportModalProps = {
+  result: FullHtmlImportResult;
+  canEditJs: boolean;
+  onChoose: (action: FullHtmlImportAction) => void;
+};
+
 function MissingMarkersModal({
   title,
   body,
@@ -72,6 +81,87 @@ function MissingMarkersModal({
   );
 }
 
+function FullHtmlImportModal({ result, canEditJs, onChoose }: FullHtmlImportModalProps) {
+  const title = __('Complete HTML detected', 'kayzart-live-code-editor');
+  const cancelLabel = __('Cancel', 'kayzart-live-code-editor');
+  const summary = [
+    __('HTML: body content will be extracted', 'kayzart-live-code-editor'),
+    `${__('CSS: style tags', 'kayzart-live-code-editor')} ${result.summary.styleCount}`,
+    `${__('JS: inline script tags', 'kayzart-live-code-editor')} ${
+      canEditJs ? result.summary.inlineScriptCount : 0
+    }`,
+    `${__('External CSS', 'kayzart-live-code-editor')} ${result.summary.externalStyleCount}`,
+    `${__('External JS', 'kayzart-live-code-editor')} ${
+      canEditJs ? result.summary.externalScriptCount : 0
+    }`,
+  ];
+
+  return (
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" />
+      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
+          <button
+            type="button"
+            className="kayzart-modalClose"
+            aria-label={cancelLabel}
+            onClick={() => onChoose('cancel')}
+          >
+            ×
+          </button>
+        </div>
+        <div className="kayzart-modalBody">
+          <div className="kayzart-hintBody">
+            <p className="kayzart-hintText">
+              {__(
+                'The pasted code looks like a complete HTML document. KayzArt can split body HTML, style tags, and inline scripts into the matching editors. External CSS will stay at the top of HTML, and external JS will stay at the bottom.',
+                'kayzart-live-code-editor'
+              )}
+            </p>
+            {!canEditJs ? (
+              <p className="kayzart-modalWarning">
+                {__(
+                  'JavaScript will not be imported because your account cannot edit JavaScript.',
+                  'kayzart-live-code-editor'
+                )}
+              </p>
+            ) : null}
+            <ul className="kayzart-importSummary">
+              {summary.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="kayzart-modalActions">
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-secondary"
+            onClick={() => onChoose('cancel')}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-secondary"
+            onClick={() => onChoose('keep')}
+          >
+            {__('Paste as HTML', 'kayzart-live-code-editor')}
+          </button>
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-primary"
+            onClick={() => onChoose('split')}
+          >
+            {__('Split and import', 'kayzart-live-code-editor')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function createModalController(deps: ModalControllerDeps) {
   const missingMarkersTitle = __('Theme template unavailable', 'kayzart-live-code-editor');
   const missingMarkersBody = __(
@@ -85,6 +175,9 @@ export function createModalController(deps: ModalControllerDeps) {
   let modalRoot: ReturnType<typeof createRoot> | null = null;
   let missingMarkersOpen = false;
   let missingMarkersInFlight = false;
+  let fullHtmlImportResult: FullHtmlImportResult | null = null;
+  let fullHtmlImportCanEditJs = true;
+  let fullHtmlImportResolver: ((action: FullHtmlImportAction) => void) | null = null;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
 
@@ -101,7 +194,7 @@ export function createModalController(deps: ModalControllerDeps) {
   };
 
   const unmountIfIdle = () => {
-    if (missingMarkersOpen) {
+    if (missingMarkersOpen || fullHtmlImportResult) {
       return;
     }
     if (modalRoot?.unmount) {
@@ -131,6 +224,13 @@ export function createModalController(deps: ModalControllerDeps) {
             }}
           />
         ) : null}
+        {fullHtmlImportResult ? (
+          <FullHtmlImportModal
+            result={fullHtmlImportResult}
+            canEditJs={fullHtmlImportCanEditJs}
+            onChoose={closeFullHtmlImportModal}
+          />
+        ) : null}
       </Fragment>
     );
     if (modalRoot) {
@@ -146,6 +246,15 @@ export function createModalController(deps: ModalControllerDeps) {
     renderModals();
     unmountIfIdle();
   };
+
+  function closeFullHtmlImportModal(action: FullHtmlImportAction) {
+    const resolver = fullHtmlImportResolver;
+    fullHtmlImportResolver = null;
+    fullHtmlImportResult = null;
+    renderModals();
+    unmountIfIdle();
+    resolver?.(action);
+  }
 
   const applyMissingMarkersTemplateMode = async () => {
     if (missingMarkersInFlight) {
@@ -242,8 +351,25 @@ export function createModalController(deps: ModalControllerDeps) {
     );
   };
 
+  const confirmFullHtmlImport = (
+    result: FullHtmlImportResult,
+    canEditJs: boolean
+  ): Promise<FullHtmlImportAction> => {
+    if (fullHtmlImportResolver) {
+      closeFullHtmlImportModal('cancel');
+    }
+    ensureMounted();
+    fullHtmlImportResult = result;
+    fullHtmlImportCanEditJs = canEditJs;
+    renderModals();
+    return new Promise((resolve) => {
+      fullHtmlImportResolver = resolve;
+    });
+  };
+
   return {
     handleMissingMarkers,
+    confirmFullHtmlImport,
   };
 }
 

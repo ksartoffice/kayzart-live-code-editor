@@ -23,6 +23,11 @@ import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/templat
 import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml } from './logic/media-html';
 import { buildStatusUpdates } from './logic/status-updates';
+import {
+  buildImportedHtml,
+  parseFullHtmlDocument,
+  type FullHtmlImportResult,
+} from './logic/full-html-import';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
@@ -733,6 +738,86 @@ async function main() {
   // iframe
   ui.iframe.src = getPreviewUrl();
 
+  const replaceWholeModelContent = (model: EditorModel, nextText: string) => {
+    const current = model.getValue();
+    const end = model.getPositionAt(current.length);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new codemirror.Range(1, 1, end.lineNumber, end.column),
+          text: nextText,
+        },
+      ],
+      () => null
+    );
+  };
+
+  const appendImportedBlock = (
+    model: EditorModel,
+    text: string,
+    header: string,
+    commentStyle: 'css' | 'js'
+  ) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+    const current = model.getValue();
+    const headerText = commentStyle === 'css' ? `/* ${header} */` : `// ${header}`;
+    const prefix = current.trim() ? '\n\n' : '';
+    const insertion = `${prefix}${headerText}\n${trimmed}`;
+    const end = model.getPositionAt(current.length);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new codemirror.Range(end.lineNumber, end.column, end.lineNumber, end.column),
+          text: insertion,
+        },
+      ],
+      () => null
+    );
+  };
+
+  const applyFullHtmlImport = (result: FullHtmlImportResult) => {
+    replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs));
+    appendImportedBlock(
+      cssModel,
+      result.css,
+      __('CSS imported from pasted HTML', 'kayzart-live-code-editor'),
+      'css'
+    );
+    if (canEditJs) {
+      appendImportedBlock(
+        jsModel,
+        result.js,
+        __('JavaScript imported from pasted HTML', 'kayzart-live-code-editor'),
+        'js'
+      );
+    }
+  };
+
+  const handleFullHtmlPaste = (text: string): boolean => {
+    const result = parseFullHtmlDocument(text);
+    if (!result) {
+      return false;
+    }
+
+    void (async () => {
+      const action = await modalController?.confirmFullHtmlImport(result, canEditJs);
+      if (action === 'split') {
+        applyFullHtmlImport(result);
+        return;
+      }
+      if (action === 'keep') {
+        insertHtmlAtSelection(text);
+      }
+    })();
+
+    return true;
+  };
+
   // CodeMirror
   const codeMirrorSetup = await initCodeMirrorEditors({
     initialHtml: initialState.initialHtml,
@@ -745,6 +830,7 @@ async function main() {
     htmlContainer: ui.htmlEditorDiv,
     cssContainer: ui.cssEditorDiv,
     jsContainer: ui.jsEditorDiv,
+    onHtmlPaste: handleFullHtmlPaste,
   });
 
   ({ codemirror, htmlModel, cssModel, jsModel, htmlEditor, cssEditor, jsEditor } = codeMirrorSetup);
@@ -784,7 +870,7 @@ async function main() {
     suppressSelectionClear = Math.max(0, suppressSelectionClear - 1);
   };
 
-  const insertHtmlAtSelection = (text: string) => {
+  function insertHtmlAtSelection(text: string) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
     const range =
@@ -809,7 +895,7 @@ async function main() {
       }
     );
     htmlEditor.pushUndoStop();
-  };
+  }
 
   const openMediaModal = () => {
     if (typeof wp?.media !== 'function') {

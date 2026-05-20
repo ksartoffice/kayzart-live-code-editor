@@ -1425,6 +1425,26 @@ body.admin_page_kayzart #wpbody-content {
   font-size: 12px;
 }
 
+.kayzart-modalWarning {
+  margin: 0;
+  color: #ffd18a;
+  font-size: 12px;
+}
+
+.kayzart-importSummary {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border: 1px solid #2b3340;
+  border-radius: 6px;
+  background: #11141a;
+  color: #c9cdd6;
+  font-size: 12px;
+}
+
+.kayzart-importSummary li + li {
+  margin-top: 4px;
+}
+
 .kayzart-modalForm {
   display: flex;
   flex-direction: column;

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: KayzArt Live Code Editor
+ * Plugin Name: KayzArt Landing Page Editor
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Live HTML/CSS/JS editor with real-time preview for WordPress.
  * Version: 1.3.6

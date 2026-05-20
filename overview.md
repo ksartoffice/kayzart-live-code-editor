@@ -1,4 +1,4 @@
-KayzArt Live Code Editor - Overview
+KayzArt Landing Page Editor - Overview
 ===================================
 
 Overview

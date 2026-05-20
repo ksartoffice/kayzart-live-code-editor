@@ -1,4 +1,4 @@
-=== KayzArt Live Code Editor ===
+=== KayzArt Landing Page Editor ===
 Contributors: ksartoffice
 Tags: live preview, code editor, codemirror, landing page
 Requires at least: 5.9
@@ -8,10 +8,10 @@ Stable tag: 1.3.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-KayzArt Live Code Editor - Live HTML/CSS/JS Editor for WordPress.
+KayzArt Landing Page Editor - Live HTML/CSS/JS Editor for WordPress.
 
 == Description ==
-KayzArt Live Code Editor provides a dedicated editor for building HTML, CSS, and JavaScript snippets with a live preview. It adds a "KayzArt" custom post type, opens new KayzArt posts in the editor, and adds an "Edit with KayzArt" button to the standard editor.
+KayzArt Landing Page Editor provides a dedicated editor for building HTML, CSS, and JavaScript snippets with a live preview. It adds a "KayzArt" custom post type, opens new KayzArt posts in the editor, and adds an "Edit with KayzArt" button to the standard editor.
 
 Features:
 * Custom KayzArt post type and dedicated editor
@@ -40,7 +40,7 @@ Development repository and build:
 
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/kayzart-live-code-editor/.
-2. Activate KayzArt Live Code Editor through the Plugins screen.
+2. Activate KayzArt Landing Page Editor through the Plugins screen.
 3. Go to KayzArt in the admin menu and create a new KayzArt item.
 
 == Screenshots ==

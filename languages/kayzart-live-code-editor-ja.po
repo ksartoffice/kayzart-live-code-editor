@@ -1,6 +1,6 @@
 ﻿msgid ""
 msgstr ""
-"Project-Id-Version: KayzArt Live Code Editor 1.0.0\n"
+"Project-Id-Version: KayzArt Landing Page Editor 1.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: Japanese\n"
@@ -16,8 +16,8 @@ msgstr ""
 
 #. Plugin Name of the plugin
 #: kayzart-live-code-editor.php
-msgid "KayzArt Live Code Editor"
-msgstr "KayzArt Live Code Editor"
+msgid "KayzArt Landing Page Editor"
+msgstr "KayzArt Landing Page Editor"
 
 #. Author of the plugin
 #: kayzart-live-code-editor.php
@@ -232,8 +232,8 @@ msgid "Standalone"
 msgstr "スタンドアロン"
 
 #: includes/class-kayzart-admin.php:661
-msgid "KayzArt Live Code Editor Settings"
-msgstr "KayzArt Live Code Editor 設定"
+msgid "KayzArt Landing Page Editor Settings"
+msgstr "KayzArt Landing Page Editor 設定"
 
 #: includes/class-kayzart-admin.php:115
 #: assets/dist/main.js:106
@@ -245,8 +245,8 @@ msgstr "無題"
 #: includes/class-kayzart-admin.php:90
 #: assets/dist/main.js:125
 #, php-format,js-format
-msgid "KayzArt Live Code Editor: %s"
-msgstr "KayzArt Live Code Editor: %s"
+msgid "KayzArt Landing Page Editor: %s"
+msgstr "KayzArt Landing Page Editor: %s"
 
 #: includes/class-kayzart-admin.php:393
 #: assets/dist/main.js:106

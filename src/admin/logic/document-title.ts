@@ -5,7 +5,7 @@ const DEFAULT_ADMIN_TITLE_SEPARATORS = [' \u2039 ', ' &lsaquo; '];
 export function buildEditorDocumentTitleLabel(postTitle: string): string {
   const resolvedTitle = postTitle.trim() || __('Untitled', 'kayzart-live-code-editor');
   /* translators: %s: post title. */
-  return sprintf(__('KayzArt Live Code Editor: %s', 'kayzart-live-code-editor'), resolvedTitle);
+  return sprintf(__('KayzArt Landing Page Editor: %s', 'kayzart-live-code-editor'), resolvedTitle);
 }
 
 export function extractAdminTitleSuffix(

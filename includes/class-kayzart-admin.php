@@ -88,7 +88,7 @@ class Admin {
 		$suffix     = self::extract_admin_title_suffix( $admin_title, $title );
 
 		/* translators: %s: post title. */
-		$editor_title = sprintf( __( 'KayzArt Live Code Editor: %s', 'kayzart-live-code-editor' ), $post_title );
+		$editor_title = sprintf( __( 'KayzArt Landing Page Editor: %s', 'kayzart-live-code-editor' ), $post_title );
 
 		if ( '' === $suffix ) {
 			return $editor_title;

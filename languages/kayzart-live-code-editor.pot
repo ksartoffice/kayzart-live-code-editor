@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: KayzArt Live Code Editor 1.1.0\n"
+"Project-Id-Version: KayzArt Landing Page Editor 1.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr ""
 
 #. Plugin Name of the plugin
 #: kayzart-live-code-editor.php
-msgid "KayzArt Live Code Editor"
+msgid "KayzArt Landing Page Editor"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -45,7 +45,7 @@ msgstr ""
 #: includes/class-kayzart-admin.php:90
 #: assets/dist/main.js:125
 #, php-format,js-format
-msgid "KayzArt Live Code Editor: %s"
+msgid "KayzArt Landing Page Editor: %s"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:115
@@ -149,7 +149,7 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:661
-msgid "KayzArt Live Code Editor Settings"
+msgid "KayzArt Landing Page Editor Settings"
 msgstr ""
 
 #: includes/class-kayzart-external-scripts.php:56

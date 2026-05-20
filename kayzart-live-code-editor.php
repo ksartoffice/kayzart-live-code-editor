@@ -4,9 +4,9 @@
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Live HTML/CSS/JS editor with real-time preview for WordPress.
  * Version: 1.3.6
- * Requires at least: 6.6
+ * Requires at least: 5.9
  * Tested up to: 6.9
- * Requires PHP: 8.2
+ * Requires PHP: 7.4
  * Author: K's Art Office
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html

@@ -142,7 +142,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$matched_slug  = '';
 		foreach ( (array) ( $submenu[ $page_parent_slug ] ?? array() ) as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( str_contains( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+			if ( false !== strpos( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
 				$matched_label = isset( $item[0] ) ? (string) $item[0] : '';
 				$matched_slug  = $slug;
 				break;

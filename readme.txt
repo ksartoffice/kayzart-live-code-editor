@@ -1,9 +1,9 @@
 === KayzArt Live Code Editor ===
 Contributors: ksartoffice
 Tags: live preview, code editor, codemirror, landing page
-Requires at least: 6.6
+Requires at least: 5.9
 Tested up to: 6.9
-Requires PHP: 8.2
+Requires PHP: 7.4
 Stable tag: 1.3.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html

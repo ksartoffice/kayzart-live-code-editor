@@ -287,7 +287,7 @@ class Frontend {
 
 		if ( is_string( $src_without_query ) && is_string( $base_without_query ) ) {
 			$base = trailingslashit( $base_without_query );
-			if ( str_starts_with( $src_without_query, $base ) ) {
+			if ( 0 === strpos( $src_without_query, $base ) ) {
 				return true;
 			}
 		}
@@ -298,7 +298,7 @@ class Frontend {
 			return false;
 		}
 
-		return str_starts_with( $src_path, trailingslashit( $base_path ) );
+		return 0 === strpos( $src_path, trailingslashit( $base_path ) );
 	}
 
 	/**

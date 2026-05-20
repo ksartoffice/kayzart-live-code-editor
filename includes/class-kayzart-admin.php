@@ -190,7 +190,7 @@ class Admin {
 			return '';
 		}
 
-		if ( '' !== $title && str_starts_with( $admin_title, $title ) ) {
+		if ( '' !== $title && 0 === strpos( $admin_title, $title ) ) {
 			return (string) substr( $admin_title, strlen( $title ) );
 		}
 

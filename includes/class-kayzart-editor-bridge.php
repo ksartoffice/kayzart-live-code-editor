@@ -129,6 +129,10 @@ class Editor_Bridge {
 			return 0;
 		}
 
+		if ( ! Post_Type::is_kayzart_enabled_post( (int) $post->ID ) ) {
+			return 0;
+		}
+
 		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 			return 0;
 		}
@@ -156,6 +160,7 @@ class Editor_Bridge {
 
 		return $post instanceof \WP_Post
 			&& $screen->post_type === $post->post_type
-			&& Post_Type::is_editor_enabled_post( $post );
+			&& Post_Type::is_editor_enabled_post( $post )
+			&& Post_Type::is_kayzart_enabled_post( (int) $post->ID );
 	}
 }

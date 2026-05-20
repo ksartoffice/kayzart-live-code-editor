@@ -311,9 +311,7 @@ class Post_Type {
 			return $states;
 		}
 
-		if ( self::PAGE_TYPE === $post->post_type ) {
-			$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
-		}
+		$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
 
 		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
 		if ( $is_tailwind ) {
@@ -332,6 +330,10 @@ class Post_Type {
 	 */
 	public static function add_kayzart_row_action( array $actions, \WP_Post $post ): array {
 		if ( ! self::is_editor_enabled_post( $post ) ) {
+			return $actions;
+		}
+
+		if ( ! self::is_kayzart_enabled_post( (int) $post->ID ) ) {
 			return $actions;
 		}
 

@@ -14,18 +14,18 @@
       };
 
   domReady(function () {
-    var data = window.KAYZART_PAGE_LIST || {};
+    var data = window.KAYZART_POST_TYPE_LIST || {};
     if (!data.createUrl) {
       return;
     }
 
     var addNewButton = document.querySelector('.wrap .page-title-action');
-    if (!addNewButton || document.querySelector('.kayzart-page-list-create')) {
+    if (!addNewButton || document.querySelector('.kayzart-post-type-list-create')) {
       return;
     }
 
     var button = document.createElement('a');
-    button.className = 'page-title-action kayzart-page-list-create';
+    button.className = 'page-title-action kayzart-post-type-list-create';
     button.href = data.createUrl;
     button.textContent = __( 'Add landing page', 'kayzart-live-code-editor' );
 

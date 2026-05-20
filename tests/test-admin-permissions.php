@@ -103,7 +103,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( Post_Type::get_editor_url( $post_id ), $location );
 	}
 
-	public function test_maybe_redirect_new_post_redirects_legacy_cpt_creation_to_page_flow(): void {
+	public function test_maybe_redirect_new_post_allows_legacy_cpt_creation_screen(): void {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
 		wp_set_current_user( $subscriber_id );
@@ -113,21 +113,15 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$original_get = $_GET;
 		$_GET         = array();
 
-		$location = $this->capture_redirect(
-			function () {
-				Admin::maybe_redirect_new_post();
-			}
-		);
+		Admin::maybe_redirect_new_post();
 
 		$_GET = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
-		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $location );
-		$this->assertStringContainsString( '_wpnonce=', $location );
 	}
 
-	public function test_maybe_redirect_new_post_valid_nonce_redirects_to_page_action_without_creating_post(): void {
+	public function test_maybe_redirect_new_post_valid_nonce_does_not_redirect_or_create_post(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
@@ -139,26 +133,12 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
 		);
 
-		$location = $this->capture_redirect(
-			function () {
-				Admin::maybe_redirect_new_post();
-			}
-		);
+		Admin::maybe_redirect_new_post();
 
 		$_GET = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
-		$this->assertStringNotContainsString( '&amp;', $location );
-		$parts = wp_parse_url( $location );
-		$query = array();
-		if ( ! empty( $parts['query'] ) ) {
-			parse_str( (string) $parts['query'], $query );
-		}
-
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
-		$this->assertSame( Admin::NEW_PAGE_ACTION, $query['action'] ?? '' );
-		$this->assertArrayNotHasKey( 'post_type', $query );
-		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 	}
 
 	public function test_maybe_redirect_new_post_ignores_non_kayzart_context(): void {
@@ -178,7 +158,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( $before, $after, 'Non-KayzArt post-new context should be ignored.' );
 	}
 
-	public function test_action_create_new_post_redirects_to_page_flow_without_creating_legacy_post(): void {
+	public function test_action_create_new_post_requires_valid_nonce(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		wp_set_current_user( $admin_id );
@@ -189,7 +169,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			'post_type' => Post_Type::POST_TYPE,
 		);
 
-		$location = $this->capture_redirect(
+		$message = $this->capture_wp_die(
 			function () {
 				Admin::action_create_new_post();
 			}
@@ -199,7 +179,35 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'Action without nonce must not create drafts.' );
-		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $location );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
+	}
+
+	public function test_action_create_new_post_creates_marked_legacy_cpt_draft(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, Post_Type::POST_TYPE ) );
+
+		$before_ids   = $this->get_kayzart_post_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_type' => Post_Type::POST_TYPE,
+			'_wpnonce' => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_create_new_post();
+			}
+		);
+
+		$_GET      = $original_get;
+		$after_ids = $this->get_kayzart_post_ids();
+		$created   = array_values( array_diff( $after_ids, $before_ids ) );
+
+		$this->assertCount( 1, $created );
+		$created_id = (int) $created[0];
+		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
+		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
 	}
 
 	public function test_action_create_new_page_creates_marked_draft_page_and_redirects_to_editor(): void {
@@ -210,6 +218,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$before_ids   = $this->get_page_ids();
 		$original_get = $_GET;
 		$_GET         = array(
+			'post_type' => Post_Type::PAGE_TYPE,
 			'_wpnonce' => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
 		);
 

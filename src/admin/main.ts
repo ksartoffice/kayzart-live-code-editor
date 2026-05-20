@@ -619,6 +619,7 @@ async function main() {
     {
       backUrl: cfg.backUrl || '/wp-admin/',
       listUrl: cfg.listUrl || '',
+      listLabel: cfg.listLabel || '',
       canUndo: false,
       canRedo: false,
       editorCollapsed: viewportController.isEditorCollapsed(),

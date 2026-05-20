@@ -74,9 +74,9 @@ class Post_Type {
 			'exclude_from_search' => false,
 			'publicly_queryable'  => true,
 			'show_ui'             => true,
-			'show_in_menu'        => self::has_legacy_posts(),
+			'show_in_menu'        => self::is_post_type_enabled( self::POST_TYPE ) || self::has_legacy_posts(),
 			'show_in_nav_menus'   => true,
-			'show_in_admin_bar'   => false,
+			'show_in_admin_bar'   => true,
 			'has_archive'         => true,
 			'rewrite'             => array(
 				'slug'       => $slug,
@@ -84,10 +84,6 @@ class Post_Type {
 			),
 			'supports'            => array( 'title', 'editor', 'author', 'thumbnail' ),
 			'show_in_rest'        => true,
-			'capabilities'        => array(
-				'create_posts' => 'do_not_allow',
-			),
-			'map_meta_cap'        => true,
 			'menu_position'       => 21,
 			'menu_icon'           => 'dashicons-editor-code',
 		);
@@ -127,6 +123,131 @@ class Post_Type {
 	}
 
 	/**
+	 * Return post types that can be enabled for KayzArt editing.
+	 *
+	 * @return array<string,\WP_Post_Type>
+	 */
+	public static function get_selectable_post_types(): array {
+		$post_types = get_post_types(
+			array(
+				'show_ui' => true,
+			),
+			'objects'
+		);
+
+		foreach ( array( 'post', self::PAGE_TYPE, self::POST_TYPE ) as $post_type ) {
+			$object = get_post_type_object( $post_type );
+			if ( $object ) {
+				$post_types[ $post_type ] = $object;
+			}
+		}
+
+		$selectable = array();
+		foreach ( $post_types as $name => $object ) {
+			$name = sanitize_key( (string) $name );
+			if ( self::is_selectable_post_type( $name ) ) {
+				$selectable[ $name ] = $object;
+			}
+		}
+
+		return $selectable;
+	}
+
+	/**
+	 * Check whether a post type may be exposed in KayzArt settings.
+	 *
+	 * @param string $post_type Post type name.
+	 * @return bool
+	 */
+	public static function is_selectable_post_type( string $post_type ): bool {
+		$post_type = sanitize_key( $post_type );
+		if ( '' === $post_type ) {
+			return false;
+		}
+
+		$excluded = array( 'attachment', 'revision', 'nav_menu_item', 'custom_css', 'customize_changeset', 'oembed_cache', 'user_request', 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation', 'wp_font_family', 'wp_font_face', 'wp_global_styles' );
+		if ( in_array( $post_type, $excluded, true ) || 0 === strpos( $post_type, 'wp_' ) ) {
+			return false;
+		}
+
+		$object = get_post_type_object( $post_type );
+		return $object instanceof \WP_Post_Type && true === (bool) $object->show_ui;
+	}
+
+	/**
+	 * Sanitize enabled post type settings.
+	 *
+	 * @param mixed $value Raw setting value.
+	 * @return array<int,string>
+	 */
+	public static function sanitize_enabled_post_types( $value ): array {
+		$values = is_array( $value ) ? $value : array();
+		$valid  = array_unique( array_merge( array_keys( self::get_selectable_post_types() ), array( self::POST_TYPE ) ) );
+		$result = array();
+
+		foreach ( $values as $post_type ) {
+			$post_type = sanitize_key( (string) $post_type );
+			if ( in_array( $post_type, $valid, true ) && ! in_array( $post_type, $result, true ) ) {
+				$result[] = $post_type;
+			}
+		}
+
+		if ( empty( $result ) ) {
+			$result[] = self::PAGE_TYPE;
+		}
+
+		return array_values( $result );
+	}
+
+	/**
+	 * Return enabled post types, including first-run legacy compatibility.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function get_enabled_post_types(): array {
+		$value = get_option( Admin::OPTION_ENABLED_POST_TYPES, null );
+		if ( null === $value || false === $value ) {
+			$defaults = array( self::PAGE_TYPE );
+			if ( self::has_legacy_posts() ) {
+				$defaults[] = self::POST_TYPE;
+			}
+			return self::sanitize_enabled_post_types( $defaults );
+		}
+
+		return self::sanitize_enabled_post_types( $value );
+	}
+
+	/**
+	 * Check whether a post type is enabled for KayzArt editor access.
+	 *
+	 * @param string $post_type Post type name.
+	 * @return bool
+	 */
+	public static function is_post_type_enabled( string $post_type ): bool {
+		return in_array( sanitize_key( $post_type ), self::get_enabled_post_types(), true );
+	}
+
+	/**
+	 * Check whether a post can be opened in the KayzArt editor.
+	 *
+	 * @param int|\WP_Post $post Post ID or object.
+	 * @return bool
+	 */
+	public static function is_editor_enabled_post( $post ): bool {
+		$post = get_post( $post );
+		return $post instanceof \WP_Post && self::is_post_type_enabled( $post->post_type );
+	}
+
+	/**
+	 * Mark a post as KayzArt-managed.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function enable_for_post( int $post_id ): void {
+		update_post_meta( $post_id, self::ENABLED_META, '1' );
+	}
+
+	/**
 	 * Check whether a post is a KayzArt post.
 	 *
 	 * @param int|\WP_Post $post Post ID or object.
@@ -138,11 +259,7 @@ class Post_Type {
 			return false;
 		}
 
-		if ( self::POST_TYPE === $post->post_type ) {
-			return true;
-		}
-
-		return self::PAGE_TYPE === $post->post_type && self::is_kayzart_page( (int) $post->ID );
+		return self::POST_TYPE === $post->post_type || self::is_kayzart_enabled_post( (int) $post->ID );
 	}
 
 	/**
@@ -152,6 +269,16 @@ class Post_Type {
 	 * @return bool
 	 */
 	public static function is_kayzart_page( int $post_id ): bool {
+		return '1' === get_post_meta( $post_id, self::ENABLED_META, true );
+	}
+
+	/**
+	 * Check whether a post has been marked for KayzArt management.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_kayzart_enabled_post( int $post_id ): bool {
 		return '1' === get_post_meta( $post_id, self::ENABLED_META, true );
 	}
 
@@ -204,7 +331,7 @@ class Post_Type {
 	 * @return array
 	 */
 	public static function add_kayzart_row_action( array $actions, \WP_Post $post ): array {
-		if ( ! self::is_kayzart_post( $post ) ) {
+		if ( ! self::is_editor_enabled_post( $post ) ) {
 			return $actions;
 		}
 

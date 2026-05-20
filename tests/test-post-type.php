@@ -12,7 +12,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertTrue( post_type_exists( Post_Type::POST_TYPE ) );
 	}
 
-	public function test_post_type_uses_legacy_admin_labels_and_disables_creation() {
+	public function test_post_type_uses_legacy_admin_labels_and_allows_creation() {
 		$post_type = get_post_type_object( Post_Type::POST_TYPE );
 
 		$this->assertNotNull( $post_type );
@@ -20,10 +20,10 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->labels->name );
 		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->labels->singular_name );
 		$this->assertSame( __( '旧KayzArt一覧', 'kayzart-live-code-editor' ), $post_type->labels->all_items );
-		$this->assertSame( 'do_not_allow', $post_type->cap->create_posts );
+		$this->assertSame( 'edit_posts', $post_type->cap->create_posts );
 	}
 
-	public function test_is_kayzart_post_accepts_marked_pages_only(): void {
+	public function test_is_kayzart_post_accepts_marked_posts_only_except_legacy_cpt(): void {
 		$kayzart_id = (int) self::factory()->post->create(
 			array(
 				'post_type' => Post_Type::POST_TYPE,
@@ -48,6 +48,20 @@ class Test_Post_Type extends WP_UnitTestCase {
 
 		$this->assertTrue( Post_Type::is_kayzart_post( $page_id ) );
 		$this->assertTrue( Post_Type::is_kayzart_page( $page_id ) );
+	}
+
+	public function test_enabled_post_types_default_to_page_and_include_legacy_cpt_when_posts_exist(): void {
+		delete_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES );
+		$this->assertSame( array( Post_Type::PAGE_TYPE ), Post_Type::get_enabled_post_types() );
+
+		self::factory()->post->create(
+			array(
+				'post_type' => Post_Type::POST_TYPE,
+			)
+		);
+
+		$this->assertContains( Post_Type::PAGE_TYPE, Post_Type::get_enabled_post_types() );
+		$this->assertContains( Post_Type::POST_TYPE, Post_Type::get_enabled_post_types() );
 	}
 
 	public function test_add_post_states_marks_kayzart_pages_as_lp(): void {

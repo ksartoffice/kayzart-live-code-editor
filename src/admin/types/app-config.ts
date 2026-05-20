@@ -17,6 +17,7 @@ export type AppConfig = {
   settingsData: SettingsData;
   backUrl?: string;
   listUrl?: string;
+  listLabel?: string;
   tailwindEnabled?: boolean;
   setupRequired?: boolean;
   restNonce: string;

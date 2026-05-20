@@ -24,6 +24,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 	protected function tearDown(): void {
 		delete_option( Admin::OPTION_FLUSH_REWRITE );
 		delete_option( Admin::OPTION_POST_SLUG );
+		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		delete_option( Admin::OPTION_DELETE_ON_UNINSTALL );
 		parent::tearDown();
@@ -47,23 +48,14 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( '0', Admin::sanitize_delete_on_uninstall( 1 ) );
 	}
 
-	public function test_filter_admin_url_rewrites_kayzart_add_new_url_to_page_lp_flow(): void {
+	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
 		$url    = admin_url( 'post-new.php?post_type=' . Post_Type::POST_TYPE );
 		$result = Admin::filter_admin_url( $url, 'post-new.php?post_type=' . Post_Type::POST_TYPE, get_current_blog_id() );
 
-		$this->assertStringNotContainsString( '&amp;', $result );
-		$parts = wp_parse_url( $result );
-		$query = array();
-		if ( ! empty( $parts['query'] ) ) {
-			parse_str( (string) $parts['query'], $query );
-		}
-
-		$this->assertSame( Admin::NEW_PAGE_ACTION, $query['action'] ?? '' );
-		$this->assertArrayNotHasKey( 'post_type', $query );
-		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
+		$this->assertSame( $url, $result );
 	}
 
 	public function test_filter_admin_url_keeps_non_kayzart_routes_unchanged(): void {
@@ -74,7 +66,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( $url, $result );
 	}
 
-	public function test_override_admin_bar_new_link_removes_legacy_cpt_node(): void {
+	public function test_override_admin_bar_new_link_keeps_legacy_cpt_node(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -89,10 +81,11 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::override_admin_bar_new_link( $admin_bar );
 		$node = $admin_bar->get_node( 'new-' . Post_Type::POST_TYPE );
 
-		$this->assertNull( $node );
+		$this->assertNotNull( $node );
+		$this->assertSame( admin_url( 'post-new.php?post_type=' . Post_Type::POST_TYPE ), $node->href );
 	}
 
-	public function test_override_new_submenu_link_removes_legacy_create_and_settings_items(): void {
+	public function test_override_new_submenu_link_keeps_legacy_create_and_settings_items(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -122,19 +115,21 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 		$submenu      = $original_submenu;
 
-		$this->assertFalse( $has_add_new );
-		$this->assertFalse( $has_settings );
+		$this->assertTrue( $has_add_new );
+		$this->assertTrue( $has_settings );
 	}
 
-	public function test_register_menu_adds_page_lp_create_submenu(): void {
+	public function test_register_menu_adds_enabled_post_type_lp_create_submenus(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
 		global $submenu;
 		$original_submenu = $submenu;
 		$page_parent_slug = 'edit.php?post_type=' . Post_Type::PAGE_TYPE;
+		$post_parent_slug = 'edit.php';
 		$submenu          = is_array( $submenu ) ? $submenu : array();
-		unset( $submenu[ $page_parent_slug ] );
+		unset( $submenu[ $page_parent_slug ], $submenu[ $post_parent_slug ] );
+		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, 'post' ) );
 
 		Admin::register_menu();
 
@@ -149,11 +144,22 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			}
 		}
 
-		$submenu = $original_submenu;
-
 		$this->assertSame( __( 'Add landing page', 'kayzart-live-code-editor' ), $matched_label );
 		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
+		$this->assertStringContainsString( 'post_type=page', $matched_slug );
 		$this->assertStringContainsString( '_wpnonce=', $matched_slug );
+
+		$post_matched_slug = '';
+		foreach ( (array) ( $submenu[ $post_parent_slug ] ?? array() ) as $item ) {
+			$slug = isset( $item[2] ) ? (string) $item[2] : '';
+			if ( false !== strpos( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+				$post_matched_slug = $slug;
+				break;
+			}
+		}
+		$this->assertStringContainsString( 'post_type=post', $post_matched_slug );
+
+		$submenu = $original_submenu;
 	}
 
 	public function test_register_menu_adds_lp_settings_under_options_not_legacy_cpt(): void {

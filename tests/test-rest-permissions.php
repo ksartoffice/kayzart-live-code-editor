@@ -128,7 +128,7 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_rest_routes_allow_marked_page_and_forbid_unmarked_page(): void {
+	public function test_rest_routes_allow_enabled_unmarked_page_and_mark_it(): void {
 		$admin_id        = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$marked_page_id  = $this->create_page( $admin_id, true );
 		$normal_page_id  = $this->create_page( $admin_id, false );
@@ -151,7 +151,8 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'html'    => '<p>Page</p>',
 			)
 		);
-		$this->assertSame( 403, $response->get_status(), 'Unmarked pages should not be editable through KayzArt REST.' );
+		$this->assertSame( 200, $response->get_status(), 'Enabled unmarked pages should become KayzArt-managed through REST.' );
+		$this->assertSame( '1', get_post_meta( $normal_page_id, Post_Type::ENABLED_META, true ) );
 	}
 
 	public function test_rest_save_requires_unfiltered_html_for_js_payload(): void {

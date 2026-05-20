@@ -37,6 +37,7 @@ export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 type ToolbarState = {
   backUrl: string;
   listUrl: string;
+  listLabel: string;
   canUndo: boolean;
   canRedo: boolean;
   editorCollapsed: boolean;
@@ -138,6 +139,7 @@ function IconLabel({ label, svg }: { label: string; svg: string }) {
 function Toolbar({
   backUrl,
   listUrl,
+  listLabel,
   canUndo,
   canRedo,
   editorCollapsed,
@@ -203,7 +205,7 @@ function Toolbar({
   const normalizedStatus = postStatus === 'auto-draft' ? 'draft' : postStatus;
   const tailwindBadgeLabel = __( 'Tailwind CSS', 'kayzart-live-code-editor');
   const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
-  const listLabel = __( 'Pages', 'kayzart-live-code-editor');
+  const resolvedListLabel = listLabel || __( 'Posts', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'
       ? __( 'Save draft', 'kayzart-live-code-editor')
@@ -374,7 +376,7 @@ function Toolbar({
               </a>
               {showListLink ? (
                 <a className="kayzart-backMenuItem" href={listUrl}>
-                  {listLabel}
+                  {resolvedListLabel}
                 </a>
               ) : null}
             </div>

@@ -39,7 +39,7 @@ class Rest_Save {
 		$has_settings     = $request->has_param( 'settingsUpdates' );
 		$prepared_updates = null;
 
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -48,6 +48,7 @@ class Rest_Save {
 				400
 			);
 		}
+		Post_Type::enable_for_post( $post_id );
 
 		if ( ( $has_js || $has_js_mode ) && ! current_user_can( 'unfiltered_html' ) ) {
 			return new \WP_REST_Response(
@@ -290,7 +291,7 @@ class Rest_Save {
 		$html      = (string) $request->get_param( 'html' );
 		$css_input = (string) $request->get_param( 'css' );
 
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -299,6 +300,7 @@ class Rest_Save {
 				400
 			);
 		}
+		Post_Type::enable_for_post( $post_id );
 
 		$size_validation = self::validate_tailwind_input_size( $html, $css_input );
 		if ( is_wp_error( $size_validation ) ) {

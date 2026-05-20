@@ -69,6 +69,9 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_enqueue_block_assets_runs_only_for_kayzart_screen(): void {
+		$post_id         = $this->create_post( Post_Type::POST_TYPE );
+		$GLOBALS['post'] = get_post( $post_id );
+
 		set_current_screen( 'post' );
 		$screen            = get_current_screen();
 		$screen->post_type = Post_Type::POST_TYPE;
@@ -83,9 +86,8 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 	}
 
-	public function test_enqueue_block_assets_runs_for_marked_page_only(): void {
+	public function test_enqueue_block_assets_runs_for_enabled_page_even_before_marked(): void {
 		$page_id = $this->create_post( Post_Type::PAGE_TYPE );
-		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
 		$GLOBALS['post'] = get_post( $page_id );
 
 		set_current_screen( 'post' );
@@ -97,7 +99,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertTrue( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
 
 		$this->reset_assets();
-		delete_post_meta( $page_id, Post_Type::ENABLED_META );
+		update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, array( 'post' ) );
 		Editor_Bridge::enqueue_block_assets();
 		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 	}

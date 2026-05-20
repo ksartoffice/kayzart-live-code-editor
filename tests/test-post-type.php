@@ -64,6 +64,29 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertContains( Post_Type::POST_TYPE, Post_Type::get_enabled_post_types() );
 	}
 
+	public function test_selectable_post_types_exclude_legacy_cpt_when_no_legacy_posts_exist(): void {
+		$post_types = Post_Type::get_selectable_post_types();
+
+		$this->assertArrayHasKey( Post_Type::PAGE_TYPE, $post_types );
+		$this->assertArrayNotHasKey( Post_Type::POST_TYPE, $post_types );
+	}
+
+	public function test_selectable_post_types_include_legacy_cpt_when_legacy_posts_exist(): void {
+		self::factory()->post->create(
+			array(
+				'post_type' => Post_Type::POST_TYPE,
+			)
+		);
+
+		$post_types = Post_Type::get_selectable_post_types();
+
+		$this->assertArrayHasKey( Post_Type::POST_TYPE, $post_types );
+	}
+
+	public function test_sanitize_enabled_post_types_drops_legacy_cpt_when_no_legacy_posts_exist(): void {
+		$this->assertSame( array( Post_Type::PAGE_TYPE ), Post_Type::sanitize_enabled_post_types( array( Post_Type::POST_TYPE ) ) );
+	}
+
 	public function test_add_post_states_marks_kayzart_pages_as_lp(): void {
 		$page_id = (int) self::factory()->post->create(
 			array(

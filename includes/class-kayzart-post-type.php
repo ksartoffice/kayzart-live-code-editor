@@ -135,7 +135,12 @@ class Post_Type {
 			'objects'
 		);
 
-		foreach ( array( 'post', self::PAGE_TYPE, self::POST_TYPE ) as $post_type ) {
+		$always_available = array( 'post', self::PAGE_TYPE );
+		if ( self::has_legacy_posts() ) {
+			$always_available[] = self::POST_TYPE;
+		}
+
+		foreach ( $always_available as $post_type ) {
 			$object = get_post_type_object( $post_type );
 			if ( $object ) {
 				$post_types[ $post_type ] = $object;
@@ -145,6 +150,9 @@ class Post_Type {
 		$selectable = array();
 		foreach ( $post_types as $name => $object ) {
 			$name = sanitize_key( (string) $name );
+			if ( self::POST_TYPE === $name && ! self::has_legacy_posts() ) {
+				continue;
+			}
 			if ( self::is_selectable_post_type( $name ) ) {
 				$selectable[ $name ] = $object;
 			}
@@ -182,7 +190,7 @@ class Post_Type {
 	 */
 	public static function sanitize_enabled_post_types( $value ): array {
 		$values = is_array( $value ) ? $value : array();
-		$valid  = array_unique( array_merge( array_keys( self::get_selectable_post_types() ), array( self::POST_TYPE ) ) );
+		$valid  = array_keys( self::get_selectable_post_types() );
 		$result = array();
 
 		foreach ( $values as $post_type ) {

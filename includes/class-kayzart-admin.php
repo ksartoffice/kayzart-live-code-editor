@@ -503,12 +503,14 @@ class Admin {
 			)
 		);
 
-		add_settings_section(
-			'kayzart_permalink',
-			__( 'Permalink', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_permalink_section' ),
-			self::SETTINGS_SLUG
-		);
+		if ( self::should_show_post_slug_settings() ) {
+			add_settings_section(
+				'kayzart_permalink',
+				__( 'Permalink', 'kayzart-live-code-editor' ),
+				array( __CLASS__, 'render_permalink_section' ),
+				self::SETTINGS_SLUG
+			);
+		}
 
 		add_settings_section(
 			'kayzart_template_mode',
@@ -517,13 +519,15 @@ class Admin {
 			self::SETTINGS_SLUG
 		);
 
-		add_settings_field(
-			self::OPTION_POST_SLUG,
-			__( 'KayzArt slug', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_post_slug_field' ),
-			self::SETTINGS_SLUG,
-			'kayzart_permalink'
-		);
+		if ( self::should_show_post_slug_settings() ) {
+			add_settings_field(
+				self::OPTION_POST_SLUG,
+				__( 'KayzArt slug', 'kayzart-live-code-editor' ),
+				array( __CLASS__, 'render_post_slug_field' ),
+				self::SETTINGS_SLUG,
+				'kayzart_permalink'
+			);
+		}
 
 		add_settings_field(
 			self::OPTION_DEFAULT_TEMPLATE_MODE,
@@ -584,6 +588,16 @@ class Admin {
 	public static function sanitize_post_slug( $value ): string {
 		$slug = sanitize_title( (string) $value );
 		return '' !== $slug ? $slug : Post_Type::SLUG;
+	}
+
+	/**
+	 * Check whether legacy slug settings should be visible.
+	 *
+	 * @return bool
+	 */
+	public static function should_show_post_slug_settings(): bool {
+		$slug = self::sanitize_post_slug( get_option( self::OPTION_POST_SLUG, Post_Type::SLUG ) );
+		return Post_Type::SLUG !== $slug;
 	}
 
 	/**

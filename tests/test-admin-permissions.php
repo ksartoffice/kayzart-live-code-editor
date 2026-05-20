@@ -185,6 +185,12 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 	public function test_action_create_new_post_creates_marked_legacy_cpt_draft(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
+		self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
 		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, Post_Type::POST_TYPE ) );
 
 		$before_ids   = $this->get_kayzart_post_ids();

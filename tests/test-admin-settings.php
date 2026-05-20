@@ -30,9 +30,32 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
+	private function reset_kayzart_settings_api_state(): void {
+		global $wp_settings_sections, $wp_settings_fields;
+
+		if ( isset( $wp_settings_sections[ Admin::SETTINGS_SLUG ] ) ) {
+			unset( $wp_settings_sections[ Admin::SETTINGS_SLUG ] );
+		}
+
+		if ( isset( $wp_settings_fields[ Admin::SETTINGS_SLUG ] ) ) {
+			unset( $wp_settings_fields[ Admin::SETTINGS_SLUG ] );
+		}
+	}
+
 	public function test_sanitize_post_slug_returns_sanitized_value_or_default(): void {
 		$this->assertSame( 'my-custom-slug', Admin::sanitize_post_slug( 'My Custom Slug' ) );
 		$this->assertSame( Post_Type::SLUG, Admin::sanitize_post_slug( '' ) );
+	}
+
+	public function test_should_show_post_slug_settings_only_when_slug_is_custom(): void {
+		delete_option( Admin::OPTION_POST_SLUG );
+		$this->assertFalse( Admin::should_show_post_slug_settings() );
+
+		update_option( Admin::OPTION_POST_SLUG, Post_Type::SLUG );
+		$this->assertFalse( Admin::should_show_post_slug_settings() );
+
+		update_option( Admin::OPTION_POST_SLUG, 'custom-slug' );
+		$this->assertTrue( Admin::should_show_post_slug_settings() );
 	}
 
 	public function test_sanitize_default_template_mode_allows_known_values_only(): void {
@@ -227,6 +250,38 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( '基本設定', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'Sample Tab', $output );
 		$this->assertStringContainsString( 'id="sample-settings-tab"', $output );
+	}
+
+	public function test_render_settings_page_hides_post_slug_field_for_default_slug(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		delete_option( Admin::OPTION_POST_SLUG );
+		$this->reset_kayzart_settings_api_state();
+		Admin::register_settings();
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringNotContainsString( __( 'KayzArt slug', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
+	}
+
+	public function test_render_settings_page_shows_post_slug_field_for_custom_slug(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		update_option( Admin::OPTION_POST_SLUG, 'custom-slug' );
+		$this->reset_kayzart_settings_api_state();
+		Admin::register_settings();
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( __( 'KayzArt slug', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
 	}
 
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {

@@ -37,20 +37,20 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
-		$first_id = $this->create_post( Post_Type::POST_TYPE );
+		$first_id = $this->create_enabled_post( Post_Type::POST_TYPE );
 		$_GET['post'] = (string) $first_id;
 		$this->assertSame( $first_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
 
 		unset( $_GET['post'] );
 
-		$second_id        = $this->create_post( Post_Type::POST_TYPE );
+		$second_id        = $this->create_enabled_post( Post_Type::POST_TYPE );
 		$GLOBALS['post']  = get_post( $second_id );
 		$this->assertInstanceOf( WP_Post::class, $GLOBALS['post'] );
 		$this->assertSame( $second_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
 	}
 
 	public function test_enqueue_classic_assets_enqueues_only_for_kayzart_classic_editor(): void {
-		$post_id = $this->create_post( Post_Type::POST_TYPE );
+		$post_id = $this->create_enabled_post( Post_Type::POST_TYPE );
 		$_GET['post'] = (string) $post_id;
 
 		set_current_screen( 'post' );
@@ -69,7 +69,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_enqueue_block_assets_runs_only_for_kayzart_screen(): void {
-		$post_id         = $this->create_post( Post_Type::POST_TYPE );
+		$post_id         = $this->create_enabled_post( Post_Type::POST_TYPE );
 		$GLOBALS['post'] = get_post( $post_id );
 
 		set_current_screen( 'post' );
@@ -86,8 +86,8 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 	}
 
-	public function test_enqueue_block_assets_runs_for_enabled_page_even_before_marked(): void {
-		$page_id = $this->create_post( Post_Type::PAGE_TYPE );
+	public function test_enqueue_block_assets_runs_for_enabled_marked_page(): void {
+		$page_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
 		$GLOBALS['post'] = get_post( $page_id );
 
 		set_current_screen( 'post' );
@@ -105,7 +105,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_enqueue_assets_sets_nonce_protected_action_url(): void {
-		$post_id = $this->create_post( Post_Type::POST_TYPE );
+		$post_id = $this->create_enabled_post( Post_Type::POST_TYPE );
 		$_GET['post'] = (string) $post_id;
 
 		set_current_screen( 'post' );
@@ -150,6 +150,13 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 				'post_author' => $author_id,
 			)
 		);
+	}
+
+	private function create_enabled_post( string $post_type ): int {
+		$post_id = $this->create_post( $post_type );
+		Post_Type::enable_for_post( $post_id );
+
+		return $post_id;
 	}
 
 	private function invoke_private_int_method( string $method_name ): int {

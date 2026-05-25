@@ -8,24 +8,32 @@ Stable tag: 1.3.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-KayzArt Landing Page Editor - Live HTML/CSS/JS Editor for WordPress.
+Build theme-independent landing pages with live HTML, CSS, and JavaScript editing.
 
 == Description ==
-KayzArt Landing Page Editor provides a dedicated editor for building HTML, CSS, and JavaScript snippets with a live preview. It adds a "KayzArt" custom post type, opens new KayzArt posts in the editor, and adds an "Edit with KayzArt" button to the standard editor.
+KayzArt Landing Page Editor helps you build landing pages in WordPress with a dedicated live HTML, CSS, and JavaScript editor. It is designed for theme-independent landing pages, product pages, campaign pages, and other standalone layouts where you want direct control over the markup, styles, and behavior.
+
+KayzArt works with regular WordPress pages by default. Site administrators can also enable it for posts or other supported custom post types from the plugin settings.
 
 Features:
-* Custom KayzArt post type and dedicated editor
-* CodeMirror 6 editor with HTML/CSS/JS tabs and live iframe preview
+* Create landing pages as regular WordPress pages by default
+* Optional support for posts and supported custom post types
+* CodeMirror 6 editor with HTML, CSS, and JavaScript tabs
+* Live iframe preview while editing
+* Template modes: Standalone / Theme
+* Theme-independent Standalone mode for landing pages that should not use the active theme layout
+* Theme mode for rendering content inside the active theme template
+* Normal / TailwindCSS setup per landing page
 * JavaScript ES Module support with execution type switch (Classic / Module)
 * Copy All button for copying the current HTML/CSS/JS as labeled text blocks
-* Per-post template mode control: Default/Standalone/Theme
-* External scripts/styles (https only), live edit highlight, and real-time DOM selection
+* Live edit highlight and real-time DOM selection
+* Optional trusted external scripts/styles (https only)
 
 External connections and privacy:
-* By default, KayzArt does not load external scripts or styles and does not send telemetry.
-* External requests happen only when an authorized user explicitly adds external HTTPS URLs in KayzArt settings.
-* Added external resources are requested both in preview and on front-end output where the KayzArt content is rendered.
-* Add only trusted URLs.
+* By default, KayzArt does not contact external servers and does not send telemetry.
+* External requests happen only when an authorized user explicitly adds external HTTPS script or stylesheet URLs in the KayzArt settings for a page.
+* Added external resources are requested by the visitor's browser in the editor preview and on the front-end output where that KayzArt content is rendered.
+* Add only URLs that you trust.
 
 Development repository and build:
 * Source repository: https://github.com/ksartoffice/kayzart-live-code-editor
@@ -41,35 +49,47 @@ Development repository and build:
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/kayzart-live-code-editor/.
 2. Activate KayzArt Landing Page Editor through the Plugins screen.
-3. Go to KayzArt in the admin menu and create a new KayzArt item.
+3. Go to Pages > Add landing page.
+4. Choose Normal or TailwindCSS mode for the new landing page.
+5. Edit HTML, CSS, and JavaScript with the live preview, then save.
+6. Optional: go to Settings > Landing page settings to enable KayzArt for posts or supported custom post types.
 
 == Screenshots ==
-1. Editor screen.
-2. Settings and preview controls.
+1. Live HTML/CSS/JS editor with preview.
+2. Landing page settings and template mode controls.
 
 == Frequently Asked Questions ==
-= Who can edit KayzArt posts? =
-Users who can edit the post can use the editor. JavaScript and external scripts/styles require the unfiltered_html capability.
+= How do I create a landing page? =
+Go to Pages > Add landing page. KayzArt creates a draft WordPress page, asks you to choose Normal or TailwindCSS mode, and then opens the live editor.
+
+= Can I use KayzArt with regular WordPress pages? =
+Yes. Regular WordPress pages are the default content type for KayzArt landing pages.
+
+= Can I use KayzArt with posts or custom post types? =
+Yes. Site administrators can enable KayzArt for posts or supported custom post types under Settings > Landing page settings. After a post type is enabled, KayzArt adds an Add landing page action for that post type.
+
+= What is Standalone mode? =
+Standalone mode renders the landing page independently from the active theme layout. Use it when you want a page built mainly from your HTML, CSS, and JavaScript without the theme header, footer, or content template.
+
+= What is Theme mode? =
+Theme mode renders the KayzArt content through the active theme template. Use it when you want the landing page content to appear inside your current theme layout.
+
+= Which mode should I choose? =
+Choose Standalone for theme-independent landing pages. Choose Theme if you want the page to keep the active theme's layout and styling.
+
+= Can I use TailwindCSS? =
+Yes. When creating a landing page, choose TailwindCSS mode to use utility classes with automatic CSS compilation.
+
+= Who can edit JavaScript and external resources? =
+Users who can edit the page can use the editor. JavaScript and external scripts/styles require the unfiltered_html capability.
 
 = Does KayzArt contact external servers by default? =
-No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.
-
-= How does template mode work? =
-Each KayzArt post can use Default, Standalone, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Standalone.
-
-= Can I change the KayzArt URL slug? =
-Yes. Go to KayzArt > Settings and update the KayzArt slug.
-
-= Can I set a default template mode for new previews? =
-Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Theme).
-
-= Does the plugin delete data on uninstall? =
-No. KayzArt posts and KayzArt-managed WordPress posts are kept when the plugin is uninstalled.
+No. KayzArt does not contact external servers by default and does not send telemetry. External requests happen only when an authorized user adds trusted HTTPS script or stylesheet URLs in the page settings.
 
 = Where is the code stored? =
-HTML is stored in the post content. CSS/JS and other settings are stored in post meta.
+HTML is stored in the WordPress post content. CSS, JavaScript, TailwindCSS mode, template mode, external resource URLs, and other KayzArt settings are stored in post meta.
 
-= Where is the development repository and how do I build the plugin? =
+= Where is the source code for the generated assets? =
 Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
 Generated files in the distributed plugin:
@@ -88,8 +108,7 @@ Build commands:
 
 == Changelog ==
 = 1.3.6 =
-* Remove external embedding and single-page disable settings. Existing [kayzart] shortcodes no longer render content.
-* Restore Tailwind CSS mode using tailwindphp 1.3.2.2 with PHP 7.4 support.
+* Update: Minor changes.
 
 = 1.3.5 =
 * Docs: Add screenshots section.

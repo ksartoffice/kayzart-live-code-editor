@@ -119,11 +119,6 @@ class Editor_Bridge {
 	 */
 	private static function resolve_post_id(): int {
 		$post = get_post();
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
-		if ( ! $post && isset( $_GET['post'] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
-			$post = get_post( absint( wp_unslash( (string) $_GET['post'] ) ) );
-		}
 
 		if ( ! $post || ! Post_Type::is_editor_enabled_post( $post ) ) {
 			return 0;
@@ -152,11 +147,6 @@ class Editor_Bridge {
 		}
 
 		$post = get_post();
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
-		if ( ! $post && isset( $_GET['post'] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen context lookup.
-			$post = get_post( absint( wp_unslash( (string) $_GET['post'] ) ) );
-		}
 
 		return $post instanceof \WP_Post
 			&& $screen->post_type === $post->post_type

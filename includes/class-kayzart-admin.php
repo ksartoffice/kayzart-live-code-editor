@@ -250,29 +250,38 @@ class Admin {
 	 * Create a new KayzArt CPT draft from legacy action URLs.
 	 */
 	public static function action_create_new_post(): void {
-		self::create_new_landing_page_post( Post_Type::POST_TYPE, self::NEW_POST_NONCE_ACTION );
+		self::verify_action_nonce( self::NEW_POST_NONCE_ACTION );
+		self::create_new_landing_page_post( Post_Type::POST_TYPE );
 	}
 
 	/**
 	 * Create a new post marked for KayzArt editing.
 	 */
 	public static function action_create_new_page(): void {
-		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( wp_unslash( (string) $_GET['post_type'] ) ) : Post_Type::PAGE_TYPE; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		self::create_new_landing_page_post( $post_type, self::NEW_PAGE_NONCE_ACTION );
+		self::verify_action_nonce( self::NEW_PAGE_NONCE_ACTION );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
+		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( wp_unslash( (string) $_GET['post_type'] ) ) : Post_Type::PAGE_TYPE;
+		self::create_new_landing_page_post( $post_type );
+	}
+
+	/**
+	 * Verify an admin action nonce.
+	 *
+	 * @param string $nonce_action Nonce action.
+	 */
+	private static function verify_action_nonce( string $nonce_action ): void {
+		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce, $nonce_action ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
 	}
 
 	/**
 	 * Create a new KayzArt-managed draft.
 	 *
-	 * @param string $post_type    Post type.
-	 * @param string $nonce_action Nonce action.
+	 * @param string $post_type Post type.
 	 */
-	private static function create_new_landing_page_post( string $post_type, string $nonce_action ): void {
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, $nonce_action ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-
+	private static function create_new_landing_page_post( string $post_type ): void {
 		if ( ! Post_Type::is_post_type_enabled( $post_type ) ) {
 			wp_die( esc_html__( 'This post type is not enabled for KayzArt.', 'kayzart-live-code-editor' ) );
 		}

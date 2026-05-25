@@ -258,7 +258,9 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		$before       = $this->get_page_ids();
 		$original_get = $_GET;
-		$_GET         = array();
+		$_GET         = array(
+			'post_type' => Post_Type::PAGE_TYPE,
+		);
 
 		$message = $this->capture_wp_die(
 			function () {

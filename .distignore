@@ -37,3 +37,6 @@
 /vendor/bin/tailwindphp.bat
 /vendor/tailwindphp/tailwindphp/bin/tailwindphp
 /vendor/**/.gitattributes
+/vendor/**/.php-cs-fixer.php
+/vendor/**/AGENTS.md
+/vendor/**/ARCHITECTURE.md

@@ -33,25 +33,29 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	public function test_resolve_post_id_uses_request_or_global_post_with_edit_permission(): void {
+	public function test_resolve_post_id_uses_global_post_with_edit_permission(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
-		$first_id = $this->create_enabled_post( Post_Type::POST_TYPE );
-		$_GET['post'] = (string) $first_id;
-		$this->assertSame( $first_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
-
-		unset( $_GET['post'] );
-
-		$second_id        = $this->create_enabled_post( Post_Type::POST_TYPE );
-		$GLOBALS['post']  = get_post( $second_id );
+		$post_id          = $this->create_enabled_post( Post_Type::POST_TYPE );
+		$GLOBALS['post']  = get_post( $post_id );
 		$this->assertInstanceOf( WP_Post::class, $GLOBALS['post'] );
-		$this->assertSame( $second_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
+		$this->assertSame( $post_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
+	}
+
+	public function test_resolve_post_id_ignores_request_post_fallback(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$post_id      = $this->create_enabled_post( Post_Type::POST_TYPE );
+		$_GET['post'] = (string) $post_id;
+
+		$this->assertSame( 0, $this->invoke_private_int_method( 'resolve_post_id' ) );
 	}
 
 	public function test_enqueue_classic_assets_enqueues_only_for_kayzart_classic_editor(): void {
-		$post_id = $this->create_enabled_post( Post_Type::POST_TYPE );
-		$_GET['post'] = (string) $post_id;
+		$post_id         = $this->create_enabled_post( Post_Type::POST_TYPE );
+		$GLOBALS['post'] = get_post( $post_id );
 
 		set_current_screen( 'post' );
 		$screen                  = get_current_screen();
@@ -105,8 +109,8 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_enqueue_assets_sets_nonce_protected_action_url(): void {
-		$post_id = $this->create_enabled_post( Post_Type::POST_TYPE );
-		$_GET['post'] = (string) $post_id;
+		$post_id         = $this->create_enabled_post( Post_Type::POST_TYPE );
+		$GLOBALS['post'] = get_post( $post_id );
 
 		set_current_screen( 'post' );
 		$screen                  = get_current_screen();

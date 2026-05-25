@@ -176,7 +176,7 @@ export function runSetupWizard(config: SetupWizardConfig): Promise<SetupWizardRe
     if (root) {
       root.render(node);
     } else {
-      render(node, container);
+      render(node, host);
     }
   });
 }

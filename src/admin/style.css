@@ -861,6 +861,7 @@ body.admin_page_kayzart #wpbody-content {
 
 .kayzart-editor .cm-editor {
   height: 100%;
+  position: relative;
 }
 
 .kayzart-editor .cm-scroller {
@@ -1574,6 +1575,69 @@ body.admin_page_kayzart #wpbody-content {
 
 .cm-editor .kayzart-highlight-line {
   background: rgba(37, 99, 235, 0.12);
+}
+
+.cm-editor .kayzart-scrollRuler {
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  bottom: 6px;
+  width: 10px;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.cm-editor .kayzart-scrollRuler.has-markers {
+  opacity: 1;
+}
+
+.cm-editor .kayzart-scrollRuler.is-hidden {
+  visibility: hidden;
+}
+
+.cm-editor .kayzart-scrollRulerViewport {
+  position: absolute;
+  left: 1px;
+  width: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.12);
+  box-sizing: border-box;
+}
+
+.cm-editor .kayzart-scrollRulerMarkers {
+  position: absolute;
+  inset: 0;
+}
+
+.cm-editor .kayzart-scrollRulerMarker {
+  position: absolute;
+  left: 0;
+  width: 10px;
+  height: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: rgba(59, 130, 246, 0.9);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.cm-editor .kayzart-scrollRulerMarker:hover,
+.cm-editor .kayzart-scrollRulerMarker:focus-visible {
+  background: #60a5fa;
+  outline: 1px solid rgba(191, 219, 254, 0.9);
+}
+
+.cm-editor .kayzart-scrollRulerMarker-css {
+  background: rgba(56, 189, 248, 0.92);
+}
+
+.cm-editor .kayzart-scrollRulerMarker-html {
+  background: rgba(96, 165, 250, 0.92);
 }
 
 .cm-editor .kayzart-change-line-added {

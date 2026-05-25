@@ -400,27 +400,33 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   const clearSelectionHighlight = () => {
     selectionDecorations = deps.htmlModel.deltaDecorations(selectionDecorations, []);
     cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+    deps.htmlEditor.clearScrollRulerMarkers();
+    deps.cssEditor.clearScrollRulerMarkers();
   };
 
   const clearCssSelectionHighlight = () => {
     cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+    deps.cssEditor.clearScrollRulerMarkers();
   };
 
   const highlightCssByLcId = (lcId: string) => {
     lastSelectedLcId = lcId;
     if (deps.isTailwindEnabled()) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
     const cssText = deps.cssModel.getValue();
     if (!cssText.trim()) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
     const root = getCanonicalDomRoot();
     const target = root?.querySelector(`[${KAYZART_ATTR_NAME}="${lcId}"]`);
     if (!target) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
     const rules = parseCssRules(cssText);
@@ -432,26 +438,37 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     });
     if (!matched.length) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
+    const matchedRanges = matched.map((rule) => {
+      const startPos = deps.cssModel.getPositionAt(rule.startOffset);
+      const endPos = deps.cssModel.getPositionAt(rule.endOffset);
+      return new EditorRange(
+        startPos.lineNumber,
+        startPos.column,
+        endPos.lineNumber,
+        endPos.column
+      );
+    });
     cssSelectionDecorations = deps.cssModel.deltaDecorations(
       cssSelectionDecorations,
-      matched.map((rule) => {
-        const startPos = deps.cssModel.getPositionAt(rule.startOffset);
-        const endPos = deps.cssModel.getPositionAt(rule.endOffset);
+      matchedRanges.map((range) => {
         return {
-          range: new EditorRange(
-            startPos.lineNumber,
-            startPos.column,
-            endPos.lineNumber,
-            endPos.column
-          ),
+          range,
           options: {
             className: 'kayzart-highlight-line',
             inlineClassName: 'kayzart-highlight-inline',
           },
         };
       })
+    );
+    deps.cssEditor.setScrollRulerMarkers(
+      matchedRanges.map((range, index) => ({
+        range,
+        className: 'kayzart-scrollRulerMarker-css',
+        title: `CSS match ${index + 1}`,
+      }))
     );
     const first = matched[0];
     if (first) {
@@ -489,6 +506,13 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
           className: 'kayzart-highlight-line',
           inlineClassName: 'kayzart-highlight-inline',
         },
+      },
+    ]);
+    deps.htmlEditor.setScrollRulerMarkers([
+      {
+        range: selectedRange,
+        className: 'kayzart-scrollRulerMarker-html',
+        title: 'HTML match',
       },
     ]);
     deps.htmlEditor.revealRangeInCenter(selectedRange);

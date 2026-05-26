@@ -130,7 +130,7 @@ function FullHtmlImportModal({
       key: 'externalStyles' as const,
       label: __('External CSS', 'kayzart-live-code-editor'),
       detail: String(result.summary.externalStyleCount),
-      detected: result.externalStyles.length > 0,
+      detected: canEditJs && result.externalStyles.length > 0,
     },
     {
       key: 'externalScripts' as const,
@@ -166,7 +166,7 @@ function FullHtmlImportModal({
             {!canEditJs ? (
               <p className="kayzart-modalWarning">
                 {__(
-                  'JavaScript will not be imported because your account cannot edit JavaScript.',
+                  'JavaScript and external resources will not be imported because your account cannot edit these settings.',
                   'kayzart-live-code-editor'
                 )}
               </p>

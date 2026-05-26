@@ -1230,13 +1230,9 @@ body.admin_page_kayzart #wpbody-content {
 
 .kayzart-settingsScriptRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.kayzart-settingsAttrNameInput {
-  flex: 0 0 90px;
-  min-width: 0;
 }
 
 .kayzart-settingsScriptInput {
@@ -1250,6 +1246,38 @@ body.admin_page_kayzart #wpbody-content {
 
 .kayzart-settingsScriptAdd {
   align-self: flex-start;
+}
+
+.kayzart-settingsAttrs {
+  flex-basis: 100%;
+  padding: 8px 10px;
+  border: 1px solid #2b3340;
+  border-radius: 6px;
+  background: #11141a;
+}
+
+.kayzart-settingsAttrs summary {
+  cursor: pointer;
+  color: #c9cdd6;
+  font-size: 12px;
+}
+
+.kayzart-settingsAttrList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.kayzart-settingsAttrRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.8fr) minmax(120px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.kayzart-settingsAttrAdd {
+  margin-top: 8px;
 }
 
 .kayzart-settingsToggle {

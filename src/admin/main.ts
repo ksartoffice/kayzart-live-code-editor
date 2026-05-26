@@ -29,6 +29,11 @@ import {
   type FullHtmlImportSelection,
   type FullHtmlImportResult,
 } from './logic/full-html-import';
+import {
+  isHttpsExternalResource,
+  normalizeExternalResources,
+  type ExternalResource,
+} from './types/external-resource';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController, type FullHtmlImportAvailability } from './controllers/modal-controller';
@@ -55,7 +60,7 @@ import type {
   SnapshotReplaceOptions,
 } from './extensions/settings-tab-registry';
 import { presentableDiff } from '@codemirror/merge';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
 declare const wp: any;
@@ -305,12 +310,12 @@ async function main() {
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
-  let externalScripts = Array.isArray(initialState.settingsData?.externalScripts)
-    ? [...initialState.settingsData.externalScripts]
-    : [];
-  let externalStyles = Array.isArray(initialState.settingsData?.externalStyles)
-    ? [...initialState.settingsData.externalStyles]
-    : [];
+  let externalScripts: ExternalResource[] = normalizeExternalResources(
+    initialState.settingsData?.externalScripts
+  );
+  let externalStyles: ExternalResource[] = normalizeExternalResources(
+    initialState.settingsData?.externalStyles
+  );
   let hasUnsavedChanges = false;
   let pendingSettingsUpdates: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
@@ -407,12 +412,8 @@ async function main() {
     postTitle = nextSettings.title || postTitle;
     postSlug = nextSettings.slug || postSlug;
     liveHighlightEnabled = nextSettings.liveHighlightEnabled ?? liveHighlightEnabled;
-    externalScripts = Array.isArray(nextSettings.externalScripts)
-      ? [...nextSettings.externalScripts]
-      : [];
-    externalStyles = Array.isArray(nextSettings.externalStyles)
-      ? [...nextSettings.externalStyles]
-      : [];
+    externalScripts = normalizeExternalResources(nextSettings.externalScripts);
+    externalStyles = normalizeExternalResources(nextSettings.externalStyles);
     const nextTemplateMode = resolveTemplateMode(nextSettings.templateMode);
     const nextDefaultTemplateMode =
       typeof nextSettings.defaultTemplateMode === 'string'
@@ -765,17 +766,38 @@ async function main() {
     result: FullHtmlImportResult,
     selection: FullHtmlImportSelection
   ) =>
-    (selection.externalStyles && result.externalStyles.length > 0) ||
-    (selection.html && Boolean(result.html.trim() || result.bodyAttrs.trim())) ||
-    (selection.externalScripts && canEditJs && result.externalScripts.length > 0);
+    selection.html && Boolean(result.html.trim() || result.bodyAttrs.trim());
 
   const getFullHtmlImportAvailability = (): FullHtmlImportAvailability => ({
     html: Boolean(htmlModel.getValue().trim()),
     css: Boolean(cssModel.getValue().trim()),
     js: Boolean(jsModel.getValue().trim()),
-    externalStyles: Boolean(htmlModel.getValue().trim()),
-    externalScripts: Boolean(htmlModel.getValue().trim()),
+    externalStyles: true,
+    externalScripts: true,
   });
+
+  const limitImportedResources = (
+    resources: ExternalResource[],
+    max: number,
+    label: string
+  ): ExternalResource[] => {
+    const normalized = normalizeExternalResources(resources).filter(isHttpsExternalResource);
+    if (normalized.length <= max) {
+      return normalized;
+    }
+    createSnackbar(
+      'warning',
+      sprintf(
+        /* translators: 1: resource label, 2: maximum number of items. */
+        __('Only the first %2$d imported %1$s items were kept because of the limit.', 'kayzart-live-code-editor'),
+        label,
+        max
+      ),
+      undefined,
+      NOTICE_ERROR_DURATION_MS
+    );
+    return normalized.slice(0, max);
+  };
 
   const applyFullHtmlImport = (
     result: FullHtmlImportResult,
@@ -789,6 +811,26 @@ async function main() {
     }
     if (selection.js && canEditJs && result.js.trim()) {
       replaceWholeModelContent(jsModel, result.js.trim());
+    }
+    if (selection.externalStyles && result.externalStyles.length) {
+      const nextStyles = limitImportedResources(
+        result.externalStyles,
+        initialState.settingsData.externalStylesMax,
+        __('external style', 'kayzart-live-code-editor')
+      );
+      externalStyles = nextStyles;
+      settingsApi?.setExternalStyles(nextStyles);
+      preview?.sendExternalStyles(nextStyles);
+    }
+    if (selection.externalScripts && canEditJs && result.externalScripts.length) {
+      const nextScripts = limitImportedResources(
+        result.externalScripts,
+        initialState.settingsData.externalScriptsMax,
+        __('external script', 'kayzart-live-code-editor')
+      );
+      externalScripts = nextScripts;
+      settingsApi?.setExternalScripts(nextScripts);
+      preview?.sendExternalScripts(jsEnabled ? nextScripts : []);
     }
   };
 

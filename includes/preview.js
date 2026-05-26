@@ -708,23 +708,83 @@
     };
   }
 
-  function normalizeExternalScripts(list) {
+  function normalizeExternalResource(entry) {
+    if (typeof entry === 'string') {
+      const url = entry.trim();
+      return url ? { url, attrs: {} } : null;
+    }
+    if (!entry || typeof entry !== 'object' || typeof entry.url !== 'string') {
+      return null;
+    }
+    const url = entry.url.trim();
+    if (!url) {
+      return null;
+    }
+    const attrs = {};
+    if (entry.attrs && typeof entry.attrs === 'object' && !Array.isArray(entry.attrs)) {
+      Object.keys(entry.attrs).forEach((key) => {
+        const normalizedKey = String(key).trim().toLowerCase();
+        const value = entry.attrs[key];
+        const allowedAttrs = {
+          media: true,
+          integrity: true,
+          crossorigin: true,
+          referrerpolicy: true,
+          title: true,
+          type: true,
+          async: true,
+          defer: true,
+          nomodule: true,
+          fetchpriority: true,
+        };
+        if (!normalizedKey || normalizedKey.indexOf('on') === 0 || !allowedAttrs[normalizedKey]) return;
+        if (value === true) {
+          attrs[normalizedKey] = true;
+          return;
+        }
+        if (typeof value !== 'string') return;
+        const normalizedValue = value.trim();
+        if (!normalizedValue || /^javascript:/i.test(normalizedValue)) return;
+        attrs[normalizedKey] = normalizedValue;
+      });
+    }
+    return { url, attrs };
+  }
+
+  function normalizeExternalResources(list) {
     if (!Array.isArray(list)) return [];
-    return list
-      .map((entry) => String(entry).trim())
-      .filter(Boolean);
+    const seen = new Set();
+    const next = [];
+    list.forEach((entry) => {
+      const resource = normalizeExternalResource(entry);
+      if (!resource || seen.has(resource.url)) return;
+      seen.add(resource.url);
+      next.push(resource);
+    });
+    return next;
+  }
+
+  function normalizeExternalScripts(list) {
+    return normalizeExternalResources(list);
   }
 
   function normalizeExternalStyles(list) {
-    if (!Array.isArray(list)) return [];
-    return list
-      .map((entry) => String(entry).trim())
-      .filter(Boolean);
+    return normalizeExternalResources(list);
   }
 
   function isSameList(a, b) {
-    if (a.length !== b.length) return false;
-    return a.every((value, index) => value === b[index]);
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  function applyResourceAttrs(el, attrs) {
+    Object.keys(attrs || {}).forEach((key) => {
+      const value = attrs[key];
+      if (value === true) {
+        el.setAttribute(key, '');
+      } else {
+        el.setAttribute(key, String(value));
+      }
+    });
   }
 
   function clearExternalScripts() {
@@ -746,7 +806,7 @@
     }
 
     const head = getScriptHost();
-    return list.reduce((chain, url) => {
+    return list.reduce((chain, resource) => {
       return chain.then(
         () =>
           new Promise((resolve) => {
@@ -757,7 +817,8 @@
             const scriptEl = document.createElement('script');
             scriptEl.setAttribute(externalScriptAttr, '1');
             scriptEl.async = false;
-            scriptEl.src = url;
+            applyResourceAttrs(scriptEl, resource.attrs);
+            scriptEl.src = resource.url;
             scriptEl.onload = () => resolve();
             scriptEl.onerror = () => resolve();
             head.appendChild(scriptEl);
@@ -774,11 +835,12 @@
 
     const root = getStyleRoot();
     const host = root || document.head || document.body;
-    list.forEach((url) => {
+    list.forEach((resource) => {
       const linkEl = document.createElement('link');
       linkEl.setAttribute(externalStyleAttr, '1');
       linkEl.rel = 'stylesheet';
-      linkEl.href = url;
+      applyResourceAttrs(linkEl, resource.attrs);
+      linkEl.href = resource.url;
       host.appendChild(linkEl);
     });
   }

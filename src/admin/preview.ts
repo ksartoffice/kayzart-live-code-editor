@@ -8,6 +8,7 @@ import {
   selectorMatches,
   splitSelectors,
 } from './css-rules';
+import type { ExternalResource } from './types/external-resource';
 
 type SourceRange = {
   startOffset: number;
@@ -25,8 +26,8 @@ type CanonicalResult = {
 export type PreviewController = {
   sendRender: () => void;
   sendCssUpdate: (cssText: string) => void;
-  sendExternalScripts: (scripts: string[]) => void;
-  sendExternalStyles: (styles: string[]) => void;
+  sendExternalScripts: (scripts: ExternalResource[]) => void;
+  sendExternalStyles: (styles: ExternalResource[]) => void;
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
   requestRunJs: () => void;
@@ -57,8 +58,8 @@ type PreviewControllerDeps = {
   getLiveHighlightEnabled: () => boolean;
   getJsEnabled: () => boolean;
   getJsMode: () => JsMode;
-  getExternalScripts: () => string[];
-  getExternalStyles: () => string[];
+  getExternalScripts: () => ExternalResource[];
+  getExternalStyles: () => ExternalResource[];
   isTailwindEnabled: () => boolean;
   getResolvedTemplateMode: () => 'standalone' | 'theme';
   onSelect?: (lcId: string) => void;
@@ -392,7 +393,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     postToPreview({ type: 'KAYZART_DISABLE_JS' });
   };
 
-  const sendExternalScripts = (scripts: string[]) => {
+  const sendExternalScripts = (scripts: ExternalResource[]) => {
     if (!previewReady) {
       return;
     }
@@ -402,7 +403,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     });
   };
 
-  const sendExternalStyles = (styles: string[]) => {
+  const sendExternalStyles = (styles: ExternalResource[]) => {
     if (!previewReady) {
       return;
     }

@@ -203,11 +203,10 @@ class Rest_Settings {
 				);
 			}
 
-			$raw_scripts    = array_values( $updates['externalScripts'] );
-			$string_scripts = array_values( array_filter( $raw_scripts, 'is_string' ) );
-			$error          = null;
+			$raw_scripts = array_values( $updates['externalScripts'] );
+			$error       = null;
 			$sanitized      = External_Scripts::validate_list(
-				$string_scripts,
+				$raw_scripts,
 				Limits::MAX_EXTERNAL_SCRIPTS,
 				$error
 			);
@@ -242,11 +241,10 @@ class Rest_Settings {
 				);
 			}
 
-			$raw_styles    = array_values( $updates['externalStyles'] );
-			$string_styles = array_values( array_filter( $raw_styles, 'is_string' ) );
-			$error         = null;
+			$raw_styles = array_values( $updates['externalStyles'] );
+			$error      = null;
 			$sanitized     = External_Styles::validate_list(
-				$string_styles,
+				$raw_styles,
 				Limits::MAX_EXTERNAL_STYLES,
 				$error
 			);

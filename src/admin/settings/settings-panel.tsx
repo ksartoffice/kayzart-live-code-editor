@@ -1,5 +1,6 @@
 import { createElement, Fragment } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
+import type { ExternalResource } from '../types/external-resource';
 
 type SettingsPanelProps = {
   canEditJs: boolean;
@@ -8,13 +9,13 @@ type SettingsPanelProps = {
   onChangeTemplateMode: (mode: 'default' | 'standalone' | 'theme') => void;
   liveHighlightEnabled: boolean;
   onToggleLiveHighlight: (enabled: boolean) => void;
-  externalScripts: string[];
-  onChangeExternalScripts: (scripts: string[]) => void;
-  onCommitExternalScripts: (scripts: string[]) => void;
+  externalScripts: ExternalResource[];
+  onChangeExternalScripts: (scripts: ExternalResource[]) => void;
+  onCommitExternalScripts: (scripts: ExternalResource[]) => void;
   externalScriptsMax: number;
-  externalStyles: string[];
-  onChangeExternalStyles: (styles: string[]) => void;
-  onCommitExternalStyles: (styles: string[]) => void;
+  externalStyles: ExternalResource[];
+  onChangeExternalStyles: (styles: ExternalResource[]) => void;
+  onCommitExternalStyles: (styles: ExternalResource[]) => void;
   externalStylesMax: number;
   disabled?: boolean;
   externalScriptsError?: string;
@@ -57,8 +58,67 @@ export function SettingsPanel({
         ? __( 'Standalone hides the theme header and footer.', 'kayzart-live-code-editor')
         : __( 'Theme uses the active theme template.', 'kayzart-live-code-editor');
 
+  const updateResourceUrl = (
+    list: ExternalResource[],
+    index: number,
+    value: string
+  ): ExternalResource[] =>
+    list.map((entry, idx) => (idx === index ? { ...entry, url: value } : entry));
+
+  const updateResourceAttr = (
+    list: ExternalResource[],
+    index: number,
+    oldKey: string,
+    nextKey: string,
+    value: string
+  ): ExternalResource[] =>
+    list.map((entry, idx) => {
+      if (idx !== index) {
+        return entry;
+      }
+      const attrs = { ...entry.attrs };
+      if (oldKey) {
+        delete attrs[oldKey];
+      }
+      const key = nextKey.trim().toLowerCase();
+      if (key) {
+        attrs[key] = value;
+      }
+      return { ...entry, attrs };
+    });
+
+  const removeResourceAttr = (
+    list: ExternalResource[],
+    index: number,
+    key: string
+  ): ExternalResource[] =>
+    list.map((entry, idx) => {
+      if (idx !== index) {
+        return entry;
+      }
+      const attrs = { ...entry.attrs };
+      delete attrs[key];
+      return { ...entry, attrs };
+    });
+
+  const addResourceAttr = (list: ExternalResource[], index: number): ExternalResource[] =>
+    list.map((entry, idx) => {
+      if (idx !== index) {
+        return entry;
+      }
+      const attrs = { ...entry.attrs };
+      let suffix = 1;
+      let key = 'data-attr';
+      while (Object.prototype.hasOwnProperty.call(attrs, key)) {
+        suffix += 1;
+        key = `data-attr-${suffix}`;
+      }
+      attrs[key] = '';
+      return { ...entry, attrs };
+    });
+
   const updateScriptAt = (index: number, value: string, commit: boolean) => {
-    const next = externalScripts.map((entry, idx) => (idx === index ? value : entry));
+    const next = updateResourceUrl(externalScripts, index, value);
     if (commit) {
       onCommitExternalScripts(next);
     } else {
@@ -68,7 +128,7 @@ export function SettingsPanel({
 
   const handleAddScript = () => {
     if (!canAddScript) return;
-    onChangeExternalScripts([...externalScripts, '']);
+    onChangeExternalScripts([...externalScripts, { url: '', attrs: {} }]);
   };
 
   const handleRemoveScript = (index: number) => {
@@ -79,7 +139,7 @@ export function SettingsPanel({
   };
 
   const updateStyleAt = (index: number, value: string, commit: boolean) => {
-    const next = externalStyles.map((entry, idx) => (idx === index ? value : entry));
+    const next = updateResourceUrl(externalStyles, index, value);
     if (commit) {
       onCommitExternalStyles(next);
     } else {
@@ -89,7 +149,7 @@ export function SettingsPanel({
 
   const handleAddStyle = () => {
     if (!canAddStyle) return;
-    onChangeExternalStyles([...externalStyles, '']);
+    onChangeExternalStyles([...externalStyles, { url: '', attrs: {} }]);
   };
 
   const handleRemoveStyle = (index: number) => {
@@ -97,6 +157,76 @@ export function SettingsPanel({
     const next = externalStyles.filter((_, idx) => idx !== index);
     onChangeExternalStyles(next);
     onCommitExternalStyles(next);
+  };
+
+  const renderAttrs = (
+    list: ExternalResource[],
+    index: number,
+    onChange: (next: ExternalResource[]) => void,
+    onCommit: (next: ExternalResource[]) => void
+  ) => {
+    const attrs = Object.entries(list[index].attrs || {});
+    return (
+      <details className="kayzart-settingsAttrs">
+        <summary>{__('Attributes', 'kayzart-live-code-editor')}</summary>
+        {attrs.length ? (
+          <div className="kayzart-settingsAttrList">
+            {attrs.map(([key, value]) => (
+              <div className="kayzart-settingsAttrRow" key={key}>
+                <input
+                  type="text"
+                  className="kayzart-formInput kayzart-settingsAttrKey"
+                  value={key}
+                  onChange={(event) =>
+                    onChange(updateResourceAttr(list, index, key, event.target.value, String(value)))
+                  }
+                  onBlur={(event) =>
+                    onCommit(updateResourceAttr(list, index, key, event.target.value, String(value)))
+                  }
+                  disabled={disabled}
+                  aria-label={__('Attribute name', 'kayzart-live-code-editor')}
+                />
+                <input
+                  type="text"
+                  className="kayzart-formInput kayzart-settingsAttrValue"
+                  value={value === true ? '' : String(value)}
+                  placeholder={value === true ? __('boolean', 'kayzart-live-code-editor') : ''}
+                  onChange={(event) =>
+                    onChange(updateResourceAttr(list, index, key, key, event.target.value))
+                  }
+                  onBlur={(event) =>
+                    onCommit(updateResourceAttr(list, index, key, key, event.target.value))
+                  }
+                  disabled={disabled}
+                  aria-label={__('Attribute value', 'kayzart-live-code-editor')}
+                />
+                <button
+                  className="kayzart-btn kayzart-btn-danger kayzart-settingsAttrButton"
+                  type="button"
+                  onClick={() => {
+                    const next = removeResourceAttr(list, index, key);
+                    onChange(next);
+                    onCommit(next);
+                  }}
+                  disabled={disabled}
+                  aria-label={__('Remove attribute', 'kayzart-live-code-editor')}
+                >
+                  {__('Remove', 'kayzart-live-code-editor')}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <button
+          className="kayzart-btn kayzart-btn-secondary kayzart-settingsAttrAdd"
+          type="button"
+          onClick={() => onChange(addResourceAttr(list, index))}
+          disabled={disabled}
+        >
+          {`+ ${__('Add attribute', 'kayzart-live-code-editor')}`}
+        </button>
+      </details>
+    );
   };
 
   return (
@@ -144,13 +274,13 @@ export function SettingsPanel({
             <div className="kayzart-settingsItemLabel">{__( 'External scripts', 'kayzart-live-code-editor')}</div>
             {hasScripts ? (
               <div className="kayzart-settingsScriptList">
-                {externalScripts.map((scriptUrl, index) => (
+                {externalScripts.map((scriptResource, index) => (
                   <div className="kayzart-settingsScriptRow" key={`script-${index}`}>
                     <input
                       type="url"
                       className="kayzart-formInput kayzart-settingsScriptInput"
                       placeholder={__( 'https://example.com/script.js', 'kayzart-live-code-editor')}
-                      value={scriptUrl}
+                      value={scriptResource.url}
                       onChange={(event) => updateScriptAt(index, event.target.value, false)}
                       onBlur={(event) => updateScriptAt(index, event.target.value, true)}
                       onKeyDown={(event) => {
@@ -170,6 +300,12 @@ export function SettingsPanel({
                     >
                       {__( 'Remove', 'kayzart-live-code-editor')}
                     </button>
+                    {renderAttrs(
+                      externalScripts,
+                      index,
+                      onChangeExternalScripts,
+                      onCommitExternalScripts
+                    )}
                   </div>
                 ))}
                 <button
@@ -208,13 +344,13 @@ export function SettingsPanel({
         <div className="kayzart-settingsItemLabel">{__( 'External styles', 'kayzart-live-code-editor')}</div>
         {hasStyles ? (
           <div className="kayzart-settingsScriptList">
-            {externalStyles.map((styleUrl, index) => (
+            {externalStyles.map((styleResource, index) => (
               <div className="kayzart-settingsScriptRow" key={`style-${index}`}>
                 <input
                   type="url"
                   className="kayzart-formInput kayzart-settingsScriptInput"
                   placeholder={__( 'https://example.com/style.css', 'kayzart-live-code-editor')}
-                  value={styleUrl}
+                  value={styleResource.url}
                   onChange={(event) => updateStyleAt(index, event.target.value, false)}
                   onBlur={(event) => updateStyleAt(index, event.target.value, true)}
                   onKeyDown={(event) => {
@@ -234,6 +370,12 @@ export function SettingsPanel({
                 >
                   {__( 'Remove', 'kayzart-live-code-editor')}
                 </button>
+                {renderAttrs(
+                  externalStyles,
+                  index,
+                  onChangeExternalStyles,
+                  onCommitExternalStyles
+                )}
               </div>
             ))}
             <button

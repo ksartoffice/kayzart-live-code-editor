@@ -167,11 +167,21 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
 		$this->assertSame(
-			array( 'https://example.com/runtime.js' ),
+			array(
+				array(
+					'url'   => 'https://example.com/runtime.js',
+					'attrs' => array(),
+				),
+			),
 			External_Scripts::get_external_scripts( $post_id )
 		);
 		$this->assertSame(
-			array( 'https://example.com/runtime.css' ),
+			array(
+				array(
+					'url'   => 'https://example.com/runtime.css',
+					'attrs' => array(),
+				),
+			),
 			External_Styles::get_external_styles( $post_id )
 		);
 
@@ -180,7 +190,12 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
 		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
 		$this->assertSame(
-			array( 'https://example.com/runtime.js' ),
+			array(
+				array(
+					'url'   => 'https://example.com/runtime.js',
+					'attrs' => array(),
+				),
+			),
 			$data['settings']['externalScripts'] ?? null
 		);
 	}
@@ -198,8 +213,26 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			'visibility'           => 'public',
 			'shadowDomEnabled'     => true,
 			'liveHighlightEnabled' => false,
-			'externalScripts'      => array( 'https://example.com/app.js' ),
-			'externalStyles'       => array( 'https://example.com/app.css' ),
+			'externalScripts'      => array(
+				array(
+					'url'   => 'https://example.com/app.js',
+					'attrs' => array(
+						'defer'     => true,
+						'integrity' => 'sha384-js',
+						'onload'    => 'alert(1)',
+					),
+				),
+			),
+			'externalStyles'       => array(
+				array(
+					'url'   => 'https://example.com/app.css',
+					'attrs' => array(
+						'media'   => 'screen',
+						'onload'  => 'alert(1)',
+						'unknown' => 'nope',
+					),
+				),
+			),
 		);
 
 		$response = $this->dispatch_route(
@@ -227,11 +260,26 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
 
 		$this->assertSame(
-			array( 'https://example.com/app.js' ),
+			array(
+				array(
+					'url'   => 'https://example.com/app.js',
+					'attrs' => array(
+						'defer'     => true,
+						'integrity' => 'sha384-js',
+					),
+				),
+			),
 			External_Scripts::get_external_scripts( $post_id )
 		);
 		$this->assertSame(
-			array( 'https://example.com/app.css' ),
+			array(
+				array(
+					'url'   => 'https://example.com/app.css',
+					'attrs' => array(
+						'media' => 'screen',
+					),
+				),
+			),
 			External_Styles::get_external_styles( $post_id )
 		);
 
@@ -240,8 +288,29 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
 		$this->assertSame( false, $data['settings']['liveHighlightEnabled'] ?? null );
 		$this->assertSame( 'my-custom-slug', $data['settings']['slug'] ?? null );
-		$this->assertSame( array( 'https://example.com/app.js' ), $data['settings']['externalScripts'] ?? null );
-		$this->assertSame( array( 'https://example.com/app.css' ), $data['settings']['externalStyles'] ?? null );
+		$this->assertSame(
+			array(
+				array(
+					'url'   => 'https://example.com/app.js',
+					'attrs' => array(
+						'defer'     => true,
+						'integrity' => 'sha384-js',
+					),
+				),
+			),
+			$data['settings']['externalScripts'] ?? null
+		);
+		$this->assertSame(
+			array(
+				array(
+					'url'   => 'https://example.com/app.css',
+					'attrs' => array(
+						'media' => 'screen',
+					),
+				),
+			),
+			$data['settings']['externalStyles'] ?? null
+		);
 	}
 
 	public function test_settings_update_with_public_visibility_keeps_existing_password(): void {

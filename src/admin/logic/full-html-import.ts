@@ -1,13 +1,14 @@
 import * as parse5 from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
+import type { ExternalResource, ExternalResourceAttrs } from '../types/external-resource';
 
 export type FullHtmlImportResult = {
   html: string;
   bodyAttrs: string;
   css: string;
   js: string;
-  externalStyles: string[];
-  externalScripts: string[];
+  externalStyles: ExternalResource[];
+  externalScripts: ExternalResource[];
   summary: {
     styleCount: number;
     inlineScriptCount: number;
@@ -41,6 +42,53 @@ type Node = DefaultTreeAdapterTypes.Node;
 const getAttr = (node: ElementNode, name: string): string | null => {
   const attr = node.attrs.find((item) => item.name.toLowerCase() === name.toLowerCase());
   return attr ? attr.value : null;
+};
+
+const BOOLEAN_SCRIPT_ATTRS = new Set(['async', 'defer', 'nomodule']);
+const STYLE_ATTRS = new Set(['media', 'integrity', 'crossorigin', 'referrerpolicy', 'title']);
+const SCRIPT_ATTRS = new Set([
+  'type',
+  'async',
+  'defer',
+  'nomodule',
+  'integrity',
+  'crossorigin',
+  'referrerpolicy',
+  'fetchpriority',
+]);
+
+const sanitizeAttrValue = (name: string, value: string): string | boolean | null => {
+  const trimmed = value.trim();
+  if (BOOLEAN_SCRIPT_ATTRS.has(name)) {
+    return trimmed === '' ? true : trimmed;
+  }
+  if (!trimmed || /^javascript:/i.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
+};
+
+const extractExternalResource = (
+  node: ElementNode,
+  urlAttr: 'href' | 'src',
+  allowedAttrs: Set<string>
+): ExternalResource | null => {
+  const url = getAttr(node, urlAttr)?.trim();
+  if (!url) {
+    return null;
+  }
+  const attrs: ExternalResourceAttrs = {};
+  node.attrs.forEach((attr) => {
+    const name = attr.name.toLowerCase();
+    if (name === urlAttr || name === 'rel' || name.startsWith('on') || !allowedAttrs.has(name)) {
+      return;
+    }
+    const value = sanitizeAttrValue(name, attr.value);
+    if (value !== null) {
+      attrs[name] = value;
+    }
+  });
+  return { url, attrs };
 };
 
 const serializeAttrs = (node: ElementNode): string =>
@@ -130,8 +178,8 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   const cssParts: string[] = [];
   const jsParts: string[] = [];
   const bodyParts: string[] = [];
-  const externalStyles: string[] = [];
-  const externalScripts: string[] = [];
+  const externalStyles: ExternalResource[] = [];
+  const externalScripts: ExternalResource[] = [];
   let styleCount = 0;
   let inlineScriptCount = 0;
 
@@ -153,7 +201,10 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     if (tagName === 'script') {
       const src = getAttr(node, 'src');
       if (src) {
-        externalScripts.push(serializeOriginalNode(source, node).trim());
+        const resource = extractExternalResource(node, 'src', SCRIPT_ATTRS);
+        if (resource) {
+          externalScripts.push(resource);
+        }
         return;
       }
       const js = getTextContent(node).trim();
@@ -165,7 +216,10 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
 
     if (tagName === 'link' && hasStylesheetRel(getAttr(node, 'rel')) && getAttr(node, 'href')) {
-      externalStyles.push(serializeOriginalNode(source, node).trim());
+      const resource = extractExternalResource(node, 'href', STYLE_ATTRS);
+      if (resource) {
+        externalStyles.push(resource);
+      }
       return;
     }
 
@@ -208,22 +262,14 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
 
 export function buildImportedHtml(
   result: FullHtmlImportResult,
-  canEditJs: boolean,
+  _canEditJs: boolean,
   selection: FullHtmlImportSelection = createFullHtmlImportSelection()
 ): string {
   const parts: string[] = [];
-  if (selection.externalStyles && result.externalStyles.length) {
-    parts.push(
-      ['<!-- External stylesheets from pasted HTML -->', ...result.externalStyles].join('\n')
-    );
-  }
   const html = result.html.trim();
   const bodyAttrs = result.bodyAttrs.trim();
   if (selection.html && (html || bodyAttrs)) {
     parts.push(bodyAttrs ? `<body ${bodyAttrs}>\n${html}\n</body>` : html);
-  }
-  if (selection.externalScripts && canEditJs && result.externalScripts.length) {
-    parts.push(['<!-- External scripts from pasted HTML -->', ...result.externalScripts].join('\n'));
   }
   return parts.join('\n\n');
 }

@@ -55,28 +55,34 @@ describe('full html import logic', () => {
 </body>`);
   });
 
-  it('keeps external css at the top and external js at the bottom of imported html', () => {
+  it('extracts external css and external js as resources with attributes', () => {
     const result = parseFullHtmlDocument(`<!doctype html>
 <html>
 <head>
-  <link rel="preload stylesheet" href="https://cdn.example.com/a.css">
+  <link rel="preload stylesheet" href="https://cdn.example.com/a.css" media="screen" integrity="sha384-css" onclick="nope()">
 </head>
 <body>
   <div id="app"></div>
-  <script src="https://cdn.example.com/a.js"></script>
+  <script src="https://cdn.example.com/a.js" defer integrity="sha384-js" data-x="nope"></script>
 </body>
 </html>`);
 
     expect(result).not.toBeNull();
     const html = buildImportedHtml(result!, true);
 
-    expect(html).toBe(`<!-- External stylesheets from pasted HTML -->
-<link rel="preload stylesheet" href="https://cdn.example.com/a.css">
-
-<div id="app"></div>
-
-<!-- External scripts from pasted HTML -->
-<script src="https://cdn.example.com/a.js"></script>`);
+    expect(html).toBe('<div id="app"></div>');
+    expect(result?.externalStyles).toEqual([
+      {
+        url: 'https://cdn.example.com/a.css',
+        attrs: { media: 'screen', integrity: 'sha384-css' },
+      },
+    ]);
+    expect(result?.externalScripts).toEqual([
+      {
+        url: 'https://cdn.example.com/a.js',
+        attrs: { defer: true, integrity: 'sha384-js' },
+      },
+    ]);
   });
 
   it('omits external scripts when javascript editing is unavailable', () => {
@@ -105,15 +111,9 @@ describe('full html import logic', () => {
 </html>`);
 
     expect(result).not.toBeNull();
-    expect(buildImportedHtml(result!, true, createFullHtmlImportSelection())).toBe(`<!-- External stylesheets from pasted HTML -->
-<link rel="stylesheet" href="https://cdn.example.com/a.css">
-
-<body class="lp">
+    expect(buildImportedHtml(result!, true, createFullHtmlImportSelection())).toBe(`<body class="lp">
 <main><h1>Hello</h1></main>
-</body>
-
-<!-- External scripts from pasted HTML -->
-<script src="https://cdn.example.com/a.js"></script>`);
+</body>`);
   });
 
   it('skips body html and body attributes together', () => {
@@ -134,8 +134,7 @@ describe('full html import logic', () => {
         true,
         createFullHtmlImportSelection({ html: false })
       )
-    ).toBe(`<!-- External stylesheets from pasted HTML -->
-<link rel="stylesheet" href="https://cdn.example.com/a.css">`);
+    ).toBe('');
   });
 
   it('skips external css and external js independently', () => {

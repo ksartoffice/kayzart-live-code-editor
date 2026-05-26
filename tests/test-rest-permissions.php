@@ -221,7 +221,7 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Admins should also ignore legacy shadowDomEnabled.' );
 	}
 
-	public function test_rest_settings_requires_unfiltered_html_for_js_related_updates(): void {
+	public function test_rest_settings_ignores_legacy_external_resource_updates_without_extra_permission(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id   = $this->create_kayzart_post( $author_id );
@@ -239,7 +239,9 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'updates' => $updates,
 			)
 		);
-		$this->assertSame( 403, $response->get_status(), 'Settings updates should require unfiltered_html.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy external resource updates should be ignored for authors.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 
 		wp_set_current_user( $admin_id );
 		$response = $this->dispatch_route(
@@ -249,7 +251,9 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'updates' => $updates,
 			)
 		);
-		$this->assertSame( 200, $response->get_status(), 'Admins should be able to update JS settings.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy external resource updates should be ignored for admins.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 	}
 
 	public function test_rest_settings_forbid_publish_without_capability(): void {

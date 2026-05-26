@@ -8,7 +8,6 @@ import {
   selectorMatches,
   splitSelectors,
 } from './css-rules';
-import type { ExternalResource } from './types/external-resource';
 
 type SourceRange = {
   startOffset: number;
@@ -26,8 +25,6 @@ type CanonicalResult = {
 export type PreviewController = {
   sendRender: () => void;
   sendCssUpdate: (cssText: string) => void;
-  sendExternalScripts: (scripts: ExternalResource[]) => void;
-  sendExternalStyles: (styles: ExternalResource[]) => void;
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
   requestRunJs: () => void;
@@ -58,8 +55,6 @@ type PreviewControllerDeps = {
   getLiveHighlightEnabled: () => boolean;
   getJsEnabled: () => boolean;
   getJsMode: () => JsMode;
-  getExternalScripts: () => ExternalResource[];
-  getExternalStyles: () => ExternalResource[];
   isTailwindEnabled: () => boolean;
   getResolvedTemplateMode: () => 'standalone' | 'theme';
   onSelect?: (lcId: string) => void;
@@ -393,26 +388,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     postToPreview({ type: 'KAYZART_DISABLE_JS' });
   };
 
-  const sendExternalScripts = (scripts: ExternalResource[]) => {
-    if (!previewReady) {
-      return;
-    }
-    postToPreview({
-      type: 'KAYZART_EXTERNAL_SCRIPTS',
-      urls: scripts,
-    });
-  };
-
-  const sendExternalStyles = (styles: ExternalResource[]) => {
-    if (!previewReady) {
-      return;
-    }
-    postToPreview({
-      type: 'KAYZART_EXTERNAL_STYLES',
-      urls: styles,
-    });
-  };
-
   const sendLiveHighlightUpdate = (enabled: boolean) => {
     if (!previewReady) {
       return;
@@ -601,8 +576,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         pendingRender = false;
       }
       sendRender();
-      sendExternalScripts(deps.getJsEnabled() ? deps.getExternalScripts() : []);
-      sendExternalStyles(deps.getExternalStyles());
       queueInitialJsRun();
       flushPendingJsAction();
       if (pendingElementsTabOpen !== null) {
@@ -643,8 +616,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   return {
     sendRender,
     sendCssUpdate,
-    sendExternalScripts,
-    sendExternalStyles,
     sendLiveHighlightUpdate,
     sendElementsTabState,
     requestRunJs,

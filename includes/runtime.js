@@ -1,7 +1,6 @@
 (function () {
   const payloadSelector = 'script[data-kayzart-js]';
   const processedAttr = 'data-kayzart-js-run';
-  const waitAttr = 'data-kayzart-js-wait';
   const modeAttr = 'data-kayzart-js-mode';
   const runtimeState = new Map();
 
@@ -140,11 +139,9 @@
   }
 
   function runPending(force) {
+    void force;
     const payloads = document.querySelectorAll(payloadSelector);
     payloads.forEach((payload) => {
-      if (!force && payload.hasAttribute(waitAttr)) {
-        return;
-      }
       runPayload(payload);
     });
   }

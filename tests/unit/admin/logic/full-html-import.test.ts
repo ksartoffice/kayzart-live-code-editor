@@ -37,8 +37,6 @@ describe('full html import logic', () => {
     expect(result?.summary).toMatchObject({
       styleCount: 2,
       inlineScriptCount: 2,
-      externalStyleCount: 0,
-      externalScriptCount: 0,
     });
   });
 
@@ -91,7 +89,7 @@ describe('full html import logic', () => {
     expect(result?.js).not.toContain('Thing');
   });
 
-  it('extracts external css and external js as resources with attributes', () => {
+  it('preserves external css in custom head and external js in body html', () => {
     const result = parseFullHtmlDocument(`<!doctype html>
 <html>
 <head>
@@ -106,32 +104,8 @@ describe('full html import logic', () => {
     expect(result).not.toBeNull();
     const html = buildImportedHtml(result!, true);
 
-    expect(html).toBe('<div id="app"></div>');
-    expect(result?.externalStyles).toEqual([
-      {
-        url: 'https://cdn.example.com/a.css',
-        attrs: { media: 'screen', integrity: 'sha384-css' },
-      },
-    ]);
-    expect(result?.externalScripts).toEqual([
-      {
-        url: 'https://cdn.example.com/a.js',
-        attrs: { defer: true, integrity: 'sha384-js' },
-      },
-    ]);
-  });
-
-  it('omits external scripts when javascript editing is unavailable', () => {
-    const result = parseFullHtmlDocument(`<!doctype html>
-<html>
-<body>
-  <div id="app"></div>
-  <script src="https://cdn.example.com/a.js"></script>
-</body>
-</html>`);
-
-    expect(result).not.toBeNull();
-    expect(buildImportedHtml(result!, false)).toBe('<div id="app"></div>');
+    expect(result?.customHead).toBe('<link rel="preload stylesheet" href="https://cdn.example.com/a.css" media="screen" integrity="sha384-css" onclick="nope()">');
+    expect(html).toBe('<div id="app"></div>\n  <script src="https://cdn.example.com/a.js" defer integrity="sha384-js" data-x="nope"></script>');
   });
 
   it('builds html from the selected imported parts', () => {
@@ -147,8 +121,10 @@ describe('full html import logic', () => {
 </html>`);
 
     expect(result).not.toBeNull();
+    expect(result?.customHead).toBe('<link rel="stylesheet" href="https://cdn.example.com/a.css">');
     expect(buildImportedHtml(result!, true, createFullHtmlImportSelection())).toBe(`<body class="lp">
 <main><h1>Hello</h1></main>
+  <script src="https://cdn.example.com/a.js"></script>
 </body>`);
   });
 
@@ -173,44 +149,4 @@ describe('full html import logic', () => {
     ).toBe('');
   });
 
-  it('skips external css and external js independently', () => {
-    const result = parseFullHtmlDocument(`<!doctype html>
-<html>
-<head>
-  <link rel="stylesheet" href="https://cdn.example.com/a.css">
-</head>
-<body>
-  <div id="app"></div>
-  <script src="https://cdn.example.com/a.js"></script>
-</body>
-</html>`);
-
-    expect(result).not.toBeNull();
-    expect(
-      buildImportedHtml(
-        result!,
-        true,
-        createFullHtmlImportSelection({ externalStyles: false, externalScripts: false })
-      )
-    ).toBe('<div id="app"></div>');
-  });
-
-  it('does not output external js when javascript editing is unavailable even if selected', () => {
-    const result = parseFullHtmlDocument(`<!doctype html>
-<html>
-<body>
-  <div id="app"></div>
-  <script src="https://cdn.example.com/a.js"></script>
-</body>
-</html>`);
-
-    expect(result).not.toBeNull();
-    expect(
-      buildImportedHtml(
-        result!,
-        false,
-        createFullHtmlImportSelection({ html: false, externalScripts: true })
-      )
-    ).toBe('');
-  });
 });

@@ -36,102 +36,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status(), 'Updates payload must be array.' );
 	}
 
-	public function test_settings_rejects_external_scripts_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalScripts' => array(
-						'https://example.com/1.js',
-						'https://example.com/2.js',
-						'https://example.com/3.js',
-						'https://example.com/4.js',
-						'https://example.com/5.js',
-						'https://example.com/6.js',
-						'https://example.com/7.js',
-						'https://example.com/8.js',
-						'https://example.com/9.js',
-						'https://example.com/10.js',
-						'https://example.com/11.js',
-					),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External scripts should respect the max limit.' );
-	}
-
-	public function test_settings_rejects_external_scripts_invalid_url(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalScripts' => array( 'http://example.com/app.js' ),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External scripts must be https URLs.' );
-	}
-
-	public function test_settings_rejects_external_styles_invalid_url(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalStyles' => array( 'javascript:alert(1)' ),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External styles must be https URLs.' );
-	}
-
-	public function test_settings_rejects_external_styles_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalStyles' => array(
-						'https://example.com/1.css',
-						'https://example.com/2.css',
-						'https://example.com/3.css',
-						'https://example.com/4.css',
-						'https://example.com/5.css',
-						'https://example.com/6.css',
-						'https://example.com/7.css',
-						'https://example.com/8.css',
-						'https://example.com/9.css',
-						'https://example.com/10.css',
-						'https://example.com/11.css',
-					),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External styles should respect the max limit.' );
-	}
-
 	public function test_settings_slug_is_sanitized_before_save(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -214,9 +118,7 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 				'html'            => 'After save',
 				'css'             => '',
 				'tailwindEnabled' => false,
-				'settingsUpdates' => array(
-					'externalScripts' => array( 'http://example.com/invalid.js' ),
-				),
+				'settingsUpdates' => 'invalid',
 			)
 		);
 

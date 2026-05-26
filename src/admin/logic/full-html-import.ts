@@ -1,6 +1,5 @@
 import * as parse5 from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
-import type { ExternalResource, ExternalResourceAttrs } from '../types/external-resource';
 
 export type FullHtmlImportResult = {
   html: string;
@@ -9,13 +8,9 @@ export type FullHtmlImportResult = {
   removedHeadTags: string[];
   css: string;
   js: string;
-  externalStyles: ExternalResource[];
-  externalScripts: ExternalResource[];
   summary: {
     styleCount: number;
     inlineScriptCount: number;
-    externalStyleCount: number;
-    externalScriptCount: number;
   };
 };
 
@@ -24,8 +19,6 @@ export type FullHtmlImportSelection = {
   customHead: boolean;
   css: boolean;
   js: boolean;
-  externalStyles: boolean;
-  externalScripts: boolean;
 };
 
 export const createFullHtmlImportSelection = (
@@ -35,8 +28,6 @@ export const createFullHtmlImportSelection = (
   customHead: true,
   css: true,
   js: true,
-  externalStyles: true,
-  externalScripts: true,
   ...overrides,
 });
 
@@ -48,68 +39,11 @@ const getAttr = (node: ElementNode, name: string): string | null => {
   return attr ? attr.value : null;
 };
 
-const BOOLEAN_SCRIPT_ATTRS = new Set(['async', 'defer', 'nomodule']);
-const STYLE_ATTRS = new Set(['media', 'integrity', 'crossorigin', 'referrerpolicy', 'title']);
-const SCRIPT_ATTRS = new Set([
-  'type',
-  'async',
-  'defer',
-  'nomodule',
-  'integrity',
-  'crossorigin',
-  'referrerpolicy',
-  'fetchpriority',
-]);
-
-const sanitizeAttrValue = (name: string, value: string): string | boolean | null => {
-  const trimmed = value.trim();
-  if (BOOLEAN_SCRIPT_ATTRS.has(name)) {
-    return trimmed === '' ? true : trimmed;
-  }
-  if (!trimmed || /^javascript:/i.test(trimmed)) {
-    return null;
-  }
-  return trimmed;
-};
-
-const extractExternalResource = (
-  node: ElementNode,
-  urlAttr: 'href' | 'src',
-  allowedAttrs: Set<string>
-): ExternalResource | null => {
-  const url = getAttr(node, urlAttr)?.trim();
-  if (!url) {
-    return null;
-  }
-  const attrs: ExternalResourceAttrs = {};
-  node.attrs.forEach((attr) => {
-    const name = attr.name.toLowerCase();
-    if (name === urlAttr || name === 'rel' || name.startsWith('on') || !allowedAttrs.has(name)) {
-      return;
-    }
-    const value = sanitizeAttrValue(name, attr.value);
-    if (value !== null) {
-      attrs[name] = value;
-    }
-  });
-  return { url, attrs };
-};
-
 const serializeAttrs = (node: ElementNode): string =>
   node.attrs
     .map((attr) => `${attr.name}="${attr.value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
     .join(' ')
     .trim();
-
-const hasStylesheetRel = (rel: string | null): boolean => {
-  if (!rel) {
-    return false;
-  }
-  return rel
-    .split(/\s+/)
-    .map((part) => part.toLowerCase())
-    .includes('stylesheet');
-};
 
 const unique = (items: string[]): string[] => Array.from(new Set(items));
 
@@ -223,8 +157,6 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   const bodyParts: string[] = [];
   const customHeadParts: string[] = [];
   const removedHeadTags: string[] = [];
-  const externalStyles: ExternalResource[] = [];
-  const externalScripts: ExternalResource[] = [];
   let styleCount = 0;
   let inlineScriptCount = 0;
 
@@ -247,12 +179,7 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
       if (isJsonLdScript(node)) {
         return;
       }
-      const src = getAttr(node, 'src');
-      if (src) {
-        const resource = extractExternalResource(node, 'src', SCRIPT_ATTRS);
-        if (resource) {
-          externalScripts.push(resource);
-        }
+      if (getAttr(node, 'src')) {
         return;
       }
       const js = getTextContent(node).trim();
@@ -260,14 +187,6 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
         jsParts.push(js);
       }
       inlineScriptCount += 1;
-      return;
-    }
-
-    if (tagName === 'link' && hasStylesheetRel(getAttr(node, 'rel')) && getAttr(node, 'href')) {
-      const resource = extractExternalResource(node, 'href', STYLE_ATTRS);
-      if (resource) {
-        externalStyles.push(resource);
-      }
       return;
     }
 
@@ -295,11 +214,9 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
 
     const tagName = child.tagName.toLowerCase();
     const isExtractedStyle = tagName === 'style';
-    const isExtractedStylesheet =
-      tagName === 'link' && hasStylesheetRel(getAttr(child, 'rel')) && getAttr(child, 'href');
-    const isExternalScript = tagName === 'script' && Boolean(getAttr(child, 'src'));
-    const isInlineScript = tagName === 'script' && !isJsonLdScript(child);
-    if (isExtractedStyle || isExtractedStylesheet || isExternalScript || isInlineScript) {
+    const isInlineScript =
+      tagName === 'script' && !getAttr(child, 'src') && !isJsonLdScript(child);
+    if (isExtractedStyle || isInlineScript) {
       return;
     }
 
@@ -313,10 +230,9 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     if (isElement(child)) {
       const tagName = child.tagName.toLowerCase();
       const isExtractedStyle = tagName === 'style';
-      const isExtractedScript = tagName === 'script';
-      const isExtractedStylesheet =
-        tagName === 'link' && hasStylesheetRel(getAttr(child, 'rel')) && getAttr(child, 'href');
-      if (isExtractedStyle || isExtractedScript || isExtractedStylesheet) {
+      const isExtractedScript =
+        tagName === 'script' && !getAttr(child, 'src') && !isJsonLdScript(child);
+      if (isExtractedStyle || isExtractedScript) {
         return;
       }
     }
@@ -330,13 +246,9 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     removedHeadTags: unique(removedHeadTags),
     css: cssParts.join('\n\n'),
     js: jsParts.join('\n\n'),
-    externalStyles,
-    externalScripts,
     summary: {
       styleCount,
       inlineScriptCount,
-      externalStyleCount: externalStyles.length,
-      externalScriptCount: externalScripts.length,
     },
   };
 }

@@ -37,8 +37,6 @@ require_once KAYZART_PATH . 'includes/class-kayzart-editor-bridge.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-limits.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-html-document.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-custom-head.php';
-require_once KAYZART_PATH . 'includes/class-kayzart-external-scripts.php';
-require_once KAYZART_PATH . 'includes/class-kayzart-external-styles.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';

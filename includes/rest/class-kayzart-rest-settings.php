@@ -69,10 +69,6 @@ class Rest_Settings {
 			'defaultTemplateMode'  => $default_template_mode,
 			'liveHighlightEnabled' => $live_highlight_enabled,
 			'canEditJs'            => current_user_can( 'unfiltered_html' ),
-			'externalScripts'      => External_Scripts::get_external_scripts( $post_id, Limits::MAX_EXTERNAL_SCRIPTS ),
-			'externalStyles'       => External_Styles::get_external_styles( $post_id, Limits::MAX_EXTERNAL_STYLES ),
-			'externalScriptsMax'   => Limits::MAX_EXTERNAL_SCRIPTS,
-			'externalStylesMax'    => Limits::MAX_EXTERNAL_STYLES,
 		);
 	}
 
@@ -185,82 +181,6 @@ class Rest_Settings {
 		if ( array_key_exists( 'liveHighlightEnabled', $updates ) ) {
 			$live_highlight_enabled                                  = rest_sanitize_boolean( $updates['liveHighlightEnabled'] );
 				$prepared['meta_updates']['_kayzart_live_highlight'] = $live_highlight_enabled ? '1' : '0';
-		}
-
-		if ( array_key_exists( 'externalScripts', $updates ) ) {
-			if ( ! current_user_can( 'unfiltered_html' ) ) {
-				return new \WP_Error(
-					'kayzart_permission_denied',
-					__( 'Permission denied.', 'kayzart-live-code-editor' ),
-					array( 'status' => 403 )
-				);
-			}
-			if ( ! is_array( $updates['externalScripts'] ) ) {
-				return new \WP_Error(
-					'kayzart_invalid_external_scripts',
-					__( 'Invalid external scripts payload.', 'kayzart-live-code-editor' ),
-					array( 'status' => 400 )
-				);
-			}
-
-			$raw_scripts = array_values( $updates['externalScripts'] );
-			$error       = null;
-			$sanitized      = External_Scripts::validate_list(
-				$raw_scripts,
-				Limits::MAX_EXTERNAL_SCRIPTS,
-				$error
-			);
-			if ( null === $sanitized ) {
-					return new \WP_Error(
-						'kayzart_invalid_external_scripts',
-						null !== $error ? $error : __( 'External scripts must be valid https:// URLs.', 'kayzart-live-code-editor' ),
-						array( 'status' => 400 )
-					);
-			}
-
-			if ( empty( $sanitized ) ) {
-					$prepared['meta_deletes'][] = '_kayzart_external_scripts';
-			} else {
-				$prepared['meta_updates']['_kayzart_external_scripts'] = wp_json_encode( $sanitized );
-			}
-		}
-
-		if ( array_key_exists( 'externalStyles', $updates ) ) {
-			if ( ! current_user_can( 'unfiltered_html' ) ) {
-				return new \WP_Error(
-					'kayzart_permission_denied',
-					__( 'Permission denied.', 'kayzart-live-code-editor' ),
-					array( 'status' => 403 )
-				);
-			}
-			if ( ! is_array( $updates['externalStyles'] ) ) {
-				return new \WP_Error(
-					'kayzart_invalid_external_styles',
-					__( 'Invalid external styles payload.', 'kayzart-live-code-editor' ),
-					array( 'status' => 400 )
-				);
-			}
-
-			$raw_styles = array_values( $updates['externalStyles'] );
-			$error      = null;
-			$sanitized     = External_Styles::validate_list(
-				$raw_styles,
-				Limits::MAX_EXTERNAL_STYLES,
-				$error
-			);
-			if ( null === $sanitized ) {
-					return new \WP_Error(
-						'kayzart_invalid_external_styles',
-						null !== $error ? $error : __( 'External styles must be valid https:// URLs.', 'kayzart-live-code-editor' ),
-						array( 'status' => 400 )
-					);
-			}
-
-			if ( empty( $sanitized ) ) {
-					$prepared['meta_deletes'][] = '_kayzart_external_styles';
-			} else {
-					$prepared['meta_updates']['_kayzart_external_styles'] = wp_json_encode( $sanitized );
-			}
 		}
 
 		return $prepared;

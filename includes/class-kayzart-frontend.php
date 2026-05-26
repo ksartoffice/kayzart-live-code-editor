@@ -18,15 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Frontend {
 	/**
-	 * Tracks external script handles by URL for deduping.
-	 *
-	 * @var array<string,string>
-	 */
-	private static array $external_script_handles = array();
-	private static array $external_script_attrs   = array();
-	private static array $external_style_attrs    = array();
-
-	/**
 	 * Tracks whether the runtime has been enqueued.
 	 *
 	 * @var bool
@@ -50,48 +41,7 @@ class Frontend {
 		add_filter( 'the_content', array( __CLASS__, 'filter_content' ), 20 );
 		add_filter( 'template_include', array( __CLASS__, 'maybe_override_template' ), 20 );
 		add_filter( 'body_class', array( __CLASS__, 'filter_body_class' ) );
-		add_filter( 'script_loader_tag', array( __CLASS__, 'filter_external_script_tag' ), 10, 3 );
-		add_filter( 'style_loader_tag', array( __CLASS__, 'filter_external_style_tag' ), 10, 4 );
 		add_shortcode( 'kayzart', array( __CLASS__, 'shortcode' ) );
-	}
-
-	private static function apply_attrs_to_tag( string $tag, array $attrs ): string {
-		if ( empty( $attrs ) ) {
-			return $tag;
-		}
-		$rendered = '';
-		foreach ( $attrs as $name => $value ) {
-			$name = strtolower( trim( (string) $name ) );
-			if ( '' === $name || 0 === strpos( $name, 'on' ) ) {
-				continue;
-			}
-			if ( true === $value ) {
-				$rendered .= ' ' . esc_attr( $name );
-				continue;
-			}
-			if ( ! is_string( $value ) || '' === $value ) {
-				continue;
-			}
-			$rendered .= ' ' . esc_attr( $name ) . '="' . esc_attr( $value ) . '"';
-		}
-		if ( '' === $rendered ) {
-			return $tag;
-		}
-		return preg_replace( '/\s*(><\/script>|\/?>)/', $rendered . '$1', $tag, 1 ) ?: $tag;
-	}
-
-	public static function filter_external_script_tag( string $tag, string $handle, string $src ): string {
-		if ( empty( self::$external_script_attrs[ $handle ] ) ) {
-			return $tag;
-		}
-		return self::apply_attrs_to_tag( $tag, self::$external_script_attrs[ $handle ] );
-	}
-
-	public static function filter_external_style_tag( string $tag, string $handle, string $href, string $media ): string {
-		if ( empty( self::$external_style_attrs[ $handle ] ) ) {
-			return $tag;
-		}
-		return self::apply_attrs_to_tag( $tag, self::$external_style_attrs[ $handle ] );
 	}
 
 	/**
@@ -529,47 +479,11 @@ class Frontend {
 			return '';
 		}
 
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		$wait_attr        = empty( $external_scripts ) ? '' : ' data-kayzart-js-wait="load"';
-		$mode_attr        = ' data-kayzart-js-mode="' . esc_attr( self::get_js_mode_for_post( $post_id ) ) . '"';
-		$suffix           = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
-		$encoded          = rawurlencode( $js );
+		$mode_attr = ' data-kayzart-js-mode="' . esc_attr( self::get_js_mode_for_post( $post_id ) ) . '"';
+		$suffix    = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
+		$encoded   = rawurlencode( $js );
 		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
-		return '<script type="application/json" id="kayzart-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
-	}
-
-	/**
-	 * Enqueue external script URLs once per page.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 * @return string Last dependency handle.
-	 */
-	private static function enqueue_external_scripts( int $post_id ): string {
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		if ( empty( $external_scripts ) ) {
-			return '';
-		}
-
-		$dependency = '';
-		foreach ( $external_scripts as $index => $script_resource ) {
-			$script_url = is_array( $script_resource ) && isset( $script_resource['url'] ) ? (string) $script_resource['url'] : (string) $script_resource;
-			$attrs      = is_array( $script_resource ) && isset( $script_resource['attrs'] ) && is_array( $script_resource['attrs'] ) ? $script_resource['attrs'] : array();
-			if ( isset( self::$external_script_handles[ $script_url ] ) ) {
-				$dependency = self::$external_script_handles[ $script_url ];
-				continue;
-			}
-			$ext_handle = 'kayzart-ext-' . $post_id . '-' . $index;
-			$ext_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_script_is( $ext_handle, 'registered' ) ) {
-				wp_register_script( $ext_handle, $script_url, $ext_deps, KAYZART_VERSION, true );
-			}
-			wp_enqueue_script( $ext_handle );
-			self::$external_script_attrs[ $ext_handle ] = $attrs;
-			self::$external_script_handles[ $script_url ] = $ext_handle;
-			$dependency                                   = $ext_handle;
-		}
-
-		return $dependency;
+		return '<script type="application/json" id="kayzart-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . '>' . esc_html( $encoded ) . '</script>';
 	}
 
 	/**
@@ -611,35 +525,15 @@ class Frontend {
 			return;
 		}
 
-		$css             = self::get_css_for_post( $post_id );
-		$external_styles = External_Styles::get_external_styles( $post_id );
-		if ( '' === $css && empty( $external_styles ) ) {
-			return;
-		}
-
-		$dependency = '';
-		foreach ( $external_styles as $index => $style_resource ) {
-			$style_url = is_array( $style_resource ) && isset( $style_resource['url'] ) ? (string) $style_resource['url'] : (string) $style_resource;
-			$attrs     = is_array( $style_resource ) && isset( $style_resource['attrs'] ) && is_array( $style_resource['attrs'] ) ? $style_resource['attrs'] : array();
-			$ext_handle = 'kayzart-ext-style-' . $post_id . '-' . $index;
-			$ext_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_style_is( $ext_handle, 'registered' ) ) {
-				wp_register_style( $ext_handle, $style_url, $ext_deps, KAYZART_VERSION );
-			}
-			wp_enqueue_style( $ext_handle );
-			self::$external_style_attrs[ $ext_handle ] = $attrs;
-			$dependency = $ext_handle;
-		}
-
+		$css = self::get_css_for_post( $post_id );
 		if ( '' === $css ) {
 			return;
 		}
 
 		$handle = 'kayzart';
-		$deps   = $dependency ? array( $dependency ) : array();
 
 		if ( ! wp_style_is( $handle, 'registered' ) ) {
-			wp_register_style( $handle, false, $deps, KAYZART_VERSION );
+			wp_register_style( $handle, false, array(), KAYZART_VERSION );
 		}
 
 		wp_enqueue_style( $handle );
@@ -666,15 +560,11 @@ class Frontend {
 			return;
 		}
 
-		$js               = (string) get_post_meta( $post_id, '_kayzart_js', true );
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		if ( '' === $js && empty( $external_scripts ) ) {
+		$js = (string) get_post_meta( $post_id, '_kayzart_js', true );
+		if ( '' === $js ) {
 			return;
 		}
 
-		self::enqueue_external_scripts( $post_id );
-		if ( '' !== $js ) {
-			self::enqueue_runtime();
-		}
+		self::enqueue_runtime();
 	}
 }

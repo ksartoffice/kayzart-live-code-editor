@@ -4,8 +4,6 @@
   const customHeadStartMarker = 'kayzart-custom-head-start';
   const customHeadEndMarker = 'kayzart-custom-head-end';
   const scriptId = 'kayzart-script';
-  const externalScriptAttr = 'data-kayzart-external-script';
-  const externalStyleAttr = 'data-kayzart-external-style';
   const KAYZART_ATTR_NAME = 'data-kayzart-id';
   const config = window.KAYZART_PREVIEW || {};
   const postId = config.post_id || null;
@@ -29,10 +27,7 @@
   let selectActionEditButton = null;
   let elementsTabOpen = false;
   let markerNodes = null;
-  let externalScripts = [];
-  let externalScriptsReady = Promise.resolve();
-  let externalScriptsToken = 0;
-  let externalStyles = [];
+  let htmlScriptsReady = Promise.resolve();
   let jsRunToken = 0;
   let jsCleanupCallbacks = [];
   let activeModuleUrl = '';
@@ -61,10 +56,6 @@
   }
 
   function getStyleRoot() {
-    return document.head || document.body;
-  }
-
-  function getScriptHost() {
     return document.head || document.body;
   }
 
@@ -499,28 +490,21 @@
 
   function setCustomHead(html) {
     const root = document.head || document.documentElement;
-    if (!root) return;
+    if (!root) return Promise.resolve();
     const oldNodes = root.querySelectorAll('[data-kayzart-custom-head]');
     oldNodes.forEach((node) => node.remove());
     removeServerCustomHead(root);
     const marker = ensureCustomHeadMarker();
     const wrapper = document.createElement('template');
     wrapper.innerHTML = String(html || '');
+    const scriptsReady = reviveScripts(wrapper.content);
     Array.prototype.slice.call(wrapper.content.childNodes).forEach((node) => {
-      let nextNode = node;
-      if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === 'script') {
-        const script = document.createElement('script');
-        Array.prototype.forEach.call(node.attributes, (attr) => {
-          script.setAttribute(attr.name, attr.value);
-        });
-        script.text = node.text || node.textContent || '';
-        nextNode = script;
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        node.setAttribute('data-kayzart-custom-head', '1');
       }
-      if (nextNode.nodeType === Node.ELEMENT_NODE) {
-        nextNode.setAttribute('data-kayzart-custom-head', '1');
-      }
-      root.insertBefore(nextNode, marker);
+      root.insertBefore(node, marker);
     });
+    return scriptsReady;
   }
 
   function removeServerCustomHead(root) {
@@ -662,9 +646,9 @@
     }
     const resolvedMode = normalizeJsMode(jsMode);
 
-    const currentReady = externalScriptsReady;
+    const currentReady = htmlScriptsReady;
     currentReady.then(() => {
-      if (runToken !== jsRunToken || currentReady !== externalScriptsReady) return;
+      if (runToken !== jsRunToken || currentReady !== htmlScriptsReady) return;
       if (resolvedMode === 'module') {
         void runModuleJs(nextJsText, runToken);
         return;
@@ -706,157 +690,6 @@
       document.addEventListener = docAdd;
       window.addEventListener = winAdd;
     };
-  }
-
-  function normalizeExternalResource(entry) {
-    if (typeof entry === 'string') {
-      const url = entry.trim();
-      return url ? { url, attrs: {} } : null;
-    }
-    if (!entry || typeof entry !== 'object' || typeof entry.url !== 'string') {
-      return null;
-    }
-    const url = entry.url.trim();
-    if (!url) {
-      return null;
-    }
-    const attrs = {};
-    if (entry.attrs && typeof entry.attrs === 'object' && !Array.isArray(entry.attrs)) {
-      Object.keys(entry.attrs).forEach((key) => {
-        const normalizedKey = String(key).trim().toLowerCase();
-        const value = entry.attrs[key];
-        const allowedAttrs = {
-          media: true,
-          integrity: true,
-          crossorigin: true,
-          referrerpolicy: true,
-          title: true,
-          type: true,
-          async: true,
-          defer: true,
-          nomodule: true,
-          fetchpriority: true,
-        };
-        if (!normalizedKey || normalizedKey.indexOf('on') === 0 || !allowedAttrs[normalizedKey]) return;
-        if (value === true) {
-          attrs[normalizedKey] = true;
-          return;
-        }
-        if (typeof value !== 'string') return;
-        const normalizedValue = value.trim();
-        if (!normalizedValue || /^javascript:/i.test(normalizedValue)) return;
-        attrs[normalizedKey] = normalizedValue;
-      });
-    }
-    return { url, attrs };
-  }
-
-  function normalizeExternalResources(list) {
-    if (!Array.isArray(list)) return [];
-    const seen = new Set();
-    const next = [];
-    list.forEach((entry) => {
-      const resource = normalizeExternalResource(entry);
-      if (!resource || seen.has(resource.url)) return;
-      seen.add(resource.url);
-      next.push(resource);
-    });
-    return next;
-  }
-
-  function normalizeExternalScripts(list) {
-    return normalizeExternalResources(list);
-  }
-
-  function normalizeExternalStyles(list) {
-    return normalizeExternalResources(list);
-  }
-
-  function isSameList(a, b) {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
-
-  function applyResourceAttrs(el, attrs) {
-    Object.keys(attrs || {}).forEach((key) => {
-      const value = attrs[key];
-      if (value === true) {
-        el.setAttribute(key, '');
-      } else {
-        el.setAttribute(key, String(value));
-      }
-    });
-  }
-
-  function clearExternalScripts() {
-    const nodes = document.querySelectorAll('script[' + externalScriptAttr + ']');
-    nodes.forEach((node) => node.remove());
-  }
-
-  function clearExternalStyles() {
-    const nodes = document.querySelectorAll('link[' + externalStyleAttr + ']');
-    nodes.forEach((node) => node.remove());
-  }
-
-  function loadExternalScripts(list) {
-    externalScriptsToken += 1;
-    const token = externalScriptsToken;
-    clearExternalScripts();
-    if (!list.length) {
-      return Promise.resolve();
-    }
-
-    const head = getScriptHost();
-    return list.reduce((chain, resource) => {
-      return chain.then(
-        () =>
-          new Promise((resolve) => {
-            if (token !== externalScriptsToken) {
-              resolve();
-              return;
-            }
-            const scriptEl = document.createElement('script');
-            scriptEl.setAttribute(externalScriptAttr, '1');
-            scriptEl.async = false;
-            applyResourceAttrs(scriptEl, resource.attrs);
-            scriptEl.src = resource.url;
-            scriptEl.onload = () => resolve();
-            scriptEl.onerror = () => resolve();
-            head.appendChild(scriptEl);
-          })
-      );
-    }, Promise.resolve());
-  }
-
-  function loadExternalStyles(list) {
-    clearExternalStyles();
-    if (!list.length) {
-      return;
-    }
-
-    const root = getStyleRoot();
-    const host = root || document.head || document.body;
-    list.forEach((resource) => {
-      const linkEl = document.createElement('link');
-      linkEl.setAttribute(externalStyleAttr, '1');
-      linkEl.rel = 'stylesheet';
-      applyResourceAttrs(linkEl, resource.attrs);
-      linkEl.href = resource.url;
-      host.appendChild(linkEl);
-    });
-  }
-
-  function setExternalScripts(list) {
-    const next = normalizeExternalScripts(list);
-    if (isSameList(next, externalScripts)) return;
-    externalScripts = next;
-    externalScriptsReady = loadExternalScripts(next);
-  }
-
-  function setExternalStyles(list) {
-    const next = normalizeExternalStyles(list);
-    if (isSameList(next, externalStyles)) return;
-    externalStyles = next;
-    loadExternalStyles(next);
   }
 
   function findMarkers() {
@@ -940,9 +773,35 @@
     return null;
   }
 
+  function reviveScripts(root) {
+    const pending = [];
+    const scripts = root.querySelectorAll ? Array.prototype.slice.call(root.querySelectorAll('script')) : [];
+    scripts.forEach((node) => {
+      const script = document.createElement('script');
+      const hasAsyncAttr = node.hasAttribute('async');
+      Array.prototype.forEach.call(node.attributes, (attr) => {
+        script.setAttribute(attr.name, attr.value);
+      });
+      if (!hasAsyncAttr) {
+        script.async = false;
+      }
+      script.text = node.text || node.textContent || '';
+      if (script.src) {
+        pending.push(
+          new Promise((resolve) => {
+            script.addEventListener('load', resolve, { once: true });
+            script.addEventListener('error', resolve, { once: true });
+          })
+        );
+      }
+      node.replaceWith(script);
+    });
+    return pending.length ? Promise.all(pending).then(() => undefined) : Promise.resolve();
+  }
+
   function replaceEditableContent(html) {
     const markers = findMarkers();
-    if (!markers) return;
+    if (!markers) return Promise.resolve();
 
     const range = document.createRange();
     range.setStartAfter(markers.start);
@@ -951,12 +810,14 @@
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
+    const scriptsReady = reviveScripts(wrapper);
     const frag = document.createDocumentFragment();
     while (wrapper.firstChild) {
       frag.appendChild(wrapper.firstChild);
     }
     range.insertNode(frag);
     range.detach();
+    return scriptsReady;
   }
 
   function clearMarkerRetryTimer() {
@@ -1008,16 +869,22 @@
     pendingRenderPayload = null;
     clearMarkerRetryTimer();
 
-    replaceEditableContent(html);
+    const contentScriptsReady = replaceEditableContent(html);
     applyBodyAttrs(bodyAttrs, hasBody, templateMode);
-    setCustomHead(customHead);
+    const customHeadScriptsReady = setCustomHead(customHead);
+    htmlScriptsReady = Promise.all([contentScriptsReady, customHeadScriptsReady]).then(() => undefined);
     clearHighlight();
     clearSelection();
     const styleEl = ensureStyleElement();
     if (styleEl) {
       styleEl.textContent = css || '';
     }
-    reply('KAYZART_RENDERED');
+    const currentHtmlScriptsReady = htmlScriptsReady;
+    currentHtmlScriptsReady.then(() => {
+      if (currentHtmlScriptsReady === htmlScriptsReady) {
+        reply('KAYZART_RENDERED');
+      }
+    });
   }
 
   function setCssText(css) {
@@ -1090,14 +957,6 @@
       if (!isReady) return;
       jsEnabled = false;
       stopJsRuntime();
-    }
-    if (data.type === 'KAYZART_EXTERNAL_SCRIPTS') {
-      if (!isReady) return;
-      setExternalScripts(data.urls || []);
-    }
-    if (data.type === 'KAYZART_EXTERNAL_STYLES') {
-      if (!isReady) return;
-      setExternalStyles(data.urls || []);
     }
   });
 

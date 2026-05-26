@@ -29,11 +29,6 @@ import {
   type FullHtmlImportSelection,
   type FullHtmlImportResult,
 } from './logic/full-html-import';
-import {
-  isHttpsExternalResource,
-  normalizeExternalResources,
-  type ExternalResource,
-} from './types/external-resource';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
@@ -310,12 +305,6 @@ async function main() {
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
-  let externalScripts: ExternalResource[] = normalizeExternalResources(
-    initialState.settingsData?.externalScripts
-  );
-  let externalStyles: ExternalResource[] = normalizeExternalResources(
-    initialState.settingsData?.externalStyles
-  );
   let hasUnsavedChanges = false;
   let pendingSettingsUpdates: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
@@ -412,8 +401,6 @@ async function main() {
     postTitle = nextSettings.title || postTitle;
     postSlug = nextSettings.slug || postSlug;
     liveHighlightEnabled = nextSettings.liveHighlightEnabled ?? liveHighlightEnabled;
-    externalScripts = normalizeExternalResources(nextSettings.externalScripts);
-    externalStyles = normalizeExternalResources(nextSettings.externalStyles);
     const nextTemplateMode = resolveTemplateMode(nextSettings.templateMode);
     const nextDefaultTemplateMode =
       typeof nextSettings.defaultTemplateMode === 'string'
@@ -762,29 +749,6 @@ async function main() {
     );
   };
 
-  const limitImportedResources = (
-    resources: ExternalResource[],
-    max: number,
-    label: string
-  ): ExternalResource[] => {
-    const normalized = normalizeExternalResources(resources).filter(isHttpsExternalResource);
-    if (normalized.length <= max) {
-      return normalized;
-    }
-    createSnackbar(
-      'warning',
-      sprintf(
-        /* translators: 1: resource label, 2: maximum number of items. */
-        __('Only the first %2$d imported %1$s items were kept because of the limit.', 'kayzart-live-code-editor'),
-        label,
-        max
-      ),
-      undefined,
-      NOTICE_ERROR_DURATION_MS
-    );
-    return normalized.slice(0, max);
-  };
-
   const applyFullHtmlImport = (
     result: FullHtmlImportResult,
     selection: FullHtmlImportSelection
@@ -811,26 +775,6 @@ async function main() {
     }
     if (selection.js && canEditJs) {
       replaceWholeModelContent(jsModel, result.js.trim());
-    }
-    if (selection.externalStyles) {
-      const nextStyles = limitImportedResources(
-        result.externalStyles,
-        initialState.settingsData.externalStylesMax,
-        __('external style', 'kayzart-live-code-editor')
-      );
-      externalStyles = nextStyles;
-      settingsApi?.setExternalStyles(nextStyles);
-      preview?.sendExternalStyles(nextStyles);
-    }
-    if (selection.externalScripts && canEditJs) {
-      const nextScripts = limitImportedResources(
-        result.externalScripts,
-        initialState.settingsData.externalScriptsMax,
-        __('external script', 'kayzart-live-code-editor')
-      );
-      externalScripts = nextScripts;
-      settingsApi?.setExternalScripts(nextScripts);
-      preview?.sendExternalScripts(jsEnabled ? nextScripts : []);
     }
   };
 
@@ -1119,8 +1063,6 @@ async function main() {
     getLiveHighlightEnabled: () => liveHighlightEnabled,
     getJsEnabled: () => jsEnabled,
     getJsMode: () => jsMode,
-    getExternalScripts: () => externalScripts,
-    getExternalStyles: () => externalStyles,
     isTailwindEnabled: () => tailwindEnabled,
     getResolvedTemplateMode,
     onSelect: (lcId) => {
@@ -1179,11 +1121,9 @@ async function main() {
       return;
     }
     if (!enabled) {
-      preview.sendExternalScripts([]);
       preview.requestDisableJs();
       return;
     }
-    preview.sendExternalScripts(externalScripts);
     preview.queueInitialJsRun();
   };
 
@@ -1453,14 +1393,6 @@ async function main() {
       }
     },
     onLiveHighlightToggle: setLiveHighlightEnabled,
-    onExternalScriptsChange: (scripts) => {
-      externalScripts = scripts;
-      preview?.sendExternalScripts(jsEnabled ? externalScripts : []);
-    },
-    onExternalStylesChange: (styles) => {
-      externalStyles = styles;
-      preview?.sendExternalStyles(externalStyles);
-    },
     onTabChange: (tab) => {
       activeSettingsTab = tab;
       syncElementsTabState();

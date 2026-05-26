@@ -5,8 +5,6 @@
  * @package KayzArt
  */
 
-use KayzArt\External_Scripts;
-use KayzArt\External_Styles;
 use KayzArt\Admin;
 use KayzArt\Custom_Head;
 use KayzArt\Html_Document;
@@ -23,10 +21,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		'defaultTemplateMode',
 		'liveHighlightEnabled',
 		'canEditJs',
-		'externalScripts',
-		'externalStyles',
-		'externalScriptsMax',
-		'externalStylesMax',
 	);
 
 	private const REMOVED_SETTINGS_PAYLOAD_KEYS = array(
@@ -166,38 +160,15 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 'default', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/runtime.js',
-					'attrs' => array(),
-				),
-			),
-			External_Scripts::get_external_scripts( $post_id )
-		);
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/runtime.css',
-					'attrs' => array(),
-				),
-			),
-			External_Styles::get_external_styles( $post_id )
-		);
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 
 		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
 		$this->assertSame( 'default', $data['settings']['templateMode'] ?? null );
 		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
 		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/runtime.js',
-					'attrs' => array(),
-				),
-			),
-			$data['settings']['externalScripts'] ?? null
-		);
+		$this->assertArrayNotHasKey( 'externalScripts', $data['settings'] );
+		$this->assertArrayNotHasKey( 'externalStyles', $data['settings'] );
 	}
 
 	public function test_settings_update_persists_metadata_and_post_fields(): void {
@@ -213,26 +184,8 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			'visibility'           => 'public',
 			'shadowDomEnabled'     => true,
 			'liveHighlightEnabled' => false,
-			'externalScripts'      => array(
-				array(
-					'url'   => 'https://example.com/app.js',
-					'attrs' => array(
-						'defer'     => true,
-						'integrity' => 'sha384-js',
-						'onload'    => 'alert(1)',
-					),
-				),
-			),
-			'externalStyles'       => array(
-				array(
-					'url'   => 'https://example.com/app.css',
-					'attrs' => array(
-						'media'   => 'screen',
-						'onload'  => 'alert(1)',
-						'unknown' => 'nope',
-					),
-				),
-			),
+			'externalScripts'      => array( 'https://example.com/app.js' ),
+			'externalStyles'       => array( 'https://example.com/app.css' ),
 		);
 
 		$response = $this->dispatch_route(
@@ -258,59 +211,16 @@ class Test_Rest_Success extends WP_UnitTestCase {
 
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
-
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/app.js',
-					'attrs' => array(
-						'defer'     => true,
-						'integrity' => 'sha384-js',
-					),
-				),
-			),
-			External_Scripts::get_external_scripts( $post_id )
-		);
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/app.css',
-					'attrs' => array(
-						'media' => 'screen',
-					),
-				),
-			),
-			External_Styles::get_external_styles( $post_id )
-		);
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 
 		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
 		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
 		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
 		$this->assertSame( false, $data['settings']['liveHighlightEnabled'] ?? null );
 		$this->assertSame( 'my-custom-slug', $data['settings']['slug'] ?? null );
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/app.js',
-					'attrs' => array(
-						'defer'     => true,
-						'integrity' => 'sha384-js',
-					),
-				),
-			),
-			$data['settings']['externalScripts'] ?? null
-		);
-		$this->assertSame(
-			array(
-				array(
-					'url'   => 'https://example.com/app.css',
-					'attrs' => array(
-						'media' => 'screen',
-					),
-				),
-			),
-			$data['settings']['externalStyles'] ?? null
-		);
+		$this->assertArrayNotHasKey( 'externalScripts', $data['settings'] );
+		$this->assertArrayNotHasKey( 'externalStyles', $data['settings'] );
 	}
 
 	public function test_settings_update_with_public_visibility_keeps_existing_password(): void {

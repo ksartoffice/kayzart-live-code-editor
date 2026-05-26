@@ -119,69 +119,6 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '.text-[2rem]', $inline_css );
 	}
 
-	public function test_external_resource_attributes_are_added_to_frontend_tags(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-		$post     = get_post( $post_id );
-
-		$this->assertInstanceOf( WP_Post::class, $post );
-
-		update_post_meta(
-			$post_id,
-			'_kayzart_external_styles',
-			wp_json_encode(
-				array(
-					array(
-						'url'   => 'https://example.com/app.css',
-						'attrs' => array(
-							'media'  => 'screen',
-							'onload' => 'alert(1)',
-						),
-					),
-				)
-			)
-		);
-		update_post_meta(
-			$post_id,
-			'_kayzart_external_scripts',
-			wp_json_encode(
-				array(
-					array(
-						'url'   => 'https://example.com/app.js',
-						'attrs' => array(
-							'defer'     => true,
-							'integrity' => 'sha384-js',
-							'onload'    => 'alert(1)',
-						),
-					),
-				)
-			)
-		);
-
-		$original_wp_query = $this->set_query_for_post( $post_id, $post );
-		Frontend::enqueue_css();
-		Frontend::enqueue_js();
-		$this->restore_query( $original_wp_query );
-
-		$style_tag = Frontend::filter_external_style_tag(
-			'<link rel="stylesheet" id="kayzart-ext-style-' . $post_id . '-0-css" href="https://example.com/app.css" media="all" />',
-			'kayzart-ext-style-' . $post_id . '-0',
-			'https://example.com/app.css',
-			'all'
-		);
-		$script_tag = Frontend::filter_external_script_tag(
-			'<script src="https://example.com/app.js" id="kayzart-ext-' . $post_id . '-0-js"></script>',
-			'kayzart-ext-' . $post_id . '-0',
-			'https://example.com/app.js'
-		);
-
-		$this->assertStringContainsString( 'media="screen"', $style_tag );
-		$this->assertStringNotContainsString( 'onload', $style_tag );
-		$this->assertStringContainsString( 'defer', $script_tag );
-		$this->assertStringContainsString( 'integrity="sha384-js"', $script_tag );
-		$this->assertStringNotContainsString( 'onload', $script_tag );
-	}
-
 	public function test_marked_page_receives_frontend_assets_and_unmarked_page_does_not(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$page_id  = $this->create_page( $admin_id, 'publish', true );
@@ -407,18 +344,6 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 	}
 
 	private function reset_frontend_state(): void {
-		$external_property = new ReflectionProperty( Frontend::class, 'external_script_handles' );
-		$external_property->setAccessible( true );
-		$external_property->setValue( null, array() );
-
-		$external_script_attrs_property = new ReflectionProperty( Frontend::class, 'external_script_attrs' );
-		$external_script_attrs_property->setAccessible( true );
-		$external_script_attrs_property->setValue( null, array() );
-
-		$external_style_attrs_property = new ReflectionProperty( Frontend::class, 'external_style_attrs' );
-		$external_style_attrs_property->setAccessible( true );
-		$external_style_attrs_property->setValue( null, array() );
-
 		$runtime_property = new ReflectionProperty( Frontend::class, 'runtime_enqueued' );
 		$runtime_property->setAccessible( true );
 		$runtime_property->setValue( null, false );

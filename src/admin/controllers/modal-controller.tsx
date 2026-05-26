@@ -128,18 +128,6 @@ function FullHtmlImportModal({
       }`,
       enabled: canEditJs,
     },
-    {
-      key: 'externalStyles' as const,
-      label: __('External CSS', 'kayzart-live-code-editor'),
-      detail: String(result.summary.externalStyleCount),
-      enabled: true,
-    },
-    {
-      key: 'externalScripts' as const,
-      label: __('External JS', 'kayzart-live-code-editor'),
-      detail: String(canEditJs ? result.summary.externalScriptCount : 0),
-      enabled: canEditJs,
-    },
   ].filter((item) => item.enabled);
 
   return (
@@ -168,7 +156,7 @@ function FullHtmlImportModal({
             {!canEditJs ? (
               <p className="kayzart-modalWarning">
                 {__(
-                  'JavaScript and external resources will not be imported because your account cannot edit these settings.',
+                  'JavaScript will not be imported because your account cannot edit it.',
                   'kayzart-live-code-editor'
                 )}
               </p>

@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 import { X } from 'lucide';
 import { renderLucideIcon } from '../lucide-icons';
 import { SettingsPanel } from './settings-panel';
@@ -20,13 +20,6 @@ import {
   subscribeExternalSettingsTabs,
   type ResolvedExternalSettingsTab,
 } from '../extensions/settings-tab-registry';
-import {
-  areSameExternalResources,
-  normalizeExternalResources,
-  serializeExternalResources,
-  type ExternalResource,
-  type ExternalResourceInput,
-} from '../types/external-resource';
 
 export type SettingsData = {
   title: string;
@@ -37,10 +30,6 @@ export type SettingsData = {
   defaultTemplateMode?: 'standalone' | 'theme';
   liveHighlightEnabled: boolean;
   canEditJs: boolean;
-  externalScripts: ExternalResourceInput[];
-  externalStyles: ExternalResourceInput[];
-  externalScriptsMax: number;
-  externalStylesMax: number;
 };
 
 export type PendingSettingsState = {
@@ -56,8 +45,6 @@ type SettingsConfig = {
   postId: number;
   onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
   onLiveHighlightToggle?: (enabled: boolean) => void;
-  onExternalScriptsChange?: (scripts: ExternalResource[]) => void;
-  onExternalStylesChange?: (styles: ExternalResource[]) => void;
   onTabChange?: (tab: SettingsTab) => void;
   onPendingUpdatesChange?: (state: PendingSettingsState) => void;
   onClosePanel?: () => void;
@@ -70,30 +57,17 @@ type SettingsTab = string;
 export type SettingsApi = {
   applySettings: (next: Partial<SettingsData>) => void;
   openTab: (tab: SettingsTab) => void;
-  setExternalScripts: (scripts: ExternalResource[]) => void;
-  setExternalStyles: (styles: ExternalResource[]) => void;
 };
 
 const CLOSE_ICON = renderLucideIcon(X, {
   class: 'lucide lucide-x-icon lucide-x',
 });
 
-function isValidHttpsUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
 function SettingsSidebar({
   data,
   header,
   onTemplateModeChange,
   onLiveHighlightToggle,
-  onExternalScriptsChange,
-  onExternalStylesChange,
   onTabChange,
   onPendingUpdatesChange,
   onClosePanel,
@@ -117,16 +91,6 @@ function SettingsSidebar({
   const [liveHighlightEnabled, setLiveHighlightEnabled] = useState(
     resolveLiveHighlightEnabled(data.liveHighlightEnabled)
   );
-  const [externalScripts, setExternalScripts] = useState<ExternalResource[]>(
-    normalizeExternalResources(data.externalScripts)
-  );
-  const [externalScriptsError, setExternalScriptsError] = useState('');
-  const [externalStyles, setExternalStyles] = useState<ExternalResource[]>(
-    normalizeExternalResources(data.externalStyles)
-  );
-  const [externalStylesError, setExternalStylesError] = useState('');
-  const externalScriptsMax = settings.externalScriptsMax;
-  const externalStylesMax = settings.externalStylesMax;
 
   const applySettingsSnapshot = (nextSettings: SettingsData) => {
     settingsRef.current = nextSettings;
@@ -134,10 +98,6 @@ function SettingsSidebar({
     setTemplateMode(resolveTemplateMode(nextSettings.templateMode));
     setDefaultTemplateMode(resolveDefaultTemplateMode(nextSettings.defaultTemplateMode));
     setLiveHighlightEnabled(resolveLiveHighlightEnabled(nextSettings.liveHighlightEnabled));
-    setExternalScripts(normalizeExternalResources(nextSettings.externalScripts));
-    setExternalStyles(normalizeExternalResources(nextSettings.externalStyles));
-    setExternalScriptsError('');
-    setExternalStylesError('');
   };
 
   useEffect(() => {
@@ -153,18 +113,8 @@ function SettingsSidebar({
       openTab: (tab: SettingsTab) => {
         setActiveTab(tab);
       },
-      setExternalScripts: (scripts: ExternalResource[]) => {
-        const normalized = normalizeExternalResources(scripts).slice(0, externalScriptsMax);
-        setExternalScripts(normalized);
-        setExternalScriptsError(validateExternalScripts(normalized));
-      },
-      setExternalStyles: (styles: ExternalResource[]) => {
-        const normalized = normalizeExternalResources(styles).slice(0, externalStylesMax);
-        setExternalStyles(normalized);
-        setExternalStylesError(validateExternalStyles(normalized));
-      },
     });
-  }, [externalScriptsMax, externalStylesMax, onApiReady]);
+  }, [onApiReady]);
 
   useEffect(() => {
     const syncTabs = () => {
@@ -249,42 +199,6 @@ function SettingsSidebar({
     onLiveHighlightToggle?.(liveHighlightEnabled);
   }, [liveHighlightEnabled, onLiveHighlightToggle]);
 
-  useEffect(() => {
-    onExternalScriptsChange?.(normalizeExternalResources(externalScripts));
-  }, [externalScripts, onExternalScriptsChange]);
-
-  useEffect(() => {
-    onExternalStylesChange?.(normalizeExternalResources(externalStyles));
-  }, [externalStyles, onExternalStylesChange]);
-
-  const validateExternalScripts = (list: ExternalResource[]) => {
-    if (list.length > externalScriptsMax) {
-      /* translators: %d: maximum number of items. */
-      return sprintf(
-        __( 'You can add up to %d external scripts.', 'kayzart-live-code-editor'),
-        externalScriptsMax
-      );
-    }
-    if (list.some((entry) => !isValidHttpsUrl(entry.url))) {
-      return __( 'External scripts must be valid https:// URLs.', 'kayzart-live-code-editor');
-    }
-    return '';
-  };
-
-  const validateExternalStyles = (list: ExternalResource[]) => {
-    if (list.length > externalStylesMax) {
-      /* translators: %d: maximum number of items. */
-      return sprintf(
-        __( 'You can add up to %d external styles.', 'kayzart-live-code-editor'),
-        externalStylesMax
-      );
-    }
-    if (list.some((entry) => !isValidHttpsUrl(entry.url))) {
-      return __( 'External styles must be valid https:// URLs.', 'kayzart-live-code-editor');
-    }
-    return '';
-  };
-
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
   };
@@ -300,49 +214,13 @@ function SettingsSidebar({
     setLiveHighlightEnabled(enabled);
   };
 
-  const handleExternalScriptsChange = (next: ExternalResource[]) => {
-    setExternalScripts(next);
-    setExternalScriptsError('');
-  };
-
-  const handleExternalScriptsCommit = (next: ExternalResource[]) => {
-    if (!canEditJs) {
-      return;
-    }
-    const normalizedNext = normalizeExternalResources(next);
-    setExternalScripts(next);
-    setExternalScriptsError(validateExternalScripts(normalizedNext));
-  };
-
-  const handleExternalStylesChange = (next: ExternalResource[]) => {
-    setExternalStyles(next);
-    setExternalStylesError('');
-  };
-
-  const handleExternalStylesCommit = (next: ExternalResource[]) => {
-    if (!canEditJs) {
-      return;
-    }
-    const normalizedNext = normalizeExternalResources(next);
-    setExternalStyles(next);
-    setExternalStylesError(validateExternalStyles(normalizedNext));
-  };
-
   const pendingSettingsState = useMemo<PendingSettingsState>(() => {
     const updates: Record<string, unknown> = {};
     const savedTemplateMode = resolveTemplateMode(settings.templateMode);
     const savedLiveHighlightEnabled = resolveLiveHighlightEnabled(settings.liveHighlightEnabled);
-    const normalizedExternalScripts = normalizeExternalResources(externalScripts);
-    const normalizedSavedExternalScripts = normalizeExternalResources(settings.externalScripts);
-    const normalizedExternalStyles = normalizeExternalResources(externalStyles);
-    const normalizedSavedExternalStyles = normalizeExternalResources(settings.externalStyles);
 
     const templateModeChanged = templateMode !== savedTemplateMode;
     const liveHighlightChanged = liveHighlightEnabled !== savedLiveHighlightEnabled;
-    const externalScriptsChanged =
-      canEditJs && !areSameExternalResources(normalizedExternalScripts, normalizedSavedExternalScripts);
-    const externalStylesChanged =
-      canEditJs && !areSameExternalResources(normalizedExternalStyles, normalizedSavedExternalStyles);
 
     if (templateModeChanged) {
       updates.templateMode = templateMode;
@@ -350,32 +228,17 @@ function SettingsSidebar({
     if (liveHighlightChanged) {
       updates.liveHighlightEnabled = liveHighlightEnabled;
     }
-    if (externalScriptsChanged && !externalScriptsError) {
-      updates.externalScripts = serializeExternalResources(normalizedExternalScripts);
-    }
-    if (externalStylesChanged && !externalStylesError) {
-      updates.externalStyles = serializeExternalResources(normalizedExternalStyles);
-    }
 
     return {
       updates,
       hasUnsavedSettings:
         templateModeChanged ||
-        liveHighlightChanged ||
-        externalScriptsChanged ||
-        externalStylesChanged,
-      hasValidationErrors: Boolean(externalScriptsError || externalStylesError),
+        liveHighlightChanged,
+      hasValidationErrors: false,
     };
   }, [
-    canEditJs,
-    externalScripts,
-    externalScriptsError,
-    externalStyles,
-    externalStylesError,
     templateMode,
     liveHighlightEnabled,
-    settings.externalScripts,
-    settings.externalStyles,
     settings.templateMode,
     settings.liveHighlightEnabled,
   ]);
@@ -432,17 +295,7 @@ function SettingsSidebar({
           onChangeTemplateMode={handleTemplateModeChange}
           liveHighlightEnabled={liveHighlightEnabled}
           onToggleLiveHighlight={handleLiveHighlightToggle}
-          externalScripts={externalScripts}
-          onChangeExternalScripts={handleExternalScriptsChange}
-          onCommitExternalScripts={handleExternalScriptsCommit}
-          externalStyles={externalStyles}
-          onChangeExternalStyles={handleExternalStylesChange}
-          onCommitExternalStyles={handleExternalStylesCommit}
-          externalScriptsMax={externalScriptsMax}
-          externalStylesMax={externalStylesMax}
           disabled={!canEditJs}
-          externalScriptsError={externalScriptsError}
-          externalStylesError={externalStylesError}
         />
       ) : null}
 
@@ -459,20 +312,12 @@ export function initSettings(config: SettingsConfig) {
   const { container } = config;
   let applySettingsImpl: (next: Partial<SettingsData>) => void = () => {};
   let openTabImpl: (tab: SettingsTab) => void = () => {};
-  let setExternalScriptsImpl: (scripts: ExternalResource[]) => void = () => {};
-  let setExternalStylesImpl: (styles: ExternalResource[]) => void = () => {};
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
     },
     openTab(tab: SettingsTab) {
       openTabImpl(tab);
-    },
-    setExternalScripts(scripts: ExternalResource[]) {
-      setExternalScriptsImpl(scripts);
-    },
-    setExternalStyles(styles: ExternalResource[]) {
-      setExternalStylesImpl(styles);
     },
   };
 
@@ -483,8 +328,6 @@ export function initSettings(config: SettingsConfig) {
       onApiReady={(nextApi) => {
         applySettingsImpl = nextApi.applySettings;
         openTabImpl = nextApi.openTab;
-        setExternalScriptsImpl = nextApi.setExternalScripts;
-        setExternalStylesImpl = nextApi.setExternalStyles;
       }}
     />
   );

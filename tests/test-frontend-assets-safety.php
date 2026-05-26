@@ -1,6 +1,6 @@
 <?php
 /**
- * Front-end external asset safety tests for KayzArt.
+ * Front-end legacy external asset tests for KayzArt.
  *
  * @package KayzArt
  */
@@ -17,37 +17,22 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_frontend_filters_invalid_external_assets(): void {
+	public function test_frontend_ignores_legacy_external_asset_meta(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 		$post     = get_post( $post_id );
 
 		$this->assertInstanceOf( WP_Post::class, $post );
 
-		update_post_meta( $post_id, '_kayzart_shadow_dom', '1' );
-
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_scripts',
-			wp_json_encode(
-				array(
-					'http://example.com/bad.js',
-					'https://example.com/good.js',
-					'javascript:alert(1)',
-				)
-			)
+			wp_json_encode( array( 'https://example.com/legacy.js' ) )
 		);
-
 		update_post_meta(
 			$post_id,
 			'_kayzart_external_styles',
-			wp_json_encode(
-				array(
-					'http://example.com/bad.css',
-					'https://example.com/good.css',
-					'javascript:alert(2)',
-				)
-			)
+			wp_json_encode( array( 'https://example.com/legacy.css' ) )
 		);
 
 		global $wp_query;
@@ -59,8 +44,6 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 		$output = Frontend::filter_content( (string) $post->post_content );
 		Frontend::enqueue_css();
 		Frontend::enqueue_js();
-		$styles  = wp_styles();
-		$scripts = wp_scripts();
 
 		if ( null !== $original_wp_query ) {
 			$wp_query = $original_wp_query;
@@ -68,23 +51,10 @@ class Test_Frontend_Assets_Safety extends WP_UnitTestCase {
 			unset( $wp_query );
 		}
 
-		$this->assertStringNotContainsString( 'http://example.com/bad.css', $output, 'Invalid style URLs should be filtered.' );
-		$this->assertStringNotContainsString( 'javascript:', $output, 'javascript: URLs should be filtered.' );
-
-		$good_style_handle = 'kayzart-ext-style-' . $post_id . '-0';
-		$this->assertTrue( wp_style_is( $good_style_handle, 'enqueued' ), 'Valid https styles should enqueue.' );
-		$this->assertSame( 'https://example.com/good.css', $styles->registered[ $good_style_handle ]->src );
-
-		$good_handle = 'kayzart-ext-' . $post_id . '-0';
-		$this->assertTrue( wp_script_is( $good_handle, 'enqueued' ), 'Valid https scripts should enqueue.' );
-		$this->assertSame( 'https://example.com/good.js', $scripts->registered[ $good_handle ]->src );
-		foreach ( $scripts->registered as $script ) {
-			if ( empty( $script->src ) ) {
-				continue;
-			}
-			$this->assertStringNotContainsString( 'http://example.com/bad.js', $script->src, 'Invalid script URLs should be filtered.' );
-			$this->assertStringNotContainsString( 'javascript:', $script->src, 'javascript: URLs should be filtered.' );
-		}
+		$this->assertStringNotContainsString( 'https://example.com/legacy.css', $output );
+		$this->assertStringNotContainsString( 'https://example.com/legacy.js', $output );
+		$this->assertFalse( wp_style_is( 'kayzart-ext-style-' . $post_id . '-0', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
 	}
 
 	private function create_kayzart_post( int $author_id ): int {

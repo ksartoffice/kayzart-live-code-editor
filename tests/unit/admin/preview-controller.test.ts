@@ -35,8 +35,6 @@ describe('preview shortcode handling', () => {
       getLiveHighlightEnabled: () => true,
       getJsEnabled: () => false,
       getJsMode: () => 'classic',
-      getExternalScripts: () => [],
-      getExternalStyles: () => [],
       getResolvedTemplateMode: () => 'standalone',
     });
 
@@ -77,8 +75,6 @@ describe('preview shortcode handling', () => {
       getLiveHighlightEnabled: () => true,
       getJsEnabled: () => false,
       getJsMode: () => 'classic',
-      getExternalScripts: () => [],
-      getExternalStyles: () => [],
       getResolvedTemplateMode: () => 'theme',
     });
 
@@ -128,8 +124,6 @@ describe('preview shortcode handling', () => {
       getLiveHighlightEnabled: () => true,
       getJsEnabled: () => false,
       getJsMode: () => 'classic',
-      getExternalScripts: () => [],
-      getExternalStyles: () => [],
       getResolvedTemplateMode: () => 'standalone',
     });
 
@@ -166,8 +160,6 @@ describe('preview shortcode handling', () => {
       getLiveHighlightEnabled: () => true,
       getJsEnabled: () => false,
       getJsMode: () => 'classic',
-      getExternalScripts: () => [],
-      getExternalStyles: () => [],
       getResolvedTemplateMode: () => 'standalone',
       onOverlayAction,
     });

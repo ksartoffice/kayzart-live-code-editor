@@ -109,6 +109,12 @@ function FullHtmlImportModal({
       enabled: true,
     },
     {
+      key: 'customHead' as const,
+      label: __('Custom head', 'kayzart-live-code-editor'),
+      detail: __('head additions', 'kayzart-live-code-editor'),
+      enabled: true,
+    },
+    {
       key: 'css' as const,
       label: __('CSS', 'kayzart-live-code-editor'),
       detail: `${__('style tags', 'kayzart-live-code-editor')} ${result.summary.styleCount}`,

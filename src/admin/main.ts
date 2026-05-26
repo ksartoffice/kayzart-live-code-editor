@@ -792,6 +792,20 @@ async function main() {
     if (selection.html) {
       replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs, selection));
     }
+    if (selection.customHead) {
+      replaceWholeModelContent(customHeadModel, result.customHead.trim());
+      if (result.removedHeadTags.length > 0) {
+        createSnackbar(
+          'warning',
+          sprintf(
+            __('Removed unsupported custom head tags: %s', 'kayzart-live-code-editor'),
+            result.removedHeadTags.join(', ')
+          ),
+          undefined,
+          NOTICE_ERROR_DURATION_MS
+        );
+      }
+    }
     if (selection.css) {
       replaceWholeModelContent(cssModel, result.css.trim());
     }

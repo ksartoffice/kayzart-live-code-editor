@@ -30,6 +30,8 @@ describe('full html import logic', () => {
     expect(result).not.toBeNull();
     expect(result?.html).toBe('<main><h1>Hello</h1></main>');
     expect(result?.bodyAttrs).toBe('');
+    expect(result?.customHead).toBe('');
+    expect(result?.removedHeadTags).toEqual(['meta charset']);
     expect(result?.css).toBe('.a { color: red; }\n\n.b { color: blue; }');
     expect(result?.js).toBe("console.log('one');\n\nconsole.log('two');");
     expect(result?.summary).toMatchObject({
@@ -53,6 +55,40 @@ describe('full html import logic', () => {
     expect(buildImportedHtml(result!, true)).toBe(`<body class="lp" data-page="x">
 <main><h1>Hello</h1></main>
 </body>`);
+  });
+
+  it('extracts custom head additions and reports unsupported head tags', () => {
+    const result = parseFullHtmlDocument(`<!doctype html>
+<html>
+<head>
+  <title>Ignored title</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <base href="/">
+  <meta property="og:title" content="Hello">
+  <meta name="description" content="Landing page">
+  <script type="application/ld+json">{"@type":"Thing"}</script>
+  <script>console.log('head inline');</script>
+  <style>.hero { color: red; }</style>
+</head>
+<body>
+  <main>Hello</main>
+</body>
+</html>`);
+
+    expect(result).not.toBeNull();
+    expect(result?.customHead).toBe(`<meta property="og:title" content="Hello">
+<meta name="description" content="Landing page">
+<script type="application/ld+json">{"@type":"Thing"}</script>`);
+    expect(result?.removedHeadTags).toEqual([
+      'title',
+      'meta charset',
+      'meta viewport',
+      'base',
+    ]);
+    expect(result?.css).toBe('.hero { color: red; }');
+    expect(result?.js).toBe("console.log('head inline');");
+    expect(result?.js).not.toContain('Thing');
   });
 
   it('extracts external css and external js as resources with attributes', () => {

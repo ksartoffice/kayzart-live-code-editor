@@ -5,6 +5,8 @@ import type { ExternalResource, ExternalResourceAttrs } from '../types/external-
 export type FullHtmlImportResult = {
   html: string;
   bodyAttrs: string;
+  customHead: string;
+  removedHeadTags: string[];
   css: string;
   js: string;
   externalStyles: ExternalResource[];
@@ -19,6 +21,7 @@ export type FullHtmlImportResult = {
 
 export type FullHtmlImportSelection = {
   html: boolean;
+  customHead: boolean;
   css: boolean;
   js: boolean;
   externalStyles: boolean;
@@ -29,6 +32,7 @@ export const createFullHtmlImportSelection = (
   overrides: Partial<FullHtmlImportSelection> = {}
 ): FullHtmlImportSelection => ({
   html: true,
+  customHead: true,
   css: true,
   js: true,
   externalStyles: true,
@@ -107,6 +111,34 @@ const hasStylesheetRel = (rel: string | null): boolean => {
     .includes('stylesheet');
 };
 
+const unique = (items: string[]): string[] => Array.from(new Set(items));
+
+const isViewportMeta = (node: ElementNode): boolean =>
+  (getAttr(node, 'name') || '').trim().toLowerCase() === 'viewport';
+
+const isJsonLdScript = (node: ElementNode): boolean =>
+  node.tagName.toLowerCase() === 'script' &&
+  (getAttr(node, 'type') || '').trim().toLowerCase() === 'application/ld+json';
+
+const classifyForbiddenHeadTag = (node: ElementNode): string | null => {
+  const tagName = node.tagName.toLowerCase();
+  if (tagName === 'title') {
+    return 'title';
+  }
+  if (tagName === 'base') {
+    return 'base';
+  }
+  if (tagName === 'meta') {
+    if (getAttr(node, 'charset') !== null) {
+      return 'meta charset';
+    }
+    if (isViewportMeta(node)) {
+      return 'meta viewport';
+    }
+  }
+  return null;
+};
+
 const isElement = (node: Node): node is ElementNode => 'tagName' in node;
 
 const getTextContent = (node: Node): string => {
@@ -133,6 +165,16 @@ const serializeBodyChild = (source: string, node: Node): string => {
   }
   if ('value' in node && typeof node.value === 'string') {
     return node.value;
+  }
+  if ('data' in node && typeof node.data === 'string') {
+    return `<!--${node.data}-->`;
+  }
+  return '';
+};
+
+const serializeHeadChild = (source: string, node: Node): string => {
+  if (isElement(node)) {
+    return serializeOriginalNode(source, node).trim();
   }
   if ('data' in node && typeof node.data === 'string') {
     return `<!--${node.data}-->`;
@@ -170,6 +212,7 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   }
 
   const document = parse5.parse(source, { sourceCodeLocationInfo: true });
+  const head = findElement(document, 'head');
   const body = findElement(document, 'body');
   if (!body) {
     return null;
@@ -178,6 +221,8 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   const cssParts: string[] = [];
   const jsParts: string[] = [];
   const bodyParts: string[] = [];
+  const customHeadParts: string[] = [];
+  const removedHeadTags: string[] = [];
   const externalStyles: ExternalResource[] = [];
   const externalScripts: ExternalResource[] = [];
   let styleCount = 0;
@@ -199,6 +244,9 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
 
     if (tagName === 'script') {
+      if (isJsonLdScript(node)) {
+        return;
+      }
       const src = getAttr(node, 'src');
       if (src) {
         const resource = extractExternalResource(node, 'src', SCRIPT_ATTRS);
@@ -230,6 +278,37 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
 
   document.childNodes.forEach(visitExtractable);
 
+  head?.childNodes.forEach((child) => {
+    if (!isElement(child)) {
+      const serialized = serializeHeadChild(source, child);
+      if (serialized) {
+        customHeadParts.push(serialized);
+      }
+      return;
+    }
+
+    const forbiddenTag = classifyForbiddenHeadTag(child);
+    if (forbiddenTag) {
+      removedHeadTags.push(forbiddenTag);
+      return;
+    }
+
+    const tagName = child.tagName.toLowerCase();
+    const isExtractedStyle = tagName === 'style';
+    const isExtractedStylesheet =
+      tagName === 'link' && hasStylesheetRel(getAttr(child, 'rel')) && getAttr(child, 'href');
+    const isExternalScript = tagName === 'script' && Boolean(getAttr(child, 'src'));
+    const isInlineScript = tagName === 'script' && !isJsonLdScript(child);
+    if (isExtractedStyle || isExtractedStylesheet || isExternalScript || isInlineScript) {
+      return;
+    }
+
+    const serialized = serializeHeadChild(source, child);
+    if (serialized) {
+      customHeadParts.push(serialized);
+    }
+  });
+
   body.childNodes.forEach((child) => {
     if (isElement(child)) {
       const tagName = child.tagName.toLowerCase();
@@ -247,6 +326,8 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   return {
     html: bodyParts.join('').trim(),
     bodyAttrs: serializeAttrs(body),
+    customHead: customHeadParts.join('\n').trim(),
+    removedHeadTags: unique(removedHeadTags),
     css: cssParts.join('\n\n'),
     js: jsParts.join('\n\n'),
     externalStyles,

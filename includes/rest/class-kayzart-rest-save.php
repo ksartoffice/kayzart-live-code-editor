@@ -30,6 +30,9 @@ class Rest_Save {
 
 		$post_id          = absint( $request->get_param( 'post_id' ) );
 		$html             = (string) $request->get_param( 'html' );
+		$html_parts       = Html_Document::split_editor_html( $html );
+		$content_html     = (string) $html_parts['content'];
+		$body_attrs       = (string) $html_parts['body_attrs'];
 		$css_input        = self::sanitize_css_input( (string) $request->get_param( 'css' ) );
 		$js_input         = (string) $request->get_param( 'js' );
 		$has_js           = $request->has_param( 'js' );
@@ -108,7 +111,7 @@ class Rest_Save {
 		}
 
 		if ( $tailwind_enabled ) {
-			$size_validation = self::validate_tailwind_input_size( $html, $css_input );
+			$size_validation = self::validate_tailwind_input_size( $content_html, $css_input );
 			if ( is_wp_error( $size_validation ) ) {
 				return new \WP_REST_Response(
 					array(
@@ -123,7 +126,7 @@ class Rest_Save {
 		$result = wp_update_post(
 			array(
 				'ID'           => $post_id,
-				'post_content' => wp_slash( $html ),
+				'post_content' => wp_slash( $content_html ),
 			),
 			true
 		);
@@ -143,7 +146,7 @@ class Rest_Save {
 			try {
 				$compiled_css = tw::generate(
 					array(
-						'content' => $html,
+						'content' => $content_html,
 						'css'     => $css_input,
 					)
 				);
@@ -162,6 +165,11 @@ class Rest_Save {
 			}
 		}
 
+		if ( '' !== $body_attrs ) {
+			update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, wp_slash( $body_attrs ) );
+		} else {
+			delete_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY );
+		}
 		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
 		if ( $has_js ) {
 			update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );

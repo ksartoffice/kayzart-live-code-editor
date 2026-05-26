@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Frontend;
+use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 
 class Test_Frontend_Output extends WP_UnitTestCase {
@@ -217,6 +218,55 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		remove_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
 
 		$this->assertTrue( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
+	public function test_editor_html_wraps_content_only_when_body_attrs_exist(): void {
+		$this->assertSame(
+			'<body class="lp"><main>Hi</main></body>',
+			Html_Document::build_editor_html( '<main>Hi</main>', 'class="lp"' )
+		);
+		$this->assertSame(
+			'<main>Hi</main>',
+			Html_Document::build_editor_html( '<main>Hi</main>', '' )
+		);
+	}
+
+	public function test_standalone_body_attributes_include_stored_attrs_and_layout_class(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="lp custom" data-page="x"' );
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		$attrs             = Html_Document::build_standalone_body_attributes( $post_id, 'kayzart-layout-standalone' );
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( 'class="', $attrs );
+		$this->assertStringContainsString( 'kayzart-layout-standalone', $attrs );
+		$this->assertStringContainsString( 'lp', $attrs );
+		$this->assertStringContainsString( 'custom', $attrs );
+		$this->assertStringContainsString( 'data-page="x"', $attrs );
+	}
+
+	public function test_theme_body_class_adds_only_stored_classes(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="lp custom" data-page="x"' );
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		$classes           = Frontend::filter_body_class( array( 'theme-base' ) );
+		$this->restore_query( $original_wp_query );
+
+		$this->assertContains( 'theme-base', $classes );
+		$this->assertContains( 'lp', $classes );
+		$this->assertContains( 'custom', $classes );
+		$this->assertNotContains( 'data-page', $classes );
 	}
 
 	private function create_kayzart_post( int $author_id, string $status ): int {

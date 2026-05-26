@@ -37,6 +37,7 @@ describe('preview shortcode handling', () => {
       getJsMode: () => 'classic',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
+      getResolvedTemplateMode: () => 'standalone',
     });
 
     controller.handleMessage({
@@ -53,6 +54,56 @@ describe('preview shortcode handling', () => {
     expect(renderCall).toBeTruthy();
     const payload = renderCall?.[0] as { canonicalHTML?: string };
     expect(payload.canonicalHTML).toContain('[ez-toc]');
+  });
+
+  it('sends body inner html and body attrs separately to the preview iframe', async () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const htmlModel = createModel('<body class="lp" data-page="x"><main>Body content</main></body>');
+    const cssModel = createModel('');
+    const jsModel = createModel('');
+
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: htmlModel as any,
+      cssModel: cssModel as any,
+      jsModel: jsModel as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getExternalScripts: () => [],
+      getExternalStyles: () => [],
+      getResolvedTemplateMode: () => 'theme',
+    });
+
+    controller.handleMessage({
+      origin: 'https://example.com',
+      source: contentWindow,
+      data: { type: 'KAYZART_READY' },
+    } as MessageEvent);
+    await flushAsync();
+    postMessage.mockClear();
+
+    controller.sendRender();
+
+    const renderCall = postMessage.mock.calls.find((entry) => entry?.[0]?.type === 'KAYZART_RENDER');
+    expect(renderCall).toBeTruthy();
+    const payload = renderCall?.[0] as {
+      canonicalHTML?: string;
+      bodyAttrs?: Record<string, string>;
+      hasBody?: boolean;
+      templateMode?: string;
+    };
+    expect(payload.canonicalHTML).toBe('<main data-kayzart-id="kayzart-1">Body content</main>');
+    expect(payload.bodyAttrs).toEqual({ class: 'lp', 'data-page': 'x' });
+    expect(payload.hasBody).toBe(true);
+    expect(payload.templateMode).toBe('theme');
   });
 
   it('ignores messages from non-iframe windows even with same origin', () => {
@@ -79,6 +130,7 @@ describe('preview shortcode handling', () => {
       getJsMode: () => 'classic',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
+      getResolvedTemplateMode: () => 'standalone',
     });
 
     controller.handleMessage({
@@ -116,6 +168,7 @@ describe('preview shortcode handling', () => {
       getJsMode: () => 'classic',
       getExternalScripts: () => [],
       getExternalStyles: () => [],
+      getResolvedTemplateMode: () => 'standalone',
       onOverlayAction,
     });
 

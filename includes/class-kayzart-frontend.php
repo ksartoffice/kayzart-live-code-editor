@@ -46,6 +46,7 @@ class Frontend {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'dequeue_theme_assets_for_standalone' ), 9999 );
 		add_filter( 'the_content', array( __CLASS__, 'filter_content' ), 20 );
 		add_filter( 'template_include', array( __CLASS__, 'maybe_override_template' ), 20 );
+		add_filter( 'body_class', array( __CLASS__, 'filter_body_class' ) );
 		add_shortcode( 'kayzart', array( __CLASS__, 'shortcode' ) );
 	}
 
@@ -178,6 +179,29 @@ class Frontend {
 		}
 
 		return 'standalone' === self::resolve_template_mode( $post_id );
+	}
+
+	/**
+	 * Add stored body classes in theme mode only.
+	 *
+	 * @param array $classes Existing body classes.
+	 * @return array
+	 */
+	public static function filter_body_class( array $classes ): array {
+		if ( is_admin() ) {
+			return $classes;
+		}
+
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return $classes;
+		}
+
+		if ( 'theme' !== self::resolve_template_mode( $post_id ) ) {
+			return $classes;
+		}
+
+		return array_values( array_unique( array_merge( $classes, Html_Document::get_stored_body_classes( $post_id ) ) ) );
 	}
 
 	/**

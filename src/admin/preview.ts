@@ -16,6 +16,8 @@ type SourceRange = {
 
 type CanonicalResult = {
   canonicalHTML: string;
+  bodyAttrs: Record<string, string>;
+  hasBody: boolean;
   map: Record<string, SourceRange>;
   error?: string;
 };
@@ -56,6 +58,7 @@ type PreviewControllerDeps = {
   getExternalScripts: () => string[];
   getExternalStyles: () => string[];
   isTailwindEnabled: () => boolean;
+  getResolvedTemplateMode: () => 'standalone' | 'theme';
   onSelect?: (lcId: string) => void;
   onOpenElementsTab?: () => void;
   onOverlayAction?: (actionId: string) => void;
@@ -74,6 +77,36 @@ function isParentNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAd
 
 function isTemplateElement(node: DefaultTreeAdapterTypes.Element): node is DefaultTreeAdapterTypes.Template {
   return node.tagName === 'template' && Boolean((node as DefaultTreeAdapterTypes.Template).content);
+}
+
+function findElement(
+  node: DefaultTreeAdapterTypes.Node,
+  tagName: string
+): DefaultTreeAdapterTypes.Element | null {
+  if (isElement(node) && node.tagName.toLowerCase() === tagName.toLowerCase()) {
+    return node;
+  }
+  if (!isParentNode(node)) {
+    return null;
+  }
+  for (const child of node.childNodes) {
+    const match = findElement(child, tagName);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
+function serializeAttrs(el: DefaultTreeAdapterTypes.Element): Record<string, string> {
+  return el.attrs.reduce<Record<string, string>>((attrs, attr) => {
+    attrs[attr.name] = attr.value;
+    return attrs;
+  }, {});
+}
+
+function serializeChildren(node: DefaultTreeAdapterTypes.ParentNode): string {
+  return (node.childNodes || []).map((child) => parse5.serializeOuter(child)).join('');
 }
 
 function upsertLcAttr(el: DefaultTreeAdapterTypes.Element, lcId: string) {
@@ -145,6 +178,25 @@ function walkCanonicalTree(
 // Build canonical HTML and keep data-kayzart-id plus source-location mapping.
 function canonicalizeHtml(html: string): CanonicalResult {
   try {
+    if (html.toLowerCase().includes('<body')) {
+      const document = parse5.parse(html, { sourceCodeLocationInfo: true });
+      const body = findElement(document, 'body');
+      if (body) {
+        const map: Record<string, SourceRange> = {};
+        let seq = 0;
+        const nextId = () => `kayzart-${++seq}`;
+
+        walkCanonicalTree(body, null, map, nextId);
+
+        return {
+          canonicalHTML: serializeChildren(body),
+          bodyAttrs: serializeAttrs(body),
+          hasBody: true,
+          map,
+        };
+      }
+    }
+
     const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
     const map: Record<string, SourceRange> = {};
     let seq = 0;
@@ -152,11 +204,13 @@ function canonicalizeHtml(html: string): CanonicalResult {
 
     walkCanonicalTree(fragment, null, map, nextId);
 
-    return { canonicalHTML: parse5.serialize(fragment), map };
+    return { canonicalHTML: parse5.serialize(fragment), bodyAttrs: {}, hasBody: false, map };
   } catch (error: any) {
     console.error('[KayzArt] canonicalizeHtml failed', error);
     return {
       canonicalHTML: html,
+      bodyAttrs: {},
+      hasBody: false,
       map: {},
       error: error?.message ?? String(error),
     };
@@ -247,6 +301,9 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       type: 'KAYZART_RENDER',
       cssText: deps.getPreviewCss(),
       liveHighlightEnabled: deps.getLiveHighlightEnabled(),
+      bodyAttrs: canonical.bodyAttrs,
+      hasBody: canonical.hasBody,
+      templateMode: deps.getResolvedTemplateMode(),
     };
     if (!previewReady) {
       pendingRender = true;

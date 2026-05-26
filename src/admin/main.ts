@@ -1077,6 +1077,7 @@ async function main() {
     getExternalScripts: () => externalScripts,
     getExternalStyles: () => externalStyles,
     isTailwindEnabled: () => tailwindEnabled,
+    getResolvedTemplateMode,
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();

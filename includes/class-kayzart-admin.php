@@ -872,6 +872,8 @@ class Admin {
 		// Inject initial data for the admin app.
 		$post       = $post_id ? get_post( $post_id ) : null;
 		$html       = $post ? (string) $post->post_content : '';
+		$body_attrs = $post_id ? (string) get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) : '';
+		$html       = Html_Document::build_editor_html( $html, $body_attrs );
 		$css        = $post_id ? (string) get_post_meta( $post_id, '_kayzart_css', true ) : '';
 		$js         = $post_id ? (string) get_post_meta( $post_id, '_kayzart_js', true ) : '';
 		$js_mode    = self::normalize_js_mode( $post_id ? get_post_meta( $post_id, '_kayzart_js_mode', true ) : '' );

@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<?php wp_head(); ?>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
-<body <?php body_class( 'kayzart-layout-standalone' ); ?>>
+<body <?php echo \KayzArt\Html_Document::build_standalone_body_attributes( (int) get_queried_object_id(), 'kayzart-layout-standalone' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 	<?php wp_body_open(); ?>
 	<?php
 	while ( have_posts() ) :

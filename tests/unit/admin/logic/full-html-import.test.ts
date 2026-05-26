@@ -28,6 +28,7 @@ describe('full html import logic', () => {
 
     expect(result).not.toBeNull();
     expect(result?.html).toBe('<main><h1>Hello</h1></main>');
+    expect(result?.bodyAttrs).toBe('');
     expect(result?.css).toBe('.a { color: red; }\n\n.b { color: blue; }');
     expect(result?.js).toBe("console.log('one');\n\nconsole.log('two');");
     expect(result?.summary).toMatchObject({
@@ -36,6 +37,21 @@ describe('full html import logic', () => {
       externalStyleCount: 0,
       externalScriptCount: 0,
     });
+  });
+
+  it('preserves body attributes from a full document import', () => {
+    const result = parseFullHtmlDocument(`<!doctype html>
+<html>
+<body class="lp" data-page="x">
+  <main><h1>Hello</h1></main>
+</body>
+</html>`);
+
+    expect(result).not.toBeNull();
+    expect(result?.bodyAttrs).toBe('class="lp" data-page="x"');
+    expect(buildImportedHtml(result!, true)).toBe(`<body class="lp" data-page="x">
+<main><h1>Hello</h1></main>
+</body>`);
   });
 
   it('keeps external css at the top and external js at the bottom of imported html', () => {
@@ -75,4 +91,3 @@ describe('full html import logic', () => {
     expect(buildImportedHtml(result!, false)).toBe('<div id="app"></div>');
   });
 });
-

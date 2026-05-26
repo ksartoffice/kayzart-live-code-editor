@@ -3,6 +3,7 @@ import type { DefaultTreeAdapterTypes } from 'parse5';
 
 export type FullHtmlImportResult = {
   html: string;
+  bodyAttrs: string;
   css: string;
   js: string;
   externalStyles: string[];
@@ -22,6 +23,12 @@ const getAttr = (node: ElementNode, name: string): string | null => {
   const attr = node.attrs.find((item) => item.name.toLowerCase() === name.toLowerCase());
   return attr ? attr.value : null;
 };
+
+const serializeAttrs = (node: ElementNode): string =>
+  node.attrs
+    .map((attr) => `${attr.name}="${attr.value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`)
+    .join(' ')
+    .trim();
 
 const hasStylesheetRel = (rel: string | null): boolean => {
   if (!rel) {
@@ -166,6 +173,7 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
 
   return {
     html: bodyParts.join('').trim(),
+    bodyAttrs: serializeAttrs(body),
     css: cssParts.join('\n\n'),
     js: jsParts.join('\n\n'),
     externalStyles,
@@ -186,8 +194,10 @@ export function buildImportedHtml(result: FullHtmlImportResult, canEditJs: boole
       ['<!-- External stylesheets from pasted HTML -->', ...result.externalStyles].join('\n')
     );
   }
-  if (result.html.trim()) {
-    parts.push(result.html.trim());
+  const html = result.html.trim();
+  const bodyAttrs = result.bodyAttrs.trim();
+  if (html || bodyAttrs) {
+    parts.push(bodyAttrs ? `<body ${bodyAttrs}>\n${html}\n</body>` : html);
   }
   if (canEditJs && result.externalScripts.length) {
     parts.push(['<!-- External scripts from pasted HTML -->', ...result.externalScripts].join('\n'));

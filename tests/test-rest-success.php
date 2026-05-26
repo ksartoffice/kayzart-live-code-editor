@@ -8,6 +8,7 @@
 use KayzArt\External_Scripts;
 use KayzArt\External_Styles;
 use KayzArt\Admin;
+use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 use KayzArt\Rest_Settings;
 
@@ -359,6 +360,101 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertStringContainsString( '.text-sm', $generated_css, 'Generated CSS should include the expected utility.' );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+	}
+
+	public function test_save_splits_body_tag_into_content_and_body_attrs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<body class="lp" data-page="x"><main>Hi</main></body>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '<main>Hi</main>', (string) $post->post_content );
+		$this->assertSame( 'class="lp" data-page="x"', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_save_splits_body_from_full_html_document(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<!doctype html><html><head><title>Ignored</title></head><body class="lp"><main>Hi</main></body></html>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '<main>Hi</main>', (string) $post->post_content );
+		$this->assertSame( 'class="lp"', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_save_without_body_tag_clears_body_attrs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="old"' );
+		wp_set_current_user( $admin_id );
+
+		$html     = '<section><h1>No body</h1></section>';
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => $html,
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( $html, (string) $post->post_content );
+		$this->assertSame( '', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_save_body_tag_with_empty_attrs_clears_body_attrs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="old"' );
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<body><main>Hi</main></body>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '<main>Hi</main>', (string) $post->post_content );
+		$this->assertSame( '', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
 	}
 
 	public function test_compile_tailwind_response_returns_generated_css(): void {

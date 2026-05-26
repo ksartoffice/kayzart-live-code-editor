@@ -123,6 +123,12 @@ export function SettingsPanel({
           </select>
         </div>
         {templateHelp ? <div className="kayzart-settingsHelp">{templateHelp}</div> : null}
+        <div className="kayzart-settingsHelp">
+          {__(
+            'Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display. テーマ表示では、body属性の一部が反映されない場合があります。',
+            'kayzart-live-code-editor'
+          )}
+        </div>
       </div>
 
       <div className="kayzart-settingsSection">

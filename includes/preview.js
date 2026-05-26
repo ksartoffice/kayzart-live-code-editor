@@ -38,6 +38,8 @@
   let pendingRenderPayload = null;
   let markerRetryTimer = 0;
   let markerRetryStartedAt = 0;
+  let initialBodyAttrs = null;
+  let appliedBodyAttrNames = [];
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
   const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
@@ -400,6 +402,77 @@
     if (scriptEl) {
       scriptEl.remove();
     }
+  }
+
+  function readInitialBodyAttrs() {
+    if (initialBodyAttrs !== null) {
+      return initialBodyAttrs;
+    }
+    initialBodyAttrs = {};
+    if (!document.body) {
+      return initialBodyAttrs;
+    }
+    Array.prototype.forEach.call(document.body.attributes, (attr) => {
+      initialBodyAttrs[attr.name] = attr.value;
+    });
+    return initialBodyAttrs;
+  }
+
+  function splitClasses(value) {
+    return String(value || '')
+      .split(/\s+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function uniqueClasses(list) {
+    const seen = {};
+    return list.filter((item) => {
+      if (seen[item]) return false;
+      seen[item] = true;
+      return true;
+    });
+  }
+
+  function restoreInitialBodyAttrs() {
+    if (!document.body) return;
+    const initial = readInitialBodyAttrs();
+    appliedBodyAttrNames.forEach((name) => {
+      if (Object.prototype.hasOwnProperty.call(initial, name)) {
+        document.body.setAttribute(name, initial[name]);
+      } else {
+        document.body.removeAttribute(name);
+      }
+    });
+    appliedBodyAttrNames = [];
+  }
+
+  function applyBodyAttrs(attrs, hasBody, templateMode) {
+    if (!document.body) return;
+    const initial = readInitialBodyAttrs();
+    restoreInitialBodyAttrs();
+
+    if (!hasBody || !attrs || typeof attrs !== 'object') {
+      return;
+    }
+
+    const nextNames = [];
+    const bodyClass = typeof attrs.class === 'string' ? attrs.class : '';
+    if (bodyClass) {
+      const classes = uniqueClasses([...(splitClasses(initial.class)), ...splitClasses(bodyClass)]);
+      document.body.setAttribute('class', classes.join(' '));
+      nextNames.push('class');
+    }
+
+    if (templateMode !== 'theme') {
+      Object.keys(attrs).forEach((name) => {
+        if (name === 'class') return;
+        document.body.setAttribute(name, String(attrs[name]));
+        nextNames.push(name);
+      });
+    }
+
+    appliedBodyAttrNames = nextNames;
   }
 
   function removeStyleElement() {
@@ -784,7 +857,7 @@
       if (findMarkers()) {
         pendingRenderPayload = null;
         clearMarkerRetryTimer();
-        render(next.html, next.css);
+        render(next.html, next.css, next.bodyAttrs, next.hasBody, next.templateMode);
         return;
       }
       if (Date.now() - markerRetryStartedAt >= markerRetryMaxWaitMs) {
@@ -797,11 +870,14 @@
     }, markerRetryDelayMs);
   }
 
-  function render(html, css) {
+  function render(html, css, bodyAttrs, hasBody, templateMode) {
     if (!findMarkers()) {
       pendingRenderPayload = {
         html: html || '',
         css: css || '',
+        bodyAttrs: bodyAttrs || {},
+        hasBody: Boolean(hasBody),
+        templateMode: templateMode || 'standalone',
       }
       queueMarkerRetry();
       return;
@@ -810,6 +886,7 @@
     clearMarkerRetryTimer();
 
     replaceEditableContent(html);
+    applyBodyAttrs(bodyAttrs, hasBody, templateMode);
     clearHighlight();
     clearSelection();
     const styleEl = ensureStyleElement();
@@ -859,7 +936,13 @@
       if ('liveHighlightEnabled' in data) {
         setDomSelectorEnabled(Boolean(data.liveHighlightEnabled));
       }
-      render(data.canonicalHTML, data.cssText);
+      render(
+        data.canonicalHTML,
+        data.cssText,
+        data.bodyAttrs || {},
+        Boolean(data.hasBody),
+        data.templateMode || 'standalone'
+      );
     }
     if (data.type === 'KAYZART_SET_CSS') {
       if (!isReady) return;

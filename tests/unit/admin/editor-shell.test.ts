@@ -44,4 +44,15 @@ describe('editor shell iframe security attributes', () => {
       ui.compactRunButton,
     ]);
   });
+
+  it('renders custom head tabs and help text', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.htmlTab.textContent).toBe('HTML');
+    expect(ui.customHeadTab.textContent).toBe('\u30ab\u30b9\u30bf\u30e0head');
+    expect(ui.compactCustomHeadTab.textContent).toBe('\u30ab\u30b9\u30bf\u30e0head');
+    expect(ui.customHeadHelp.textContent).toContain('head');
+    expect(ui.customHeadHelp.textContent).toContain('<title>');
+  });
 });

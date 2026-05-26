@@ -870,16 +870,17 @@ class Admin {
 		);
 
 		// Inject initial data for the admin app.
-		$post       = $post_id ? get_post( $post_id ) : null;
-		$html       = $post ? (string) $post->post_content : '';
-		$body_attrs = $post_id ? (string) get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) : '';
-		$html       = Html_Document::build_editor_html( $html, $body_attrs );
-		$css        = $post_id ? (string) get_post_meta( $post_id, '_kayzart_css', true ) : '';
-		$js         = $post_id ? (string) get_post_meta( $post_id, '_kayzart_js', true ) : '';
-		$js_mode    = self::normalize_js_mode( $post_id ? get_post_meta( $post_id, '_kayzart_js_mode', true ) : '' );
-		$back_url   = $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
-		$list_url   = self::get_editor_list_url( $post );
-		$list_label = self::get_editor_list_label( $post );
+		$post        = $post_id ? get_post( $post_id ) : null;
+		$html        = $post ? (string) $post->post_content : '';
+		$body_attrs  = $post_id ? (string) get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) : '';
+		$html        = Html_Document::build_editor_html( $html, $body_attrs );
+		$custom_head = $post_id ? Custom_Head::get_for_post( $post_id ) : '';
+		$css         = $post_id ? (string) get_post_meta( $post_id, '_kayzart_css', true ) : '';
+		$js          = $post_id ? (string) get_post_meta( $post_id, '_kayzart_js', true ) : '';
+		$js_mode     = self::normalize_js_mode( $post_id ? get_post_meta( $post_id, '_kayzart_js_mode', true ) : '' );
+		$back_url    = $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
+		$list_url    = self::get_editor_list_url( $post );
+		$list_label  = self::get_editor_list_label( $post );
 
 		$preview_token = $post_id ? wp_create_nonce( 'kayzart_preview_' . $post_id ) : '';
 		$permalink     = $post_id ? get_permalink( $post_id ) : '';
@@ -901,6 +902,7 @@ class Admin {
 		$data = array(
 			'post_id'              => $post_id,
 			'initialHtml'          => $html,
+			'initialCustomHead'    => $custom_head,
 			'initialCss'           => $css,
 			'initialJs'            => $js,
 			'initialJsMode'        => $js_mode,

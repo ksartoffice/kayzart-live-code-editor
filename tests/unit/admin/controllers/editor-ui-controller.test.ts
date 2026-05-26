@@ -12,25 +12,35 @@ function createUi() {
   const app = document.createElement('div');
   const htmlPane = document.createElement('div');
   const cssPane = document.createElement('div');
+  const htmlEditorDiv = document.createElement('div');
+  const customHeadEditorDiv = document.createElement('div');
+  const customHeadPanel = document.createElement('div');
   const jsModeSelect = document.createElement('select');
   const compactJsModeSelect = document.createElement('select');
 
+  customHeadPanel.appendChild(customHeadEditorDiv);
   cssPane.appendChild(jsModeSelect);
 
   return {
     app,
     htmlPane,
     cssPane,
+    htmlTab: document.createElement('button'),
+    customHeadTab: document.createElement('button'),
     cssTab: document.createElement('button'),
     jsTab: document.createElement('button'),
+    htmlEditorDiv,
+    customHeadEditorDiv,
     cssEditorDiv: document.createElement('div'),
     jsEditorDiv: document.createElement('div'),
     jsModeSelect,
     compactJsModeSelect,
     compactHtmlTab: document.createElement('button'),
+    compactCustomHeadTab: document.createElement('button'),
     compactCssTab: document.createElement('button'),
     compactJsTab: document.createElement('button'),
     addMediaButton: document.createElement('button'),
+    htmlWordWrapButton: document.createElement('button'),
     compactAddMediaButton: document.createElement('button'),
     jsControls: document.createElement('div'),
     runButton: document.createElement('button'),
@@ -42,6 +52,7 @@ describe('editor ui controller', () => {
   it('does not steal focus from JavaScript mode select', () => {
     const ui = createUi();
     const htmlEditor = createEditor();
+    const customHeadEditor = createEditor();
     const cssEditor = createEditor();
     const jsEditor = createEditor();
 
@@ -49,6 +60,7 @@ describe('editor ui controller', () => {
       ui,
       canEditJs: true,
       htmlEditor,
+      customHeadEditor,
       cssEditor,
       jsEditor,
       compactEditorBreakpoint: 900,
@@ -71,6 +83,7 @@ describe('editor ui controller', () => {
   it('shows mode selector only on JavaScript tab', () => {
     const ui = createUi();
     const htmlEditor = createEditor();
+    const customHeadEditor = createEditor();
     const cssEditor = createEditor();
     const jsEditor = createEditor();
 
@@ -78,6 +91,7 @@ describe('editor ui controller', () => {
       ui,
       canEditJs: true,
       htmlEditor,
+      customHeadEditor,
       cssEditor,
       jsEditor,
       compactEditorBreakpoint: 900,

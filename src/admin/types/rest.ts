@@ -3,6 +3,8 @@ import type { SettingsData } from '../settings';
 export type SaveResponse = {
   ok?: boolean;
   error?: string;
+  customHead?: string;
+  customHeadRemovedTags?: string[];
   settings?: SettingsData;
 };
 

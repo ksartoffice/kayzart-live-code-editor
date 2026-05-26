@@ -44,6 +44,7 @@ class Frontend {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_css' ), 999 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_js' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'dequeue_theme_assets_for_standalone' ), 9999 );
+		add_action( 'wp_head', array( Custom_Head::class, 'render_current_post_head' ), 20 );
 		add_filter( 'the_content', array( __CLASS__, 'filter_content' ), 20 );
 		add_filter( 'template_include', array( __CLASS__, 'maybe_override_template' ), 20 );
 		add_filter( 'body_class', array( __CLASS__, 'filter_body_class' ) );

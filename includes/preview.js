@@ -1,5 +1,8 @@
 (function () {
   const styleId = 'kayzart-style';
+  const customHeadId = 'kayzart-custom-head';
+  const customHeadStartMarker = 'kayzart-custom-head-start';
+  const customHeadEndMarker = 'kayzart-custom-head-end';
   const scriptId = 'kayzart-script';
   const externalScriptAttr = 'data-kayzart-external-script';
   const externalStyleAttr = 'data-kayzart-external-style';
@@ -482,6 +485,63 @@
     }
   }
 
+  function ensureCustomHeadMarker() {
+    const root = document.head || document.documentElement;
+    if (!root) return null;
+    let marker = root.querySelector('#' + customHeadId);
+    if (!marker) {
+      marker = document.createElement('template');
+      marker.id = customHeadId;
+      root.appendChild(marker);
+    }
+    return marker;
+  }
+
+  function setCustomHead(html) {
+    const root = document.head || document.documentElement;
+    if (!root) return;
+    const oldNodes = root.querySelectorAll('[data-kayzart-custom-head]');
+    oldNodes.forEach((node) => node.remove());
+    removeServerCustomHead(root);
+    const marker = ensureCustomHeadMarker();
+    const wrapper = document.createElement('template');
+    wrapper.innerHTML = String(html || '');
+    Array.prototype.slice.call(wrapper.content.childNodes).forEach((node) => {
+      let nextNode = node;
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === 'script') {
+        const script = document.createElement('script');
+        Array.prototype.forEach.call(node.attributes, (attr) => {
+          script.setAttribute(attr.name, attr.value);
+        });
+        script.text = node.text || node.textContent || '';
+        nextNode = script;
+      }
+      if (nextNode.nodeType === Node.ELEMENT_NODE) {
+        nextNode.setAttribute('data-kayzart-custom-head', '1');
+      }
+      root.insertBefore(nextNode, marker);
+    });
+  }
+
+  function removeServerCustomHead(root) {
+    let removing = false;
+    Array.prototype.slice.call(root.childNodes).forEach((node) => {
+      if (node.nodeType === Node.COMMENT_NODE && String(node.nodeValue || '').trim() === customHeadStartMarker) {
+        removing = true;
+        node.remove();
+        return;
+      }
+      if (node.nodeType === Node.COMMENT_NODE && String(node.nodeValue || '').trim() === customHeadEndMarker) {
+        removing = false;
+        node.remove();
+        return;
+      }
+      if (removing) {
+        node.remove();
+      }
+    });
+  }
+
   function normalizeJsMode(mode) {
     const value = String(mode || '').trim().toLowerCase();
     if (value === 'module') {
@@ -857,7 +917,7 @@
       if (findMarkers()) {
         pendingRenderPayload = null;
         clearMarkerRetryTimer();
-        render(next.html, next.css, next.bodyAttrs, next.hasBody, next.templateMode);
+        render(next.html, next.css, next.customHead, next.bodyAttrs, next.hasBody, next.templateMode);
         return;
       }
       if (Date.now() - markerRetryStartedAt >= markerRetryMaxWaitMs) {
@@ -870,11 +930,12 @@
     }, markerRetryDelayMs);
   }
 
-  function render(html, css, bodyAttrs, hasBody, templateMode) {
+  function render(html, css, customHead, bodyAttrs, hasBody, templateMode) {
     if (!findMarkers()) {
       pendingRenderPayload = {
         html: html || '',
         css: css || '',
+        customHead: customHead || '',
         bodyAttrs: bodyAttrs || {},
         hasBody: Boolean(hasBody),
         templateMode: templateMode || 'standalone',
@@ -887,6 +948,7 @@
 
     replaceEditableContent(html);
     applyBodyAttrs(bodyAttrs, hasBody, templateMode);
+    setCustomHead(customHead);
     clearHighlight();
     clearSelection();
     const styleEl = ensureStyleElement();
@@ -939,6 +1001,7 @@
       render(
         data.canonicalHTML,
         data.cssText,
+        data.customHead,
         data.bodyAttrs || {},
         Boolean(data.hasBody),
         data.templateMode || 'standalone'

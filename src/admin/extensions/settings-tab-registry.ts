@@ -51,6 +51,7 @@ export type SelectedElementContext = {
 
 export type EditorSnapshot = {
   html: string;
+  customHead?: string;
   css: string;
   js: string;
   jsMode: 'classic' | 'module';

@@ -2,13 +2,15 @@ import type { EditorShellRefs } from '../editor-shell';
 import type { CodeEditorInstance } from '../codemirror';
 
 type EditorInstance = CodeEditorInstance;
+type HtmlTab = 'html' | 'customHead';
 type CssTab = 'css' | 'js';
-type CompactEditorTab = 'html' | 'css' | 'js';
+type CompactEditorTab = 'html' | 'customHead' | 'css' | 'js';
 
 type EditorUiControllerDeps = {
   ui: EditorShellRefs;
   canEditJs: boolean;
   htmlEditor: EditorInstance;
+  customHeadEditor: EditorInstance;
   cssEditor: EditorInstance;
   jsEditor: EditorInstance;
   compactEditorBreakpoint: number;
@@ -22,6 +24,7 @@ type EditorUiControllerDeps = {
 
 export function createEditorUiController(deps: EditorUiControllerDeps) {
   let activeEditor: EditorInstance | null = null;
+  let activeHtmlTab: HtmlTab = 'html';
   let activeCssTab: CssTab = 'css';
   let compactEditorMode = false;
   let compactEditorTab: CompactEditorTab = 'html';
@@ -31,10 +34,17 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     const isHtmlTab = compactEditorTab === 'html';
     const isJsTab = compactEditorTab === 'js';
     deps.ui.compactHtmlTab.classList.toggle('is-active', compactEditorTab === 'html');
+    deps.ui.compactCustomHeadTab.classList.toggle('is-active', compactEditorTab === 'customHead');
     deps.ui.compactCssTab.classList.toggle('is-active', compactEditorTab === 'css');
     deps.ui.compactJsTab.classList.toggle('is-active', compactEditorTab === 'js');
-    deps.ui.htmlPane.classList.toggle('is-compact-visible', compactEditorTab === 'html');
-    deps.ui.cssPane.classList.toggle('is-compact-visible', compactEditorTab !== 'html');
+    deps.ui.htmlPane.classList.toggle(
+      'is-compact-visible',
+      compactEditorTab === 'html' || compactEditorTab === 'customHead'
+    );
+    deps.ui.cssPane.classList.toggle(
+      'is-compact-visible',
+      compactEditorTab !== 'html' && compactEditorTab !== 'customHead'
+    );
     deps.ui.compactAddMediaButton.style.display = isHtmlTab ? '' : 'none';
     deps.ui.compactJsModeSelect.style.display = isJsTab && deps.canEditJs ? '' : 'none';
     deps.ui.compactRunButton.style.display = isJsTab && deps.canEditJs ? '' : 'none';
@@ -66,10 +76,41 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.htmlPane.classList.toggle('is-active', pane === deps.ui.htmlPane);
     deps.ui.cssPane.classList.toggle('is-active', pane === deps.ui.cssPane);
     if (compactEditorMode) {
-      compactEditorTab = pane === deps.ui.htmlPane ? 'html' : activeCssTab === 'js' ? 'js' : 'css';
+      compactEditorTab = pane === deps.ui.htmlPane ? activeHtmlTab : activeCssTab === 'js' ? 'js' : 'css';
       syncCompactEditorUi();
     }
     deps.onActiveEditorChange?.(editorInstance);
+  };
+
+  const setHtmlTab = (
+    tab: HtmlTab,
+    options: { focus?: boolean; syncCompactTab?: boolean } = {}
+  ) => {
+    activeHtmlTab = tab;
+    deps.ui.htmlTab.classList.toggle('is-active', tab === 'html');
+    deps.ui.customHeadTab.classList.toggle('is-active', tab === 'customHead');
+    deps.ui.htmlEditorDiv.classList.toggle('is-active', tab === 'html');
+    deps.ui.customHeadEditorDiv.parentElement?.classList.toggle('is-active', tab === 'customHead');
+    deps.ui.addMediaButton.style.display = tab === 'html' ? '' : 'none';
+    deps.ui.htmlWordWrapButton.style.display = tab === 'html' ? '' : 'none';
+    if (compactEditorMode && options.syncCompactTab !== false) {
+      compactEditorTab = tab;
+      syncCompactEditorUi();
+    }
+    if (!editorsReady) {
+      return;
+    }
+    if (tab === 'customHead') {
+      setActiveEditor(deps.customHeadEditor, deps.ui.htmlPane);
+      if (options.focus !== false) {
+        deps.customHeadEditor.focus();
+      }
+      return;
+    }
+    setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
+    if (options.focus !== false) {
+      deps.htmlEditor.focus();
+    }
   };
 
   const setCssTab = (
@@ -114,10 +155,11 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
       return;
     }
     if (nextTab === 'html') {
-      setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
-      if (options.focus !== false) {
-        deps.htmlEditor.focus();
-      }
+      setHtmlTab('html', { focus: options.focus, syncCompactTab: false });
+      return;
+    }
+    if (nextTab === 'customHead') {
+      setHtmlTab('customHead', { focus: options.focus, syncCompactTab: false });
       return;
     }
     setCssTab(nextTab, { focus: options.focus, syncCompactTab: false });
@@ -140,14 +182,22 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
       deps.ui.cssPane.style.flex = '';
       deps.ui.cssPane.style.height = '';
       const nextTab: CompactEditorTab =
-        activeEditor === deps.htmlEditor ? 'html' : activeCssTab === 'js' ? 'js' : 'css';
+        activeEditor === deps.htmlEditor || activeEditor === deps.customHeadEditor
+          ? activeHtmlTab
+          : activeCssTab === 'js'
+            ? 'js'
+            : 'css';
       setCompactEditorTab(nextTab, { focus: false });
       return;
     }
     deps.ui.htmlPane.classList.remove('is-compact-visible');
     deps.ui.cssPane.classList.remove('is-compact-visible');
     if (activeEditor === deps.htmlEditor) {
-      setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
+      setHtmlTab('html', { focus: false, syncCompactTab: false });
+      return;
+    }
+    if (activeEditor === deps.customHeadEditor) {
+      setHtmlTab('customHead', { focus: false, syncCompactTab: false });
       return;
     }
     setCssTab(activeCssTab, { focus: false, syncCompactTab: false });
@@ -157,7 +207,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     if (compactEditorMode) {
       setCompactEditorTab('html', { focus: false });
     }
-    setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
+    setHtmlTab('html', { focus: false });
     deps.htmlEditor.focus();
   };
 
@@ -199,12 +249,16 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
   };
 
   const initialize = () => {
-    setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
+    setHtmlTab('html', { focus: false });
     deps.ui.htmlPane.addEventListener('click', (event) => {
       if (isEditorWidgetClick(event) || isInteractiveControlClick(event)) {
         return;
       }
-      deps.htmlEditor.focus();
+      if (activeHtmlTab === 'customHead') {
+        deps.customHeadEditor.focus();
+      } else {
+        deps.htmlEditor.focus();
+      }
     });
     deps.ui.cssPane.addEventListener('click', (event) => {
       if (isEditorWidgetClick(event) || isInteractiveControlClick(event)) {
@@ -221,15 +275,25 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
         setCompactEditorTab('html', { focus: false });
         return;
       }
-      setActiveEditor(deps.htmlEditor, deps.ui.htmlPane);
+      setHtmlTab('html', { focus: false });
+    });
+    deps.customHeadEditor.onDidFocusEditorText(() => {
+      if (compactEditorMode) {
+        setCompactEditorTab('customHead', { focus: false });
+        return;
+      }
+      setHtmlTab('customHead', { focus: false });
     });
     deps.cssEditor.onDidFocusEditorText(() => setCssTab('css', { focus: false }));
     deps.jsEditor.onDidFocusEditorText(() => setCssTab('js', { focus: false }));
     deps.ui.addMediaButton.addEventListener('click', deps.onOpenMedia);
     deps.ui.compactAddMediaButton.addEventListener('click', deps.onOpenMedia);
+    deps.ui.htmlTab.addEventListener('click', () => setHtmlTab('html', { focus: true }));
+    deps.ui.customHeadTab.addEventListener('click', () => setHtmlTab('customHead', { focus: true }));
     deps.ui.cssTab.addEventListener('click', () => setCssTab('css', { focus: true }));
     deps.ui.jsTab.addEventListener('click', () => setCssTab('js', { focus: true }));
     deps.ui.compactHtmlTab.addEventListener('click', () => setCompactEditorTab('html', { focus: true }));
+    deps.ui.compactCustomHeadTab.addEventListener('click', () => setCompactEditorTab('customHead', { focus: true }));
     deps.ui.compactCssTab.addEventListener('click', () => setCompactEditorTab('css', { focus: true }));
     deps.ui.compactJsTab.addEventListener('click', () => setCompactEditorTab('js', { focus: true }));
     deps.ui.runButton.addEventListener('click', () => {
@@ -248,8 +312,10 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
   return {
     initialize,
     getActiveEditor: () => activeEditor,
+    getActiveHtmlTab: () => activeHtmlTab,
     getActiveCssTab: () => activeCssTab,
     isCompactEditorMode: () => compactEditorMode,
+    setHtmlTab,
     setCssTab,
     setCompactEditorTab,
     updateCompactEditorMode,

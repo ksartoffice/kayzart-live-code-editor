@@ -33,6 +33,8 @@ class Rest_Save {
 		$html_parts       = Html_Document::split_editor_html( $html );
 		$content_html     = (string) $html_parts['content'];
 		$body_attrs       = (string) $html_parts['body_attrs'];
+		$has_custom_head  = $request->has_param( 'customHead' );
+		$custom_head      = $has_custom_head ? (string) $request->get_param( 'customHead' ) : Custom_Head::get_for_post( $post_id );
 		$css_input        = self::sanitize_css_input( (string) $request->get_param( 'css' ) );
 		$js_input         = (string) $request->get_param( 'js' );
 		$has_js           = $request->has_param( 'js' );
@@ -170,6 +172,7 @@ class Rest_Save {
 		} else {
 			delete_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY );
 		}
+		$custom_head_result = Custom_Head::save( $post_id, $custom_head );
 		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
 		if ( $has_js ) {
 			update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
@@ -205,8 +208,10 @@ class Rest_Save {
 
 		return new \WP_REST_Response(
 			array(
-				'ok'       => true,
-				'settings' => Rest_Settings::build_settings_payload( $post_id ),
+				'ok'                    => true,
+				'customHead'            => $custom_head_result['html'],
+				'customHeadRemovedTags' => $custom_head_result['removed'],
+				'settings'              => Rest_Settings::build_settings_payload( $post_id ),
 			),
 			200
 		);

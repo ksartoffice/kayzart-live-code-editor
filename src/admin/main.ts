@@ -94,8 +94,8 @@ const saveHtmlWordWrapMode = (mode: HtmlWordWrapMode) => {
   }
 };
 
-const computeEditorBaseHash = (html: string, css: string, js: string) => {
-  const source = `${html}\n\u0000${css}\n\u0000${js}`;
+const computeEditorBaseHash = (html: string, customHead: string, css: string, js: string) => {
+  const source = `${html}\n\u0000${customHead}\n\u0000${css}\n\u0000${js}`;
   let hash = 0x811c9dc5;
   for (let i = 0; i < source.length; i += 1) {
     hash ^= source.charCodeAt(i);
@@ -290,9 +290,11 @@ async function main() {
 
   let codemirror: CodeMirrorType;
   let htmlModel: EditorModel;
+  let customHeadModel: EditorModel;
   let cssModel: EditorModel;
   let jsModel: EditorModel;
   let htmlEditor: CodeEditorInstance;
+  let customHeadEditor: CodeEditorInstance;
   let cssEditor: CodeEditorInstance;
   let jsEditor: CodeEditorInstance;
   let tailwindCss = '';
@@ -329,6 +331,7 @@ async function main() {
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let htmlChangeHighlightIds: string[] = [];
+  let customHeadChangeHighlightIds: string[] = [];
   let cssChangeHighlightIds: string[] = [];
   let jsChangeHighlightIds: string[] = [];
   let suppressChangeHighlightClear = 0;
@@ -435,6 +438,7 @@ async function main() {
     postId,
     canEditJs,
     getHtmlModel: () => htmlModel,
+    getCustomHeadModel: () => customHeadModel,
     getCssModel: () => cssModel,
     getJsModel: () => jsModel,
     getJsMode: () => jsMode,
@@ -460,9 +464,12 @@ async function main() {
     noticeErrorMs: NOTICE_ERROR_DURATION_MS,
     uiDirtyTargets: {
       htmlTitle: ui.htmlTitle,
+      htmlTab: ui.htmlTab,
+      customHeadTab: ui.customHeadTab,
       cssTab: ui.cssTab,
       jsTab: ui.jsTab,
       compactHtmlTab: ui.compactHtmlTab,
+      compactCustomHeadTab: ui.compactCustomHeadTab,
       compactCssTab: ui.compactCssTab,
       compactJsTab: ui.compactJsTab,
     },
@@ -821,6 +828,7 @@ async function main() {
   // CodeMirror
   const codeMirrorSetup = await initCodeMirrorEditors({
     initialHtml: initialState.initialHtml,
+    initialCustomHead: initialState.initialCustomHead,
     initialCss: initialState.initialCss,
     initialJs: initialState.initialJs,
     htmlWordWrap: htmlWordWrapMode,
@@ -828,14 +836,16 @@ async function main() {
     useTailwindDefault: true,
     canEditJs,
     htmlContainer: ui.htmlEditorDiv,
+    customHeadContainer: ui.customHeadEditorDiv,
     cssContainer: ui.cssEditorDiv,
     jsContainer: ui.jsEditorDiv,
     onHtmlPaste: handleFullHtmlPaste,
   });
 
-  ({ codemirror, htmlModel, cssModel, jsModel, htmlEditor, cssEditor, jsEditor } = codeMirrorSetup);
+  ({ codemirror, htmlModel, customHeadModel, cssModel, jsModel, htmlEditor, customHeadEditor, cssEditor, jsEditor } = codeMirrorSetup);
 
   registerSaveShortcut(htmlEditor);
+  registerSaveShortcut(customHeadEditor);
   registerSaveShortcut(cssEditor);
   registerSaveShortcut(jsEditor);
   registerHtmlWordWrapAction(htmlEditor);
@@ -1037,6 +1047,7 @@ async function main() {
     ui,
     canEditJs,
     htmlEditor,
+    customHeadEditor,
     cssEditor,
     jsEditor,
     compactEditorBreakpoint: COMPACT_EDITOR_BREAKPOINT,
@@ -1065,12 +1076,14 @@ async function main() {
     postId,
     targetOrigin,
     htmlModel,
+    customHeadModel,
     cssModel,
     jsModel,
     htmlEditor,
     cssEditor,
     focusHtmlEditor,
     getPreviewCss,
+    getCustomHead: () => customHeadModel.getValue(),
     getLiveHighlightEnabled: () => liveHighlightEnabled,
     getJsEnabled: () => jsEnabled,
     getJsMode: () => jsMode,
@@ -1194,20 +1207,23 @@ async function main() {
   const setEditorLock = (locked: boolean) => {
     extensionEditorLock = locked;
     htmlEditor.setLocked(locked);
+    customHeadEditor.setLocked(locked);
     cssEditor.setLocked(locked);
     jsEditor.setLocked(locked);
   };
 
   const getEditorSnapshot = (): EditorSnapshot => {
     const html = htmlModel.getValue();
+    const customHead = customHeadModel.getValue();
     const css = cssModel.getValue();
     const js = jsModel.getValue();
     return {
       html,
+      customHead,
       css,
       js,
       jsMode,
-      baseHash: computeEditorBaseHash(html, css, js),
+      baseHash: computeEditorBaseHash(html, customHead, css, js),
     };
   };
 
@@ -1256,6 +1272,10 @@ async function main() {
     htmlChangeHighlightIds = htmlModel.deltaDecorations(htmlChangeHighlightIds, []);
   };
 
+  const clearCustomHeadChangeHighlights = () => {
+    customHeadChangeHighlightIds = customHeadModel.deltaDecorations(customHeadChangeHighlightIds, []);
+  };
+
   const clearCssChangeHighlights = () => {
     cssChangeHighlightIds = cssModel.deltaDecorations(cssChangeHighlightIds, []);
   };
@@ -1266,6 +1286,7 @@ async function main() {
 
   const clearSnapshotChangeHighlights = () => {
     clearHtmlChangeHighlights();
+    clearCustomHeadChangeHighlights();
     clearCssChangeHighlights();
     clearJsChangeHighlights();
   };
@@ -1278,15 +1299,18 @@ async function main() {
     const highlightChanges = Boolean(options?.highlightChanges);
     if (highlightChanges) {
       const nextHtml = snapshot.html ?? '';
+      const nextCustomHead = snapshot.customHead ?? customHeadModel.getValue();
       const nextCss = snapshot.css ?? '';
       const nextJs = snapshot.js ?? '';
       const htmlChanges = computeSnapshotLineChanges(htmlModel.getValue(), nextHtml);
+      const customHeadChanges = computeSnapshotLineChanges(customHeadModel.getValue(), nextCustomHead);
       const cssChanges = computeSnapshotLineChanges(cssModel.getValue(), nextCss);
       const jsChanges = computeSnapshotLineChanges(jsModel.getValue(), nextJs);
 
       suppressChangeHighlightClear += 1;
       try {
         replaceModelContent(htmlModel, nextHtml);
+        replaceModelContent(customHeadModel, nextCustomHead);
         replaceModelContent(cssModel, nextCss);
         replaceModelContent(jsModel, nextJs);
 
@@ -1294,6 +1318,11 @@ async function main() {
           htmlModel,
           htmlChangeHighlightIds,
           htmlChanges
+        );
+        customHeadChangeHighlightIds = applySnapshotChangeHighlight(
+          customHeadModel,
+          customHeadChangeHighlightIds,
+          customHeadChanges
         );
         cssChangeHighlightIds = applySnapshotChangeHighlight(
           cssModel,
@@ -1311,6 +1340,7 @@ async function main() {
     } else {
       clearSnapshotChangeHighlights();
       replaceModelContent(htmlModel, snapshot.html ?? '');
+      replaceModelContent(customHeadModel, snapshot.customHead ?? customHeadModel.getValue());
       replaceModelContent(cssModel, snapshot.css ?? '');
       replaceModelContent(jsModel, snapshot.js ?? '');
     }
@@ -1443,6 +1473,14 @@ async function main() {
       notifySelection();
     }
     notifyContentChange();
+    syncUnsavedUi();
+  });
+  customHeadModel.onDidChangeContent(() => {
+    if (suppressChangeHighlightClear === 0) {
+      clearCustomHeadChangeHighlights();
+    }
+    sendRenderDebounced?.();
+    updateUndoRedoState();
     syncUnsavedUi();
   });
   cssModel.onDidChangeContent(() => {

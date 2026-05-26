@@ -116,6 +116,7 @@ type SaveParams = {
   restUrl: string;
   postId: number;
   html: string;
+  customHead: string;
   css: string;
   tailwindEnabled: boolean;
   canEditJs: boolean;
@@ -126,11 +127,12 @@ type SaveParams = {
 
 export async function saveKayzArt(
   params: SaveParams
-): Promise<{ ok: boolean; error?: string; settings?: SettingsData }> {
+): Promise<{ ok: boolean; error?: string; customHead?: string; customHeadRemovedTags?: string[]; settings?: SettingsData }> {
   try {
     const payload: Record<string, unknown> = {
       post_id: params.postId,
       html: params.html,
+      customHead: params.customHead,
       css: params.css,
       tailwindEnabled: params.tailwindEnabled,
     };
@@ -152,7 +154,11 @@ export async function saveKayzArt(
         res?.settings && typeof res.settings === 'object'
           ? (res.settings as SettingsData)
           : undefined;
-      return { ok: true, settings };
+      const customHead = typeof res?.customHead === 'string' ? res.customHead : undefined;
+      const customHeadRemovedTags = Array.isArray(res?.customHeadRemovedTags)
+        ? res.customHeadRemovedTags.filter((tag): tag is string => typeof tag === 'string')
+        : undefined;
+      return { ok: true, customHead, customHeadRemovedTags, settings };
     }
     if (typeof res?.error === 'string' && res.error.trim()) {
       return { ok: false, error: res.error };

@@ -8,6 +8,7 @@
 use KayzArt\External_Scripts;
 use KayzArt\External_Styles;
 use KayzArt\Admin;
+use KayzArt\Custom_Head;
 use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 use KayzArt\Rest_Settings;
@@ -320,6 +321,33 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assert_settings_payload_keys( $settings );
 		$this->assertSame( 'standalone', $settings['defaultTemplateMode'] ?? null );
 		$this->assertArrayNotHasKey( 'authors', $settings, 'Authors should not be returned.' );
+	}
+
+	public function test_save_updates_custom_head_and_reports_removed_tags(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<p>Hello</p>',
+				'customHead'      => '<title>Nope</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><base href="/"><meta property="og:title" content="OK"><script type="application/ld+json">{"@type":"Thing"}</script>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertSame( '<meta property="og:title" content="OK"><script type="application/ld+json">{"@type":"Thing"}</script>', $data['customHead'] ?? '' );
+		$this->assertSame(
+			array( 'title', 'base', 'meta charset', 'meta viewport' ),
+			$data['customHeadRemovedTags'] ?? array()
+		);
+		$this->assertSame( (string) ( $data['customHead'] ?? '' ), get_post_meta( $post_id, Custom_Head::META_KEY, true ) );
 	}
 
 	public function test_build_settings_payload_preserves_explicit_theme_default(): void {

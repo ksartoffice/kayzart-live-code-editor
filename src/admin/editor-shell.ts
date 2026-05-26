@@ -9,6 +9,7 @@ type EditorShellRefs = {
   compactEditorTabs: HTMLDivElement;
   compactEditorActions: HTMLDivElement;
   compactHtmlTab: HTMLButtonElement;
+  compactCustomHeadTab: HTMLButtonElement;
   compactCssTab: HTMLButtonElement;
   compactJsTab: HTMLButtonElement;
   compactJsModeSelect: HTMLSelectElement;
@@ -16,9 +17,13 @@ type EditorShellRefs = {
   compactRunButton: HTMLButtonElement;
   htmlHeader: HTMLDivElement;
   htmlTitle: HTMLSpanElement;
+  htmlTab: HTMLButtonElement;
+  customHeadTab: HTMLButtonElement;
   addMediaButton: HTMLButtonElement;
   htmlWordWrapButton: HTMLButtonElement;
   htmlEditorDiv: HTMLDivElement;
+  customHeadEditorDiv: HTMLDivElement;
+  customHeadHelp: HTMLDivElement;
   cssEditorDiv: HTMLDivElement;
   jsEditorDiv: HTMLDivElement;
   htmlPane: HTMLDivElement;
@@ -129,12 +134,16 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   compactCssTab.type = 'button';
   compactCssTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
   compactCssTab.textContent = __( 'CSS', 'kayzart-live-code-editor');
+  const compactCustomHeadTab = document.createElement('button');
+  compactCustomHeadTab.type = 'button';
+  compactCustomHeadTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
+  compactCustomHeadTab.textContent = __( 'カスタムhead', 'kayzart-live-code-editor');
   const compactJsTab = document.createElement('button');
   compactJsTab.type = 'button';
   compactJsTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
   compactJsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
   const compactJsModeSelect = createJsModeSelect('kayzart-formSelect kayzart-jsModeSelect kayzart-compactJsModeSelect');
-  compactEditorTabsList.append(compactHtmlTab, compactCssTab, compactJsTab);
+  compactEditorTabsList.append(compactHtmlTab, compactCustomHeadTab, compactCssTab, compactJsTab);
   const compactAddMediaButton = createCompactActionButton(
     'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-media',
     __( 'Add Media', 'kayzart-live-code-editor'),
@@ -154,8 +163,18 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
 
   const htmlPane = el('div', 'kayzart-editorPane kayzart-editorPane-html is-active');
   const htmlHeader = el('div', 'kayzart-editorHeader kayzart-editorHeader-tabs');
+  const htmlTabs = el('div', 'kayzart-editorTabs');
   const htmlTitle = el('span', 'kayzart-editorTitle');
   htmlTitle.textContent = __( 'HTML', 'kayzart-live-code-editor');
+  const htmlTab = document.createElement('button');
+  htmlTab.type = 'button';
+  htmlTab.className = 'kayzart-editorTab is-active';
+  htmlTab.textContent = __( 'HTML', 'kayzart-live-code-editor');
+  const customHeadTab = document.createElement('button');
+  customHeadTab.type = 'button';
+  customHeadTab.className = 'kayzart-editorTab';
+  customHeadTab.textContent = __( 'カスタムhead', 'kayzart-live-code-editor');
+  htmlTabs.append(htmlTab, customHeadTab);
   const htmlActions = el('div', 'kayzart-editorActions');
   const addMediaButton = document.createElement('button');
   addMediaButton.type = 'button';
@@ -167,10 +186,18 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
   htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
   htmlActions.append(addMediaButton, htmlWordWrapButton);
-  htmlHeader.append(htmlTitle, htmlActions);
-  const htmlWrap = el('div', 'kayzart-editorWrap');
-  const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html');
-  htmlWrap.append(htmlEditorDiv);
+  htmlHeader.append(htmlTabs, htmlActions);
+  const htmlWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
+  const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html is-active');
+  const customHeadPanel = el('div', 'kayzart-editor kayzart-editor-customHead');
+  const customHeadHelp = el('div', 'kayzart-customHeadHelp');
+  customHeadHelp.textContent = __(
+    'head内に追加するコードを入力します。\n外部CSS、Google Fonts、OGP、構造化データなどに使用できます。\n※ <title>、<meta charset>、viewport、<base> は使用できません。',
+    'kayzart-live-code-editor'
+  );
+  const customHeadEditorDiv = el('div', 'kayzart-customHeadEditor');
+  customHeadPanel.append(customHeadHelp, customHeadEditorDiv);
+  htmlWrap.append(htmlEditorDiv, customHeadPanel);
   htmlPane.append(htmlHeader, htmlWrap);
 
   const cssPane = el('div', 'kayzart-editorPane kayzart-editorPane-css');
@@ -229,6 +256,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactEditorTabs,
     compactEditorActions,
     compactHtmlTab,
+    compactCustomHeadTab,
     compactCssTab,
     compactJsTab,
     compactJsModeSelect,
@@ -236,9 +264,13 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactRunButton,
     htmlHeader,
     htmlTitle,
+    htmlTab,
+    customHeadTab,
     addMediaButton,
     htmlWordWrapButton,
     htmlEditorDiv,
+    customHeadEditorDiv,
+    customHeadHelp,
     cssEditorDiv,
     jsEditorDiv,
     htmlPane,

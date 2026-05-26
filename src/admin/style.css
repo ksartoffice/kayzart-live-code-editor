@@ -859,6 +859,27 @@ body.admin_page_kayzart #wpbody-content {
   height: 100%;
 }
 
+.kayzart-editor-customHead.is-active {
+  display: flex;
+  flex-direction: column;
+}
+
+.kayzart-customHeadHelp {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2b2f38;
+  background: #151922;
+  color: #c4cbd6;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.kayzart-customHeadEditor {
+  flex: 1;
+  min-height: 0;
+}
+
 .kayzart-editor .cm-editor {
   height: 100%;
   position: relative;

@@ -46,12 +46,14 @@ type PreviewControllerDeps = {
   postId: number;
   targetOrigin: string;
   htmlModel: EditorModel;
+  customHeadModel: EditorModel;
   cssModel: EditorModel;
   jsModel: EditorModel;
   htmlEditor: CodeEditorInstance;
   cssEditor: CodeEditorInstance;
   focusHtmlEditor: () => void;
   getPreviewCss: () => string;
+  getCustomHead: () => string;
   getLiveHighlightEnabled: () => boolean;
   getJsEnabled: () => boolean;
   getJsMode: () => JsMode;
@@ -300,6 +302,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     const payload = {
       type: 'KAYZART_RENDER',
       cssText: deps.getPreviewCss(),
+      customHead: typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '',
       liveHighlightEnabled: deps.getLiveHighlightEnabled(),
       bodyAttrs: canonical.bodyAttrs,
       hasBody: canonical.hasBody,

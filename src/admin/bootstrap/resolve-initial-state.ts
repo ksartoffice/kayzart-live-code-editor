@@ -5,6 +5,7 @@ import { normalizeJsMode } from '../types/js-mode';
 
 export type ResolvedInitialState = {
   initialHtml: string;
+  initialCustomHead: string;
   initialCss: string;
   initialJs: string;
   initialJsMode: JsMode;
@@ -15,6 +16,7 @@ export type ResolvedInitialState = {
 export function resolveInitialState(cfg: AppConfig, tailwindEnabled?: boolean): ResolvedInitialState {
   return {
     initialHtml: cfg.initialHtml ?? '',
+    initialCustomHead: cfg.initialCustomHead ?? '',
     initialCss: cfg.initialCss ?? '',
     initialJs: cfg.initialJs ?? '',
     initialJsMode: normalizeJsMode(cfg.initialJsMode),

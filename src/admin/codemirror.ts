@@ -164,15 +164,18 @@ export type CodeMirrorType = {
 export type CodeMirrorSetup = {
   codemirror: CodeMirrorType;
   htmlModel: EditorModel;
+  customHeadModel: EditorModel;
   cssModel: EditorModel;
   jsModel: EditorModel;
   htmlEditor: CodeEditorInstance;
+  customHeadEditor: CodeEditorInstance;
   cssEditor: CodeEditorInstance;
   jsEditor: CodeEditorInstance;
 };
 
 type CodeMirrorInitOptions = {
   initialHtml: string;
+  initialCustomHead: string;
   initialCss: string;
   initialJs: string;
   htmlWordWrap: WordWrapMode;
@@ -180,6 +183,7 @@ type CodeMirrorInitOptions = {
   useTailwindDefault: boolean;
   canEditJs: boolean;
   htmlContainer: HTMLElement;
+  customHeadContainer: HTMLElement;
   cssContainer: HTMLElement;
   jsContainer: HTMLElement;
   onHtmlPaste?: (text: string) => boolean;
@@ -927,6 +931,14 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
     wordWrap: options.htmlWordWrap,
   });
 
+  const customHeadWrapper = createEditorWrapper({
+    parent: options.customHeadContainer,
+    initialValue: options.initialCustomHead ?? '',
+    language: htmlLanguage(),
+    emmet: EmmetKnownSyntax.html,
+    htmlIntellisense: true,
+  });
+
   const cssWrapper = createEditorWrapper({
     parent: options.cssContainer,
     initialValue: initialCss ?? '',
@@ -955,9 +967,11 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
       },
     },
     htmlModel: htmlWrapper.model,
+    customHeadModel: customHeadWrapper.model,
     cssModel: cssWrapper.model,
     jsModel: jsWrapper.model,
     htmlEditor: htmlWrapper.editor,
+    customHeadEditor: customHeadWrapper.editor,
     cssEditor: cssWrapper.editor,
     jsEditor: jsWrapper.editor,
   };

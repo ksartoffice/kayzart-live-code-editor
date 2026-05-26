@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Frontend;
+use KayzArt\Custom_Head;
 use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 
@@ -267,6 +268,45 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertContains( 'lp', $classes );
 		$this->assertContains( 'custom', $classes );
 		$this->assertNotContains( 'data-page', $classes );
+	}
+
+	public function test_wp_head_outputs_custom_head_for_kayzart_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, Custom_Head::META_KEY, '<meta property="og:title" content="KayzArt"><title>Nope</title>' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		ob_start();
+		Custom_Head::render_current_post_head();
+		$output = (string) ob_get_clean();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( '<meta property="og:title" content="KayzArt">', $output );
+		$this->assertStringNotContainsString( '<title>', $output );
+	}
+
+	public function test_preview_query_outputs_custom_head_for_target_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+
+		update_post_meta( $post_id, Custom_Head::META_KEY, '<meta name="description" content="Preview">' );
+
+		global $wp_query;
+		$original_wp_query = $wp_query ?? null;
+		$wp_query          = new WP_Query();
+		$wp_query->set( 'kayzart_preview', '1' );
+		$wp_query->set( 'post_id', (string) $post_id );
+
+		ob_start();
+		Custom_Head::render_current_post_head();
+		$output = (string) ob_get_clean();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( '<meta name="description" content="Preview">', $output );
 	}
 
 	private function create_kayzart_post( int $author_id, string $status ): int {

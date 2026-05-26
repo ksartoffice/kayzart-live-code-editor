@@ -4,6 +4,7 @@ import type { JsMode } from './js-mode';
 export type AppConfig = {
   post_id: number;
   initialHtml: string;
+  initialCustomHead?: string;
   initialCss: string;
   initialJs: string;
   initialJsMode?: JsMode;

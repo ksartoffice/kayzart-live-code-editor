@@ -1,14 +1,16 @@
 import { __, sprintf } from '@wordpress/i18n';
 import { saveKayzArt } from '../persistence';
+import { sanitizeCustomHeadInput } from '../logic/custom-head';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
-import type { EditorModel } from '../codemirror';
+import { EditorRange, type EditorModel } from '../codemirror';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
 type UnsavedFlags = {
   html: boolean;
+  customHead: boolean;
   css: boolean;
   js: boolean;
   settings: boolean;
@@ -21,6 +23,7 @@ type SaveCopyControllerDeps = {
   postId: number;
   canEditJs: boolean;
   getHtmlModel: () => EditorModel | undefined;
+  getCustomHeadModel: () => EditorModel | undefined;
   getCssModel: () => EditorModel | undefined;
   getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
@@ -47,9 +50,12 @@ type SaveCopyControllerDeps = {
   noticeErrorMs: number;
   uiDirtyTargets: {
     htmlTitle: HTMLElement;
+    htmlTab: HTMLElement;
+    customHeadTab: HTMLElement;
     cssTab: HTMLElement;
     jsTab: HTMLElement;
     compactHtmlTab: HTMLElement;
+    compactCustomHeadTab: HTMLElement;
     compactCssTab: HTMLElement;
     compactJsTab: HTMLElement;
   };
@@ -57,8 +63,8 @@ type SaveCopyControllerDeps = {
   onSaveSuccess?: () => void;
 };
 
-function buildCopyAllText(html: string, css: string, js: string, jsMode: JsMode): string {
-  return `--- HTML ---\n${html}\n\n--- CSS ---\n${css}\n\n--- JavaScript (${jsMode}) ---\n${js}`;
+function buildCopyAllText(html: string, customHead: string, css: string, js: string, jsMode: JsMode): string {
+  return `--- HTML ---\n${html}\n\n--- カスタムhead ---\n${customHead}\n\n--- CSS ---\n${css}\n\n--- JavaScript (${jsMode}) ---\n${js}`;
 }
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -89,11 +95,30 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
+function replaceModelContent(model: EditorModel, nextText: string) {
+  const current = model.getValue();
+  if (current === nextText) {
+    return;
+  }
+  const end = model.getPositionAt(current.length);
+  model.pushEditOperations(
+    [],
+    [
+      {
+        range: new EditorRange(1, 1, end.lineNumber, end.column),
+        text: nextText,
+      },
+    ],
+    () => null
+  );
+}
+
 export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
   let hasUnsavedChanges = false;
-  let lastSaved: { html: string; css: string; js: string; jsMode: JsMode } = {
+  let lastSaved: { html: string; customHead: string; css: string; js: string; jsMode: JsMode } = {
     html: '',
+    customHead: '',
     css: '',
     js: '',
     jsMode: deps.getJsMode(),
@@ -101,12 +126,14 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
   const getUnsavedFlags = (): UnsavedFlags => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
     const { hasUnsavedSettings } = deps.getPendingSettingsState();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       return {
         html: false,
+        customHead: false,
         css: false,
         js: false,
         settings: hasUnsavedSettings,
@@ -114,24 +141,29 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       };
     }
     const htmlDirty = htmlModel.getValue() !== lastSaved.html;
+    const customHeadDirty = customHeadModel.getValue() !== lastSaved.customHead;
     const cssDirty = cssModel.getValue() !== lastSaved.css;
     const jsDirty = jsModel.getValue() !== lastSaved.js;
     const jsModeDirty = deps.getJsMode() !== lastSaved.jsMode;
     return {
       html: htmlDirty,
+      customHead: customHeadDirty,
       css: cssDirty,
       js: jsDirty || jsModeDirty,
       settings: hasUnsavedSettings,
-      hasAny: htmlDirty || cssDirty || jsDirty || jsModeDirty || hasUnsavedSettings,
+      hasAny: htmlDirty || customHeadDirty || cssDirty || jsDirty || jsModeDirty || hasUnsavedSettings,
     };
   };
 
   const syncUnsavedUi = () => {
-    const { html, css, js, hasAny } = getUnsavedFlags();
+    const { html, customHead, css, js, hasAny } = getUnsavedFlags();
     deps.uiDirtyTargets.htmlTitle.classList.toggle('has-unsaved', html);
+    deps.uiDirtyTargets.htmlTab.classList.toggle('has-unsaved', html);
+    deps.uiDirtyTargets.customHeadTab.classList.toggle('has-unsaved', customHead);
     deps.uiDirtyTargets.cssTab.classList.toggle('has-unsaved', css);
     deps.uiDirtyTargets.jsTab.classList.toggle('has-unsaved', js);
     deps.uiDirtyTargets.compactHtmlTab.classList.toggle('has-unsaved', html);
+    deps.uiDirtyTargets.compactCustomHeadTab.classList.toggle('has-unsaved', customHead);
     deps.uiDirtyTargets.compactCssTab.classList.toggle('has-unsaved', css);
     deps.uiDirtyTargets.compactJsTab.classList.toggle('has-unsaved', js);
     if (hasAny !== hasUnsavedChanges) {
@@ -142,13 +174,15 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
   const markSavedState = () => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       return;
     }
     lastSaved = {
       html: htmlModel.getValue(),
+      customHead: customHeadModel.getValue(),
       css: cssModel.getValue(),
       js: jsModel.getValue(),
       jsMode: deps.getJsMode(),
@@ -158,9 +192,10 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
   const handleCopyAll = async () => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       deps.createSnackbar(
         'error',
         __('Copy failed.', 'kayzart-live-code-editor'),
@@ -172,6 +207,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
     const text = buildCopyAllText(
       htmlModel.getValue(),
+      customHeadModel.getValue(),
       cssModel.getValue(),
       jsModel.getValue(),
       deps.getJsMode()
@@ -197,9 +233,10 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
   const handleSave = async (): Promise<{ ok: boolean; error?: string }> => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       return { ok: false, error: __('Save failed.', 'kayzart-live-code-editor') };
     }
     if (!getUnsavedFlags().hasAny) {
@@ -223,12 +260,28 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     const settingsUpdates = hasUnsavedSettings ? { ...pendingSettingsUpdates } : undefined;
     saveInFlight = (async () => {
       deps.createSnackbar('info', __('Saving...', 'kayzart-live-code-editor'), deps.noticeIds.save);
+      const customHeadSanitized = sanitizeCustomHeadInput(customHeadModel.getValue());
+      if (customHeadSanitized.html !== customHeadModel.getValue()) {
+        replaceModelContent(customHeadModel, customHeadSanitized.html);
+      }
+      if (customHeadSanitized.removedTags.length > 0) {
+        deps.createSnackbar(
+          'warning',
+          sprintf(
+            __('Removed unsupported custom head tags: %s', 'kayzart-live-code-editor'),
+            customHeadSanitized.removedTags.join(', ')
+          ),
+          deps.noticeIds.save,
+          deps.noticeErrorMs
+        );
+      }
 
       const result = await saveKayzArt({
         apiFetch: deps.apiFetch,
         restUrl: deps.restUrl,
         postId: deps.postId,
         html: htmlModel.getValue(),
+        customHead: customHeadModel.getValue(),
         css: cssModel.getValue(),
         tailwindEnabled: deps.getTailwindEnabled(),
         canEditJs: deps.canEditJs,
@@ -238,6 +291,20 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       });
 
       if (result.ok) {
+        if (typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
+          replaceModelContent(customHeadModel, result.customHead);
+        }
+        if (Array.isArray(result.customHeadRemovedTags) && result.customHeadRemovedTags.length > 0) {
+          deps.createSnackbar(
+            'warning',
+            sprintf(
+              __('Removed unsupported custom head tags: %s', 'kayzart-live-code-editor'),
+              result.customHeadRemovedTags.join(', ')
+            ),
+            deps.noticeIds.save,
+            deps.noticeErrorMs
+          );
+        }
         if (result.settings) {
           deps.applySavedSettings(result.settings, Boolean(settingsUpdates));
           deps.applySettingsToSidebar(result.settings);

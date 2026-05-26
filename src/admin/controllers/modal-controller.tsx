@@ -1,4 +1,4 @@
-import { createElement, Fragment, createRoot, render } from '@wordpress/element';
+import { createElement, Fragment, createRoot, render, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import {
   resolveDefaultTemplateMode,
@@ -6,7 +6,11 @@ import {
   type DefaultTemplateMode,
   type TemplateMode,
 } from '../logic/template-mode';
-import type { FullHtmlImportResult } from '../logic/full-html-import';
+import {
+  createFullHtmlImportSelection,
+  type FullHtmlImportResult,
+  type FullHtmlImportSelection,
+} from '../logic/full-html-import';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 
@@ -41,12 +45,20 @@ type MissingMarkersModalProps = {
   onConfirm: () => void;
 };
 
-export type FullHtmlImportAction = 'split' | 'keep' | 'cancel';
+export type FullHtmlImportDecision =
+  | { type: 'split'; selection: FullHtmlImportSelection }
+  | { type: 'keep' }
+  | { type: 'cancel' };
+
+type FullHtmlImportSelectableItem = keyof FullHtmlImportSelection;
+
+export type FullHtmlImportAvailability = Record<FullHtmlImportSelectableItem, boolean>;
 
 type FullHtmlImportModalProps = {
   result: FullHtmlImportResult;
   canEditJs: boolean;
-  onChoose: (action: FullHtmlImportAction) => void;
+  availability: FullHtmlImportAvailability;
+  onChoose: (action: FullHtmlImportDecision) => void;
 };
 
 function MissingMarkersModal({
@@ -81,20 +93,52 @@ function MissingMarkersModal({
   );
 }
 
-function FullHtmlImportModal({ result, canEditJs, onChoose }: FullHtmlImportModalProps) {
+function FullHtmlImportModal({
+  result,
+  canEditJs,
+  availability,
+  onChoose,
+}: FullHtmlImportModalProps) {
   const title = __('Complete HTML detected', 'kayzart-live-code-editor');
   const cancelLabel = __('Cancel', 'kayzart-live-code-editor');
-  const summary = [
-    __('HTML: body content will be extracted', 'kayzart-live-code-editor'),
-    `${__('CSS: style tags', 'kayzart-live-code-editor')} ${result.summary.styleCount}`,
-    `${__('JS: inline script tags', 'kayzart-live-code-editor')} ${
-      canEditJs ? result.summary.inlineScriptCount : 0
-    }`,
-    `${__('External CSS', 'kayzart-live-code-editor')} ${result.summary.externalStyleCount}`,
-    `${__('External JS', 'kayzart-live-code-editor')} ${
-      canEditJs ? result.summary.externalScriptCount : 0
-    }`,
-  ];
+  const [selection, setSelection] = useState(createFullHtmlImportSelection());
+  const toggleSelection = (key: FullHtmlImportSelectableItem, replace: boolean) => {
+    setSelection((current) => ({ ...current, [key]: replace }));
+  };
+  const items = [
+    {
+      key: 'html' as const,
+      label: __('HTML', 'kayzart-live-code-editor'),
+      detail: __('body content and body attributes', 'kayzart-live-code-editor'),
+      detected: Boolean(result.html.trim() || result.bodyAttrs.trim()),
+    },
+    {
+      key: 'css' as const,
+      label: __('CSS', 'kayzart-live-code-editor'),
+      detail: `${__('style tags', 'kayzart-live-code-editor')} ${result.summary.styleCount}`,
+      detected: Boolean(result.css.trim()),
+    },
+    {
+      key: 'js' as const,
+      label: __('JS', 'kayzart-live-code-editor'),
+      detail: `${__('inline script tags', 'kayzart-live-code-editor')} ${
+        canEditJs ? result.summary.inlineScriptCount : 0
+      }`,
+      detected: canEditJs && Boolean(result.js.trim()),
+    },
+    {
+      key: 'externalStyles' as const,
+      label: __('External CSS', 'kayzart-live-code-editor'),
+      detail: String(result.summary.externalStyleCount),
+      detected: result.externalStyles.length > 0,
+    },
+    {
+      key: 'externalScripts' as const,
+      label: __('External JS', 'kayzart-live-code-editor'),
+      detail: String(canEditJs ? result.summary.externalScriptCount : 0),
+      detected: canEditJs && result.externalScripts.length > 0,
+    },
+  ].filter((item) => item.detected);
 
   return (
     <div className="kayzart-modal">
@@ -106,7 +150,7 @@ function FullHtmlImportModal({ result, canEditJs, onChoose }: FullHtmlImportModa
             type="button"
             className="kayzart-modalClose"
             aria-label={cancelLabel}
-            onClick={() => onChoose('cancel')}
+            onClick={() => onChoose({ type: 'cancel' })}
           >
             ×
           </button>
@@ -115,7 +159,7 @@ function FullHtmlImportModal({ result, canEditJs, onChoose }: FullHtmlImportModa
           <div className="kayzart-hintBody">
             <p className="kayzart-hintText">
               {__(
-                'The pasted code looks like a complete HTML document. KayzArt can split body HTML, style tags, and inline scripts into the matching editors. External CSS will stay at the top of HTML, and external JS will stay at the bottom.',
+                'The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content.',
                 'kayzart-live-code-editor'
               )}
             </p>
@@ -127,32 +171,71 @@ function FullHtmlImportModal({ result, canEditJs, onChoose }: FullHtmlImportModa
                 )}
               </p>
             ) : null}
-            <ul className="kayzart-importSummary">
-              {summary.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+            <div className="kayzart-importOptions">
+              {items.map((item) => {
+                const canChoose = availability[item.key];
+                const replace = selection[item.key];
+                return (
+                  <div className="kayzart-importOption" key={item.key}>
+                    <div className="kayzart-importOptionText">
+                      <span className="kayzart-importOptionLabel">{item.label}</span>
+                      <span className="kayzart-importOptionDetail">{item.detail}</span>
+                    </div>
+                    {canChoose ? (
+                      <div
+                        className="kayzart-importOptionChoices"
+                        role="radiogroup"
+                        aria-label={item.label}
+                      >
+                        <label>
+                          <input
+                            type="radio"
+                            name={`kayzart-import-${item.key}`}
+                            checked={replace}
+                            onChange={() => toggleSelection(item.key, true)}
+                          />
+                          {__('Replace', 'kayzart-live-code-editor')}
+                        </label>
+                        <label>
+                          <input
+                            type="radio"
+                            name={`kayzart-import-${item.key}`}
+                            checked={!replace}
+                            onChange={() => toggleSelection(item.key, false)}
+                          />
+                          {__('Skip', 'kayzart-live-code-editor')}
+                        </label>
+                      </div>
+                    ) : (
+                      <span className="kayzart-importOptionForced">
+                        {__('Replace', 'kayzart-live-code-editor')}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
         <div className="kayzart-modalActions">
           <button
             type="button"
             className="kayzart-btn kayzart-btn-secondary"
-            onClick={() => onChoose('cancel')}
+            onClick={() => onChoose({ type: 'cancel' })}
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             className="kayzart-btn kayzart-btn-secondary"
-            onClick={() => onChoose('keep')}
+            onClick={() => onChoose({ type: 'keep' })}
           >
             {__('Paste as HTML', 'kayzart-live-code-editor')}
           </button>
           <button
             type="button"
             className="kayzart-btn kayzart-btn-primary"
-            onClick={() => onChoose('split')}
+            onClick={() => onChoose({ type: 'split', selection })}
           >
             {__('Split and import', 'kayzart-live-code-editor')}
           </button>
@@ -177,7 +260,8 @@ export function createModalController(deps: ModalControllerDeps) {
   let missingMarkersInFlight = false;
   let fullHtmlImportResult: FullHtmlImportResult | null = null;
   let fullHtmlImportCanEditJs = true;
-  let fullHtmlImportResolver: ((action: FullHtmlImportAction) => void) | null = null;
+  let fullHtmlImportAvailability: FullHtmlImportAvailability = createFullHtmlImportSelection();
+  let fullHtmlImportResolver: ((action: FullHtmlImportDecision) => void) | null = null;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
 
@@ -228,6 +312,7 @@ export function createModalController(deps: ModalControllerDeps) {
           <FullHtmlImportModal
             result={fullHtmlImportResult}
             canEditJs={fullHtmlImportCanEditJs}
+            availability={fullHtmlImportAvailability}
             onChoose={closeFullHtmlImportModal}
           />
         ) : null}
@@ -247,7 +332,7 @@ export function createModalController(deps: ModalControllerDeps) {
     unmountIfIdle();
   };
 
-  function closeFullHtmlImportModal(action: FullHtmlImportAction) {
+  function closeFullHtmlImportModal(action: FullHtmlImportDecision) {
     const resolver = fullHtmlImportResolver;
     fullHtmlImportResolver = null;
     fullHtmlImportResult = null;
@@ -353,14 +438,16 @@ export function createModalController(deps: ModalControllerDeps) {
 
   const confirmFullHtmlImport = (
     result: FullHtmlImportResult,
-    canEditJs: boolean
-  ): Promise<FullHtmlImportAction> => {
+    canEditJs: boolean,
+    availability: FullHtmlImportAvailability
+  ): Promise<FullHtmlImportDecision> => {
     if (fullHtmlImportResolver) {
-      closeFullHtmlImportModal('cancel');
+      closeFullHtmlImportModal({ type: 'cancel' });
     }
     ensureMounted();
     fullHtmlImportResult = result;
     fullHtmlImportCanEditJs = canEditJs;
+    fullHtmlImportAvailability = availability;
     renderModals();
     return new Promise((resolve) => {
       fullHtmlImportResolver = resolve;

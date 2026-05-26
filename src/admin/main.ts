@@ -26,11 +26,12 @@ import { buildStatusUpdates } from './logic/status-updates';
 import {
   buildImportedHtml,
   parseFullHtmlDocument,
+  type FullHtmlImportSelection,
   type FullHtmlImportResult,
 } from './logic/full-html-import';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
-import { createModalController } from './controllers/modal-controller';
+import { createModalController, type FullHtmlImportAvailability } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
 import {
@@ -760,48 +761,34 @@ async function main() {
     );
   };
 
-  const appendImportedBlock = (
-    model: EditorModel,
-    text: string,
-    header: string,
-    commentStyle: 'css' | 'js'
-  ) => {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      return;
-    }
-    const current = model.getValue();
-    const headerText = commentStyle === 'css' ? `/* ${header} */` : `// ${header}`;
-    const prefix = current.trim() ? '\n\n' : '';
-    const insertion = `${prefix}${headerText}\n${trimmed}`;
-    const end = model.getPositionAt(current.length);
-    model.pushEditOperations(
-      [],
-      [
-        {
-          range: new codemirror.Range(end.lineNumber, end.column, end.lineNumber, end.column),
-          text: insertion,
-        },
-      ],
-      () => null
-    );
-  };
+  const shouldReplaceImportedHtml = (
+    result: FullHtmlImportResult,
+    selection: FullHtmlImportSelection
+  ) =>
+    (selection.externalStyles && result.externalStyles.length > 0) ||
+    (selection.html && Boolean(result.html.trim() || result.bodyAttrs.trim())) ||
+    (selection.externalScripts && canEditJs && result.externalScripts.length > 0);
 
-  const applyFullHtmlImport = (result: FullHtmlImportResult) => {
-    replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs));
-    appendImportedBlock(
-      cssModel,
-      result.css,
-      __('CSS imported from pasted HTML', 'kayzart-live-code-editor'),
-      'css'
-    );
-    if (canEditJs) {
-      appendImportedBlock(
-        jsModel,
-        result.js,
-        __('JavaScript imported from pasted HTML', 'kayzart-live-code-editor'),
-        'js'
-      );
+  const getFullHtmlImportAvailability = (): FullHtmlImportAvailability => ({
+    html: Boolean(htmlModel.getValue().trim()),
+    css: Boolean(cssModel.getValue().trim()),
+    js: Boolean(jsModel.getValue().trim()),
+    externalStyles: Boolean(htmlModel.getValue().trim()),
+    externalScripts: Boolean(htmlModel.getValue().trim()),
+  });
+
+  const applyFullHtmlImport = (
+    result: FullHtmlImportResult,
+    selection: FullHtmlImportSelection
+  ) => {
+    if (shouldReplaceImportedHtml(result, selection)) {
+      replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs, selection));
+    }
+    if (selection.css && result.css.trim()) {
+      replaceWholeModelContent(cssModel, result.css.trim());
+    }
+    if (selection.js && canEditJs && result.js.trim()) {
+      replaceWholeModelContent(jsModel, result.js.trim());
     }
   };
 
@@ -812,12 +799,16 @@ async function main() {
     }
 
     void (async () => {
-      const action = await modalController?.confirmFullHtmlImport(result, canEditJs);
-      if (action === 'split') {
-        applyFullHtmlImport(result);
+      const action = await modalController?.confirmFullHtmlImport(
+        result,
+        canEditJs,
+        getFullHtmlImportAvailability()
+      );
+      if (action?.type === 'split') {
+        applyFullHtmlImport(result, action.selection);
         return;
       }
-      if (action === 'keep') {
+      if (action?.type === 'keep') {
         insertHtmlAtSelection(text);
       }
     })();

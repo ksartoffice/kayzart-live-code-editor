@@ -1471,6 +1471,59 @@ body.admin_page_kayzart #wpbody-content {
   margin-top: 4px;
 }
 
+.kayzart-importOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #2b3340;
+  border-radius: 6px;
+  background: #11141a;
+}
+
+.kayzart-importOption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  color: #c9cdd6;
+  font-size: 12px;
+}
+
+.kayzart-importOptionText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kayzart-importOptionLabel {
+  color: #e6e8ea;
+  font-weight: 600;
+}
+
+.kayzart-importOptionDetail {
+  color: #9aa1ab;
+}
+
+.kayzart-importOptionChoices {
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.kayzart-importOptionChoices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kayzart-importOptionForced {
+  color: #9aa1ab;
+  white-space: nowrap;
+}
+
 .kayzart-modalForm {
   display: flex;
   flex-direction: column;

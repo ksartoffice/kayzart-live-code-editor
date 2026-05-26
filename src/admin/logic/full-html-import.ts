@@ -16,6 +16,25 @@ export type FullHtmlImportResult = {
   };
 };
 
+export type FullHtmlImportSelection = {
+  html: boolean;
+  css: boolean;
+  js: boolean;
+  externalStyles: boolean;
+  externalScripts: boolean;
+};
+
+export const createFullHtmlImportSelection = (
+  overrides: Partial<FullHtmlImportSelection> = {}
+): FullHtmlImportSelection => ({
+  html: true,
+  css: true,
+  js: true,
+  externalStyles: true,
+  externalScripts: true,
+  ...overrides,
+});
+
 type ElementNode = DefaultTreeAdapterTypes.Element;
 type Node = DefaultTreeAdapterTypes.Node;
 
@@ -187,19 +206,23 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   };
 }
 
-export function buildImportedHtml(result: FullHtmlImportResult, canEditJs: boolean): string {
+export function buildImportedHtml(
+  result: FullHtmlImportResult,
+  canEditJs: boolean,
+  selection: FullHtmlImportSelection = createFullHtmlImportSelection()
+): string {
   const parts: string[] = [];
-  if (result.externalStyles.length) {
+  if (selection.externalStyles && result.externalStyles.length) {
     parts.push(
       ['<!-- External stylesheets from pasted HTML -->', ...result.externalStyles].join('\n')
     );
   }
   const html = result.html.trim();
   const bodyAttrs = result.bodyAttrs.trim();
-  if (html || bodyAttrs) {
+  if (selection.html && (html || bodyAttrs)) {
     parts.push(bodyAttrs ? `<body ${bodyAttrs}>\n${html}\n</body>` : html);
   }
-  if (canEditJs && result.externalScripts.length) {
+  if (selection.externalScripts && canEditJs && result.externalScripts.length) {
     parts.push(['<!-- External scripts from pasted HTML -->', ...result.externalScripts].join('\n'));
   }
   return parts.join('\n\n');

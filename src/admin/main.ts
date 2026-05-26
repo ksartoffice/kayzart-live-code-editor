@@ -36,7 +36,7 @@ import {
 } from './types/external-resource';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
-import { createModalController, type FullHtmlImportAvailability } from './controllers/modal-controller';
+import { createModalController } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
 import {
@@ -762,20 +762,6 @@ async function main() {
     );
   };
 
-  const shouldReplaceImportedHtml = (
-    result: FullHtmlImportResult,
-    selection: FullHtmlImportSelection
-  ) =>
-    selection.html && Boolean(result.html.trim() || result.bodyAttrs.trim());
-
-  const getFullHtmlImportAvailability = (): FullHtmlImportAvailability => ({
-    html: Boolean(htmlModel.getValue().trim()),
-    css: Boolean(cssModel.getValue().trim()),
-    js: Boolean(jsModel.getValue().trim()),
-    externalStyles: true,
-    externalScripts: true,
-  });
-
   const limitImportedResources = (
     resources: ExternalResource[],
     max: number,
@@ -803,16 +789,16 @@ async function main() {
     result: FullHtmlImportResult,
     selection: FullHtmlImportSelection
   ) => {
-    if (shouldReplaceImportedHtml(result, selection)) {
+    if (selection.html) {
       replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs, selection));
     }
-    if (selection.css && result.css.trim()) {
+    if (selection.css) {
       replaceWholeModelContent(cssModel, result.css.trim());
     }
-    if (selection.js && canEditJs && result.js.trim()) {
+    if (selection.js && canEditJs) {
       replaceWholeModelContent(jsModel, result.js.trim());
     }
-    if (selection.externalStyles && result.externalStyles.length) {
+    if (selection.externalStyles) {
       const nextStyles = limitImportedResources(
         result.externalStyles,
         initialState.settingsData.externalStylesMax,
@@ -822,7 +808,7 @@ async function main() {
       settingsApi?.setExternalStyles(nextStyles);
       preview?.sendExternalStyles(nextStyles);
     }
-    if (selection.externalScripts && canEditJs && result.externalScripts.length) {
+    if (selection.externalScripts && canEditJs) {
       const nextScripts = limitImportedResources(
         result.externalScripts,
         initialState.settingsData.externalScriptsMax,
@@ -843,8 +829,7 @@ async function main() {
     void (async () => {
       const action = await modalController?.confirmFullHtmlImport(
         result,
-        canEditJs,
-        getFullHtmlImportAvailability()
+        canEditJs
       );
       if (action?.type === 'split') {
         applyFullHtmlImport(result, action.selection);

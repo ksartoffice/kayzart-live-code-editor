@@ -195,7 +195,7 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
   };
 
-  document.childNodes.forEach(visitExtractable);
+  body.childNodes.forEach(visitExtractable);
 
   head?.childNodes.forEach((child) => {
     if (!isElement(child)) {
@@ -213,10 +213,12 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
 
     const tagName = child.tagName.toLowerCase();
-    const isExtractedStyle = tagName === 'style';
-    const isInlineScript =
-      tagName === 'script' && !getAttr(child, 'src') && !isJsonLdScript(child);
-    if (isExtractedStyle || isInlineScript) {
+    if (tagName === 'style') {
+      const css = getTextContent(child).trim();
+      if (css) {
+        cssParts.push(css);
+      }
+      styleCount += 1;
       return;
     }
 

@@ -77,7 +77,8 @@ describe('full html import logic', () => {
     expect(result).not.toBeNull();
     expect(result?.customHead).toBe(`<meta property="og:title" content="Hello">
 <meta name="description" content="Landing page">
-<script type="application/ld+json">{"@type":"Thing"}</script>`);
+<script type="application/ld+json">{"@type":"Thing"}</script>
+<script>console.log('head inline');</script>`);
     expect(result?.removedHeadTags).toEqual([
       'title',
       'meta charset',
@@ -85,7 +86,7 @@ describe('full html import logic', () => {
       'base',
     ]);
     expect(result?.css).toBe('.hero { color: red; }');
-    expect(result?.js).toBe("console.log('head inline');");
+    expect(result?.js).toBe('');
     expect(result?.js).not.toContain('Thing');
   });
 

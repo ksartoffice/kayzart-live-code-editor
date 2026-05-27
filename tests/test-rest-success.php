@@ -392,6 +392,29 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 'class="lp" data-page="x"', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
 	}
 
+	public function test_save_allows_only_safe_body_attrs_for_all_users(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$post_id   = $this->create_kayzart_post( $author_id );
+
+		wp_set_current_user( $author_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<body class="lp" data-page="x" aria-label="Page" onload="alert(1)" style="color:red"><main>Hi</main></body>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame(
+			'class="lp" data-page="x" aria-label="Page"',
+			get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true )
+		);
+	}
+
 	public function test_save_splits_body_from_full_html_document(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );

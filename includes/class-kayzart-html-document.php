@@ -26,7 +26,7 @@ class Html_Document {
 	 * @return string
 	 */
 	public static function build_editor_html( string $post_content, string $body_attrs ): string {
-		$body_attrs = self::normalize_attrs_string( $body_attrs );
+		$body_attrs = self::sanitize_body_attrs_string( $body_attrs );
 		if ( '' === $body_attrs ) {
 			return $post_content;
 		}
@@ -167,6 +167,8 @@ class Html_Document {
 			$attrs[ $name ] = (string) $attr->nodeValue;
 		}
 
+		$attrs = self::sanitize_body_attrs_array( $attrs );
+
 		return self::normalize_attrs_string( self::serialize_attrs_array_for_storage( $attrs ) );
 	}
 
@@ -222,7 +224,55 @@ class Html_Document {
 			}
 		}
 
-		return $parsed;
+		return self::sanitize_body_attrs_array( $parsed );
+	}
+
+	/**
+	 * Sanitize serialized body attributes.
+	 *
+	 * @param string $attrs Attribute string.
+	 * @return string
+	 */
+	private static function sanitize_body_attrs_string( string $attrs ): string {
+		$parsed = self::parse_attrs_string( $attrs );
+		if ( empty( $parsed ) ) {
+			return '';
+		}
+
+		return self::normalize_attrs_string( self::serialize_attrs_array_for_storage( $parsed ) );
+	}
+
+	/**
+	 * Keep only body attributes that are safe to persist and render.
+	 *
+	 * @param array<string,string> $attrs Attributes.
+	 * @return array<string,string>
+	 */
+	private static function sanitize_body_attrs_array( array $attrs ): array {
+		$allowed = array();
+		foreach ( $attrs as $name => $value ) {
+			$name = self::sanitize_attr_name( (string) $name );
+			if ( '' === $name || ! self::is_allowed_body_attr_name( $name ) ) {
+				continue;
+			}
+			$allowed[ $name ] = (string) $value;
+		}
+
+		return $allowed;
+	}
+
+	/**
+	 * Check whether a body attribute name is safe for all users.
+	 *
+	 * @param string $name Attribute name.
+	 * @return bool
+	 */
+	private static function is_allowed_body_attr_name( string $name ): bool {
+		if ( in_array( $name, array( 'class', 'id', 'lang', 'dir', 'role', 'title' ), true ) ) {
+			return true;
+		}
+
+		return 0 === strpos( $name, 'data-' ) || 0 === strpos( $name, 'aria-' );
 	}
 
 	/**

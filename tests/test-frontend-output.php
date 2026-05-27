@@ -312,7 +312,11 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 
 		$this->assertInstanceOf( WP_Post::class, $post );
 
-		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="lp custom" data-page="x"' );
+		update_post_meta(
+			$post_id,
+			Html_Document::BODY_ATTRS_META_KEY,
+			'class="lp custom" data-page="x" aria-label="Page" onload="alert(1)" style="color:red"'
+		);
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
 		$attrs             = Html_Document::build_standalone_body_attributes( $post_id, 'kayzart-layout-standalone' );
 		$this->restore_query( $original_wp_query );
@@ -322,6 +326,9 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'lp', $attrs );
 		$this->assertStringContainsString( 'custom', $attrs );
 		$this->assertStringContainsString( 'data-page="x"', $attrs );
+		$this->assertStringContainsString( 'aria-label="Page"', $attrs );
+		$this->assertStringNotContainsString( 'onload', $attrs );
+		$this->assertStringNotContainsString( 'style', $attrs );
 	}
 
 	public function test_theme_body_class_adds_only_stored_classes(): void {

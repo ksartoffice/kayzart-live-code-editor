@@ -9,7 +9,7 @@ Overview
 
 Editor UI
 ---------
-- Toolbar: Back, Undo/Redo, title/status controls, preview visibility, viewport presets, save, Copy All, settings, and front-end view links.
+- Toolbar: Back, Undo/Redo, title/status controls, preview visibility, viewport presets, save, settings, and front-end view links.
 - Settings tab: page template, external resources, and display settings.
 - Elements tab: selected element text/attribute editing.
 
@@ -18,10 +18,6 @@ Preview
 - Preview requests use `?kayzart_preview=1&post_id=...&token=...`.
 - `kayzart_template_mode` can override the template mode during preview.
 - Theme mode requires the active theme template to output `the_content`; otherwise the editor prompts to switch to standalone.
-
-Copy All
---------
-- Copy All copies the current HTML, CSS, and JavaScript editor contents to the clipboard as three labeled text blocks.
 
 Front-End Output
 ----------------

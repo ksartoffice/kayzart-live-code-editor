@@ -11,23 +11,8 @@ vi.mock('../../../../src/admin/persistence', async () => {
 });
 
 describe('save copy controller', () => {
-  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
-  const originalExecCommand = document.execCommand;
-
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    if (originalClipboard) {
-      Object.defineProperty(navigator, 'clipboard', originalClipboard);
-    } else {
-      Object.defineProperty(navigator, 'clipboard', {
-        configurable: true,
-        value: undefined,
-      });
-    }
-    document.execCommand = originalExecCommand;
   });
 
   const createController = (overrides: Record<string, unknown> = {}) => {
@@ -62,7 +47,7 @@ describe('save copy controller', () => {
       applySavedSettings: () => {},
       applySettingsToSidebar: () => {},
       createSnackbar,
-      noticeIds: { save: 'save', copy: 'copy' },
+      noticeIds: { save: 'save' },
       noticeSuccessMs: 3000,
       noticeErrorMs: 5000,
       uiDirtyTargets: {
@@ -96,63 +81,6 @@ describe('save copy controller', () => {
     expect(saveKayzArt).toHaveBeenCalledWith(
       expect.objectContaining({ jsMode: 'classic', tailwindEnabled: false })
     );
-  });
-
-  it('copies all editor content in four blocks', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText },
-    });
-
-    const { controller, createSnackbar } = createController();
-
-    await controller.handleCopyAll();
-
-    const expected = [
-      '--- HTML ---',
-      '<p>hello</p>',
-      '',
-      '--- \u30ab\u30b9\u30bf\u30e0head ---',
-      '<meta property="og:title" content="hello">',
-      '',
-      '--- CSS ---',
-      '.hello { color: red; }',
-      '',
-      '--- JavaScript (module) ---',
-      'console.log("hello");',
-    ].join('\n');
-    expect(writeText).toHaveBeenCalledWith(expected);
-    expect(createSnackbar).toHaveBeenCalledWith('success', 'Copied all code.', 'copy', 3000);
-  });
-
-  it('falls back to execCommand when clipboard api is unavailable', async () => {
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: undefined,
-    });
-    document.execCommand = vi.fn().mockReturnValue(true);
-
-    const { controller, createSnackbar } = createController();
-
-    await controller.handleCopyAll();
-
-    expect(document.execCommand).toHaveBeenCalledWith('copy');
-    expect(createSnackbar).toHaveBeenCalledWith('success', 'Copied all code.', 'copy', 3000);
-  });
-
-  it('shows an error when copy fails', async () => {
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
-    });
-    document.execCommand = vi.fn().mockReturnValue(false);
-
-    const { controller, createSnackbar } = createController();
-
-    await controller.handleCopyAll();
-
-    expect(createSnackbar).toHaveBeenCalledWith('error', 'Copy failed.', 'copy', 5000);
   });
 
   it('removes unsupported custom head tags before saving', async () => {

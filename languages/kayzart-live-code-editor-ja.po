@@ -485,10 +485,6 @@ msgid "Update"
 msgstr "更新"
 
 #: assets/dist/main.js:106
-msgid "Copy All"
-msgstr "すべてコピー"
-
-#: assets/dist/main.js:106
 msgid "Publish"
 msgstr "公開"
 
@@ -605,14 +601,6 @@ msgstr "保存しました。"
 #, js-format
 msgid "Save error: %s"
 msgstr "保存エラー: %s"
-
-#: assets/dist/main.js:125
-msgid "Copy failed."
-msgstr "コピーに失敗しました。"
-
-#: assets/dist/main.js:125
-msgid "Copied all code."
-msgstr "すべてのコードをコピーしました。"
 
 #: assets/dist/main.js:127
 msgid "Theme template unavailable"

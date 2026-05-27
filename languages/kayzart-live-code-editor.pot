@@ -482,10 +482,6 @@ msgid "Update"
 msgstr ""
 
 #: assets/dist/main.js:106
-msgid "Copy All"
-msgstr ""
-
-#: assets/dist/main.js:106
 msgid "Publish"
 msgstr ""
 
@@ -601,14 +597,6 @@ msgstr ""
 #: assets/dist/main.js:125
 #, js-format
 msgid "Save error: %s"
-msgstr ""
-
-#: assets/dist/main.js:125
-msgid "Copy failed."
-msgstr ""
-
-#: assets/dist/main.js:125
-msgid "Copied all code."
 msgstr ""
 
 #: assets/dist/main.js:127

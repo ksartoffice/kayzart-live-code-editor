@@ -10,7 +10,6 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
   ChevronLeft,
   ChevronDown,
-  Copy,
   ExternalLink,
   Monitor,
   PanelBottomClose,
@@ -57,7 +56,6 @@ type ToolbarHandlers = {
   onRedo: () => void;
   onToggleEditor: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
-  onCopyAll: () => void;
   onToggleSettings: () => void;
   onViewportChange: (mode: ViewportMode) => void;
   onUpdatePostIdentity: (payload: {
@@ -88,9 +86,6 @@ const ICONS = {
   }),
   save: renderLucideIcon(Save, {
     class: 'lucide lucide-save-icon lucide-save',
-  }),
-  copy: renderLucideIcon(Copy, {
-    class: 'lucide lucide-copy-icon lucide-copy',
   }),
   viewPost: renderLucideIcon(ExternalLink, {
     class: 'lucide lucide-external-link-icon lucide-external-link',
@@ -156,7 +151,6 @@ function Toolbar({
   onRedo,
   onToggleEditor,
   onSave,
-  onCopyAll,
   onToggleSettings,
   onViewportChange,
   onUpdatePostIdentity,
@@ -214,7 +208,6 @@ function Toolbar({
         : normalizedStatus === 'private'
           ? __( 'Update as private', 'kayzart-live-code-editor')
           : __( 'Update', 'kayzart-live-code-editor');
-  const copyAllLabel = __( 'Copy All', 'kayzart-live-code-editor');
   const statusActions = [
     { value: 'publish' as const, label: __( 'Publish', 'kayzart-live-code-editor') },
     { value: 'pending' as const, label: __( 'Move to review', 'kayzart-live-code-editor') },
@@ -629,15 +622,6 @@ function Toolbar({
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
           </button>
           {afterSettingsActions.map(renderExternalToolbarAction)}
-          <button
-            className="kayzart-btn kayzart-btn-copyAll"
-            type="button"
-            onClick={onCopyAll}
-            aria-label={copyAllLabel}
-            data-tooltip={copyAllLabel}
-          >
-            <IconLabel label={copyAllLabel} svg={ICONS.copy} />
-          </button>
         </div>
       </div>
     </Fragment>

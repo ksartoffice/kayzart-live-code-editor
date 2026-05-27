@@ -447,7 +447,6 @@ async function main() {
     createSnackbar,
     noticeIds: {
       save: NOTICE_IDS.save,
-      copy: NOTICE_IDS.copy,
     },
     noticeSuccessMs: NOTICE_SUCCESS_DURATION_MS,
     noticeErrorMs: NOTICE_ERROR_DURATION_MS,
@@ -473,10 +472,6 @@ async function main() {
       }
     },
   });
-
-  async function handleCopyAll() {
-    await saveCopyController?.handleCopyAll();
-  }
 
   async function handleSave(): Promise<{ ok: boolean; error?: string }> {
     if (!saveCopyController) {
@@ -640,7 +635,6 @@ async function main() {
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
       onSave: handleSave,
-      onCopyAll: handleCopyAll,
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),
       onUpdatePostIdentity: async ({ title, slug }) => {

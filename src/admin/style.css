@@ -1917,16 +1917,6 @@ body.admin_page_kayzart #wpbody-content {
 }
 
 @media (max-width: 1040px) {
-  .kayzart-btn-copyAll {
-    padding: 6px;
-    min-width: 32px;
-    justify-content: center;
-  }
-
-  .kayzart-btn-copyAll .kayzart-btnLabel {
-    display: none;
-  }
-
   .kayzart-splitButton-save .kayzart-splitButton-main {
     padding: 6px;
     min-width: 32px;

@@ -44,7 +44,6 @@ type SaveCopyControllerDeps = {
   ) => void;
   noticeIds: {
     save: string;
-    copy: string;
   };
   noticeSuccessMs: number;
   noticeErrorMs: number;
@@ -63,37 +62,6 @@ type SaveCopyControllerDeps = {
   onSaveSuccess?: () => void;
 };
 
-function buildCopyAllText(html: string, customHead: string, css: string, js: string, jsMode: JsMode): string {
-  return `--- HTML ---\n${html}\n\n--- カスタムhead ---\n${customHead}\n\n--- CSS ---\n${css}\n\n--- JavaScript (${jsMode}) ---\n${js}`;
-}
-
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // Fall back to the textarea copy path below.
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.setAttribute('readonly', 'readonly');
-  textarea.style.position = 'fixed';
-  textarea.style.left = '-9999px';
-  textarea.style.top = '0';
-  document.body.append(textarea);
-  textarea.focus();
-  textarea.select();
-  try {
-    return document.execCommand('copy');
-  } catch {
-    return false;
-  } finally {
-    textarea.remove();
-  }
-}
 
 function replaceModelContent(model: EditorModel, nextText: string) {
   const current = model.getValue();
@@ -190,46 +158,6 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     syncUnsavedUi();
   };
 
-  const handleCopyAll = async () => {
-    const htmlModel = deps.getHtmlModel();
-    const customHeadModel = deps.getCustomHeadModel();
-    const cssModel = deps.getCssModel();
-    const jsModel = deps.getJsModel();
-    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
-      deps.createSnackbar(
-        'error',
-        __('Copy failed.', 'kayzart-live-code-editor'),
-        deps.noticeIds.copy,
-        deps.noticeErrorMs
-      );
-      return;
-    }
-
-    const text = buildCopyAllText(
-      htmlModel.getValue(),
-      customHeadModel.getValue(),
-      cssModel.getValue(),
-      jsModel.getValue(),
-      deps.getJsMode()
-    );
-
-    if (await copyTextToClipboard(text)) {
-      deps.createSnackbar(
-        'success',
-        __('Copied all code.', 'kayzart-live-code-editor'),
-        deps.noticeIds.copy,
-        deps.noticeSuccessMs
-      );
-      return;
-    }
-
-    deps.createSnackbar(
-      'error',
-      __('Copy failed.', 'kayzart-live-code-editor'),
-      deps.noticeIds.copy,
-      deps.noticeErrorMs
-    );
-  };
 
   const handleSave = async (): Promise<{ ok: boolean; error?: string }> => {
     const htmlModel = deps.getHtmlModel();
@@ -353,6 +281,5 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     syncUnsavedUi,
     markSavedState,
     handleSave,
-    handleCopyAll,
   };
 }

@@ -25,7 +25,6 @@ Features:
 * Theme mode for rendering content inside the active theme template
 * Normal / TailwindCSS setup per landing page
 * JavaScript ES Module support with execution type switch (Classic / Module)
-* Copy All button for copying the current HTML/CSS/JS as labeled text blocks
 * Live edit highlight and real-time DOM selection
 * Optional trusted external scripts/styles (https only)
 

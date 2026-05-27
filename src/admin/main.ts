@@ -634,6 +634,11 @@ async function main() {
       onRedo: () => editorUiController?.getActiveEditor()?.trigger('toolbar', 'redo', null),
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
+      onRefreshPreview: () => {
+        if (basePreviewUrl) {
+          ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+        }
+      },
       onSave: handleSave,
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),

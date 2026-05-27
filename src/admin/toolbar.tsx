@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   PanelRight,
   Redo2,
+  RefreshCw,
   Save,
   Smartphone,
   Tablet,
@@ -55,6 +56,7 @@ type ToolbarHandlers = {
   onUndo: () => void;
   onRedo: () => void;
   onToggleEditor: () => void;
+  onRefreshPreview: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
   onToggleSettings: () => void;
   onViewportChange: (mode: ViewportMode) => void;
@@ -86,6 +88,9 @@ const ICONS = {
   }),
   save: renderLucideIcon(Save, {
     class: 'lucide lucide-save-icon lucide-save',
+  }),
+  refreshPreview: renderLucideIcon(RefreshCw, {
+    class: 'lucide lucide-refresh-cw-icon lucide-refresh-cw',
   }),
   viewPost: renderLucideIcon(ExternalLink, {
     class: 'lucide lucide-external-link-icon lucide-external-link',
@@ -150,6 +155,7 @@ function Toolbar({
   onUndo,
   onRedo,
   onToggleEditor,
+  onRefreshPreview,
   onSave,
   onToggleSettings,
   onViewportChange,
@@ -169,6 +175,7 @@ function Toolbar({
   const toggleLabel = editorCollapsed
     ? __( 'Show code', 'kayzart-live-code-editor')
     : __( 'Hide code', 'kayzart-live-code-editor');
+  const refreshPreviewLabel = __( 'Reload preview', 'kayzart-live-code-editor');
   const toggleIcon = compactEditorMode
     ? editorCollapsed
       ? ICONS.panelBottomClose
@@ -452,6 +459,15 @@ function Toolbar({
             data-tooltip={toggleLabel}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
+          </button>
+          <button
+            className="kayzart-btn kayzart-btn-icon"
+            type="button"
+            onClick={onRefreshPreview}
+            aria-label={refreshPreviewLabel}
+            data-tooltip={refreshPreviewLabel}
+          >
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.refreshPreview }} />
           </button>
         </div>
       </div>

@@ -28,6 +28,8 @@
   let elementsTabOpen = false;
   let markerNodes = null;
   let htmlScriptsReady = Promise.resolve();
+  let customHeadToken = 0;
+  let customHeadNodes = [];
   let jsRunToken = 0;
   let jsCleanupCallbacks = [];
   let activeModuleUrl = '';
@@ -491,20 +493,78 @@
   function setCustomHead(html) {
     const root = document.head || document.documentElement;
     if (!root) return Promise.resolve();
+    const token = ++customHeadToken;
+    customHeadNodes.forEach((node) => {
+      if (node && node.isConnected) {
+        node.remove();
+      }
+    });
+    customHeadNodes = [];
     const oldNodes = root.querySelectorAll('[data-kayzart-custom-head]');
     oldNodes.forEach((node) => node.remove());
     removeServerCustomHead(root);
     const marker = ensureCustomHeadMarker();
     const wrapper = document.createElement('template');
     wrapper.innerHTML = String(html || '');
-    const scriptsReady = reviveScripts(wrapper.content);
-    Array.prototype.slice.call(wrapper.content.childNodes).forEach((node) => {
+    return insertCustomHeadNodes(root, marker, wrapper.content, token);
+  }
+
+  function cloneExecutableScript(node) {
+    const script = document.createElement('script');
+    const hasAsyncAttr = node.hasAttribute('async');
+    Array.prototype.forEach.call(node.attributes, (attr) => {
+      script.setAttribute(attr.name, attr.value);
+    });
+    if (!hasAsyncAttr) {
+      script.async = false;
+    }
+    script.text = node.text || node.textContent || '';
+    script.setAttribute('data-kayzart-custom-head', '1');
+    return script;
+  }
+
+  function waitForScript(script) {
+    if (!script.src) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      script.addEventListener('load', resolve, { once: true });
+      script.addEventListener('error', resolve, { once: true });
+    });
+  }
+
+  async function insertCustomHeadNodes(root, marker, fragment, token) {
+    const nodes = Array.prototype.slice.call(fragment.childNodes);
+    const pendingAsyncScripts = [];
+    for (let index = 0; index < nodes.length; index += 1) {
+      if (token !== customHeadToken) {
+        return;
+      }
+      const sourceNode = nodes[index];
+      const isScript =
+        sourceNode.nodeType === Node.ELEMENT_NODE &&
+        String(sourceNode.tagName || '').toLowerCase() === 'script';
+      const node = isScript ? cloneExecutableScript(sourceNode) : sourceNode;
       if (node.nodeType === Node.ELEMENT_NODE) {
         node.setAttribute('data-kayzart-custom-head', '1');
       }
       root.insertBefore(node, marker);
-    });
-    return scriptsReady;
+      customHeadNodes.push(node);
+      if (!isScript || !node.src) {
+        continue;
+      }
+
+      const scriptReady = waitForScript(node);
+      if (sourceNode.hasAttribute('async')) {
+        pendingAsyncScripts.push(scriptReady);
+        continue;
+      }
+      await scriptReady;
+    }
+
+    if (pendingAsyncScripts.length) {
+      await Promise.all(pendingAsyncScripts);
+    }
   }
 
   function removeServerCustomHead(root) {
@@ -858,7 +918,7 @@
       pendingRenderPayload = {
         html: html || '',
         css: css || '',
-        customHead: customHead || '',
+        customHead: customHead,
         bodyAttrs: bodyAttrs || {},
         hasBody: Boolean(hasBody),
         templateMode: templateMode || 'standalone',
@@ -871,7 +931,8 @@
 
     const contentScriptsReady = replaceEditableContent(html);
     applyBodyAttrs(bodyAttrs, hasBody, templateMode);
-    const customHeadScriptsReady = setCustomHead(customHead);
+    const customHeadScriptsReady =
+      customHead !== undefined ? setCustomHead(customHead) : Promise.resolve();
     htmlScriptsReady = Promise.all([contentScriptsReady, customHeadScriptsReady]).then(() => undefined);
     clearHighlight();
     clearSelection();
@@ -930,7 +991,7 @@
       render(
         data.canonicalHTML,
         data.cssText,
-        data.customHead,
+        'customHead' in data ? data.customHead : undefined,
         data.bodyAttrs || {},
         Boolean(data.hasBody),
         data.templateMode || 'standalone'

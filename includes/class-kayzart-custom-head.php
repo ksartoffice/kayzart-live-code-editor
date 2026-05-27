@@ -115,6 +115,10 @@ class Custom_Head {
 			return;
 		}
 
+		if ( get_query_var( 'kayzart_preview' ) ) {
+			return;
+		}
+
 		$post_id = self::resolve_current_post_id();
 		if ( ! $post_id || ! Post_Type::is_kayzart_post( $post_id ) ) {
 			return;

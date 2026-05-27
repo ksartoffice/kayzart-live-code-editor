@@ -362,11 +362,11 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<title>', $output );
 	}
 
-	public function test_preview_query_outputs_custom_head_for_target_post(): void {
+	public function test_preview_query_suppresses_server_custom_head_output(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
-		update_post_meta( $post_id, Custom_Head::META_KEY, '<meta name="description" content="Preview">' );
+		update_post_meta( $post_id, Custom_Head::META_KEY, '<meta name="description" content="Preview"><script>alert("123");</script>' );
 
 		global $wp_query;
 		$original_wp_query = $wp_query ?? null;
@@ -379,7 +379,10 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$output = (string) ob_get_clean();
 		$this->restore_query( $original_wp_query );
 
-		$this->assertStringContainsString( '<meta name="description" content="Preview">', $output );
+		$this->assertSame( '', $output );
+		$this->assertStringNotContainsString( Custom_Head::START_MARKER, $output );
+		$this->assertStringNotContainsString( '<meta name="description" content="Preview">', $output );
+		$this->assertStringNotContainsString( '<script>alert("123");</script>', $output );
 	}
 
 	private function create_kayzart_post( int $author_id, string $status ): int {

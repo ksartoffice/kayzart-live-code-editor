@@ -234,6 +234,7 @@ msgstr "ランディングページ"
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
+#: assets/admin/editor-bridge.js:107 assets/admin/editor-bridge.js:149
 #: includes/class-kayzart-post-type.php:356
 msgid "Edit landing page"
 msgstr "ランディングページを編集"

@@ -232,6 +232,11 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let cssSelectionDecorations: string[] = [];
   let lastSelectedLcId: string | null = null;
   let elementsTabOpen = false;
+  let basePreviewHtml: string | null = null;
+  let basePreviewFetch: Promise<string> | null = null;
+  let embeddedCustomHead: string | null = null;
+  let expectingSrcdocLoad = false;
+  let currentBlobUrl: string | null = null;
 
   const getCanonical = () => {
     const html = deps.htmlModel.getValue();
@@ -269,6 +274,33 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     return previewWindow;
   };
 
+  const injectCustomHead = (html: string, customHead: string): string => {
+    const base = `<base href="${deps.targetOrigin}/">`;
+    let result = html.replace(/(<head(?:\s[^>]*)?>\s*)/i, `$1${base}\n`);
+    result = result.replace(/<\/head>/i, `${customHead}\n</head>`);
+    return result;
+  };
+
+  const reloadWithCustomHead = (customHead: string): void => {
+    embeddedCustomHead = customHead;
+    const doReload = (html: string) => {
+      if (!html) return;
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
+      const fullHtml = injectCustomHead(html, customHead);
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      currentBlobUrl = URL.createObjectURL(blob);
+      expectingSrcdocLoad = true;
+      deps.iframe.src = currentBlobUrl;
+    };
+    if (basePreviewHtml) {
+      doReload(basePreviewHtml);
+    } else if (basePreviewFetch) {
+      basePreviewFetch.then(doReload);
+    }
+  };
+
   const postToPreview = (payload: Record<string, unknown>) => {
     const targetWindow = refreshPreviewWindow();
     if (!targetWindow) {
@@ -295,20 +327,32 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       lastCanonicalError = null;
     }
 
-    const payload = {
-      type: 'KAYZART_RENDER',
-      cssText: deps.getPreviewCss(),
-      customHead: typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '',
-      liveHighlightEnabled: deps.getLiveHighlightEnabled(),
-      bodyAttrs: canonical.bodyAttrs,
-      hasBody: canonical.hasBody,
-      templateMode: deps.getResolvedTemplateMode(),
-    };
+    const currentCustomHead =
+      typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '';
+
     if (!previewReady) {
       pendingRender = true;
       return;
     }
-    postToPreview({ ...payload, canonicalHTML: canonical.canonicalHTML });
+
+    if (currentCustomHead !== (embeddedCustomHead ?? '')) {
+      reloadWithCustomHead(currentCustomHead);
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      type: 'KAYZART_RENDER',
+      cssText: deps.getPreviewCss(),
+      liveHighlightEnabled: deps.getLiveHighlightEnabled(),
+      bodyAttrs: canonical.bodyAttrs,
+      hasBody: canonical.hasBody,
+      templateMode: deps.getResolvedTemplateMode(),
+      canonicalHTML: canonical.canonicalHTML,
+    };
+    if (embeddedCustomHead === null) {
+      payload.customHead = currentCustomHead;
+    }
+    postToPreview(payload);
   };
 
   const sendCssUpdate = (cssText: string) => {
@@ -561,6 +605,21 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     previewReady = false;
     pendingRender = true;
     initialJsPending = true;
+    if (expectingSrcdocLoad) {
+      expectingSrcdocLoad = false;
+    } else {
+      embeddedCustomHead = null;
+      basePreviewHtml = null;
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = null;
+      }
+      const fetchUrl = deps.iframe.src;
+      basePreviewFetch = fetch(fetchUrl, { credentials: 'same-origin' })
+        .then((r) => r.text())
+        .then((html) => { basePreviewHtml = html; return html; })
+        .catch(() => { basePreviewFetch = null; return ''; });
+    }
     sendInit();
   };
 

@@ -59,7 +59,7 @@ export function SettingsPanel({
         {templateHelp ? <div className="kayzart-settingsHelp">{templateHelp}</div> : null}
         <div className="kayzart-settingsHelp">
           {__(
-            'Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display. テーマ表示では、body属性の一部が反映されない場合があります。',
+            'Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display.',
             'kayzart-live-code-editor'
           )}
         </div>

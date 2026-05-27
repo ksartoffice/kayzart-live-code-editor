@@ -206,9 +206,16 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html is-active');
   const customHeadPanel = el('div', 'kayzart-editor kayzart-editor-customHead');
   const customHeadHelp = el('div', 'kayzart-customHeadHelp');
-  customHeadHelp.textContent = __(
-    'head内に追加するコードを入力します。\n外部CSS、Google Fonts、OGP、構造化データなどに使用できます。\n外部JSはここ、またはHTMLエディタ下部に<script src="">として書いてください。\n※ <title>、<meta charset>、viewport、<base> は使用できません。',
-    'kayzart-live-code-editor'
+  const customHeadHelpLines = [
+    __( 'head内に追加するコードを入力します。', 'kayzart-live-code-editor'),
+    __( '外部CSS、Google Fonts、OGP、構造化データなどに使用できます。', 'kayzart-live-code-editor'),
+    __( '外部JSはここ、またはHTMLエディタ下部に<script src="">として書いてください。', 'kayzart-live-code-editor'),
+    __( '※ <title>、<meta charset>、viewport、<base> は使用できません。', 'kayzart-live-code-editor'),
+  ];
+  customHeadHelp.replaceChildren(
+    ...customHeadHelpLines.flatMap((line, index) =>
+      index === 0 ? [document.createTextNode(line)] : [document.createElement('br'), document.createTextNode(line)]
+    )
   );
   const customHeadEditorDiv = el('div', 'kayzart-customHeadEditor');
   customHeadPanel.append(customHeadHelp, customHeadEditorDiv);

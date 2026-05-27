@@ -135,7 +135,7 @@ function FullHtmlImportSourceModal({
             aria-label={cancelLabel}
             onClick={onCancel}
           >
-            ﾃ・
+            ×
           </button>
         </div>
         <div className="kayzart-modalBody">

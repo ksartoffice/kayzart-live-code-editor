@@ -128,6 +128,50 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'kayzart_edit', $actions );
 		$this->assertStringContainsString( esc_html__( 'Edit landing page', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
 	}
+
+	public function test_row_action_allows_unmarked_legacy_cpt_posts(): void {
+		$user_id = (int) self::factory()->user->create(
+			array(
+				'role' => 'administrator',
+			)
+		);
+		wp_set_current_user( $user_id );
+
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type' => Post_Type::POST_TYPE,
+			)
+		);
+		$post    = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '', get_post_meta( $post_id, Post_Type::ENABLED_META, true ) );
+
+		$actions = Post_Type::add_kayzart_row_action( array(), $post );
+
+		$this->assertArrayHasKey( 'kayzart_edit', $actions );
+		$this->assertStringContainsString( esc_html__( 'Edit landing page', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
+	}
+
+	public function test_row_action_ignores_unmarked_pages(): void {
+		$user_id = (int) self::factory()->user->create(
+			array(
+				'role' => 'administrator',
+			)
+		);
+		wp_set_current_user( $user_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type' => Post_Type::PAGE_TYPE,
+			)
+		);
+		$page    = get_post( $page_id );
+		$this->assertInstanceOf( WP_Post::class, $page );
+
+		$actions = Post_Type::add_kayzart_row_action( array(), $page );
+
+		$this->assertArrayNotHasKey( 'kayzart_edit', $actions );
+	}
 }
 
 

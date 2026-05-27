@@ -342,7 +342,7 @@ class Post_Type {
 			return $actions;
 		}
 
-		if ( ! self::is_kayzart_enabled_post( (int) $post->ID ) ) {
+		if ( self::POST_TYPE !== $post->post_type && ! self::is_kayzart_enabled_post( (int) $post->ID ) ) {
 			return $actions;
 		}
 

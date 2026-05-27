@@ -5,10 +5,10 @@
  * @package KayzArt
  */
 
-use KayzArt\External_Scripts;
-use KayzArt\External_Styles;
+use KayzArt\Admin;
+use KayzArt\Custom_Head;
+use KayzArt\Html_Document;
 use KayzArt\Post_Type;
-use KayzArt\Rest_Save;
 use KayzArt\Rest_Settings;
 
 class Test_Rest_Success extends WP_UnitTestCase {
@@ -19,15 +19,8 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		'viewUrl',
 		'templateMode',
 		'defaultTemplateMode',
-		'shadowDomEnabled',
-		'shortcodeEnabled',
-		'singlePageEnabled',
 		'liveHighlightEnabled',
 		'canEditJs',
-		'externalScripts',
-		'externalStyles',
-		'externalScriptsMax',
-		'externalStylesMax',
 	);
 
 	private const REMOVED_SETTINGS_PAYLOAD_KEYS = array(
@@ -61,6 +54,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 	}
 
 	protected function tearDown(): void {
+		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
@@ -150,8 +144,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 				'settingsUpdates' => array(
 					'templateMode'         => 'frame',
 					'shadowDomEnabled'     => true,
-					'shortcodeEnabled'     => true,
-					'singlePageEnabled'    => false,
 					'liveHighlightEnabled' => false,
 					'externalScripts'      => array( 'https://example.com/runtime.js' ),
 					'externalStyles'       => array( 'https://example.com/runtime.css' ),
@@ -166,26 +158,17 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assert_settings_payload_keys( $data['settings'] );
 
 		$this->assertSame( 'default', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
-		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
-		$this->assertSame(
-			array( 'https://example.com/runtime.js' ),
-			External_Scripts::get_external_scripts( $post_id )
-		);
-		$this->assertSame(
-			array( 'https://example.com/runtime.css' ),
-			External_Styles::get_external_styles( $post_id )
-		);
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 
-		$this->assertSame( true, $data['settings']['shadowDomEnabled'] ?? null );
+		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
 		$this->assertSame( 'default', $data['settings']['templateMode'] ?? null );
-		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
-		$this->assertSame(
-			array( 'https://example.com/runtime.js' ),
-			$data['settings']['externalScripts'] ?? null
-		);
+		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
+		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
+		$this->assertArrayNotHasKey( 'externalScripts', $data['settings'] );
+		$this->assertArrayNotHasKey( 'externalStyles', $data['settings'] );
 	}
 
 	public function test_settings_update_persists_metadata_and_post_fields(): void {
@@ -200,8 +183,6 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			'status'               => 'pending',
 			'visibility'           => 'public',
 			'shadowDomEnabled'     => true,
-			'shortcodeEnabled'     => true,
-			'singlePageEnabled'    => false,
 			'liveHighlightEnabled' => false,
 			'externalScripts'      => array( 'https://example.com/app.js' ),
 			'externalStyles'       => array( 'https://example.com/app.css' ),
@@ -228,27 +209,18 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertSame( 'pending', (string) $post->post_status );
 		$this->assertSame( '', (string) $post->post_password );
 
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
-		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) );
-		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_single_page_enabled', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_shadow_dom', true ) );
 		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_live_highlight', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 
-		$this->assertSame(
-			array( 'https://example.com/app.js' ),
-			External_Scripts::get_external_scripts( $post_id )
-		);
-		$this->assertSame(
-			array( 'https://example.com/app.css' ),
-			External_Styles::get_external_styles( $post_id )
-		);
-
-		$this->assertSame( true, $data['settings']['shadowDomEnabled'] ?? null );
-		$this->assertSame( true, $data['settings']['shortcodeEnabled'] ?? null );
-		$this->assertSame( false, $data['settings']['singlePageEnabled'] ?? null );
+		$this->assertArrayNotHasKey( 'shadowDomEnabled', $data['settings'] );
+		$this->assertArrayNotHasKey( 'shortcodeEnabled', $data['settings'] );
+		$this->assertArrayNotHasKey( 'singlePageEnabled', $data['settings'] );
 		$this->assertSame( false, $data['settings']['liveHighlightEnabled'] ?? null );
 		$this->assertSame( 'my-custom-slug', $data['settings']['slug'] ?? null );
-		$this->assertSame( array( 'https://example.com/app.js' ), $data['settings']['externalScripts'] ?? null );
-		$this->assertSame( array( 'https://example.com/app.css' ), $data['settings']['externalStyles'] ?? null );
+		$this->assertArrayNotHasKey( 'externalScripts', $data['settings'] );
+		$this->assertArrayNotHasKey( 'externalStyles', $data['settings'] );
 	}
 
 	public function test_settings_update_with_public_visibility_keeps_existing_password(): void {
@@ -326,37 +298,47 @@ class Test_Rest_Success extends WP_UnitTestCase {
 
 		$this->assertIsArray( $settings, 'Settings payload should be an array.' );
 		$this->assert_settings_payload_keys( $settings );
+		$this->assertSame( 'standalone', $settings['defaultTemplateMode'] ?? null );
 		$this->assertArrayNotHasKey( 'authors', $settings, 'Authors should not be returned.' );
 	}
 
-	public function test_import_returns_minimal_settings_payload(): void {
+	public function test_save_updates_custom_head_and_reports_removed_tags(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
 		wp_set_current_user( $admin_id );
 
 		$response = $this->dispatch_route(
-			'/kayzart/v1/import',
+			'/kayzart/v1/save',
 			array(
-				'post_id' => $post_id,
-				'payload' => array(
-					'version'         => 1,
-					'html'            => '<p>Imported</p>',
-					'css'             => '',
-					'jsMode'          => 'auto',
-					'tailwindEnabled' => false,
-				),
+				'post_id'         => $post_id,
+				'html'            => '<p>Hello</p>',
+				'customHead'      => '<title>Nope</title><meta charset="utf-8"><meta name="viewport" content="width=device-width"><base href="/"><meta property="og:title" content="OK"><script type="application/ld+json">{"@type":"Thing"}</script>',
+				'css'             => '',
+				'tailwindEnabled' => false,
 			)
 		);
 
-		$this->assertSame( 200, $response->get_status(), 'Import should succeed for admins.' );
-
+		$this->assertSame( 200, $response->get_status() );
 		$data = $response->get_data();
-		$this->assertSame( true, $data['ok'] ?? false, 'Response should include ok=true.' );
-		$this->assertIsArray( $data['settingsData'] ?? null, 'Response should include settingsData payload.' );
-		$this->assert_settings_payload_keys( $data['settingsData'] );
-		$this->assertArrayNotHasKey( 'authors', $data['settingsData'], 'Authors should not be returned.' );
-		$this->assertSame( 'classic', get_post_meta( $post_id, '_kayzart_js_mode', true ) );
+		$this->assertSame( '<meta property="og:title" content="OK"><script type="application/ld+json">{"@type":"Thing"}</script>', $data['customHead'] ?? '' );
+		$this->assertSame(
+			array( 'title', 'base', 'meta charset', 'meta viewport' ),
+			$data['customHeadRemovedTags'] ?? array()
+		);
+		$this->assertSame( (string) ( $data['customHead'] ?? '' ), get_post_meta( $post_id, Custom_Head::META_KEY, true ) );
+	}
+
+	public function test_build_settings_payload_preserves_explicit_theme_default(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+		update_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+
+		$settings = Rest_Settings::build_settings_payload( $post_id );
+
+		$this->assertSame( 'theme', $settings['defaultTemplateMode'] ?? null );
 	}
 
 	public function test_save_compiles_tailwind_and_stores_generated_css(): void {
@@ -365,39 +347,147 @@ class Test_Rest_Success extends WP_UnitTestCase {
 
 		wp_set_current_user( $admin_id );
 
-		$tailwind_css = "@tailwind base;\n@tailwind components;\n@tailwind utilities;";
-		$html         = '<div class="text-sm">Tailwind</div>';
+		$css  = '@import "tailwindcss";';
+		$html = '<div class="text-sm">Tailwind</div>';
 
 		$response = $this->dispatch_route(
 			'/kayzart/v1/save',
 			array(
 				'post_id'         => $post_id,
 				'html'            => $html,
-				'css'             => $tailwind_css,
+				'css'             => $css,
 				'tailwindEnabled' => true,
 			)
 		);
 
 		$this->assertSame( 200, $response->get_status(), 'Tailwind save should succeed for admins.' );
-
+		$this->assertSame( $css, get_post_meta( $post_id, '_kayzart_css', true ) );
 		$generated_css = (string) get_post_meta( $post_id, '_kayzart_generated_css', true );
 		$this->assertNotSame( '', $generated_css, 'Generated CSS should not be empty.' );
 		$this->assertStringContainsString( '.text-sm', $generated_css, 'Generated CSS should include the expected utility.' );
-		$this->assertStringContainsString( '@layer base {', $generated_css );
-		$this->assertStringContainsString( ':host,', $generated_css );
-		$this->assertStringContainsString( ':host ::backdrop{', $generated_css );
-		$this->assertStringContainsString( '--tw-border-style: solid;', $generated_css );
-		$this->assertStringContainsString( '--tw-gradient-position: initial;', $generated_css );
-		$this->assertStringContainsString( '--tw-gradient-from-position: 0%;', $generated_css );
-		$this->assertStringContainsString( '--tw-shadow-color: initial;', $generated_css );
-		$this->assertStringContainsString( '--tw-ring-offset-color: #fff;', $generated_css );
-		$this->assertStringContainsString( '--radius: 0.25rem;', $generated_css );
-
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
 	}
 
-	public function test_compile_tailwind_response_includes_shadow_fallbacks(): void {
+	public function test_save_splits_body_tag_into_content_and_body_attrs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<body class="lp" data-page="x"><main>Hi</main></body>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '<main>Hi</main>', (string) $post->post_content );
+		$this->assertSame( 'class="lp" data-page="x"', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_save_allows_only_safe_body_attrs_for_all_users(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$post_id   = $this->create_kayzart_post( $author_id );
+
+		wp_set_current_user( $author_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<body class="lp" data-page="x" aria-label="Page" onload="alert(1)" style="color:red"><main>Hi</main></body>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame(
+			'class="lp" data-page="x" aria-label="Page"',
+			get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true )
+		);
+	}
+
+	public function test_save_splits_body_from_full_html_document(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<!doctype html><html><head><title>Ignored</title></head><body class="lp"><main>Hi</main></body></html>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '<main>Hi</main>', (string) $post->post_content );
+		$this->assertSame( 'class="lp"', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_save_without_body_tag_clears_body_attrs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="old"' );
+		wp_set_current_user( $admin_id );
+
+		$html     = '<section><h1>No body</h1></section>';
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => $html,
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( $html, (string) $post->post_content );
+		$this->assertSame( '', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_save_body_tag_with_empty_attrs_clears_body_attrs(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="old"' );
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<body><main>Hi</main></body>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( '<main>Hi</main>', (string) $post->post_content );
+		$this->assertSame( '', get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+	}
+
+	public function test_compile_tailwind_response_returns_generated_css(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -408,41 +498,14 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			array(
 				'post_id' => $post_id,
 				'html'    => '<div class="text-sm">Tailwind</div>',
-				'css'     => "@tailwind base;\n@tailwind components;\n@tailwind utilities;",
+				'css'     => '@import "tailwindcss";',
 			)
 		);
 
 		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should succeed for admins.' );
 		$data = $response->get_data();
 		$this->assertSame( true, $data['ok'] ?? false );
-		$this->assertStringContainsString( ':host,', (string) ( $data['css'] ?? '' ) );
-		$this->assertStringContainsString( ':host ::backdrop{', (string) ( $data['css'] ?? '' ) );
-		$this->assertStringContainsString(
-			'--tw-gradient-from-position: 0%;',
-			(string) ( $data['css'] ?? '' )
-		);
-		$this->assertStringContainsString(
-			'--tw-ring-offset-color: #fff;',
-			(string) ( $data['css'] ?? '' )
-		);
-		$this->assertStringContainsString( '--radius: 0.25rem;', (string) ( $data['css'] ?? '' ) );
-	}
-
-	public function test_append_tailwind_shadow_fallbacks_is_idempotent(): void {
-		$base_css = '.text-sm{font-size:.875rem;}';
-		$once     = Rest_Save::append_tailwind_shadow_fallbacks( $base_css );
-		$twice    = Rest_Save::append_tailwind_shadow_fallbacks( $once );
-
-		$this->assertSame(
-			1,
-			substr_count( $twice, '@layer base {' ),
-			'Fallback block should be injected only once.'
-		);
-		$this->assertSame(
-			1,
-			substr_count( $twice, '--tw-gradient-from-position: 0%;' ),
-			'Fallback declarations should not be duplicated.'
-		);
+		$this->assertStringContainsString( '.text-sm', (string) ( $data['css'] ?? '' ) );
 	}
 
 	private function create_kayzart_post( int $author_id ): int {

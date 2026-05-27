@@ -4,30 +4,30 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d5e03ec81030ace37d152c46f200599b",
+    "content-hash": "0ed9457fe7421fb59b9c6479037354cc",
     "packages": [
         {
             "name": "tailwindphp/tailwindphp",
-            "version": "v1.3.0.2",
+            "version": "v1.3.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ksartoffice/tailwindphp.git",
-                "reference": "2e81b77df51d13f3e8b3d4f94043ac87375fa2f7"
+                "reference": "78b65b26ba35599fbfdf8063820ae836ef2cef0e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/2e81b77df51d13f3e8b3d4f94043ac87375fa2f7",
-                "reference": "2e81b77df51d13f3e8b3d4f94043ac87375fa2f7",
+                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/78b65b26ba35599fbfdf8063820ae836ef2cef0e",
+                "reference": "78b65b26ba35599fbfdf8063820ae836ef2cef0e",
                 "shasum": ""
             },
             "require": {
-                "php": "^8.2"
+                "php": "^7.4 || ^8.0"
             },
             "require-dev": {
-                "brianium/paratest": "^7.4",
-                "laravel/pint": "^1.26",
-                "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^10.0"
+                "brianium/paratest": "^6.11",
+                "friendsofphp/php-cs-fixer": "^3.95",
+                "phpstan/phpstan": "^1.12",
+                "phpunit/phpunit": "^9.6"
             },
             "bin": [
                 "bin/tailwindphp"
@@ -38,6 +38,7 @@
                     "TailwindPHP\\": "src/"
                 },
                 "files": [
+                    "src/_tailwindphp/polyfills.php",
                     "src/_tailwindphp/LightningCss.php",
                     "src/_tailwindphp/CssMinifier.php",
                     "src/attribute-selector-parser.php",
@@ -96,19 +97,19 @@
             },
             "scripts": {
                 "extract": [
-                    "php test-coverage/extract-run-tests.php",
-                    "php test-coverage/extract-index-tests.php",
-                    "php test-coverage/extract-css-functions-tests.php",
-                    "php test-coverage/extract-candidate-tests.php",
-                    "php test-coverage/extract-ui-spec-tests.php"
+                    "@php test-coverage/extract-run-tests.php",
+                    "@php test-coverage/extract-index-tests.php",
+                    "@php test-coverage/extract-css-functions-tests.php",
+                    "@php test-coverage/extract-candidate-tests.php",
+                    "@php test-coverage/extract-ui-spec-tests.php"
                 ],
                 "extract-libs": [
-                    "php test-coverage/lib/extract-clsx-tests.php",
-                    "php test-coverage/lib/extract-tailwind-merge-tests.php",
-                    "php test-coverage/lib/extract-cva-tests.php"
+                    "@php test-coverage/lib/extract-clsx-tests.php",
+                    "@php test-coverage/lib/extract-tailwind-merge-tests.php",
+                    "@php test-coverage/lib/extract-cva-tests.php"
                 ],
                 "extract-plugins": [
-                    "php test-coverage/plugins/extract-typography-tests.php"
+                    "@php test-coverage/plugins/extract-typography-tests.php"
                 ],
                 "extract-all": [
                     "@extract",
@@ -116,20 +117,20 @@
                     "@extract-plugins"
                 ],
                 "test": [
-                    "paratest --processes 8"
+                    "@php vendor/bin/phpunit"
                 ],
                 "test-serial": [
-                    "phpunit"
+                    "@php vendor/bin/phpunit"
                 ],
                 "test-libs": [
-                    "phpunit src/_tailwindphp/lib/"
+                    "@php vendor/bin/phpunit src/_tailwindphp/lib/"
                 ],
                 "test-plugins": [
-                    "phpunit src/plugin/"
+                    "@php vendor/bin/phpunit src/plugin/"
                 ],
                 "extract-and-test": [
                     "@extract-all",
-                    "phpunit"
+                    "@php vendor/bin/phpunit"
                 ],
                 "update-and-test": [
                     "@update-all",
@@ -142,33 +143,33 @@
                     "@update-plugins"
                 ],
                 "update-tailwind": [
-                    "php scripts/update-tailwind.php"
+                    "@php scripts/update-tailwind.php"
                 ],
                 "update-libs": [
-                    "php scripts/update-libs.php"
+                    "@php scripts/update-libs.php"
                 ],
                 "update-plugins": [
-                    "php scripts/update-plugins.php"
+                    "@php scripts/update-plugins.php"
                 ],
                 "versions": [
-                    "php scripts/update-tailwind.php --check",
-                    "php scripts/update-libs.php --check",
-                    "php scripts/update-plugins.php --check"
+                    "@php scripts/update-tailwind.php --check",
+                    "@php scripts/update-libs.php --check",
+                    "@php scripts/update-plugins.php --check"
                 ],
                 "bench": [
-                    "php scripts/benchmark.php"
+                    "@php scripts/benchmark.php"
                 ],
                 "bench:save": [
-                    "php scripts/benchmark.php --save"
+                    "@php scripts/benchmark.php --save"
                 ],
                 "lint": [
-                    "pint --test"
+                    "@php vendor/bin/php-cs-fixer fix --dry-run --diff"
                 ],
                 "format": [
-                    "pint"
+                    "@php vendor/bin/php-cs-fixer fix"
                 ],
                 "analyse": [
-                    "phpstan analyse --memory-limit=512M"
+                    "@php vendor/bin/phpstan analyse --memory-limit=512M"
                 ],
                 "quality": [
                     "@lint",
@@ -196,22 +197,22 @@
                 "issues": "https://github.com/dnnsjsk/tailwindphp/issues",
                 "source": "https://github.com/dnnsjsk/tailwindphp"
             },
-            "time": "2026-04-07T01:26:46+00:00"
+            "time": "2026-05-20T02:16:00+00:00"
         }
     ],
     "packages-dev": [
         {
             "name": "dealerdirect/phpcodesniffer-composer-installer",
-            "version": "v1.2.0",
+            "version": "v1.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPCSStandards/composer-installer.git",
-                "reference": "845eb62303d2ca9b289ef216356568ccc075ffd1"
+                "reference": "963f0c67bffde0eac41b56be71ac0e8ba132f0bd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPCSStandards/composer-installer/zipball/845eb62303d2ca9b289ef216356568ccc075ffd1",
-                "reference": "845eb62303d2ca9b289ef216356568ccc075ffd1",
+                "url": "https://api.github.com/repos/PHPCSStandards/composer-installer/zipball/963f0c67bffde0eac41b56be71ac0e8ba132f0bd",
+                "reference": "963f0c67bffde0eac41b56be71ac0e8ba132f0bd",
                 "shasum": ""
             },
             "require": {
@@ -294,34 +295,34 @@
                     "type": "thanks_dev"
                 }
             ],
-            "time": "2025-11-11T04:32:07+00:00"
+            "time": "2026-05-06T08:26:05+00:00"
         },
         {
             "name": "doctrine/instantiator",
-            "version": "2.0.0",
+            "version": "1.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/instantiator.git",
-                "reference": "c6222283fa3f4ac679f8b9ced9a4e23f163e80d0"
+                "reference": "0a0fa9780f5d4e507415a065172d26a98d02047b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/instantiator/zipball/c6222283fa3f4ac679f8b9ced9a4e23f163e80d0",
-                "reference": "c6222283fa3f4ac679f8b9ced9a4e23f163e80d0",
+                "url": "https://api.github.com/repos/doctrine/instantiator/zipball/0a0fa9780f5d4e507415a065172d26a98d02047b",
+                "reference": "0a0fa9780f5d4e507415a065172d26a98d02047b",
                 "shasum": ""
             },
             "require": {
-                "php": "^8.1"
+                "php": "^7.1 || ^8.0"
             },
             "require-dev": {
-                "doctrine/coding-standard": "^11",
+                "doctrine/coding-standard": "^9 || ^11",
                 "ext-pdo": "*",
                 "ext-phar": "*",
-                "phpbench/phpbench": "^1.2",
-                "phpstan/phpstan": "^1.9.4",
-                "phpstan/phpstan-phpunit": "^1.3",
-                "phpunit/phpunit": "^9.5.27",
-                "vimeo/psalm": "^5.4"
+                "phpbench/phpbench": "^0.16 || ^1",
+                "phpstan/phpstan": "^1.4",
+                "phpstan/phpstan-phpunit": "^1",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "vimeo/psalm": "^4.30 || ^5.4"
             },
             "type": "library",
             "autoload": {
@@ -348,7 +349,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/instantiator/issues",
-                "source": "https://github.com/doctrine/instantiator/tree/2.0.0"
+                "source": "https://github.com/doctrine/instantiator/tree/1.5.0"
             },
             "funding": [
                 {
@@ -364,7 +365,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2022-12-30T00:23:10+00:00"
+            "time": "2022-12-30T00:15:36+00:00"
         },
         {
             "name": "myclabs/deep-copy",
@@ -1311,16 +1312,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "9.6.31",
+            "version": "9.6.34",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "945d0b7f346a084ce5549e95289962972c4272e5"
+                "reference": "b36f02317466907a230d3aa1d34467041271ef4a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/945d0b7f346a084ce5549e95289962972c4272e5",
-                "reference": "945d0b7f346a084ce5549e95289962972c4272e5",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/b36f02317466907a230d3aa1d34467041271ef4a",
+                "reference": "b36f02317466907a230d3aa1d34467041271ef4a",
                 "shasum": ""
             },
             "require": {
@@ -1342,7 +1343,7 @@
                 "phpunit/php-timer": "^5.0.3",
                 "sebastian/cli-parser": "^1.0.2",
                 "sebastian/code-unit": "^1.0.8",
-                "sebastian/comparator": "^4.0.9",
+                "sebastian/comparator": "^4.0.10",
                 "sebastian/diff": "^4.0.6",
                 "sebastian/environment": "^5.1.5",
                 "sebastian/exporter": "^4.0.8",
@@ -1394,7 +1395,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.31"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.34"
             },
             "funding": [
                 {
@@ -1418,7 +1419,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-12-06T07:45:52+00:00"
+            "time": "2026-01-27T05:45:00+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -1589,16 +1590,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "4.0.9",
+            "version": "4.0.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "67a2df3a62639eab2cc5906065e9805d4fd5dfc5"
+                "reference": "e4df00b9b3571187db2831ae9aada2c6efbd715d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/67a2df3a62639eab2cc5906065e9805d4fd5dfc5",
-                "reference": "67a2df3a62639eab2cc5906065e9805d4fd5dfc5",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/e4df00b9b3571187db2831ae9aada2c6efbd715d",
+                "reference": "e4df00b9b3571187db2831ae9aada2c6efbd715d",
                 "shasum": ""
             },
             "require": {
@@ -1651,7 +1652,7 @@
             ],
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/4.0.9"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/4.0.10"
             },
             "funding": [
                 {
@@ -1671,7 +1672,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-08-10T06:51:50+00:00"
+            "time": "2026-01-24T09:22:56+00:00"
         },
         {
             "name": "sebastian/complexity",
@@ -2697,5 +2698,8 @@
     "prefer-lowest": false,
     "platform": [],
     "platform-dev": [],
+    "platform-overrides": {
+        "php": "7.4.33"
+    },
     "plugin-api-version": "2.3.0"
 }

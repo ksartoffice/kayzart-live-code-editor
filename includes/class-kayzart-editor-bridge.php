@@ -24,7 +24,6 @@ class Editor_Bridge {
 	public static function init(): void {
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_block_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_classic_assets' ) );
-		add_action( 'save_post_' . Post_Type::POST_TYPE, array( __CLASS__, 'maybe_mark_setup_required' ), 10, 3 );
 	}
 
 	/**
@@ -65,6 +64,7 @@ class Editor_Bridge {
 	 * Set up the enqueue data for both editors.
 	 */
 	private static function enqueue_assets(): void {
+		$post_id = self::resolve_post_id();
 		wp_register_script(
 			self::SCRIPT_HANDLE,
 			KAYZART_URL . 'assets/admin/editor-bridge.js',
@@ -83,10 +83,16 @@ class Editor_Bridge {
 		wp_enqueue_script( self::SCRIPT_HANDLE );
 		wp_enqueue_style( self::STYLE_HANDLE );
 
+		$post_type = get_post_type( $post_id );
+		if ( ! is_string( $post_type ) || '' === $post_type ) {
+			$post_type = Post_Type::POST_TYPE;
+		}
+
 		$data = array(
-			'postId'    => self::resolve_post_id(),
-			'postType'  => Post_Type::POST_TYPE,
+			'postId'    => $post_id,
+			'postType'  => $post_type,
 			'actionUrl' => Admin::get_action_redirect_url(),
+			'enabled'   => $post_id > 0,
 		);
 		$json = wp_json_encode( $data );
 		if ( false === $json ) {
@@ -107,40 +113,18 @@ class Editor_Bridge {
 	}
 
 	/**
-	 * Mark new KayzArt posts as requiring setup.
-	 *
-	 * @param int      $post_id Post ID.
-	 * @param \WP_Post $post Post object.
-	 * @param bool     $update Whether this is an existing post.
-	 */
-	public static function maybe_mark_setup_required( int $post_id, \WP_Post $post, bool $update ): void {
-		if ( $update ) {
-			return;
-		}
-
-		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
-			return;
-		}
-
-		if ( Post_Type::POST_TYPE !== $post->post_type ) {
-			return;
-		}
-
-		if ( get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1' ) {
-			return;
-		}
-
-		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
-	}
-
-	/**
 	 * Resolve the current post ID for editor screens.
 	 *
 	 * @return int
 	 */
 	private static function resolve_post_id(): int {
 		$post = get_post();
-		if ( ! $post || Post_Type::POST_TYPE !== $post->post_type ) {
+
+		if ( ! $post || ! Post_Type::is_editor_enabled_post( $post ) ) {
+			return 0;
+		}
+
+		if ( ! Post_Type::is_kayzart_enabled_post( (int) $post->ID ) ) {
 			return 0;
 		}
 
@@ -158,6 +142,15 @@ class Editor_Bridge {
 	 * @return bool
 	 */
 	private static function is_kayzart_screen( $screen ): bool {
-		return $screen && Post_Type::POST_TYPE === $screen->post_type;
+		if ( ! $screen ) {
+			return false;
+		}
+
+		$post = get_post();
+
+		return $post instanceof \WP_Post
+			&& $screen->post_type === $post->post_type
+			&& Post_Type::is_editor_enabled_post( $post )
+			&& Post_Type::is_kayzart_enabled_post( (int) $post->ID );
 	}
 }

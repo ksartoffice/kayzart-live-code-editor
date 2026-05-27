@@ -1,10 +1,9 @@
 (function () {
   const styleId = 'kayzart-style';
+  const customHeadId = 'kayzart-custom-head';
+  const customHeadStartMarker = 'kayzart-custom-head-start';
+  const customHeadEndMarker = 'kayzart-custom-head-end';
   const scriptId = 'kayzart-script';
-  const shadowContentId = 'kayzart-shadow-content';
-  const shadowScriptsId = 'kayzart-shadow-scripts';
-  const externalScriptAttr = 'data-kayzart-external-script';
-  const externalStyleAttr = 'data-kayzart-external-style';
   const KAYZART_ATTR_NAME = 'data-kayzart-id';
   const config = window.KAYZART_PREVIEW || {};
   const postId = config.post_id || null;
@@ -28,13 +27,9 @@
   let selectActionEditButton = null;
   let elementsTabOpen = false;
   let markerNodes = null;
-  let externalScripts = [];
-  let externalScriptsReady = Promise.resolve();
-  let externalScriptsToken = 0;
-  let externalStyles = [];
-  let shadowEnabled = false;
-  let shadowHost = null;
-  let shadowRoot = null;
+  let htmlScriptsReady = Promise.resolve();
+  let customHeadToken = 0;
+  let customHeadNodes = [];
   let jsRunToken = 0;
   let jsCleanupCallbacks = [];
   let activeModuleUrl = '';
@@ -43,6 +38,8 @@
   let pendingRenderPayload = null;
   let markerRetryTimer = 0;
   let markerRetryStartedAt = 0;
+  let initialBodyAttrs = null;
+  let appliedBodyAttrNames = [];
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
   const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
@@ -60,131 +57,12 @@
     }
   }
 
-  function clearShadowHost() {
-    if (shadowHost) {
-      shadowHost.remove();
-    }
-    shadowHost = null;
-    shadowRoot = null;
-  }
-
-  function ensureShadowHost() {
-    if (shadowHost && shadowHost.isConnected) return shadowHost;
-    const markers = findMarkers();
-    if (!markers) return null;
-
-    const range = document.createRange();
-    range.setStartAfter(markers.start);
-    range.setEndBefore(markers.end);
-    range.deleteContents();
-
-    const host = document.createElement('kayzart-output');
-    if (postId) {
-      host.setAttribute('data-post-id', String(postId));
-    }
-    range.insertNode(host);
-    range.detach();
-
-    shadowHost = host;
-    shadowRoot = null;
-    if (host.attachShadow) {
-      try {
-        shadowRoot = host.attachShadow({ mode: 'open' });
-      } catch (e) {
-        shadowRoot = null;
-      }
-    }
-    const root = shadowRoot || host;
-    const styleEl = document.createElement('style');
-    styleEl.id = styleId;
-    const contentEl = document.createElement('div');
-    contentEl.id = shadowContentId;
-    const scriptsEl = document.createElement('div');
-    scriptsEl.id = shadowScriptsId;
-    root.appendChild(styleEl);
-    root.appendChild(contentEl);
-    root.appendChild(scriptsEl);
-    return shadowHost;
-  }
-
-  function ensureShadowRoot() {
-    if (shadowRoot && shadowRoot.host && shadowRoot.host.isConnected) {
-      return shadowRoot;
-    }
-    const host = ensureShadowHost();
-    if (host && host.shadowRoot) {
-      shadowRoot = host.shadowRoot;
-    }
-    return shadowRoot;
-  }
-
-  function ensureShadowContent(root) {
-    let content = root.querySelector('#' + shadowContentId);
-    if (!content) {
-      content = document.createElement('div');
-      content.id = shadowContentId;
-      root.appendChild(content);
-    }
-    return content;
-  }
-
-  function ensureShadowScripts(root) {
-    let scripts = root.querySelector('#' + shadowScriptsId);
-    if (!scripts) {
-      scripts = document.createElement('div');
-      scripts.id = shadowScriptsId;
-      root.appendChild(scripts);
-    }
-    return scripts;
-  }
-
   function getStyleRoot() {
-    if (!shadowEnabled) {
-      return document.head || document.body;
-    }
-    const root = ensureShadowRoot();
-    return root || null;
-  }
-
-  function getScriptHost() {
-    if (!shadowEnabled) {
-      return document.head || document.body;
-    }
-    const root = ensureShadowRoot();
-    if (!root) return document.head || document.body;
-    return ensureShadowScripts(root);
+    return document.head || document.body;
   }
 
   function getInlineScriptHost() {
-    if (!shadowEnabled) {
-      return document.body || document.head;
-    }
-    const root = ensureShadowRoot();
-    if (root && root.host) {
-      return root.host;
-    }
     return document.body || document.head;
-  }
-
-  function setShadowDomEnabled(enabled) {
-    const next = Boolean(enabled);
-    if (shadowEnabled === next) return;
-    stopJsRuntime();
-    shadowEnabled = next;
-    removeStyleElement();
-    clearExternalScripts();
-    clearExternalStyles();
-    if (!shadowEnabled) {
-      clearShadowHost();
-    } else {
-      ensureShadowHost();
-    }
-    if (externalScripts.length) {
-      externalScriptsReady = loadExternalScripts(externalScripts);
-    }
-    if (externalStyles.length) {
-      loadExternalStyles(externalStyles);
-    }
   }
 
   function setDomSelectorEnabled(enabled) {
@@ -516,29 +394,194 @@
   }
 
   function removeScriptElement() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
+    const scriptEl = document.querySelector('#' + scriptId);
+    if (scriptEl) {
+      scriptEl.remove();
     }
-    roots.push(document);
-    roots.forEach((root) => {
-      const scriptEl = root.querySelector('#' + scriptId);
-      if (scriptEl) {
-        scriptEl.remove();
-      }
+  }
+
+  function readInitialBodyAttrs() {
+    if (initialBodyAttrs !== null) {
+      return initialBodyAttrs;
+    }
+    initialBodyAttrs = {};
+    if (!document.body) {
+      return initialBodyAttrs;
+    }
+    Array.prototype.forEach.call(document.body.attributes, (attr) => {
+      initialBodyAttrs[attr.name] = attr.value;
+    });
+    return initialBodyAttrs;
+  }
+
+  function splitClasses(value) {
+    return String(value || '')
+      .split(/\s+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function uniqueClasses(list) {
+    const seen = {};
+    return list.filter((item) => {
+      if (seen[item]) return false;
+      seen[item] = true;
+      return true;
     });
   }
 
-  function removeStyleElement() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
+  function restoreInitialBodyAttrs() {
+    if (!document.body) return;
+    const initial = readInitialBodyAttrs();
+    appliedBodyAttrNames.forEach((name) => {
+      if (Object.prototype.hasOwnProperty.call(initial, name)) {
+        document.body.setAttribute(name, initial[name]);
+      } else {
+        document.body.removeAttribute(name);
+      }
+    });
+    appliedBodyAttrNames = [];
+  }
+
+  function applyBodyAttrs(attrs, hasBody, templateMode) {
+    if (!document.body) return;
+    const initial = readInitialBodyAttrs();
+    restoreInitialBodyAttrs();
+
+    if (!hasBody || !attrs || typeof attrs !== 'object') {
+      return;
     }
-    roots.push(document);
-    roots.forEach((root) => {
-      const styleEl = root.querySelector('#' + styleId);
-      if (styleEl) {
-        styleEl.remove();
+
+    const nextNames = [];
+    const bodyClass = typeof attrs.class === 'string' ? attrs.class : '';
+    if (bodyClass) {
+      const classes = uniqueClasses([...(splitClasses(initial.class)), ...splitClasses(bodyClass)]);
+      document.body.setAttribute('class', classes.join(' '));
+      nextNames.push('class');
+    }
+
+    if (templateMode !== 'theme') {
+      Object.keys(attrs).forEach((name) => {
+        if (name === 'class') return;
+        document.body.setAttribute(name, String(attrs[name]));
+        nextNames.push(name);
+      });
+    }
+
+    appliedBodyAttrNames = nextNames;
+  }
+
+  function removeStyleElement() {
+    const styleEl = document.querySelector('#' + styleId);
+    if (styleEl) {
+      styleEl.remove();
+    }
+  }
+
+  function ensureCustomHeadMarker() {
+    const root = document.head || document.documentElement;
+    if (!root) return null;
+    let marker = root.querySelector('#' + customHeadId);
+    if (!marker) {
+      marker = document.createElement('template');
+      marker.id = customHeadId;
+      root.appendChild(marker);
+    }
+    return marker;
+  }
+
+  function setCustomHead(html) {
+    const root = document.head || document.documentElement;
+    if (!root) return Promise.resolve();
+    const token = ++customHeadToken;
+    customHeadNodes.forEach((node) => {
+      if (node && node.isConnected) {
+        node.remove();
+      }
+    });
+    customHeadNodes = [];
+    const oldNodes = root.querySelectorAll('[data-kayzart-custom-head]');
+    oldNodes.forEach((node) => node.remove());
+    removeServerCustomHead(root);
+    const marker = ensureCustomHeadMarker();
+    const wrapper = document.createElement('template');
+    wrapper.innerHTML = String(html || '');
+    return insertCustomHeadNodes(root, marker, wrapper.content, token);
+  }
+
+  function cloneExecutableScript(node) {
+    const script = document.createElement('script');
+    const hasAsyncAttr = node.hasAttribute('async');
+    Array.prototype.forEach.call(node.attributes, (attr) => {
+      script.setAttribute(attr.name, attr.value);
+    });
+    if (!hasAsyncAttr) {
+      script.async = false;
+    }
+    script.text = node.text || node.textContent || '';
+    script.setAttribute('data-kayzart-custom-head', '1');
+    return script;
+  }
+
+  function waitForScript(script) {
+    if (!script.src) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      script.addEventListener('load', resolve, { once: true });
+      script.addEventListener('error', resolve, { once: true });
+    });
+  }
+
+  async function insertCustomHeadNodes(root, marker, fragment, token) {
+    const nodes = Array.prototype.slice.call(fragment.childNodes);
+    const pendingAsyncScripts = [];
+    for (let index = 0; index < nodes.length; index += 1) {
+      if (token !== customHeadToken) {
+        return;
+      }
+      const sourceNode = nodes[index];
+      const isScript =
+        sourceNode.nodeType === Node.ELEMENT_NODE &&
+        String(sourceNode.tagName || '').toLowerCase() === 'script';
+      const node = isScript ? cloneExecutableScript(sourceNode) : sourceNode;
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        node.setAttribute('data-kayzart-custom-head', '1');
+      }
+      root.insertBefore(node, marker);
+      customHeadNodes.push(node);
+      if (!isScript || !node.src) {
+        continue;
+      }
+
+      const scriptReady = waitForScript(node);
+      if (sourceNode.hasAttribute('async')) {
+        pendingAsyncScripts.push(scriptReady);
+        continue;
+      }
+      await scriptReady;
+    }
+
+    if (pendingAsyncScripts.length) {
+      await Promise.all(pendingAsyncScripts);
+    }
+  }
+
+  function removeServerCustomHead(root) {
+    let removing = false;
+    Array.prototype.slice.call(root.childNodes).forEach((node) => {
+      if (node.nodeType === Node.COMMENT_NODE && String(node.nodeValue || '').trim() === customHeadStartMarker) {
+        removing = true;
+        node.remove();
+        return;
+      }
+      if (node.nodeType === Node.COMMENT_NODE && String(node.nodeValue || '').trim() === customHeadEndMarker) {
+        removing = false;
+        node.remove();
+        return;
+      }
+      if (removing) {
+        node.remove();
       }
     });
   }
@@ -554,24 +597,11 @@
     return 'classic';
   }
 
-  function getRuntimeHost() {
-    if (shadowEnabled) {
-      const host = ensureShadowHost();
-      if (host) {
-        return host;
-      }
-    }
-    const existing = document.querySelector('kayzart-output');
-    return existing instanceof HTMLElement ? existing : null;
-  }
-
   function buildModuleRuntimeContext() {
-    const host = getRuntimeHost();
-    const root = shadowEnabled ? ensureShadowRoot() || document : document;
     return {
-      root: root,
+      root: document,
       document: document,
-      host: host,
+      host: null,
       onCleanup: (fn) => {
         if (typeof fn === 'function') {
           jsCleanupCallbacks.push(fn);
@@ -676,9 +706,9 @@
     }
     const resolvedMode = normalizeJsMode(jsMode);
 
-    const currentReady = externalScriptsReady;
+    const currentReady = htmlScriptsReady;
     currentReady.then(() => {
-      if (runToken !== jsRunToken || currentReady !== externalScriptsReady) return;
+      if (runToken !== jsRunToken || currentReady !== htmlScriptsReady) return;
       if (resolvedMode === 'module') {
         void runModuleJs(nextJsText, runToken);
         return;
@@ -720,109 +750,6 @@
       document.addEventListener = docAdd;
       window.addEventListener = winAdd;
     };
-  }
-
-  function normalizeExternalScripts(list) {
-    if (!Array.isArray(list)) return [];
-    return list
-      .map((entry) => String(entry).trim())
-      .filter(Boolean);
-  }
-
-  function normalizeExternalStyles(list) {
-    if (!Array.isArray(list)) return [];
-    return list
-      .map((entry) => String(entry).trim())
-      .filter(Boolean);
-  }
-
-  function isSameList(a, b) {
-    if (a.length !== b.length) return false;
-    return a.every((value, index) => value === b[index]);
-  }
-
-  function clearExternalScripts() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
-    }
-    roots.push(document);
-    roots.forEach((root) => {
-      const nodes = root.querySelectorAll('script[' + externalScriptAttr + ']');
-      nodes.forEach((node) => node.remove());
-    });
-  }
-
-  function clearExternalStyles() {
-    const roots = [];
-    if (shadowRoot) {
-      roots.push(shadowRoot);
-    }
-    roots.push(document);
-    roots.forEach((root) => {
-      const nodes = root.querySelectorAll('link[' + externalStyleAttr + ']');
-      nodes.forEach((node) => node.remove());
-    });
-  }
-
-  function loadExternalScripts(list) {
-    externalScriptsToken += 1;
-    const token = externalScriptsToken;
-    clearExternalScripts();
-    if (!list.length) {
-      return Promise.resolve();
-    }
-
-    const head = getScriptHost();
-    return list.reduce((chain, url) => {
-      return chain.then(
-        () =>
-          new Promise((resolve) => {
-            if (token !== externalScriptsToken) {
-              resolve();
-              return;
-            }
-            const scriptEl = document.createElement('script');
-            scriptEl.setAttribute(externalScriptAttr, '1');
-            scriptEl.async = false;
-            scriptEl.src = url;
-            scriptEl.onload = () => resolve();
-            scriptEl.onerror = () => resolve();
-            head.appendChild(scriptEl);
-          })
-      );
-    }, Promise.resolve());
-  }
-
-  function loadExternalStyles(list) {
-    clearExternalStyles();
-    if (!list.length) {
-      return;
-    }
-
-    const root = getStyleRoot();
-    const host = root || document.head || document.body;
-    list.forEach((url) => {
-      const linkEl = document.createElement('link');
-      linkEl.setAttribute(externalStyleAttr, '1');
-      linkEl.rel = 'stylesheet';
-      linkEl.href = url;
-      host.appendChild(linkEl);
-    });
-  }
-
-  function setExternalScripts(list) {
-    const next = normalizeExternalScripts(list);
-    if (isSameList(next, externalScripts)) return;
-    externalScripts = next;
-    externalScriptsReady = loadExternalScripts(next);
-  }
-
-  function setExternalStyles(list) {
-    const next = normalizeExternalStyles(list);
-    if (isSameList(next, externalStyles)) return;
-    externalStyles = next;
-    loadExternalStyles(next);
   }
 
   function findMarkers() {
@@ -906,9 +833,35 @@
     return null;
   }
 
+  function reviveScripts(root) {
+    const pending = [];
+    const scripts = root.querySelectorAll ? Array.prototype.slice.call(root.querySelectorAll('script')) : [];
+    scripts.forEach((node) => {
+      const script = document.createElement('script');
+      const hasAsyncAttr = node.hasAttribute('async');
+      Array.prototype.forEach.call(node.attributes, (attr) => {
+        script.setAttribute(attr.name, attr.value);
+      });
+      if (!hasAsyncAttr) {
+        script.async = false;
+      }
+      script.text = node.text || node.textContent || '';
+      if (script.src) {
+        pending.push(
+          new Promise((resolve) => {
+            script.addEventListener('load', resolve, { once: true });
+            script.addEventListener('error', resolve, { once: true });
+          })
+        );
+      }
+      node.replaceWith(script);
+    });
+    return pending.length ? Promise.all(pending).then(() => undefined) : Promise.resolve();
+  }
+
   function replaceEditableContent(html) {
     const markers = findMarkers();
-    if (!markers) return;
+    if (!markers) return Promise.resolve();
 
     const range = document.createRange();
     range.setStartAfter(markers.start);
@@ -917,27 +870,14 @@
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
-    hydrateDeclarativeShadowDom(wrapper);
+    const scriptsReady = reviveScripts(wrapper);
     const frag = document.createDocumentFragment();
     while (wrapper.firstChild) {
       frag.appendChild(wrapper.firstChild);
     }
     range.insertNode(frag);
     range.detach();
-  }
-
-  function renderShadow(html, css) {
-    const root = ensureShadowRoot();
-    if (!root) return;
-    const content = ensureShadowContent(root);
-    content.innerHTML = html || '';
-    hydrateDeclarativeShadowDom(content);
-    const styleEl = ensureStyleElement();
-    if (styleEl) {
-      styleEl.textContent = css || '';
-    }
-    clearHighlight();
-    clearSelection();
+    return scriptsReady;
   }
 
   function clearMarkerRetryTimer() {
@@ -960,7 +900,7 @@
       if (findMarkers()) {
         pendingRenderPayload = null;
         clearMarkerRetryTimer();
-        render(next.html, next.css);
+        render(next.html, next.css, next.customHead, next.bodyAttrs, next.hasBody, next.templateMode);
         return;
       }
       if (Date.now() - markerRetryStartedAt >= markerRetryMaxWaitMs) {
@@ -973,11 +913,15 @@
     }, markerRetryDelayMs);
   }
 
-  function render(html, css) {
+  function render(html, css, customHead, bodyAttrs, hasBody, templateMode) {
     if (!findMarkers()) {
       pendingRenderPayload = {
         html: html || '',
         css: css || '',
+        customHead: customHead,
+        bodyAttrs: bodyAttrs || {},
+        hasBody: Boolean(hasBody),
+        templateMode: templateMode || 'standalone',
       }
       queueMarkerRetry();
       return;
@@ -985,38 +929,21 @@
     pendingRenderPayload = null;
     clearMarkerRetryTimer();
 
-    if (shadowEnabled) {
-      renderShadow(html, css);
-      reply('KAYZART_RENDERED');
-      return;
-    }
-    clearShadowHost();
-    replaceEditableContent(html);
+    const contentScriptsReady = replaceEditableContent(html);
+    applyBodyAttrs(bodyAttrs, hasBody, templateMode);
+    const customHeadScriptsReady =
+      customHead !== undefined ? setCustomHead(customHead) : Promise.resolve();
+    htmlScriptsReady = Promise.all([contentScriptsReady, customHeadScriptsReady]).then(() => undefined);
     clearHighlight();
     clearSelection();
     const styleEl = ensureStyleElement();
     if (styleEl) {
       styleEl.textContent = css || '';
     }
-    reply('KAYZART_RENDERED');
-  }
-
-  function hydrateDeclarativeShadowDom(root) {
-    if (!root || typeof root.querySelectorAll !== 'function') return;
-    const templates = root.querySelectorAll('template[shadowrootmode]');
-    templates.forEach((tpl) => {
-      const host = tpl.parentElement;
-      if (!host) return;
-      if (host.hasAttribute('data-kayzart-shadow-hydrated')) return;
-      const modeAttr = tpl.getAttribute('shadowrootmode');
-      const mode = modeAttr === 'closed' ? 'closed' : 'open';
-      try {
-        const shadow = host.attachShadow({ mode: mode });
-        shadow.appendChild(tpl.content.cloneNode(true));
-        host.setAttribute('data-kayzart-shadow-hydrated', '1');
-        tpl.remove();
-      } catch (e) {
-        // noop
+    const currentHtmlScriptsReady = htmlScriptsReady;
+    currentHtmlScriptsReady.then(() => {
+      if (currentHtmlScriptsReady === htmlScriptsReady) {
+        reply('KAYZART_RENDERED');
       }
     });
   }
@@ -1058,11 +985,17 @@
     }
     if (data.type === 'KAYZART_RENDER') {
       if (!isReady) return;
-      setShadowDomEnabled(Boolean(data.shadowDomEnabled));
       if ('liveHighlightEnabled' in data) {
         setDomSelectorEnabled(Boolean(data.liveHighlightEnabled));
       }
-      render(data.canonicalHTML, data.cssText);
+      render(
+        data.canonicalHTML,
+        data.cssText,
+        'customHead' in data ? data.customHead : undefined,
+        data.bodyAttrs || {},
+        Boolean(data.hasBody),
+        data.templateMode || 'standalone'
+      );
     }
     if (data.type === 'KAYZART_SET_CSS') {
       if (!isReady) return;
@@ -1085,14 +1018,6 @@
       if (!isReady) return;
       jsEnabled = false;
       stopJsRuntime();
-    }
-    if (data.type === 'KAYZART_EXTERNAL_SCRIPTS') {
-      if (!isReady) return;
-      setExternalScripts(data.urls || []);
-    }
-    if (data.type === 'KAYZART_EXTERNAL_STYLES') {
-      if (!isReady) return;
-      setExternalStyles(data.urls || []);
     }
   });
 

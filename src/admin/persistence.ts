@@ -1,4 +1,3 @@
-import type { ExportPayload } from './types';
 import type { SettingsData } from './settings';
 import { __, sprintf } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
@@ -75,10 +74,7 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
         },
       });
 
-      if (currentToken !== tailwindCompileToken) {
-        return;
-      }
-      if (!deps.isTailwindEnabled()) {
+      if (currentToken !== tailwindCompileToken || !deps.isTailwindEnabled()) {
         return;
       }
 
@@ -120,6 +116,7 @@ type SaveParams = {
   restUrl: string;
   postId: number;
   html: string;
+  customHead: string;
   css: string;
   tailwindEnabled: boolean;
   canEditJs: boolean;
@@ -130,7 +127,7 @@ type SaveParams = {
 
 export async function saveKayzArt(
   params: SaveParams
-): Promise<{ ok: boolean; error?: string; settings?: SettingsData }> {
+): Promise<{ ok: boolean; error?: string; customHead?: string; customHeadRemovedTags?: string[]; settings?: SettingsData }> {
   try {
     const payload: Record<string, unknown> = {
       post_id: params.postId,
@@ -139,6 +136,7 @@ export async function saveKayzArt(
       tailwindEnabled: params.tailwindEnabled,
     };
     if (params.canEditJs) {
+      payload.customHead = params.customHead;
       payload.js = params.js;
       payload.jsMode = params.jsMode;
     }
@@ -156,7 +154,11 @@ export async function saveKayzArt(
         res?.settings && typeof res.settings === 'object'
           ? (res.settings as SettingsData)
           : undefined;
-      return { ok: true, settings };
+      const customHead = typeof res?.customHead === 'string' ? res.customHead : undefined;
+      const customHeadRemovedTags = Array.isArray(res?.customHeadRemovedTags)
+        ? res.customHeadRemovedTags.filter((tag): tag is string => typeof tag === 'string')
+        : undefined;
+      return { ok: true, customHead, customHeadRemovedTags, settings };
     }
     if (typeof res?.error === 'string' && res.error.trim()) {
       return { ok: false, error: res.error };
@@ -166,89 +168,6 @@ export async function saveKayzArt(
     return {
       ok: false,
       error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
-    };
-  }
-}
-
-type ExportParams = {
-  apiFetch: ApiFetch;
-  restCompileUrl: string;
-  postId: number;
-  html: string;
-  css: string;
-  tailwindEnabled: boolean;
-  tailwindCss: string;
-  js: string;
-  jsMode: JsMode;
-  externalScripts: string[];
-  externalStyles: string[];
-  shadowDomEnabled: boolean;
-  shortcodeEnabled: boolean;
-  singlePageEnabled: boolean;
-  liveHighlightEnabled: boolean;
-};
-
-export async function exportKayzArt(
-  params: ExportParams
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    let generatedCss = '';
-    if (params.tailwindEnabled) {
-      try {
-        const res = await params.apiFetch<CompileTailwindResponse>({
-          url: params.restCompileUrl,
-          method: 'POST',
-          data: {
-            post_id: params.postId,
-            html: params.html,
-            css: params.css,
-          },
-        });
-
-        if (res?.ok && typeof res.css === 'string') {
-          generatedCss = res.css;
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('[KayzArt] Export compile failed', error);
-      }
-    }
-
-    const payload: ExportPayload = {
-      version: 1,
-      html: params.html,
-      css: params.css,
-      tailwindEnabled: params.tailwindEnabled,
-      generatedCss: params.tailwindEnabled ? (generatedCss || params.tailwindCss) : '',
-      js: params.js,
-      jsMode: params.jsMode,
-      externalScripts: [...params.externalScripts],
-      externalStyles: [...params.externalStyles],
-      shadowDomEnabled: params.shadowDomEnabled,
-      shortcodeEnabled: params.shortcodeEnabled,
-      singlePageEnabled: params.singlePageEnabled,
-      liveHighlightEnabled: params.liveHighlightEnabled,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
-    });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `kayzart-${params.postId}.json`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => {
-      window.URL.revokeObjectURL(url);
-    }, 500);
-
-    return { ok: true };
-  } catch (error: unknown) {
-    return {
-      ok: false,
-      error: resolveUnknownErrorMessage(error, __('Export failed.', 'kayzart-live-code-editor')),
     };
   }
 }

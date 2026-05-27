@@ -51,13 +51,14 @@ export type SelectedElementContext = {
 
 export type EditorSnapshot = {
   html: string;
+  customHead?: string;
   css: string;
   js: string;
   jsMode: 'classic' | 'module';
   baseHash: string;
 };
 
-export type EditorMode = 'normal' | 'tailwind';
+export type EditorMode = 'normal';
 
 export type SnapshotReplaceOptions = {
   highlightChanges?: boolean;

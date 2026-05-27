@@ -6,7 +6,8 @@
  */
 
 use KayzArt\Frontend;
-use KayzArt\Admin;
+use KayzArt\Custom_Head;
+use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 
 class Test_Frontend_Output extends WP_UnitTestCase {
@@ -21,17 +22,16 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 			Frontend::init();
 		}
 
-		$this->reset_shortcode_state();
+		$this->reset_frontend_state();
 	}
 
 	protected function tearDown(): void {
-		$this->reset_shortcode_state();
-		delete_option( Admin::OPTION_SHORTCODE_ALLOWLIST );
+		$this->reset_frontend_state();
 		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
 
-	public function test_filter_content_wraps_shadow_dom_with_assets(): void {
+	public function test_filter_content_ignores_legacy_shadow_meta_and_uses_normal_dom(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 		$post     = get_post( $post_id );
@@ -56,58 +56,18 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$output            = Frontend::filter_content( (string) $post->post_content );
 		$this->restore_query( $original_wp_query );
 
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $output );
-		$this->assertStringContainsString( '<template shadowrootmode="open">', $output );
-		$this->assertStringContainsString( 'https://example.com/app.css', $output );
-		$this->assertStringContainsString( 'body{color:red;}', $output );
+		$this->assertStringNotContainsString( '<kayzart-output', $output );
+		$this->assertStringNotContainsString( 'shadowrootmode', $output );
+		$this->assertStringNotContainsString( 'https://example.com/app.css', $output );
+		$this->assertStringNotContainsString( 'body{color:red;}', $output );
 		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
 		$this->assertStringNotContainsString( '<script src="https://example.com/app.js"></script>', $output );
 		$this->assertStringNotContainsString( '<script id="kayzart-script">console.log("x");</script>', $output );
 		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
 		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
-		$this->assertStringContainsString( '</template>', $output );
-		$this->assertStringContainsString( '</kayzart-output>', $output );
 	}
 
-	public function test_shortcode_renders_shadow_dom_with_unique_ids(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shadow_dom', '1' );
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		update_post_meta( $post_id, '_kayzart_css', 'body{background:#000;}' );
-		update_post_meta( $post_id, '_kayzart_js', 'console.log("shortcode");' );
-		update_post_meta(
-			$post_id,
-			'_kayzart_external_styles',
-			wp_json_encode( array( 'https://example.com/shortcode.css' ) )
-		);
-		update_post_meta(
-			$post_id,
-			'_kayzart_external_scripts',
-			wp_json_encode( array( 'https://example.com/shortcode.js' ) )
-		);
-
-		wp_set_current_user( $admin_id );
-
-		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $first );
-		$this->assertStringContainsString( '<kayzart-output data-post-id="' . $post_id . '">', $second );
-		$this->assertStringContainsString( 'https://example.com/shortcode.css', $first );
-		$this->assertStringContainsString( 'https://example.com/shortcode.css', $second );
-		$this->assertStringContainsString( 'body{background:#000;}', $first );
-		$this->assertStringContainsString( 'body{background:#000;}', $second );
-		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-1"', $first );
-		$this->assertStringContainsString( 'id="kayzart-script-data-' . $post_id . '-2"', $second );
-		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $first );
-		$this->assertStringNotContainsString( '<script src="https://example.com/shortcode.js"></script>', $second );
-		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'kayzart-ext-' . $post_id . '-0', 'enqueued' ) );
-	}
-
-	public function test_shortcode_non_shadow_outputs_payload_and_enqueues_runtime(): void {
+	public function test_legacy_enabled_shortcode_renders_content_css_and_js(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
@@ -126,194 +86,58 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( $admin_id );
+		$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		$first  = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		$second = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-
-		$this->assertStringContainsString( 'https://example.com/inline.css', $first );
-		$this->assertStringContainsString( 'body{font-size:16px;}', $first );
-		$this->assertStringContainsString( '<p>KayzArt content</p>', $first );
-		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $first );
-		$this->assertStringContainsString( 'data-kayzart-js="1"', $first );
-		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $first );
-
-		$this->assertStringNotContainsString( 'https://example.com/inline.css', $second );
-		$this->assertStringNotContainsString( 'body{font-size:16px;}', $second );
-		$this->assertStringContainsString( '<p>KayzArt content</p>', $second );
-		$this->assertStringNotContainsString( '<script src="https://example.com/inline.js"></script>', $second );
-		$this->assertStringContainsString( 'data-kayzart-js="1"', $second );
-
-		$external_handle = 'kayzart-ext-' . $post_id . '-0';
-		$this->assertTrue( wp_script_is( $external_handle, 'enqueued' ) );
-		$this->assertTrue( wp_script_is( 'kayzart-shadow-runtime', 'enqueued' ) );
+		$this->assertStringContainsString( '<p>KayzArt content</p>', $output );
+		$this->assertStringContainsString( 'body{font-size:16px;}', $output );
+		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
+		$this->assertStringContainsString( 'data-kayzart-js-mode="classic"', $output );
+		$this->assertStringContainsString( rawurlencode( 'console.log("inline");' ), $output );
+		$this->assertStringNotContainsString( 'https://example.com/inline.css', $output );
+		$this->assertStringNotContainsString( 'https://example.com/inline.js', $output );
+		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 	}
 
-	public function test_shortcode_embed_runs_only_allowlisted_shortcodes(): void {
+	public function test_legacy_shortcode_without_enabled_meta_returns_empty(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[allowed_probe] [blocked_probe]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, "allowed_probe\n" );
+		update_post_meta( $post_id, '_kayzart_css', 'body{font-size:16px;}' );
+		update_post_meta( $post_id, '_kayzart_js', 'console.log("inline");' );
 
-		add_shortcode(
-			'allowed_probe',
-			static function (): string {
-				return '<span class="allowed-probe">ok</span>';
-			}
-		);
-		add_shortcode(
-			'blocked_probe',
-			static function (): string {
-				return '<span class="blocked-probe">blocked</span>';
-			}
-		);
+		wp_set_current_user( $admin_id );
+		$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'allowed_probe' );
-			remove_shortcode( 'blocked_probe' );
-		}
-
-		$this->assertStringContainsString( '<span class="allowed-probe">ok</span>', $output );
-		$this->assertStringNotContainsString( '<span class="blocked-probe">blocked</span>', $output );
-		$this->assertStringContainsString( '[blocked_probe]', $output );
+		$this->assertSame( '', $output );
+		$this->assertFalse( wp_style_is( 'kayzart-shortcode-style-' . $post_id, 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 	}
 
-	public function test_shortcode_embed_with_empty_allowlist_keeps_shortcodes_as_text(): void {
+	public function test_legacy_shortcode_with_disabled_meta_returns_empty(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[allowed_probe]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, '' );
+		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '0' );
+		update_post_meta( $post_id, '_kayzart_css', 'body{font-size:16px;}' );
+		update_post_meta( $post_id, '_kayzart_js', 'console.log("inline");' );
 
-		add_shortcode(
-			'allowed_probe',
-			static function (): string {
-				return '<span class="allowed-probe">ok</span>';
-			}
-		);
+		wp_set_current_user( $admin_id );
+		$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
 
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'allowed_probe' );
-		}
-
-		$this->assertStringContainsString( '[allowed_probe]', $output );
-		$this->assertStringNotContainsString( '<span class="allowed-probe">ok</span>', $output );
+		$this->assertSame( '', $output );
+		$this->assertFalse( wp_style_is( 'kayzart-shortcode-style-' . $post_id, 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
 	}
 
-	public function test_shortcode_embed_allowlist_runs_single_pass_only(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[kayzart_section]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, "kayzart_section\ncontact-form-7" );
-
-		add_shortcode(
-			'kayzart_section',
-			static function (): string {
-				return '[contact-form-7 id="123"]';
-			}
-		);
-		add_shortcode(
-			'contact-form-7',
-			static function ( $atts ): string {
-				$id = isset( $atts['id'] ) ? (string) $atts['id'] : '';
-				return '<form data-cf7-id="' . esc_attr( $id ) . '"></form>';
-			}
-		);
-
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'kayzart_section' );
-			remove_shortcode( 'contact-form-7' );
-		}
-
-		$this->assertStringContainsString( '[contact-form-7 id="123"]', $output );
-		$this->assertStringNotContainsString( '<form data-cf7-id="123"></form>', $output );
-	}
-
-	public function test_shortcode_embed_stops_after_single_pass(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
-
-		update_post_meta( $post_id, '_kayzart_shortcode_enabled', '1' );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => '[pass_one]',
-			)
-		);
-		update_option( Admin::OPTION_SHORTCODE_ALLOWLIST, "pass_one\npass_two\npass_three" );
-
-		add_shortcode(
-			'pass_one',
-			static function (): string {
-				return '[pass_two]';
-			}
-		);
-		add_shortcode(
-			'pass_two',
-			static function (): string {
-				return '[pass_three]';
-			}
-		);
-		add_shortcode(
-			'pass_three',
-			static function (): string {
-				return '<span class="pass-three">ok</span>';
-			}
-		);
-
-		try {
-			wp_set_current_user( $admin_id );
-			$output = do_shortcode( '[kayzart post_id="' . $post_id . '"]' );
-		} finally {
-			remove_shortcode( 'pass_one' );
-			remove_shortcode( 'pass_two' );
-			remove_shortcode( 'pass_three' );
-		}
-
-		$this->assertStringContainsString( '[pass_two]', $output );
-		$this->assertStringNotContainsString( '[pass_three]', $output );
-		$this->assertStringNotContainsString( '<span class="pass-three">ok</span>', $output );
-	}
-
-	public function test_enqueue_css_preserves_tailwind_escaped_arbitrary_values(): void {
+	public function test_enqueue_css_preserves_escaped_arbitrary_values(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
 		$post     = get_post( $post_id );
 
 		$this->assertInstanceOf( WP_Post::class, $post );
 
-		update_post_meta( $post_id, '_kayzart_tailwind', '1' );
-
-		$generated_css = '.text-\\[2rem\\]{font-size:2rem;}';
-		update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $generated_css ) );
+		$css = '.text-\\[2rem\\]{font-size:2rem;}';
+		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css ) );
 
 		$original_wp_query = $this->set_query_for_post( $post_id, $post );
 		Frontend::enqueue_css();
@@ -326,8 +150,246 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertIsArray( $inline_rules );
 		$inline_css = implode( "\n", $inline_rules );
 
-		$this->assertStringContainsString( $generated_css, $inline_css );
+		$this->assertStringContainsString( $css, $inline_css );
 		$this->assertStringNotContainsString( '.text-[2rem]', $inline_css );
+	}
+
+	public function test_marked_page_receives_frontend_assets_and_unmarked_page_does_not(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$page_id  = $this->create_page( $admin_id, 'publish', true );
+		$page     = get_post( $page_id );
+
+		$this->assertInstanceOf( WP_Post::class, $page );
+
+		update_post_meta( $page_id, '_kayzart_css', 'body{color:green;}' );
+		update_post_meta( $page_id, '_kayzart_js', 'console.log("page");' );
+
+		$original_wp_query = $this->set_query_for_post( $page_id, $page );
+		$output            = Frontend::filter_content( (string) $page->post_content );
+		Frontend::enqueue_css();
+		Frontend::enqueue_js();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( 'data-kayzart-js="1"', $output );
+		$this->assertTrue( wp_style_is( 'kayzart', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
+
+		$this->reset_frontend_state();
+		wp_dequeue_style( 'kayzart' );
+		wp_deregister_style( 'kayzart' );
+		wp_dequeue_script( 'kayzart-runtime' );
+		wp_deregister_script( 'kayzart-runtime' );
+
+		$normal_page_id = $this->create_page( $admin_id, 'publish', false );
+		$normal_page    = get_post( $normal_page_id );
+		$this->assertInstanceOf( WP_Post::class, $normal_page );
+
+		update_post_meta( $normal_page_id, '_kayzart_css', 'body{color:red;}' );
+		update_post_meta( $normal_page_id, '_kayzart_js', 'console.log("normal");' );
+
+		$original_wp_query = $this->set_query_for_post( $normal_page_id, $normal_page );
+		$output            = Frontend::filter_content( (string) $normal_page->post_content );
+		Frontend::enqueue_css();
+		Frontend::enqueue_js();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringNotContainsString( 'data-kayzart-js="1"', $output );
+		$this->assertFalse( wp_style_is( 'kayzart', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-runtime', 'enqueued' ) );
+	}
+
+	public function test_standalone_mode_dequeues_core_global_styles(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		wp_register_style( 'global-styles', false, array(), KAYZART_VERSION );
+		wp_enqueue_style( 'global-styles' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertFalse( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
+	public function test_theme_mode_preserves_core_global_styles(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+		wp_register_style( 'global-styles', false, array(), KAYZART_VERSION );
+		wp_enqueue_style( 'global-styles' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertTrue( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
+	public function test_standalone_style_filter_preserves_core_global_styles(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		wp_register_style( 'global-styles', false, array(), KAYZART_VERSION );
+		wp_enqueue_style( 'global-styles' );
+
+		add_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		remove_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
+
+		$this->assertTrue( wp_style_is( 'global-styles', 'enqueued' ) );
+	}
+
+	public function test_standalone_mode_removes_core_global_style_hooks(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		$this->restore_core_theme_style_hooks();
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::disable_theme_styles_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertFalse( has_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' ) );
+		$this->assertFalse( has_action( 'wp_footer', 'wp_enqueue_global_styles' ) );
+		$this->assertFalse( has_action( 'wp_head', 'wp_custom_css_cb' ) );
+	}
+
+	public function test_theme_mode_preserves_core_global_style_hooks(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+		$this->restore_core_theme_style_hooks();
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::disable_theme_styles_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertSame( 10, has_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' ) );
+		$this->assertSame( 1, has_action( 'wp_footer', 'wp_enqueue_global_styles' ) );
+		$this->assertSame( 101, has_action( 'wp_head', 'wp_custom_css_cb' ) );
+	}
+
+	public function test_editor_html_wraps_content_only_when_body_attrs_exist(): void {
+		$this->assertSame(
+			'<body class="lp"><main>Hi</main></body>',
+			Html_Document::build_editor_html( '<main>Hi</main>', 'class="lp"' )
+		);
+		$this->assertSame(
+			'<main>Hi</main>',
+			Html_Document::build_editor_html( '<main>Hi</main>', '' )
+		);
+	}
+
+	public function test_standalone_body_attributes_include_stored_attrs_and_layout_class(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta(
+			$post_id,
+			Html_Document::BODY_ATTRS_META_KEY,
+			'class="lp custom" data-page="x" aria-label="Page" onload="alert(1)" style="color:red"'
+		);
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		$attrs             = Html_Document::build_standalone_body_attributes( $post_id, 'kayzart-layout-standalone' );
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( 'class="', $attrs );
+		$this->assertStringContainsString( 'kayzart-layout-standalone', $attrs );
+		$this->assertStringContainsString( 'lp', $attrs );
+		$this->assertStringContainsString( 'custom', $attrs );
+		$this->assertStringContainsString( 'data-page="x"', $attrs );
+		$this->assertStringContainsString( 'aria-label="Page"', $attrs );
+		$this->assertStringNotContainsString( 'onload', $attrs );
+		$this->assertStringNotContainsString( 'style', $attrs );
+	}
+
+	public function test_theme_body_class_adds_only_stored_classes(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+		update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, 'class="lp custom" data-page="x"' );
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		$classes           = Frontend::filter_body_class( array( 'theme-base' ) );
+		$this->restore_query( $original_wp_query );
+
+		$this->assertContains( 'theme-base', $classes );
+		$this->assertContains( 'lp', $classes );
+		$this->assertContains( 'custom', $classes );
+		$this->assertNotContains( 'data-page', $classes );
+	}
+
+	public function test_wp_head_outputs_custom_head_for_kayzart_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, Custom_Head::META_KEY, '<meta property="og:title" content="KayzArt"><title>Nope</title>' );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		ob_start();
+		Custom_Head::render_current_post_head();
+		$output = (string) ob_get_clean();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertStringContainsString( '<meta property="og:title" content="KayzArt">', $output );
+		$this->assertStringNotContainsString( '<title>', $output );
+	}
+
+	public function test_preview_query_suppresses_server_custom_head_output(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+
+		update_post_meta( $post_id, Custom_Head::META_KEY, '<meta name="description" content="Preview"><script>alert("123");</script>' );
+
+		global $wp_query;
+		$original_wp_query = $wp_query ?? null;
+		$wp_query          = new WP_Query();
+		$wp_query->set( 'kayzart_preview', '1' );
+		$wp_query->set( 'post_id', (string) $post_id );
+
+		ob_start();
+		Custom_Head::render_current_post_head();
+		$output = (string) ob_get_clean();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertSame( '', $output );
+		$this->assertStringNotContainsString( Custom_Head::START_MARKER, $output );
+		$this->assertStringNotContainsString( '<meta name="description" content="Preview">', $output );
+		$this->assertStringNotContainsString( '<script>alert("123");</script>', $output );
 	}
 
 	private function create_kayzart_post( int $author_id, string $status ): int {
@@ -364,25 +426,52 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		}
 	}
 
-	private function reset_shortcode_state(): void {
-		$instance_property = new ReflectionProperty( Frontend::class, 'shortcode_instance' );
-		$instance_property->setAccessible( true );
-		$instance_property->setValue( null, 0 );
-
-		$assets_property = new ReflectionProperty( Frontend::class, 'shortcode_assets_loaded' );
-		$assets_property->setAccessible( true );
-		$assets_property->setValue( null, array() );
-
-		$external_property = new ReflectionProperty( Frontend::class, 'external_script_handles' );
-		$external_property->setAccessible( true );
-		$external_property->setValue( null, array() );
-
-		$runtime_property = new ReflectionProperty( Frontend::class, 'shadow_runtime_enqueued' );
+	private function reset_frontend_state(): void {
+		$runtime_property = new ReflectionProperty( Frontend::class, 'runtime_enqueued' );
 		$runtime_property->setAccessible( true );
 		$runtime_property->setValue( null, false );
 
-		$style_count_property = new ReflectionProperty( Frontend::class, 'shadow_style_render_count' );
-		$style_count_property->setAccessible( true );
-		$style_count_property->setValue( null, 0 );
+		$shortcode_assets_property = new ReflectionProperty( Frontend::class, 'shortcode_assets_loaded' );
+		$shortcode_assets_property->setAccessible( true );
+		$shortcode_assets_property->setValue( null, array() );
+
+		remove_filter( 'kayzart_standalone_dequeue_theme_styles', '__return_false' );
+		wp_dequeue_style( 'global-styles' );
+		wp_deregister_style( 'global-styles' );
+		wp_dequeue_script( 'kayzart-runtime' );
+		wp_deregister_script( 'kayzart-runtime' );
+		$this->restore_core_theme_style_hooks();
+	}
+
+	private function restore_core_theme_style_hooks(): void {
+		if ( function_exists( 'wp_enqueue_global_styles' ) ) {
+			if ( false === has_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' ) ) {
+				add_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
+			}
+			if ( false === has_action( 'wp_footer', 'wp_enqueue_global_styles' ) ) {
+				add_action( 'wp_footer', 'wp_enqueue_global_styles', 1 );
+			}
+		}
+
+		if ( function_exists( 'wp_custom_css_cb' ) && false === has_action( 'wp_head', 'wp_custom_css_cb' ) ) {
+			add_action( 'wp_head', 'wp_custom_css_cb', 101 );
+		}
+	}
+
+	private function create_page( int $author_id, string $status, bool $kayzart_enabled ): int {
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_status'  => $status,
+				'post_author'  => $author_id,
+				'post_content' => '<p>Page content</p>',
+			)
+		);
+
+		if ( $kayzart_enabled ) {
+			update_post_meta( $post_id, Post_Type::ENABLED_META, '1' );
+		}
+
+		return $post_id;
 	}
 }

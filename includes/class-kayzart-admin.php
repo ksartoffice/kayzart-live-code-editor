@@ -21,35 +21,32 @@ class Admin {
 	const SETTINGS_GROUP               = 'kayzart_settings';
 	const NEW_POST_ACTION              = 'kayzart_new';
 	const NEW_POST_NONCE_ACTION        = 'kayzart_new_post';
+	const NEW_PAGE_ACTION              = 'kayzart_new_page';
+	const NEW_PAGE_NONCE_ACTION        = 'kayzart_new_page';
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
 	const EDITOR_PAGE_NONCE_ACTION     = 'kayzart_editor_page';
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
+	const OPTION_ENABLED_POST_TYPES    = 'kayzart_enabled_post_types';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
-	const OPTION_SHORTCODE_ALLOWLIST   = 'kayzart_shortcode_allowlist';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
-	const OPTION_DELETE_ON_UNINSTALL   = 'kayzart_delete_on_uninstall';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
 		' ' . "\xE2\x80\xB9" . ' ',
 		' &lsaquo; ',
 	);
-	private const JS_MODE_VALUES       = array( 'classic', 'module' );
 	/**
 	 * Register admin hooks.
 	 */
 	public static function init(): void {
 
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
-		add_action( 'admin_menu', array( __CLASS__, 'override_new_submenu_link' ), 999 );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'admin_title', array( __CLASS__, 'filter_admin_title' ), 10, 2 );
 		add_action( 'current_screen', array( __CLASS__, 'maybe_suppress_editor_notices' ) );
 		add_action( 'admin_action_kayzart', array( __CLASS__, 'action_redirect' ) ); // admin.php?action=kayzart.
 		add_action( 'admin_action_' . self::NEW_POST_ACTION, array( __CLASS__, 'action_create_new_post' ) );
-		add_action( 'load-post-new.php', array( __CLASS__, 'maybe_redirect_new_post' ) );
-		add_filter( 'admin_url', array( __CLASS__, 'filter_admin_url' ), 10, 3 );
-		add_action( 'admin_bar_menu', array( __CLASS__, 'override_admin_bar_new_link' ), 100 );
+		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
 		add_action( 'update_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_update' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_add' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrite_rules' ), 20 );
@@ -91,7 +88,7 @@ class Admin {
 		$suffix     = self::extract_admin_title_suffix( $admin_title, $title );
 
 		/* translators: %s: post title. */
-		$editor_title = sprintf( __( 'KayzArt Live Code Editor: %s', 'kayzart-live-code-editor' ), $post_title );
+		$editor_title = sprintf( __( 'KayzArt Landing Page Editor: %s', 'kayzart-live-code-editor' ), $post_title );
 
 		if ( '' === $suffix ) {
 			return $editor_title;
@@ -128,7 +125,7 @@ class Admin {
 		}
 
 		$post = get_post( $post_id );
-		if ( ! $post || Post_Type::POST_TYPE !== $post->post_type ) {
+		if ( ! $post || ! Post_Type::is_editor_enabled_post( $post ) ) {
 			return $fallback_title;
 		}
 
@@ -159,7 +156,7 @@ class Admin {
 			return 0;
 		}
 
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			if ( $die_on_failure ) {
 				wp_die( esc_html__( 'This editor is only available for KayzArt posts.', 'kayzart-live-code-editor' ) );
 			}
@@ -172,6 +169,8 @@ class Admin {
 			}
 			return 0;
 		}
+
+		Post_Type::enable_for_post( $post_id );
 
 		return $post_id;
 	}
@@ -188,7 +187,7 @@ class Admin {
 			return '';
 		}
 
-		if ( '' !== $title && str_starts_with( $admin_title, $title ) ) {
+		if ( '' !== $title && 0 === strpos( $admin_title, $title ) ) {
 			return (string) substr( $admin_title, strlen( $title ) );
 		}
 
@@ -213,12 +212,13 @@ class Admin {
 		if ( ! $post_id ) {
 			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 		}
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			wp_die( esc_html__( 'This editor is only available for KayzArt posts.', 'kayzart-live-code-editor' ) );
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
+		Post_Type::enable_for_post( $post_id );
 		wp_safe_redirect( Post_Type::get_editor_url( $post_id ) );
 		exit;
 	}
@@ -227,22 +227,6 @@ class Admin {
 	 * Redirect new KayzArt posts directly to the custom editor.
 	 */
 	public static function maybe_redirect_new_post(): void {
-		$post_type = self::resolve_new_post_screen_post_type();
-		if ( Post_Type::POST_TYPE !== $post_type ) {
-			return;
-		}
-
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-
-		$post_type_object = get_post_type_object( $post_type );
-		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
-		}
-		wp_safe_redirect( self::get_new_post_action_url() );
-		exit;
 	}
 
 	/**
@@ -263,32 +247,64 @@ class Admin {
 	}
 
 	/**
-	 * Create a new KayzArt draft post from a nonce-protected admin action.
+	 * Create a new KayzArt CPT draft from legacy action URLs.
 	 */
 	public static function action_create_new_post(): void {
+		self::verify_action_nonce( self::NEW_POST_NONCE_ACTION );
+		self::create_new_landing_page_post( Post_Type::POST_TYPE );
+	}
 
-		$post_type = Post_Type::POST_TYPE;
+	/**
+	 * Create a new post marked for KayzArt editing.
+	 */
+	public static function action_create_new_page(): void {
+		self::verify_action_nonce( self::NEW_PAGE_NONCE_ACTION );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
+		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( wp_unslash( (string) $_GET['post_type'] ) ) : Post_Type::PAGE_TYPE;
+		self::create_new_landing_page_post( $post_type );
+	}
 
+	/**
+	 * Verify an admin action nonce.
+	 *
+	 * @param string $nonce_action Nonce action.
+	 */
+	private static function verify_action_nonce( string $nonce_action ): void {
 		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, self::NEW_POST_NONCE_ACTION ) ) {
+		if ( ! wp_verify_nonce( $nonce, $nonce_action ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+	}
+
+	/**
+	 * Create a new KayzArt-managed draft.
+	 *
+	 * @param string $post_type Post type.
+	 */
+	private static function create_new_landing_page_post( string $post_type ): void {
+		if ( ! Post_Type::is_post_type_enabled( $post_type ) ) {
+			wp_die( esc_html__( 'This post type is not enabled for KayzArt.', 'kayzart-live-code-editor' ) );
 		}
 
 		$post_type_object = get_post_type_object( $post_type );
 		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
+
 		$post_id = wp_insert_post(
 			array(
 				'post_type'   => $post_type,
 				'post_status' => 'draft',
-				'post_title'  => __( 'Untitled KayzArt Page', 'kayzart-live-code-editor' ),
+				'post_title'  => __( 'Untitled landing page', 'kayzart-live-code-editor' ),
 			),
 			true
 		);
 		if ( is_wp_error( $post_id ) ) {
 			wp_die( esc_html( $post_id->get_error_message() ) );
 		}
+
+		Post_Type::enable_for_post( (int) $post_id );
+		update_post_meta( (int) $post_id, '_kayzart_setup_required', '1' );
 
 		wp_safe_redirect( Post_Type::get_editor_url( (int) $post_id ) );
 		exit;
@@ -319,28 +335,8 @@ class Admin {
 	 */
 	public static function filter_admin_url( string $url, string $path, $blog_id ): string {
 		unset( $blog_id );
-
-		if ( '' === $path ) {
-			return $url;
-		}
-
-		$normalized_path = str_replace( '&amp;', '&', $path );
-		$parts           = wp_parse_url( $normalized_path );
-		$route_path      = isset( $parts['path'] ) ? ltrim( (string) $parts['path'], '/' ) : '';
-		if ( 'post-new.php' !== basename( $route_path ) ) {
-			return $url;
-		}
-
-		$query = array();
-		if ( ! empty( $parts['query'] ) ) {
-			parse_str( (string) $parts['query'], $query );
-		}
-		$post_type = isset( $query['post_type'] ) ? sanitize_key( (string) $query['post_type'] ) : 'post';
-		if ( Post_Type::POST_TYPE !== $post_type ) {
-			return $url;
-		}
-
-		return self::get_new_post_action_url();
+		unset( $path );
+		return $url;
 	}
 
 	/**
@@ -349,13 +345,7 @@ class Admin {
 	 * @param \WP_Admin_Bar $admin_bar Admin bar instance.
 	 */
 	public static function override_admin_bar_new_link( \WP_Admin_Bar $admin_bar ): void {
-		$node = $admin_bar->get_node( 'new-' . Post_Type::POST_TYPE );
-		if ( ! $node ) {
-			return;
-		}
-
-		$node->href = self::get_new_post_action_url();
-		$admin_bar->add_node( $node );
+		unset( $admin_bar );
 	}
 
 	/**
@@ -376,35 +366,60 @@ class Admin {
 	}
 
 	/**
-	 * Replace the default KayzArt "Add New" submenu URL with the nonce-protected action URL.
+	 * Build nonce-protected URL for creating a new KayzArt-managed WordPress page.
+	 *
+	 * @param string $post_type Post type.
+	 * @return string
+	 */
+	public static function get_new_page_action_url( string $post_type = Post_Type::PAGE_TYPE ): string {
+
+		return add_query_arg(
+			array(
+				'action'    => self::NEW_PAGE_ACTION,
+				'post_type' => sanitize_key( $post_type ),
+				'_wpnonce'  => wp_create_nonce( self::NEW_PAGE_NONCE_ACTION ),
+			),
+			admin_url( 'admin.php' )
+		);
+	}
+
+	/**
+	 * Build the landing page settings page URL.
+	 *
+	 * @param string $tab Optional tab ID.
+	 * @return string
+	 */
+	public static function get_settings_url( string $tab = '' ): string {
+		$args = array(
+			'page' => self::SETTINGS_SLUG,
+		);
+		if ( '' !== $tab ) {
+			$args['tab'] = sanitize_key( $tab );
+		}
+
+		return add_query_arg( $args, admin_url( 'options-general.php' ) );
+	}
+
+	/**
+	 * Resolve the admin menu parent slug for a post type.
+	 *
+	 * @param string $post_type Post type.
+	 * @return string
+	 */
+	private static function get_post_type_menu_parent_slug( string $post_type ): string {
+		return 'post' === $post_type ? 'edit.php' : 'edit.php?post_type=' . sanitize_key( $post_type );
+	}
+
+	/**
+	 * Remove legacy KayzArt CPT creation/settings submenu entries.
 	 */
 	public static function override_new_submenu_link(): void {
-		$parent_slug = 'edit.php?post_type=' . Post_Type::POST_TYPE;
-		$post_type   = get_post_type_object( Post_Type::POST_TYPE );
-		if ( ! $post_type || empty( $post_type->cap->create_posts ) ) {
-			return;
-		}
+	}
 
-		remove_submenu_page( $parent_slug, 'post-new.php?post_type=' . Post_Type::POST_TYPE );
-		add_submenu_page(
-			$parent_slug,
-			(string) $post_type->labels->add_new_item,
-			(string) $post_type->labels->add_new_item,
-			(string) $post_type->cap->create_posts,
-			self::get_new_post_action_url()
-		);
-
-		$settings_item = remove_submenu_page( $parent_slug, self::SETTINGS_SLUG );
-		if ( false !== $settings_item ) {
-			add_submenu_page(
-				$parent_slug,
-				__( 'Settings', 'kayzart-live-code-editor' ),
-				__( 'Settings', 'kayzart-live-code-editor' ),
-				'manage_options',
-				self::SETTINGS_SLUG,
-				array( __CLASS__, 'render_settings_page' )
-			);
-		}
+	/**
+	 * Display a migration notice on the legacy KayzArt CPT list screen.
+	 */
+	public static function render_legacy_cpt_notice(): void {
 	}
 	/**
 	 * Register the hidden admin page entry.
@@ -422,10 +437,29 @@ class Admin {
 			array( __CLASS__, 'render_page' )
 		);
 
-		add_submenu_page(
-			'edit.php?post_type=' . Post_Type::POST_TYPE,
-			__( 'Settings', 'kayzart-live-code-editor' ),
-			__( 'Settings', 'kayzart-live-code-editor' ),
+		foreach ( Post_Type::get_enabled_post_types() as $post_type ) {
+			$post_type_object = get_post_type_object( $post_type );
+			if ( ! $post_type_object || empty( $post_type_object->cap->create_posts ) ) {
+				continue;
+			}
+			if ( ! current_user_can( $post_type_object->cap->create_posts ) ) {
+				continue;
+			}
+
+			add_submenu_page(
+				self::get_post_type_menu_parent_slug( $post_type ),
+				__( 'Add landing page', 'kayzart-live-code-editor' ),
+				__( 'Add landing page', 'kayzart-live-code-editor' ),
+				(string) $post_type_object->cap->create_posts,
+				self::get_new_page_action_url( $post_type ),
+				'',
+				11
+			);
+		}
+
+		add_options_page(
+			__( 'Landing page settings', 'kayzart-live-code-editor' ),
+			__( 'Landing page settings', 'kayzart-live-code-editor' ),
 			'manage_options',
 			self::SETTINGS_SLUG,
 			array( __CLASS__, 'render_settings_page' )
@@ -453,35 +487,28 @@ class Admin {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => array( __CLASS__, 'sanitize_default_template_mode' ),
-				'default'           => 'theme',
+				'default'           => 'standalone',
 			)
 		);
 
 		register_setting(
 			self::SETTINGS_GROUP,
-			self::OPTION_DELETE_ON_UNINSTALL,
+			self::OPTION_ENABLED_POST_TYPES,
 			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_delete_on_uninstall' ),
-				'default'           => '0',
+				'type'              => 'array',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_enabled_post_types' ),
+				'default'           => array( Post_Type::PAGE_TYPE ),
 			)
 		);
 
-		register_setting(
-			self::SETTINGS_GROUP,
-			self::OPTION_SHORTCODE_ALLOWLIST,
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_shortcode_allowlist' ),
-				'default'           => '',
-			)
-		);
-		add_settings_section(
-			'kayzart_permalink',
-			__( 'Permalink', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_permalink_section' ),
-			self::SETTINGS_SLUG
-		);
+		if ( self::should_show_post_slug_settings() ) {
+			add_settings_section(
+				'kayzart_permalink',
+				__( 'Permalink', 'kayzart-live-code-editor' ),
+				array( __CLASS__, 'render_permalink_section' ),
+				self::SETTINGS_SLUG
+			);
+		}
 
 		add_settings_section(
 			'kayzart_template_mode',
@@ -490,13 +517,15 @@ class Admin {
 			self::SETTINGS_SLUG
 		);
 
-		add_settings_field(
-			self::OPTION_POST_SLUG,
-			__( 'KayzArt slug', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_post_slug_field' ),
-			self::SETTINGS_SLUG,
-			'kayzart_permalink'
-		);
+		if ( self::should_show_post_slug_settings() ) {
+			add_settings_field(
+				self::OPTION_POST_SLUG,
+				__( 'KayzArt slug', 'kayzart-live-code-editor' ),
+				array( __CLASS__, 'render_post_slug_field' ),
+				self::SETTINGS_SLUG,
+				'kayzart_permalink'
+			);
+		}
 
 		add_settings_field(
 			self::OPTION_DEFAULT_TEMPLATE_MODE,
@@ -507,44 +536,19 @@ class Admin {
 		);
 
 		add_settings_section(
-			'kayzart_shortcode',
-			__( 'External embed', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_shortcode_section' ),
+			'kayzart_post_types',
+			__( 'Post types', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_post_types_section' ),
 			self::SETTINGS_SLUG
 		);
 
 		add_settings_field(
-			self::OPTION_SHORTCODE_ALLOWLIST,
-			__( 'Allowed shortcode tags', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_shortcode_allowlist_field' ),
+			self::OPTION_ENABLED_POST_TYPES,
+			__( 'Enabled post types', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_enabled_post_types_field' ),
 			self::SETTINGS_SLUG,
-			'kayzart_shortcode'
+			'kayzart_post_types'
 		);
-		add_settings_section(
-			'kayzart_cleanup',
-			__( 'Cleanup', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_cleanup_section' ),
-			self::SETTINGS_SLUG
-		);
-
-		add_settings_field(
-			self::OPTION_DELETE_ON_UNINSTALL,
-			__( 'Delete data on uninstall', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_delete_on_uninstall_field' ),
-			self::SETTINGS_SLUG,
-			'kayzart_cleanup'
-		);
-	}
-
-	/**
-	 * Sanitize delete-on-uninstall value.
-	 *
-	 * @param mixed $value Raw value.
-	 * @return string
-	 */
-	public static function sanitize_delete_on_uninstall( $value ): string {
-
-		return '1' === $value ? '1' : '0';
 	}
 
 	/**
@@ -559,6 +563,16 @@ class Admin {
 	}
 
 	/**
+	 * Check whether legacy slug settings should be visible.
+	 *
+	 * @return bool
+	 */
+	public static function should_show_post_slug_settings(): bool {
+		$slug = self::sanitize_post_slug( get_option( self::OPTION_POST_SLUG, Post_Type::SLUG ) );
+		return Post_Type::SLUG !== $slug;
+	}
+
+	/**
 	 * Sanitize default template mode value.
 	 *
 	 * @param mixed $value Raw value.
@@ -568,36 +582,19 @@ class Admin {
 
 		$template_mode = is_string( $value ) ? sanitize_key( $value ) : '';
 		$valid         = array( 'standalone', 'theme' );
-		return in_array( $template_mode, $valid, true ) ? $template_mode : 'theme';
+		return in_array( $template_mode, $valid, true ) ? $template_mode : 'standalone';
 	}
 
 	/**
-	 * Sanitize shortcode allowlist value.
+	 * Sanitize enabled post type values.
 	 *
 	 * @param mixed $value Raw value.
-	 * @return string
+	 * @return array<int,string>
 	 */
-	public static function sanitize_shortcode_allowlist( $value ): string {
-
-		$raw = is_string( $value ) ? $value : '';
-		if ( '' === $raw ) {
-			return '';
-		}
-
-		$normalized = str_replace( array( "\r\n", "\r" ), "\n", $raw );
-		$entries    = explode( "\n", $normalized );
-		$unique     = array();
-
-		foreach ( $entries as $entry ) {
-			$tag = sanitize_key( trim( $entry ) );
-			if ( '' === $tag ) {
-					continue;
-			}
-			$unique[ $tag ] = true;
-		}
-
-		return implode( "\n", array_keys( $unique ) );
+	public static function sanitize_enabled_post_types( $value ): array {
+		return Post_Type::sanitize_enabled_post_types( $value );
 	}
+
 	/**
 	 * Flush rewrite rules when the post slug changes.
 	 *
@@ -651,12 +648,12 @@ class Admin {
 	}
 
 	/**
-	 * Render shortcode section description.
+	 * Render post type section description.
 	 */
-	public static function render_shortcode_section(): void {
-
-		echo '<p>' . esc_html__( 'Control which shortcode tags are allowed to execute inside external embeds.', 'kayzart-live-code-editor' ) . '</p>';
+	public static function render_post_types_section(): void {
+		echo '<p>' . esc_html__( 'Choose which post types can use the KayzArt landing page editor.', 'kayzart-live-code-editor' ) . '</p>';
 	}
+
 	/**
 	 * Render post slug input field.
 	 */
@@ -671,7 +668,7 @@ class Admin {
 	 */
 	public static function render_default_template_mode_field(): void {
 
-		$value          = get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+		$value          = get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'standalone' );
 		$value          = self::sanitize_default_template_mode( $value );
 		$template_modes = array(
 			'standalone' => __( 'Standalone', 'kayzart-live-code-editor' ),
@@ -686,41 +683,22 @@ class Admin {
 	}
 
 	/**
-	 * Render shortcode allowlist textarea field.
+	 * Render enabled post type checkboxes.
 	 */
-	public static function render_shortcode_allowlist_field(): void {
+	public static function render_enabled_post_types_field(): void {
+		$enabled    = Post_Type::get_enabled_post_types();
+		$post_types = Post_Type::get_selectable_post_types();
 
-		$value = get_option( self::OPTION_SHORTCODE_ALLOWLIST, '' );
-		if ( ! is_string( $value ) ) {
-			$value = '';
+		echo '<input type="hidden" name="' . esc_attr( self::OPTION_ENABLED_POST_TYPES ) . '[]" value="" />';
+		foreach ( $post_types as $name => $post_type ) {
+			$label = $post_type->labels->name ?? $name;
+			echo '<label style="display:block;margin:0 0 6px;">';
+			echo '<input type="checkbox" name="' . esc_attr( self::OPTION_ENABLED_POST_TYPES ) . '[]" value="' . esc_attr( $name ) . '" ' . checked( in_array( $name, $enabled, true ), true, false ) . ' />';
+			echo ' ' . esc_html( (string) $label ) . ' <code>' . esc_html( $name ) . '</code>';
+			echo '</label>';
 		}
 
-		echo '<textarea class="large-text code" rows="6" name="' . esc_attr( self::OPTION_SHORTCODE_ALLOWLIST ) . '">' . esc_textarea( $value ) . '</textarea>';
-		echo '<p class="description">' .
-			esc_html__(
-				'One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id="..."]). Other tags stay as plain text.',
-				'kayzart-live-code-editor'
-			) .
-		'</p>';
-	}
-	/**
-	 * Render cleanup section description.
-	 */
-	public static function render_cleanup_section(): void {
-
-		echo '<p>' . esc_html__( 'Choose whether KayzArt posts should be deleted when the plugin is uninstalled.', 'kayzart-live-code-editor' ) . '</p>';
-	}
-
-	/**
-	 * Render delete-on-uninstall checkbox field.
-	 */
-	public static function render_delete_on_uninstall_field(): void {
-
-		$value = get_option( self::OPTION_DELETE_ON_UNINSTALL, '0' );
-		echo '<label>';
-		echo '<input type="checkbox" name="' . esc_attr( self::OPTION_DELETE_ON_UNINSTALL ) . '" value="1" ' . checked( '1', $value, false ) . ' />';
-		echo ' ' . esc_html__( 'Delete all KayzArt posts on uninstall (imported media is kept).', 'kayzart-live-code-editor' );
-		echo '</label>';
+		echo '<p class="description">' . esc_html__( 'Existing posts are not converted until they are opened in the KayzArt editor or created with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -741,14 +719,100 @@ class Admin {
 			return;
 		}
 
+		$tabs       = self::get_settings_tabs();
+		$active_tab = self::get_active_settings_tab( $tabs );
+
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'KayzArt Live Code Editor Settings', 'kayzart-live-code-editor' ) . '</h1>';
-		echo '<form action="options.php" method="post">';
-		settings_fields( self::SETTINGS_GROUP );
-		do_settings_sections( self::SETTINGS_SLUG );
-		submit_button();
-		echo '</form>';
+		echo '<h1>' . esc_html__( 'Landing page settings', 'kayzart-live-code-editor' ) . '</h1>';
+		self::render_settings_tabs_nav( $tabs, $active_tab );
+		if ( 'basic' === $active_tab ) {
+			echo '<form action="options.php" method="post">';
+			settings_fields( self::SETTINGS_GROUP );
+			do_settings_sections( self::SETTINGS_SLUG );
+			submit_button();
+			echo '</form>';
+		} else {
+			/**
+			 * Render a custom landing page settings tab.
+			 *
+			 * The dynamic portion of the hook name is the tab ID.
+			 */
+			do_action( 'kayzart_render_settings_tab_' . $active_tab );
+		}
 		echo '</div>';
+	}
+
+	/**
+	 * Resolve registered landing page settings tabs.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function get_settings_tabs(): array {
+		$tabs = array(
+			'basic' => __( '基本設定', 'kayzart-live-code-editor' ),
+		);
+
+		/**
+		 * Filter landing page settings tabs.
+		 *
+		 * @param array<string,string> $tabs Tab ID to label map.
+		 */
+		$tabs = apply_filters( 'kayzart_settings_tabs', $tabs );
+		if ( ! is_array( $tabs ) || empty( $tabs ) ) {
+			return array(
+				'basic' => __( '基本設定', 'kayzart-live-code-editor' ),
+			);
+		}
+
+		$normalized = array();
+		foreach ( $tabs as $id => $label ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || ! is_string( $label ) || '' === $label ) {
+				continue;
+			}
+			$normalized[ $id ] = $label;
+		}
+
+		if ( empty( $normalized ) ) {
+			$normalized['basic'] = __( '基本設定', 'kayzart-live-code-editor' );
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Resolve the active landing page settings tab.
+	 *
+	 * @param array<string,string> $tabs Registered tabs.
+	 * @return string
+	 */
+	private static function get_active_settings_tab( array $tabs ): string {
+		$active = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		return isset( $tabs[ $active ] ) ? $active : 'basic';
+	}
+
+	/**
+	 * Render landing page settings tab navigation.
+	 *
+	 * @param array<string,string> $tabs       Registered tabs.
+	 * @param string               $active_tab Active tab ID.
+	 */
+	private static function render_settings_tabs_nav( array $tabs, string $active_tab ): void {
+		if ( count( $tabs ) < 2 ) {
+			return;
+		}
+
+		echo '<nav class="nav-tab-wrapper">';
+		foreach ( $tabs as $id => $label ) {
+			$class = 'nav-tab';
+			if ( $active_tab === $id ) {
+				$class .= ' nav-tab-active';
+			}
+			echo '<a class="' . esc_attr( $class ) . '" href="' . esc_url( self::get_settings_url( 'basic' === $id ? '' : $id ) ) . '">';
+			echo esc_html( $label );
+			echo '</a>';
+		}
+		echo '</nav>';
 	}
 	/**
 	 * Enqueue admin assets for the KayzArt editor.
@@ -756,6 +820,11 @@ class Admin {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
+		if ( 'edit.php' === $hook_suffix ) {
+			self::maybe_enqueue_post_type_list_assets();
+			return;
+		}
+
 		// Only load on our hidden page.
 		if ( 'admin_page_' . self::MENU_SLUG !== $hook_suffix ) {
 			return;
@@ -801,13 +870,17 @@ class Admin {
 		);
 
 		// Inject initial data for the admin app.
-		$post     = $post_id ? get_post( $post_id ) : null;
-		$html     = $post ? (string) $post->post_content : '';
-		$css      = $post_id ? (string) get_post_meta( $post_id, '_kayzart_css', true ) : '';
-		$js       = $post_id ? (string) get_post_meta( $post_id, '_kayzart_js', true ) : '';
-		$js_mode  = self::normalize_js_mode( $post_id ? get_post_meta( $post_id, '_kayzart_js_mode', true ) : '' );
-		$back_url = $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
-		$list_url = admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
+		$post        = $post_id ? get_post( $post_id ) : null;
+		$html        = $post ? (string) $post->post_content : '';
+		$body_attrs  = $post_id ? (string) get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true ) : '';
+		$html        = Html_Document::build_editor_html( $html, $body_attrs );
+		$custom_head = $post_id ? Custom_Head::get_for_post( $post_id ) : '';
+		$css         = $post_id ? (string) get_post_meta( $post_id, '_kayzart_css', true ) : '';
+		$js          = $post_id ? (string) get_post_meta( $post_id, '_kayzart_js', true ) : '';
+		$js_mode     = self::normalize_js_mode( $post_id ? get_post_meta( $post_id, '_kayzart_js_mode', true ) : '' );
+		$back_url    = $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
+		$list_url    = self::get_editor_list_url( $post );
+		$list_label  = self::get_editor_list_label( $post );
 
 		$preview_token = $post_id ? wp_create_nonce( 'kayzart_preview_' . $post_id ) : '';
 		$permalink     = $post_id ? get_permalink( $post_id ) : '';
@@ -829,6 +902,7 @@ class Admin {
 		$data = array(
 			'post_id'              => $post_id,
 			'initialHtml'          => $html,
+			'initialCustomHead'    => $custom_head,
 			'initialCss'           => $css,
 			'initialJs'            => $js,
 			'initialJsMode'        => $js_mode,
@@ -838,9 +912,9 @@ class Admin {
 			'restUrl'              => rest_url( 'kayzart/v1/save' ),
 			'restCompileUrl'       => rest_url( 'kayzart/v1/compile-tailwind' ),
 			'setupRestUrl'         => rest_url( 'kayzart/v1/setup' ),
-			'importRestUrl'        => rest_url( 'kayzart/v1/import' ),
 			'backUrl'              => $back_url,
 			'listUrl'              => $list_url,
+			'listLabel'            => $list_label,
 			'settingsRestUrl'      => rest_url( 'kayzart/v1/settings' ),
 			'settingsData'         => Rest::build_settings_payload( $post_id ),
 			'tailwindEnabled'      => (bool) get_post_meta( $post_id, '_kayzart_tailwind', true ),
@@ -887,6 +961,84 @@ class Admin {
 			return KAYZART_VERSION;
 		}
 		return (string) $mtime;
+	}
+
+	/**
+	 * Enqueue list action button assets on enabled post type list screens.
+	 */
+	private static function maybe_enqueue_post_type_list_assets(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen instanceof \WP_Screen || ! is_string( $screen->post_type ) || '' === $screen->post_type ) {
+			return;
+		}
+
+		$post_type = sanitize_key( $screen->post_type );
+		if ( ! Post_Type::is_post_type_enabled( $post_type ) ) {
+			return;
+		}
+
+		$post_type_object = get_post_type_object( $post_type );
+		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
+			return;
+		}
+
+		$handle = 'kayzart-post-type-list';
+		wp_register_script(
+			$handle,
+			KAYZART_URL . 'assets/admin/post-type-list.js',
+			array( 'wp-i18n', 'wp-dom-ready' ),
+			self::resolve_asset_version( KAYZART_PATH . 'assets/admin/post-type-list.js' ),
+			true
+		);
+
+		wp_enqueue_script( $handle );
+		wp_add_inline_script(
+			$handle,
+			'window.KAYZART_POST_TYPE_LIST = ' . wp_json_encode(
+				array(
+					'createUrl' => self::get_new_page_action_url( $post_type ),
+				)
+			) . ';',
+			'before'
+		);
+		wp_set_script_translations(
+			$handle,
+			'kayzart-live-code-editor',
+			KAYZART_PATH . 'languages'
+		);
+	}
+
+	/**
+	 * Resolve the list URL to return to from the editor.
+	 *
+	 * @param \WP_Post|null $post Current editor post.
+	 * @return string
+	 */
+	private static function get_editor_list_url( ?\WP_Post $post ): string {
+		if ( ! $post ) {
+			return admin_url( 'edit.php?post_type=' . Post_Type::POST_TYPE );
+		}
+
+		return admin_url( self::get_post_type_menu_parent_slug( $post->post_type ) );
+	}
+
+	/**
+	 * Resolve the list label to return to from the editor.
+	 *
+	 * @param \WP_Post|null $post Current editor post.
+	 * @return string
+	 */
+	private static function get_editor_list_label( ?\WP_Post $post ): string {
+		if ( ! $post ) {
+			return __( 'Posts', 'kayzart-live-code-editor' );
+		}
+
+		$post_type = get_post_type_object( $post->post_type );
+		if ( $post_type && ! empty( $post_type->labels->name ) ) {
+			return (string) $post_type->labels->name;
+		}
+
+		return __( 'Posts', 'kayzart-live-code-editor' );
 	}
 
 	/**

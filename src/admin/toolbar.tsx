@@ -10,7 +10,6 @@ import { __, sprintf } from '@wordpress/i18n';
 import {
   ChevronLeft,
   ChevronDown,
-  Download,
   ExternalLink,
   Monitor,
   PanelBottomClose,
@@ -19,6 +18,7 @@ import {
   PanelLeftOpen,
   PanelRight,
   Redo2,
+  RefreshCw,
   Save,
   Smartphone,
   Tablet,
@@ -37,6 +37,7 @@ export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 type ToolbarState = {
   backUrl: string;
   listUrl: string;
+  listLabel: string;
   canUndo: boolean;
   canRedo: boolean;
   editorCollapsed: boolean;
@@ -55,8 +56,8 @@ type ToolbarHandlers = {
   onUndo: () => void;
   onRedo: () => void;
   onToggleEditor: () => void;
+  onRefreshPreview: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
-  onExport: () => void;
   onToggleSettings: () => void;
   onViewportChange: (mode: ViewportMode) => void;
   onUpdatePostIdentity: (payload: {
@@ -88,8 +89,8 @@ const ICONS = {
   save: renderLucideIcon(Save, {
     class: 'lucide lucide-save-icon lucide-save',
   }),
-  export: renderLucideIcon(Download, {
-    class: 'lucide lucide-download-icon lucide-download',
+  refreshPreview: renderLucideIcon(RefreshCw, {
+    class: 'lucide lucide-refresh-cw-icon lucide-refresh-cw',
   }),
   viewPost: renderLucideIcon(ExternalLink, {
     class: 'lucide lucide-external-link-icon lucide-external-link',
@@ -138,6 +139,7 @@ function IconLabel({ label, svg }: { label: string; svg: string }) {
 function Toolbar({
   backUrl,
   listUrl,
+  listLabel,
   canUndo,
   canRedo,
   editorCollapsed,
@@ -153,8 +155,8 @@ function Toolbar({
   onUndo,
   onRedo,
   onToggleEditor,
+  onRefreshPreview,
   onSave,
-  onExport,
   onToggleSettings,
   onViewportChange,
   onUpdatePostIdentity,
@@ -173,6 +175,7 @@ function Toolbar({
   const toggleLabel = editorCollapsed
     ? __( 'Show code', 'kayzart-live-code-editor')
     : __( 'Hide code', 'kayzart-live-code-editor');
+  const refreshPreviewLabel = __( 'Reload preview', 'kayzart-live-code-editor');
   const toggleIcon = compactEditorMode
     ? editorCollapsed
       ? ICONS.panelBottomClose
@@ -203,7 +206,7 @@ function Toolbar({
   const normalizedStatus = postStatus === 'auto-draft' ? 'draft' : postStatus;
   const tailwindBadgeLabel = __( 'Tailwind CSS', 'kayzart-live-code-editor');
   const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
-  const listLabel = __( 'KayzArt pages', 'kayzart-live-code-editor');
+  const resolvedListLabel = listLabel || __( 'Posts', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'
       ? __( 'Save draft', 'kayzart-live-code-editor')
@@ -212,7 +215,6 @@ function Toolbar({
         : normalizedStatus === 'private'
           ? __( 'Update as private', 'kayzart-live-code-editor')
           : __( 'Update', 'kayzart-live-code-editor');
-  const exportLabel = __( 'Export', 'kayzart-live-code-editor');
   const statusActions = [
     { value: 'publish' as const, label: __( 'Publish', 'kayzart-live-code-editor') },
     { value: 'pending' as const, label: __( 'Move to review', 'kayzart-live-code-editor') },
@@ -374,7 +376,7 @@ function Toolbar({
               </a>
               {showListLink ? (
                 <a className="kayzart-backMenuItem" href={listUrl}>
-                  {listLabel}
+                  {resolvedListLabel}
                 </a>
               ) : null}
             </div>
@@ -457,6 +459,15 @@ function Toolbar({
             data-tooltip={toggleLabel}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
+          </button>
+          <button
+            className="kayzart-btn kayzart-btn-icon"
+            type="button"
+            onClick={onRefreshPreview}
+            aria-label={refreshPreviewLabel}
+            data-tooltip={refreshPreviewLabel}
+          >
+            <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.refreshPreview }} />
           </button>
         </div>
       </div>
@@ -627,15 +638,6 @@ function Toolbar({
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
           </button>
           {afterSettingsActions.map(renderExternalToolbarAction)}
-          <button
-            className="kayzart-btn kayzart-btn-export"
-            type="button"
-            onClick={onExport}
-            aria-label={exportLabel}
-            data-tooltip={exportLabel}
-          >
-            <IconLabel label={exportLabel} svg={ICONS.export} />
-          </button>
         </div>
       </div>
     </Fragment>

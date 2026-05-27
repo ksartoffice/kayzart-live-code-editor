@@ -10,6 +10,7 @@ import {
 import {
   Decoration,
   EditorView,
+  ViewPlugin,
   crosshairCursor,
   drawSelection,
   dropCursor,
@@ -21,6 +22,7 @@ import {
   rectangularSelection,
   type DecorationSet,
   type KeyBinding,
+  type ViewUpdate,
 } from '@codemirror/view';
 import {
   defaultKeymap,
@@ -101,6 +103,12 @@ export type EditorDecoration = {
   };
 };
 
+export type EditorScrollRulerMarker = {
+  range: EditorRange;
+  className?: string;
+  title?: string;
+};
+
 export type EditorModel = {
   getValue: () => string;
   getPositionAt: (offset: number) => EditorPosition;
@@ -128,6 +136,8 @@ export type CodeEditorInstance = {
   pushUndoStop: () => void;
   trigger: (_source: string, action: 'undo' | 'redo', _payload: unknown) => void;
   revealRangeInCenter: (range: EditorRange, _scrollType?: number) => void;
+  setScrollRulerMarkers: (markers: EditorScrollRulerMarker[]) => void;
+  clearScrollRulerMarkers: () => void;
   updateOptions: (options: { wordWrap?: WordWrapMode }) => void;
   addAction: (action: {
     id: string;
@@ -154,15 +164,18 @@ export type CodeMirrorType = {
 export type CodeMirrorSetup = {
   codemirror: CodeMirrorType;
   htmlModel: EditorModel;
+  customHeadModel: EditorModel;
   cssModel: EditorModel;
   jsModel: EditorModel;
   htmlEditor: CodeEditorInstance;
+  customHeadEditor: CodeEditorInstance;
   cssEditor: CodeEditorInstance;
   jsEditor: CodeEditorInstance;
 };
 
 type CodeMirrorInitOptions = {
   initialHtml: string;
+  initialCustomHead: string;
   initialCss: string;
   initialJs: string;
   htmlWordWrap: WordWrapMode;
@@ -170,8 +183,10 @@ type CodeMirrorInitOptions = {
   useTailwindDefault: boolean;
   canEditJs: boolean;
   htmlContainer: HTMLElement;
+  customHeadContainer: HTMLElement;
   cssContainer: HTMLElement;
   jsContainer: HTMLElement;
+  onHtmlPaste?: (text: string) => boolean;
 };
 
 type DecorationSpec = {
@@ -181,19 +196,20 @@ type DecorationSpec = {
   inlineClassName?: string;
 };
 
+type ScrollRulerMarkerSpec = {
+  from: number;
+  to: number;
+  className?: string;
+  title?: string;
+};
+
 type EditorWrapper = {
   model: EditorModel;
   editor: CodeEditorInstance;
 };
 
-const DEFAULT_TAILWIND_CSS =
-  '@import "tailwindcss";\n' +
-  '\n' +
-  '@theme {\n' +
-  '  /* ... */\n' +
-  '}\n';
-
 const DECORATION_EFFECT = StateEffect.define<DecorationSpec[]>();
+const SCROLL_RULER_MARKERS_EFFECT = StateEffect.define<ScrollRulerMarkerSpec[]>();
 
 const buildDecorationSet = (specs: DecorationSpec[], state: EditorState): DecorationSet => {
   const ranges: Range<Decoration>[] = [];
@@ -235,6 +251,255 @@ const decorationField = StateField.define<DecorationSet>({
   },
 });
 
+const scrollRulerMarkersField = StateField.define<ScrollRulerMarkerSpec[]>({
+  create() {
+    return [];
+  },
+  update(value, transaction) {
+    let next = transaction.docChanged
+      ? value.map((marker) => ({
+          ...marker,
+          from: transaction.changes.mapPos(marker.from),
+          to: transaction.changes.mapPos(marker.to),
+        }))
+      : value;
+
+    for (const effect of transaction.effects) {
+      if (effect.is(SCROLL_RULER_MARKERS_EFFECT)) {
+        next = effect.value;
+      }
+    }
+
+    return next;
+  },
+});
+
+const SCROLL_RULER_MARKER_HEIGHT = 4;
+const SCROLL_RULER_MIN_VIEWPORT_HEIGHT = 18;
+
+const clampNumber = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(value, max));
+
+const scrollRulerPlugin = ViewPlugin.fromClass(
+  class {
+    private readonly dom: HTMLElement;
+    private readonly viewport: HTMLElement;
+    private readonly markersLayer: HTMLElement;
+    private markerSpecs: ScrollRulerMarkerSpec[] = [];
+    private readonly markerElements: HTMLElement[] = [];
+    private measureQueued = false;
+    private rafId: number | null = null;
+    private resizeObserver: ResizeObserver | null = null;
+
+    constructor(private readonly view: EditorView) {
+      this.dom = document.createElement('div');
+      this.dom.className = 'kayzart-scrollRuler';
+
+      this.viewport = document.createElement('div');
+      this.viewport.className = 'kayzart-scrollRulerViewport';
+      this.viewport.setAttribute('aria-hidden', 'true');
+      this.markersLayer = document.createElement('div');
+      this.markersLayer.className = 'kayzart-scrollRulerMarkers';
+
+      this.dom.append(this.viewport, this.markersLayer);
+      this.view.dom.appendChild(this.dom);
+
+      this.markerSpecs = this.view.state.field(scrollRulerMarkersField);
+      this.renderMarkerElements();
+
+      this.view.scrollDOM.addEventListener('scroll', this.handleScroll, { passive: true });
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(() => this.queueMeasure());
+        this.resizeObserver.observe(this.view.dom);
+        this.resizeObserver.observe(this.view.scrollDOM);
+      }
+      this.queueMeasure();
+    }
+
+    update(update: ViewUpdate) {
+      const nextMarkerSpecs = update.state.field(scrollRulerMarkersField);
+      const markersChanged = nextMarkerSpecs !== this.markerSpecs;
+      if (nextMarkerSpecs !== this.markerSpecs) {
+        this.markerSpecs = nextMarkerSpecs;
+        this.renderMarkerElements();
+      }
+
+      if (
+        update.geometryChanged ||
+        update.viewportChanged ||
+        update.docChanged ||
+        markersChanged
+      ) {
+        this.queueMeasure();
+      }
+    }
+
+    destroy() {
+      this.view.scrollDOM.removeEventListener('scroll', this.handleScroll);
+      if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+      }
+      if (this.rafId !== null) {
+        window.cancelAnimationFrame(this.rafId);
+      }
+      this.dom.remove();
+    }
+
+    private readonly handleScroll = () => {
+      this.queueMeasure();
+    };
+
+    private queueMeasure() {
+      if (this.measureQueued) {
+        return;
+      }
+      this.measureQueued = true;
+      this.rafId = window.requestAnimationFrame(() => {
+        this.rafId = null;
+        this.measureQueued = false;
+        this.view.requestMeasure({
+          read: () => this.readMeasure(),
+          write: (measure) => this.writeMeasure(measure),
+        });
+      });
+    }
+
+    private readMeasure() {
+      const laneHeight = this.dom.clientHeight;
+      const scroller = this.view.scrollDOM;
+      const scrollHeight = scroller.scrollHeight;
+      const clientHeight = scroller.clientHeight;
+      const hidden =
+        laneHeight <= 0 ||
+        clientHeight <= 0 ||
+        scrollHeight <= 0 ||
+        this.view.dom.getClientRects().length === 0;
+
+      if (hidden) {
+        return {
+          visible: false,
+          markerTops: [] as number[],
+          viewportTop: 0,
+          viewportHeight: 0,
+        };
+      }
+
+      const viewportHeight = clampNumber(
+        (clientHeight / scrollHeight) * laneHeight,
+        SCROLL_RULER_MIN_VIEWPORT_HEIGHT,
+        laneHeight
+      );
+      const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+      const maxViewportTop = Math.max(0, laneHeight - viewportHeight);
+      const viewportTop =
+        maxScrollTop > 0
+          ? clampNumber((scroller.scrollTop / maxScrollTop) * maxViewportTop, 0, maxViewportTop)
+          : 0;
+      const maxTop = Math.max(0, laneHeight - SCROLL_RULER_MARKER_HEIGHT);
+      const paddingTop = this.view.documentPadding.top;
+      const markerTops = this.markerSpecs.map((marker) => {
+        const from = clampNumber(marker.from, 0, this.view.state.doc.length);
+        const block = this.view.lineBlockAt(from);
+        const documentY = paddingTop + block.top + block.height / 2;
+        const targetScrollTop = clampNumber(
+          documentY - clientHeight / 2,
+          0,
+          maxScrollTop
+        );
+        const markerCenter =
+          maxScrollTop > 0
+            ? (targetScrollTop / maxScrollTop) * maxViewportTop + viewportHeight / 2
+            : (documentY / scrollHeight) * laneHeight;
+        return clampNumber(
+          markerCenter - SCROLL_RULER_MARKER_HEIGHT / 2,
+          0,
+          maxTop
+        );
+      });
+
+      return {
+        visible: true,
+        markerTops,
+        viewportTop,
+        viewportHeight,
+      };
+    }
+
+    private writeMeasure(measure: ReturnType<typeof this.readMeasure>) {
+      this.dom.classList.toggle('is-hidden', !measure.visible);
+      this.dom.classList.toggle('has-markers', this.markerSpecs.length > 0);
+      if (!measure.visible) {
+        return;
+      }
+
+      const viewportTop = clampNumber(
+        measure.viewportTop,
+        0,
+        Math.max(0, this.dom.clientHeight - measure.viewportHeight)
+      );
+      this.viewport.style.top = `${viewportTop}px`;
+      this.viewport.style.height = `${measure.viewportHeight}px`;
+
+      this.markerElements.forEach((element, index) => {
+        const top = measure.markerTops[index] ?? 0;
+        element.style.top = `${top}px`;
+      });
+    }
+
+    private renderMarkerElements() {
+      this.markersLayer.textContent = '';
+      this.markerElements.length = 0;
+
+      this.markerSpecs.forEach((marker, index) => {
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.className = ['kayzart-scrollRulerMarker', marker.className]
+          .filter(Boolean)
+          .join(' ');
+        element.setAttribute('aria-label', marker.title || 'Highlighted code location');
+        if (marker.title) {
+          element.title = marker.title;
+        }
+        element.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.scrollToMarker(index);
+        });
+        this.markersLayer.appendChild(element);
+        this.markerElements.push(element);
+      });
+
+      this.queueMeasure();
+    }
+
+    private scrollToMarker(index: number) {
+      const marker = this.markerSpecs[index];
+      if (!marker) {
+        return;
+      }
+
+      this.view.requestMeasure({
+        read: () => {
+          const scroller = this.view.scrollDOM;
+          const paddingTop = this.view.documentPadding.top;
+          const from = clampNumber(marker.from, 0, this.view.state.doc.length);
+          const block = this.view.lineBlockAt(from);
+          const documentY = paddingTop + block.top + block.height / 2;
+          const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+          return clampNumber(documentY - scroller.clientHeight / 2, 0, maxScrollTop);
+        },
+        write: (scrollTop) => {
+          this.view.scrollDOM.scrollTo({
+            top: scrollTop,
+            behavior: 'smooth',
+          });
+          this.view.focus();
+        },
+      });
+    }
+  }
+);
+
 const baseEditorSetup: Extension = [
   lineNumbers(),
   highlightActiveLineGutter(),
@@ -252,6 +517,8 @@ const baseEditorSetup: Extension = [
   crosshairCursor(),
   highlightActiveLine(),
   highlightSelectionMatches(),
+  scrollRulerMarkersField,
+  scrollRulerPlugin,
   keymap.of([
     ...closeBracketsKeymap,
     ...defaultKeymap,
@@ -270,6 +537,13 @@ const KEY_CODE_Z = 2;
 
 const lineWrappingExtension = (mode: WordWrapMode): Extension =>
   mode === 'on' ? EditorView.lineWrapping : [];
+
+const DEFAULT_TAILWIND_CSS =
+  '@import "tailwindcss";\n' +
+  '\n' +
+  '@theme {\n' +
+  '  /* ... */\n' +
+  '}\n';
 
 const lineColumnToOffset = (state: EditorState, position: EditorPosition): number => {
   const lineNumber = Math.max(1, Math.min(position.lineNumber, state.doc.lines));
@@ -365,6 +639,7 @@ const createEditorWrapper = (options: {
   language: Extension;
   emmet?: EmmetKnownSyntax;
   htmlIntellisense?: boolean;
+  onPaste?: (text: string) => boolean;
   readOnly?: boolean;
   wordWrap?: WordWrapMode;
 }): EditorWrapper => {
@@ -388,6 +663,21 @@ const createEditorWrapper = (options: {
   const syncDecorations = (view: EditorView) => {
     view.dispatch({
       effects: DECORATION_EFFECT.of(Array.from(activeDecorations.values())),
+    });
+  };
+
+  const setScrollRulerMarkerSpecs = (markers: EditorScrollRulerMarker[]) => {
+    const specs = markers.map((marker) => {
+      const offsets = rangeToOffsets(view.state, marker.range);
+      return {
+        from: offsets.from,
+        to: offsets.to,
+        className: marker.className,
+        title: marker.title,
+      };
+    });
+    view.dispatch({
+      effects: SCROLL_RULER_MARKERS_EFFECT.of(specs),
     });
   };
 
@@ -417,6 +707,23 @@ const createEditorWrapper = (options: {
   }
   if (options.htmlIntellisense) {
     extensions.push(...htmlIntellisenseExtensions());
+  }
+  if (options.onPaste) {
+    extensions.push(
+      EditorView.domEventHandlers({
+        paste: (event) => {
+          const text = event.clipboardData?.getData('text/plain') ?? '';
+          if (!text || !options.onPaste) {
+            return false;
+          }
+          const handled = options.onPaste(text);
+          if (handled) {
+            event.preventDefault();
+          }
+          return handled;
+        },
+      })
+    );
   }
 
   const state = EditorState.create({
@@ -568,6 +875,12 @@ const createEditorWrapper = (options: {
         effects: EditorView.scrollIntoView(offsets.from, { y: 'center' }),
       });
     },
+    setScrollRulerMarkers: (markers) => {
+      setScrollRulerMarkerSpecs(markers);
+    },
+    clearScrollRulerMarkers: () => {
+      setScrollRulerMarkerSpecs([]);
+    },
     updateOptions: (opts) => {
       if (opts.wordWrap) {
         view.dispatch({
@@ -614,7 +927,16 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
     language: htmlLanguage(),
     emmet: EmmetKnownSyntax.html,
     htmlIntellisense: true,
+    onPaste: options.onHtmlPaste,
     wordWrap: options.htmlWordWrap,
+  });
+
+  const customHeadWrapper = createEditorWrapper({
+    parent: options.customHeadContainer,
+    initialValue: options.initialCustomHead ?? '',
+    language: htmlLanguage(),
+    emmet: EmmetKnownSyntax.html,
+    htmlIntellisense: true,
   });
 
   const cssWrapper = createEditorWrapper({
@@ -645,9 +967,11 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
       },
     },
     htmlModel: htmlWrapper.model,
+    customHeadModel: customHeadWrapper.model,
     cssModel: cssWrapper.model,
     jsModel: jsWrapper.model,
     htmlEditor: htmlWrapper.editor,
+    customHeadEditor: customHeadWrapper.editor,
     cssEditor: cssWrapper.editor,
     jsEditor: jsWrapper.editor,
   };

@@ -84,26 +84,6 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
-			'/import',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( Rest_Import::class, 'import_payload' ),
-				'permission_callback' => array( __CLASS__, 'permission_check' ),
-				'args'                => array(
-					'post_id' => array(
-						'type'     => 'integer',
-						'required' => true,
-					),
-					'payload' => array(
-						'type'     => 'object',
-						'required' => true,
-					),
-				),
-			)
-		);
-
-		register_rest_route(
-			'kayzart/v1',
 			'/settings',
 			array(
 				'methods'             => 'POST',
@@ -155,12 +135,14 @@ class Rest {
 		if ( 0 >= $post_id ) {
 			return false;
 		}
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return false;
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return false;
 		}
+
+		Post_Type::enable_for_post( $post_id );
 
 		return true;
 	}

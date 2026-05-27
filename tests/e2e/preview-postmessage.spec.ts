@@ -175,6 +175,135 @@ test('preview postMessage handshake works', async ({ page }) => {
   expect(messages.some((message) => message.type === 'KAYZART_READY')).toBe(true);
 });
 
+test('preview custom head waits for external scripts before dependent inline scripts', async ({ page }) => {
+  const previewScriptUrl = new URL(
+    'wp-content/plugins/kayzart-live-code-editor/includes/preview.js',
+    baseUrl
+  ).toString();
+
+  await page.goto(new URL('./', baseUrl).toString(), { waitUntil: 'domcontentloaded' });
+  await page.evaluate(
+    ({ scriptUrl }) => {
+      const iframe = document.createElement('iframe');
+      iframe.id = 'kayzart-preview-frame';
+      iframe.style.width = '800px';
+      iframe.style.height = '600px';
+      iframe.srcdoc = `<!doctype html>
+        <html>
+          <head>
+            <script>
+              window.KAYZART_PREVIEW = {
+                allowedOrigin: ${JSON.stringify(window.location.origin)},
+                post_id: 1,
+                liveHighlightEnabled: false,
+                markers: {
+                  attr: 'data-kayzart-marker',
+                  postAttr: 'data-kayzart-post-id',
+                  start: 'start',
+                  end: 'end'
+                }
+              };
+            </script>
+          </head>
+          <body>
+            <span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>
+            <span data-kayzart-marker="end" data-kayzart-post-id="1" hidden></span>
+            <script src="${scriptUrl}"></script>
+          </body>
+        </html>`;
+      document.body.appendChild(iframe);
+    },
+    { scriptUrl: previewScriptUrl }
+  );
+
+  await page.waitForSelector('#kayzart-preview-frame');
+  await page.waitForFunction(() => {
+    const iframe = document.getElementById('kayzart-preview-frame') as HTMLIFrameElement | null;
+    return Boolean(iframe?.contentWindow && iframe.contentDocument?.readyState === 'complete');
+  });
+
+  const result = await page.evaluate(() => {
+    return new Promise<{ order: string | null; externalReady: unknown }>((resolve, reject) => {
+      const iframe = document.getElementById('kayzart-preview-frame') as HTMLIFrameElement | null;
+      if (!iframe || !iframe.contentWindow) {
+        reject(new Error('Preview iframe not found'));
+        return;
+      }
+
+      const externalScriptUrl =
+        'data:text/javascript;charset=utf-8,' +
+        encodeURIComponent(
+          [
+            "window.__kayzartHeadOrder = ['external'];",
+            "window.__kayzartExternalReady = 'ready';",
+          ].join('')
+        );
+
+      const cleanup = () => {
+        window.removeEventListener('message', handler as EventListener);
+        window.clearTimeout(timeout);
+      };
+
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('Timed out waiting for KAYZART_RENDERED'));
+      }, 5_000);
+
+      const handler = (event: MessageEvent) => {
+        if (event.source !== iframe.contentWindow) {
+          return;
+        }
+
+        if (event.data?.type === 'KAYZART_READY') {
+          iframe.contentWindow?.postMessage(
+            {
+              type: 'KAYZART_RENDER',
+              canonicalHTML: '<main>Ordered head script test</main>',
+              cssText: '',
+              customHead: [
+                `<script src="${externalScriptUrl}"></script>`,
+                `<script>
+                  window.__kayzartHeadOrder = window.__kayzartHeadOrder || [];
+                  window.__kayzartHeadOrder.push(
+                    window.__kayzartExternalReady === 'ready'
+                      ? 'inline-after-external'
+                      : 'inline-before-external'
+                  );
+                  document.documentElement.setAttribute(
+                    'data-kayzart-head-order',
+                    window.__kayzartHeadOrder.join(',')
+                  );
+                </script>`,
+              ].join('\n'),
+              bodyAttrs: {},
+              hasBody: false,
+              templateMode: 'standalone',
+            },
+            '*'
+          );
+          return;
+        }
+
+        if (event.data?.type === 'KAYZART_RENDERED') {
+          const iframeWindow = iframe.contentWindow as Window & {
+            __kayzartExternalReady?: unknown;
+          };
+          const order = iframe.contentDocument?.documentElement.getAttribute('data-kayzart-head-order') ?? null;
+          const externalReady = iframeWindow.__kayzartExternalReady;
+          cleanup();
+          resolve({ order, externalReady });
+        }
+      };
+
+      window.addEventListener('message', handler as EventListener);
+      iframe.contentWindow.postMessage({ type: 'KAYZART_INIT' }, '*');
+    });
+  });
+
+  expect(result.externalReady).toBe('ready');
+  expect(result.order).toBe('external,inline-after-external');
+});
+
 test('preview does not send READY before INIT', async ({ page }) => {
   const previewUrl = await loginAndGetPreviewUrl(page);
 

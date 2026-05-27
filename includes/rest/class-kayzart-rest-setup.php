@@ -25,7 +25,7 @@ class Rest_Setup {
 		$post_id = absint( $request->get_param( 'post_id' ) );
 		$mode    = sanitize_key( (string) $request->get_param( 'mode' ) );
 
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -34,6 +34,7 @@ class Rest_Setup {
 				400
 			);
 		}
+		Post_Type::enable_for_post( $post_id );
 
 		if ( 'tailwind' !== $mode && 'normal' !== $mode ) {
 			return new \WP_REST_Response(
@@ -53,10 +54,9 @@ class Rest_Setup {
 			$tailwind_enabled = 'tailwind' === $mode;
 			update_post_meta( $post_id, '_kayzart_tailwind', $tailwind_enabled ? '1' : '0' );
 			update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
-			delete_post_meta( $post_id, '_kayzart_setup_required' );
-		} else {
-			delete_post_meta( $post_id, '_kayzart_setup_required' );
 		}
+
+		delete_post_meta( $post_id, '_kayzart_setup_required' );
 
 		return new \WP_REST_Response(
 			array(

@@ -1,109 +1,82 @@
-=== KayzArt Live Code Editor ===
+=== KayzArt Landing Page Editor ===
 Contributors: ksartoffice
-Tags: live preview, code editor, codemirror, tailwind, shortcode
-Requires at least: 6.6
-Tested up to: 6.9
-Requires PHP: 8.2
-Stable tag: 1.3.6
+Tags: live preview, code editor, codemirror, landing page
+Requires at least: 5.9
+Tested up to: 7.0
+Requires PHP: 7.4
+Stable tag: 2.0.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-KayzArt Live Code Editor - Live HTML/CSS/JS Editor with Tailwind CSS v4 support.
+Build theme-independent landing pages with live HTML, CSS, and JavaScript editing.
 
 == Description ==
-KayzArt Live Code Editor provides a dedicated editor for building HTML, CSS, and JavaScript snippets with a live preview. It adds a "KayzArt" custom post type, opens new KayzArt posts in the editor, and adds an "Edit with KayzArt" button to the standard editor.
+KayzArt Landing Page Editor helps you build landing pages in WordPress with a dedicated live HTML, CSS, and JavaScript editor. It is designed for theme-independent landing pages, product pages, campaign pages, and other standalone layouts where you want direct control over the markup, styles, and behavior.
+
+KayzArt works with regular WordPress pages by default. Site administrators can also enable it for posts or other supported custom post types from the plugin settings.
 
 Features:
-* Custom KayzArt post type and dedicated editor
-* CodeMirror 6 editor with HTML/CSS/JS tabs and live iframe preview
+* Create landing pages as regular WordPress pages by default
+* Optional support for posts and supported custom post types
+* CodeMirror 6 editor with HTML, CSS, and JavaScript tabs
+* Live iframe preview while editing
+* Template modes: Standalone / Theme
+* Theme-independent Standalone mode for landing pages that should not use the active theme layout
+* Theme mode for rendering content inside the active theme template
+* Normal / TailwindCSS setup per landing page
 * JavaScript ES Module support with execution type switch (Classic / Module)
-* Setup wizard (Normal/Tailwind/Import JSON) with per-post mode lock
-* Tailwind mode with on-demand Tailwind CSS v4 compilation
-* Import/export JSON projects
-* Per-post template mode control: Default/Standalone/Theme
-* External scripts/styles (https only), live edit highlight, real-time DOM selection, and optional Shadow DOM isolation
-* External embedding (enable in settings): [kayzart post_id="123"]
-* Allowlist for shortcode execution inside external embeds (one shortcode tag per line)
-* Optional single-page disable for external-embed output
+* Live edit highlight and real-time DOM selection
 
-External connections and privacy:
-* By default, KayzArt does not load external scripts or styles and does not send telemetry.
-* External requests happen only when an authorized user explicitly adds external HTTPS URLs in KayzArt settings.
-* Added external resources are requested both in preview and on front-end output where the KayzArt content is rendered.
-* Add only trusted URLs.
-
-Development repository and build:
-* Source repository: https://github.com/ksartoffice/kayzart-live-code-editor
-* Generated files used by WordPress: assets/dist/main.js and assets/dist/style.css
-* Source files for generated assets: src/admin/main.ts, src/admin/style.css, and related files under src/admin/
-* Build configuration files: package.json, package-lock.json, vite.config.ts, tsconfig.json
-* Build steps:
-1. npm install
-2. composer install
-3. npm run build
-4. npm run plugin-zip
+Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/kayzart-live-code-editor/.
-2. Activate KayzArt Live Code Editor through the Plugins screen.
-3. Go to KayzArt in the admin menu and create a new KayzArt item.
-
-== Screenshots ==
-1. Editor screen.
-2. Tailwind CSS mode.
+2. Activate KayzArt Landing Page Editor through the Plugins screen.
+3. Go to Pages > Add landing page.
+4. Choose Normal or TailwindCSS mode for the new landing page.
+5. Edit HTML, CSS, and JavaScript with the live preview, then save.
+6. Optional: go to Settings > Landing page settings to enable KayzArt for posts or supported custom post types.
 
 == Frequently Asked Questions ==
-= Who can edit KayzArt posts? =
-Users who can edit the post can use the editor. JavaScript, external scripts/styles, shadow DOM, external embedding, and single-page settings require the unfiltered_html capability.
+= How do I create a landing page? =
+Go to Pages > Add landing page. KayzArt creates a draft WordPress page, asks you to choose Normal or TailwindCSS mode, and then opens the live editor.
 
-= Does KayzArt contact external servers by default? =
-No. External requests are disabled by default. Requests are made only when you explicitly configure external HTTPS script/style URLs in KayzArt settings.
+= Can I use KayzArt with regular WordPress pages? =
+Yes. Regular WordPress pages are the default content type for KayzArt landing pages.
 
-= How do I embed a page created with KayzArt? =
-Enable external embedding in KayzArt settings, then use [kayzart post_id="123"] with the post ID of the page you created in KayzArt. For shortcode execution inside the embedded content, add allowed tags in KayzArt settings (one tag per line). Non-allowlisted tags remain plain text.
+= Can I use KayzArt with posts or custom post types? =
+Yes. Site administrators can enable KayzArt for posts or supported custom post types under Settings > Landing page settings. After a post type is enabled, KayzArt adds an Add landing page action for that post type.
 
-= Can I disable the single page view? =
-Yes. Enable external embedding and turn on "Do not publish as single page." Disabled single pages are marked noindex and excluded from search/archives, and the single-page request is redirected (or can be forced to 404 via the kayzart_single_page_redirect filter).
+= What is Standalone mode? =
+Standalone mode renders the landing page independently from the active theme layout. Use it when you want a page built mainly from your HTML, CSS, and JavaScript without the theme header, footer, or content template.
 
-= Can I switch between Normal and Tailwind modes? =
-The setup wizard lets you choose Normal or Tailwind. The choice is locked per KayzArt post.
+= What is Theme mode? =
+Theme mode renders the KayzArt content through the active theme template. Use it when you want the landing page content to appear inside your current theme layout.
 
-= Which Tailwind CSS version is supported? =
-Tailwind mode supports Tailwind CSS v4.
+= Which mode should I choose? =
+Choose Standalone for theme-independent landing pages. Choose Theme if you want the page to keep the active theme's layout and styling.
 
-= How does template mode work? =
-Each KayzArt post can use Default, Standalone, or Theme template mode. Default follows KayzArt > Settings > Default template mode. If Theme mode does not expose the_content in your theme, KayzArt preview prompts to switch to Standalone.
+= Are plugin CSS and JavaScript disabled in Standalone mode? =
+No. KayzArt does not disable plugin CSS or JavaScript. Standalone mode only removes the active theme layout and theme assets.
 
-= Can I change the KayzArt URL slug? =
-Yes. Go to KayzArt > Settings and update the KayzArt slug.
-
-= Can I set a default template mode for new previews? =
-Yes. Go to KayzArt > Settings and set the Default template mode (Standalone/Theme).
-
-= Does the plugin delete data on uninstall? =
-By default, KayzArt posts are kept when the plugin is uninstalled. You can enable data removal from the KayzArt > Settings screen.
+= Can I use TailwindCSS? =
+Yes. When creating a landing page, choose TailwindCSS mode to use utility classes with automatic CSS compilation.
 
 = Where is the code stored? =
-HTML is stored in the post content. CSS/JS and other settings are stored in post meta.
-
-= Where is the development repository and how do I build the plugin? =
-Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
-
-Generated files in the distributed plugin:
-* assets/dist/main.js
-* assets/dist/style.css
-
-Source files and build configuration in this repository:
-* src/admin/main.ts and src/admin/style.css (plus related source files under src/admin/)
-* package.json, package-lock.json, vite.config.ts, tsconfig.json
-
-Build commands:
-1. npm install
-2. composer install
-3. npm run build
-4. npm run plugin-zip
+HTML is stored in the WordPress post content. CSS, JavaScript, TailwindCSS mode, template mode, and other KayzArt settings are stored in post meta.
 
 == Changelog ==
+= 2.0.2 =
+* Fix: Bug fixes and stability improvements.
+
+= 2.0.1 =
+* Fix: Bug fixes and stability improvements.
+
+= 2.0.0 =
+* Refresh: Rebuilt the landing page editor for a simpler workflow.
+* Improve: Streamlined page creation, editing, preview, and settings.
+* Update: Cleaned up legacy features and internal structure.
+
 = 1.3.6 =
 * Update: Minor changes.
 
@@ -111,7 +84,7 @@ Build commands:
 * Docs: Add screenshots section.
 
 = 1.3.4 =
-* Update: Bump TailwindPHP fork dependency to v1.3.0.2.
+* Update: Dependency maintenance.
 
 = 1.3.3 =
 * Improve: Add resizable settings panel with width persistence.
@@ -143,7 +116,7 @@ Build commands:
 * Security: Implemented security-related improvements and hardening updates.
 
 = 1.1.0 =
-* Add allowlist settings for shortcode execution in external embeds.
+* Add external embed allowlist settings.
 * Other: Internal improvements and maintenance updates.
 
 = 1.0.1 =
@@ -153,4 +126,3 @@ Build commands:
 This plugin bundles third-party libraries:
 * CodeMirror - MIT License - https://github.com/codemirror
 * Emmet CodeMirror 6 Plugin - MIT License - https://github.com/emmetio/codemirror6-plugin
-* TailwindPHP (fork) - MIT License - https://github.com/ksartoffice/tailwindphp (upstream: https://github.com/dnnsjsk/tailwindphp)

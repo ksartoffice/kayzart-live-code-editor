@@ -16,6 +16,8 @@ type SourceRange = {
 
 type CanonicalResult = {
   canonicalHTML: string;
+  bodyAttrs: Record<string, string>;
+  hasBody: boolean;
   map: Record<string, SourceRange>;
   error?: string;
 };
@@ -23,15 +25,12 @@ type CanonicalResult = {
 export type PreviewController = {
   sendRender: () => void;
   sendCssUpdate: (cssText: string) => void;
-  sendExternalScripts: (scripts: string[]) => void;
-  sendExternalStyles: (styles: string[]) => void;
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
-  requestRunJs: () => void;
+  requestReloadPreview: () => void;
   requestDisableJs: () => void;
   queueInitialJsRun: () => void;
   flushPendingJsAction: () => void;
-  isRunJsPending: () => boolean;
   resetCanonicalCache: () => void;
   clearSelectionHighlight: () => void;
   clearCssSelectionHighlight: () => void;
@@ -44,23 +43,24 @@ type PreviewControllerDeps = {
   postId: number;
   targetOrigin: string;
   htmlModel: EditorModel;
+  customHeadModel: EditorModel;
   cssModel: EditorModel;
   jsModel: EditorModel;
   htmlEditor: CodeEditorInstance;
   cssEditor: CodeEditorInstance;
   focusHtmlEditor: () => void;
   getPreviewCss: () => string;
-  getShadowDomEnabled: () => boolean;
+  getCustomHead: () => string;
   getLiveHighlightEnabled: () => boolean;
   getJsEnabled: () => boolean;
   getJsMode: () => JsMode;
-  getExternalScripts: () => string[];
-  getExternalStyles: () => string[];
   isTailwindEnabled: () => boolean;
+  getResolvedTemplateMode: () => 'standalone' | 'theme';
   onSelect?: (lcId: string) => void;
   onOpenElementsTab?: () => void;
   onOverlayAction?: (actionId: string) => void;
   onMissingMarkers?: () => void;
+  onReloadApplied?: () => void;
 };
 
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
@@ -75,6 +75,36 @@ function isParentNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAd
 
 function isTemplateElement(node: DefaultTreeAdapterTypes.Element): node is DefaultTreeAdapterTypes.Template {
   return node.tagName === 'template' && Boolean((node as DefaultTreeAdapterTypes.Template).content);
+}
+
+function findElement(
+  node: DefaultTreeAdapterTypes.Node,
+  tagName: string
+): DefaultTreeAdapterTypes.Element | null {
+  if (isElement(node) && node.tagName.toLowerCase() === tagName.toLowerCase()) {
+    return node;
+  }
+  if (!isParentNode(node)) {
+    return null;
+  }
+  for (const child of node.childNodes) {
+    const match = findElement(child, tagName);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
+function serializeAttrs(el: DefaultTreeAdapterTypes.Element): Record<string, string> {
+  return el.attrs.reduce<Record<string, string>>((attrs, attr) => {
+    attrs[attr.name] = attr.value;
+    return attrs;
+  }, {});
+}
+
+function serializeChildren(node: DefaultTreeAdapterTypes.ParentNode): string {
+  return (node.childNodes || []).map((child) => parse5.serializeOuter(child)).join('');
 }
 
 function upsertLcAttr(el: DefaultTreeAdapterTypes.Element, lcId: string) {
@@ -146,6 +176,25 @@ function walkCanonicalTree(
 // Build canonical HTML and keep data-kayzart-id plus source-location mapping.
 function canonicalizeHtml(html: string): CanonicalResult {
   try {
+    if (html.toLowerCase().includes('<body')) {
+      const document = parse5.parse(html, { sourceCodeLocationInfo: true });
+      const body = findElement(document, 'body');
+      if (body) {
+        const map: Record<string, SourceRange> = {};
+        let seq = 0;
+        const nextId = () => `kayzart-${++seq}`;
+
+        walkCanonicalTree(body, null, map, nextId);
+
+        return {
+          canonicalHTML: serializeChildren(body),
+          bodyAttrs: serializeAttrs(body),
+          hasBody: true,
+          map,
+        };
+      }
+    }
+
     const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
     const map: Record<string, SourceRange> = {};
     let seq = 0;
@@ -153,11 +202,13 @@ function canonicalizeHtml(html: string): CanonicalResult {
 
     walkCanonicalTree(fragment, null, map, nextId);
 
-    return { canonicalHTML: parse5.serialize(fragment), map };
+    return { canonicalHTML: parse5.serialize(fragment), bodyAttrs: {}, hasBody: false, map };
   } catch (error: any) {
     console.error('[KayzArt] canonicalizeHtml failed', error);
     return {
       canonicalHTML: html,
+      bodyAttrs: {},
+      hasBody: false,
       map: {},
       error: error?.message ?? String(error),
     };
@@ -169,6 +220,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let previewReady = false;
   let pendingRender = false;
   let pendingJsAction: 'run' | 'disable' | null = null;
+  let pendingReloadAppliedNotice = false;
   let initialJsPending = true;
   let pendingElementsTabOpen: boolean | null = null;
   let canonicalCache: CanonicalResult | null = null;
@@ -181,6 +233,12 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let cssSelectionDecorations: string[] = [];
   let lastSelectedLcId: string | null = null;
   let elementsTabOpen = false;
+  let basePreviewHtml: string | null = null;
+  let basePreviewFetch: Promise<string> | null = null;
+  let embeddedCustomHead: string | null = null;
+  let renderedCustomHead = typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '';
+  let expectingSrcdocLoad = false;
+  let currentBlobUrl: string | null = null;
 
   const getCanonical = () => {
     const html = deps.htmlModel.getValue();
@@ -218,6 +276,33 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     return previewWindow;
   };
 
+  const injectCustomHead = (html: string, customHead: string): string => {
+    const base = `<base href="${deps.targetOrigin}/">`;
+    let result = html.replace(/(<head(?:\s[^>]*)?>\s*)/i, `$1${base}\n`);
+    result = result.replace(/<\/head>/i, `${customHead}\n</head>`);
+    return result;
+  };
+
+  const reloadWithCustomHead = (customHead: string): void => {
+    embeddedCustomHead = customHead;
+    const doReload = (html: string) => {
+      if (!html) return;
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+      }
+      const fullHtml = injectCustomHead(html, customHead);
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      currentBlobUrl = URL.createObjectURL(blob);
+      expectingSrcdocLoad = true;
+      deps.iframe.src = currentBlobUrl;
+    };
+    if (basePreviewHtml) {
+      doReload(basePreviewHtml);
+    } else if (basePreviewFetch) {
+      basePreviewFetch.then(doReload);
+    }
+  };
+
   const postToPreview = (payload: Record<string, unknown>) => {
     const targetWindow = refreshPreviewWindow();
     if (!targetWindow) {
@@ -244,17 +329,24 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       lastCanonicalError = null;
     }
 
-    const payload = {
-      type: 'KAYZART_RENDER',
-      cssText: deps.getPreviewCss(),
-      shadowDomEnabled: deps.getShadowDomEnabled(),
-      liveHighlightEnabled: deps.getLiveHighlightEnabled(),
-    };
     if (!previewReady) {
       pendingRender = true;
       return;
     }
-    postToPreview({ ...payload, canonicalHTML: canonical.canonicalHTML });
+
+    const payload: Record<string, unknown> = {
+      type: 'KAYZART_RENDER',
+      cssText: deps.getPreviewCss(),
+      liveHighlightEnabled: deps.getLiveHighlightEnabled(),
+      bodyAttrs: canonical.bodyAttrs,
+      hasBody: canonical.hasBody,
+      templateMode: deps.getResolvedTemplateMode(),
+      canonicalHTML: canonical.canonicalHTML,
+    };
+    if (embeddedCustomHead === null) {
+      payload.customHead = renderedCustomHead;
+    }
+    postToPreview(payload);
   };
 
   const sendCssUpdate = (cssText: string) => {
@@ -284,46 +376,20 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     });
   };
 
-  const reloadPreviewIframe = (): boolean => {
-    const iframe = deps.iframe;
-    if (!iframe) return false;
-    const targetWindow = refreshPreviewWindow();
-    if (targetWindow) {
-      try {
-        targetWindow.location.reload();
-        return true;
-      } catch (error) {
-        // fallback to src refresh below
-      }
-    }
-    const src = iframe.getAttribute('src');
-    if (!src) return false;
-    try {
-      const url = new URL(src, window.location.href);
-      url.searchParams.set('kayzart_js_reload', String(Date.now()));
-      iframe.src = url.toString();
-      return true;
-    } catch (error) {
-      iframe.src = src;
-      return true;
-    }
-  };
-
-  const requestRunJs = () => {
-    if (!deps.getJsEnabled()) return;
-    if (!deps.jsModel) {
+  const requestReloadPreview = () => {
+    const currentCustomHead =
+      typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '';
+    renderedCustomHead = currentCustomHead;
+    pendingRender = true;
+    pendingReloadAppliedNotice = true;
+    if (deps.getJsEnabled() && deps.jsModel?.getValue().trim()) {
       pendingJsAction = 'run';
-      return;
+    } else if (!deps.getJsEnabled()) {
+      pendingJsAction = 'disable';
+    } else {
+      pendingJsAction = null;
     }
-    if (!previewReady) {
-      pendingJsAction = 'run';
-      return;
-    }
-    pendingJsAction = 'run';
-    if (reloadPreviewIframe()) {
-      return;
-    }
-    sendRender();
+    reloadWithCustomHead(currentCustomHead);
   };
 
   const requestDisableJs = () => {
@@ -332,26 +398,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       return;
     }
     postToPreview({ type: 'KAYZART_DISABLE_JS' });
-  };
-
-  const sendExternalScripts = (scripts: string[]) => {
-    if (!previewReady) {
-      return;
-    }
-    postToPreview({
-      type: 'KAYZART_EXTERNAL_SCRIPTS',
-      urls: scripts,
-    });
-  };
-
-  const sendExternalStyles = (styles: string[]) => {
-    if (!previewReady) {
-      return;
-    }
-    postToPreview({
-      type: 'KAYZART_EXTERNAL_STYLES',
-      urls: styles,
-    });
   };
 
   const sendLiveHighlightUpdate = (enabled: boolean) => {
@@ -397,32 +443,36 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     }
   };
 
-  const isRunJsPending = () => pendingJsAction === 'run';
-
   const clearSelectionHighlight = () => {
     selectionDecorations = deps.htmlModel.deltaDecorations(selectionDecorations, []);
     cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+    deps.htmlEditor.clearScrollRulerMarkers();
+    deps.cssEditor.clearScrollRulerMarkers();
   };
 
   const clearCssSelectionHighlight = () => {
     cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+    deps.cssEditor.clearScrollRulerMarkers();
   };
 
   const highlightCssByLcId = (lcId: string) => {
     lastSelectedLcId = lcId;
     if (deps.isTailwindEnabled()) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
     const cssText = deps.cssModel.getValue();
     if (!cssText.trim()) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
     const root = getCanonicalDomRoot();
     const target = root?.querySelector(`[${KAYZART_ATTR_NAME}="${lcId}"]`);
     if (!target) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
     const rules = parseCssRules(cssText);
@@ -434,26 +484,37 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     });
     if (!matched.length) {
       cssSelectionDecorations = deps.cssModel.deltaDecorations(cssSelectionDecorations, []);
+      deps.cssEditor.clearScrollRulerMarkers();
       return;
     }
+    const matchedRanges = matched.map((rule) => {
+      const startPos = deps.cssModel.getPositionAt(rule.startOffset);
+      const endPos = deps.cssModel.getPositionAt(rule.endOffset);
+      return new EditorRange(
+        startPos.lineNumber,
+        startPos.column,
+        endPos.lineNumber,
+        endPos.column
+      );
+    });
     cssSelectionDecorations = deps.cssModel.deltaDecorations(
       cssSelectionDecorations,
-      matched.map((rule) => {
-        const startPos = deps.cssModel.getPositionAt(rule.startOffset);
-        const endPos = deps.cssModel.getPositionAt(rule.endOffset);
+      matchedRanges.map((range) => {
         return {
-          range: new EditorRange(
-            startPos.lineNumber,
-            startPos.column,
-            endPos.lineNumber,
-            endPos.column
-          ),
+          range,
           options: {
             className: 'kayzart-highlight-line',
             inlineClassName: 'kayzart-highlight-inline',
           },
         };
       })
+    );
+    deps.cssEditor.setScrollRulerMarkers(
+      matchedRanges.map((range, index) => ({
+        range,
+        className: 'kayzart-scrollRulerMarker-css',
+        title: `CSS match ${index + 1}`,
+      }))
     );
     const first = matched[0];
     if (first) {
@@ -493,6 +554,13 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         },
       },
     ]);
+    deps.htmlEditor.setScrollRulerMarkers([
+      {
+        range: selectedRange,
+        className: 'kayzart-scrollRulerMarker-html',
+        title: 'HTML match',
+      },
+    ]);
     deps.htmlEditor.revealRangeInCenter(selectedRange);
     deps.htmlEditor.focus();
     highlightCssByLcId(lcId);
@@ -503,6 +571,21 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     previewReady = false;
     pendingRender = true;
     initialJsPending = true;
+    if (expectingSrcdocLoad) {
+      expectingSrcdocLoad = false;
+    } else {
+      embeddedCustomHead = null;
+      basePreviewHtml = null;
+      if (currentBlobUrl) {
+        URL.revokeObjectURL(currentBlobUrl);
+        currentBlobUrl = null;
+      }
+      const fetchUrl = deps.iframe.src;
+      basePreviewFetch = fetch(fetchUrl, { credentials: 'same-origin' })
+        .then((r) => r.text())
+        .then((html) => { basePreviewHtml = html; return html; })
+        .catch(() => { basePreviewFetch = null; return ''; });
+    }
     sendInit();
   };
 
@@ -518,8 +601,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         pendingRender = false;
       }
       sendRender();
-      sendExternalScripts(deps.getJsEnabled() ? deps.getExternalScripts() : []);
-      sendExternalStyles(deps.getExternalStyles());
       queueInitialJsRun();
       flushPendingJsAction();
       if (pendingElementsTabOpen !== null) {
@@ -535,6 +616,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       if (pendingJsAction === 'run') {
         pendingJsAction = null;
         sendRunJs();
+      }
+      if (pendingReloadAppliedNotice) {
+        pendingReloadAppliedNotice = false;
+        deps.onReloadApplied?.();
       }
     }
 
@@ -560,15 +645,12 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   return {
     sendRender,
     sendCssUpdate,
-    sendExternalScripts,
-    sendExternalStyles,
     sendLiveHighlightUpdate,
     sendElementsTabState,
-    requestRunJs,
+    requestReloadPreview,
     requestDisableJs,
     queueInitialJsRun,
     flushPendingJsAction,
-    isRunJsPending,
     resetCanonicalCache,
     clearSelectionHighlight,
     clearCssSelectionHighlight,

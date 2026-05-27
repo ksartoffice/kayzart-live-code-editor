@@ -1,6 +1,6 @@
 <?php
 /**
- * Front-end rendering for KayzArt posts and shortcodes.
+ * Front-end rendering for KayzArt posts.
  *
  * @package KayzArt
  */
@@ -14,182 +14,56 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Handles front-end rendering, assets, and shortcodes.
+ * Handles front-end rendering and assets.
  */
 class Frontend {
 	/**
-	 * Shortcode instance counter for unique IDs.
-	 *
-	 * @var int
-	 */
-	private static int $shortcode_instance = 0;
-
-	/**
-	 * Tracks which posts have already enqueued inline assets.
+	 * Tracks which legacy shortcode posts have already rendered inline assets.
 	 *
 	 * @var array<int,bool>
 	 */
 	private static array $shortcode_assets_loaded = array();
 
 	/**
-	 * Tracks external script handles by URL for deduping.
-	 *
-	 * @var array<string,string>
-	 */
-	private static array $external_script_handles = array();
-
-	/**
-	 * Tracks whether the shadow runtime has been enqueued.
+	 * Tracks whether the runtime has been enqueued.
 	 *
 	 * @var bool
 	 */
-	private static bool $shadow_runtime_enqueued = false;
-
-	/**
-	 * Tracks shadow style render calls to generate unique handles per output.
-	 *
-	 * @var int
-	 */
-	private static int $shadow_style_render_count = 0;
-	private const TEMPLATE_MODE_META_KEY          = '_kayzart_template_mode';
-	private const TEMPLATE_MODE_VALUES            = array( 'default', 'standalone', 'theme' );
-	private const DEFAULT_TEMPLATE_MODE_VALUES    = array( 'standalone', 'theme' );
-	private const JS_MODE_META_KEY                = '_kayzart_js_mode';
-	private const JS_MODE_VALUES                  = array( 'classic', 'module' );
-	private const SHORTCODE_RENDER_MAX_PASSES     = 1;
+	private static bool $runtime_enqueued      = false;
+	private const TEMPLATE_MODE_META_KEY       = '_kayzart_template_mode';
+	private const TEMPLATE_MODE_VALUES         = array( 'default', 'standalone', 'theme' );
+	private const DEFAULT_TEMPLATE_MODE_VALUES = array( 'standalone', 'theme' );
+	private const JS_MODE_META_KEY             = '_kayzart_js_mode';
+	private const WP_GLOBAL_STYLES_HANDLE      = 'global-styles';
 	/**
 	 * Register front-end hooks.
 	 */
 	public static function init(): void {
 		add_action( 'wp', array( __CLASS__, 'maybe_disable_autop' ) );
-		add_action( 'template_redirect', array( __CLASS__, 'maybe_redirect_single_page' ) );
-		add_action( 'wp_head', array( __CLASS__, 'maybe_add_noindex' ), 1 );
-		add_action( 'pre_get_posts', array( __CLASS__, 'exclude_single_page_from_query' ) );
+		add_action( 'wp', array( __CLASS__, 'disable_theme_styles_for_standalone' ), 20 );
 		// Enqueue late so KayzArt styles can override theme styles on the front-end.
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_css' ), 999 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_js' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'dequeue_theme_assets_for_standalone' ), 9999 );
+		add_action( 'wp_head', array( Custom_Head::class, 'render_current_post_head' ), 20 );
 		add_filter( 'the_content', array( __CLASS__, 'filter_content' ), 20 );
 		add_filter( 'template_include', array( __CLASS__, 'maybe_override_template' ), 20 );
+		add_filter( 'body_class', array( __CLASS__, 'filter_body_class' ) );
 		add_shortcode( 'kayzart', array( __CLASS__, 'shortcode' ) );
 	}
 
 	/**
-	 * Check whether single page view is disabled for a post.
+	 * Check whether the current request is a singular KayzArt-managed post.
 	 *
-	 * @param int $post_id KayzArt post ID.
 	 * @return bool
 	 */
-	private static function is_single_page_disabled( int $post_id ): bool {
-		return ! Post_Type::is_single_page_enabled( $post_id );
-	}
-
-	/**
-	 * Redirect single page requests when disabled.
-	 */
-	public static function maybe_redirect_single_page(): void {
-		if ( is_admin() || get_query_var( 'kayzart_preview' ) ) {
-			return;
-		}
-
-		if ( ! is_singular( Post_Type::POST_TYPE ) ) {
-			return;
+	private static function is_kayzart_singular(): bool {
+		if ( ! is_singular() ) {
+			return false;
 		}
 
 		$post_id = get_queried_object_id();
-		if ( ! $post_id ) {
-			return;
-		}
-
-		if ( ! self::is_single_page_disabled( $post_id ) ) {
-			return;
-		}
-
-		$target = apply_filters( 'kayzart_single_page_redirect', home_url( '/' ), $post_id );
-		if ( '404' === $target ) {
-			global $wp_query;
-			$wp_query->set_404();
-			status_header( 404 );
-			nocache_headers();
-			include get_404_template();
-			exit;
-		}
-
-		if ( is_string( $target ) && '' !== $target ) {
-			wp_safe_redirect( $target );
-			exit;
-		}
-	}
-
-	/**
-	 * Output noindex meta when single page is disabled.
-	 */
-	public static function maybe_add_noindex(): void {
-		if ( is_admin() || get_query_var( 'kayzart_preview' ) ) {
-			return;
-		}
-
-		if ( ! is_singular( Post_Type::POST_TYPE ) ) {
-			return;
-		}
-
-		$post_id = get_queried_object_id();
-		if ( ! $post_id ) {
-			return;
-		}
-
-		if ( ! self::is_single_page_disabled( $post_id ) ) {
-			return;
-		}
-
-		echo '<meta name="robots" content="noindex">' . PHP_EOL;
-	}
-
-	/**
-	 * Exclude single-page-disabled posts from search and archives.
-	 *
-	 * @param \WP_Query $query Query instance.
-	 */
-	public static function exclude_single_page_from_query( \WP_Query $query ): void {
-		if ( is_admin() || ! $query->is_main_query() || $query->is_singular() ) {
-			return;
-		}
-
-		$post_type     = $query->get( 'post_type' );
-		$should_filter = false;
-
-		if ( $query->is_search() ) {
-			$should_filter = true;
-		} elseif ( 'any' === $post_type ) {
-			$should_filter = true;
-		} elseif ( is_array( $post_type ) ) {
-			$should_filter = in_array( Post_Type::POST_TYPE, $post_type, true );
-		} elseif ( is_string( $post_type ) ) {
-			$should_filter = Post_Type::POST_TYPE === $post_type;
-		}
-
-		if ( ! $should_filter ) {
-			return;
-		}
-
-		$meta_query = $query->get( 'meta_query' );
-		if ( ! is_array( $meta_query ) ) {
-			$meta_query = array();
-		}
-
-		$meta_query[] = array(
-			'relation' => 'OR',
-			array(
-				'key'     => '_kayzart_single_page_enabled',
-				'compare' => 'NOT EXISTS',
-			),
-			array(
-				'key'     => '_kayzart_single_page_enabled',
-				'value'   => '1',
-				'compare' => '=',
-			),
-		);
-
-		$query->set( 'meta_query', $meta_query );
+		return $post_id > 0 && Post_Type::is_kayzart_post( $post_id );
 	}
 
 	/**
@@ -215,16 +89,6 @@ class Frontend {
 		if ( has_filter( 'the_content', 'shortcode_unautop' ) ) {
 			remove_filter( 'the_content', 'shortcode_unautop' );
 		}
-	}
-
-	/**
-	 * Check whether Shadow DOM rendering is enabled for a post.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 * @return bool
-	 */
-	private static function is_shadow_dom_enabled( int $post_id ): bool {
-		return '1' === get_post_meta( $post_id, '_kayzart_shadow_dom', true );
 	}
 
 	/**
@@ -261,9 +125,9 @@ class Frontend {
 	 * @return string
 	 */
 	private static function resolve_default_template_mode(): string {
-		$template_mode = get_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'theme' );
+		$template_mode = get_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE, 'standalone' );
 		$template_mode = Admin::sanitize_default_template_mode( $template_mode );
-		return in_array( $template_mode, self::DEFAULT_TEMPLATE_MODE_VALUES, true ) ? $template_mode : 'theme';
+		return in_array( $template_mode, self::DEFAULT_TEMPLATE_MODE_VALUES, true ) ? $template_mode : 'standalone';
 	}
 
 	/**
@@ -290,6 +154,203 @@ class Frontend {
 	}
 
 	/**
+	 * Check whether the current KayzArt request resolves to standalone mode.
+	 *
+	 * @param int|null $post_id KayzArt post ID. Defaults to queried object ID.
+	 * @return bool
+	 */
+	public static function is_standalone_mode( ?int $post_id = null ): bool {
+		if ( is_admin() ) {
+			return false;
+		}
+
+		if ( null === $post_id ) {
+			if ( ! self::is_kayzart_singular() ) {
+				return false;
+			}
+
+			$post_id = get_queried_object_id();
+		}
+
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return false;
+		}
+
+		return 'standalone' === self::resolve_template_mode( $post_id );
+	}
+
+	/**
+	 * Add stored body classes in theme mode only.
+	 *
+	 * @param array $classes Existing body classes.
+	 * @return array
+	 */
+	public static function filter_body_class( array $classes ): array {
+		if ( is_admin() ) {
+			return $classes;
+		}
+
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return $classes;
+		}
+
+		if ( 'theme' !== self::resolve_template_mode( $post_id ) ) {
+			return $classes;
+		}
+
+		return array_values( array_unique( array_merge( $classes, Html_Document::get_stored_body_classes( $post_id ) ) ) );
+	}
+
+	/**
+	 * Prevent WordPress/theme-level CSS from being generated for standalone pages.
+	 */
+	public static function disable_theme_styles_for_standalone(): void {
+		if ( ! self::is_standalone_mode() ) {
+			return;
+		}
+
+		if ( ! apply_filters( 'kayzart_standalone_dequeue_theme_assets', true ) ) {
+			return;
+		}
+
+		if ( ! apply_filters( 'kayzart_standalone_dequeue_theme_styles', true ) ) {
+			return;
+		}
+
+		remove_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
+		remove_action( 'wp_footer', 'wp_enqueue_global_styles', 1 );
+		remove_action( 'wp_head', 'wp_custom_css_cb', 101 );
+	}
+
+	/**
+	 * Remove active theme assets from standalone mode while leaving plugin assets intact.
+	 */
+	public static function dequeue_theme_assets_for_standalone(): void {
+		if ( ! self::is_standalone_mode() ) {
+			return;
+		}
+
+		if ( ! apply_filters( 'kayzart_standalone_dequeue_theme_assets', true ) ) {
+			return;
+		}
+
+		if ( apply_filters( 'kayzart_standalone_dequeue_theme_styles', true ) ) {
+			self::dequeue_theme_styles_for_standalone();
+			self::dequeue_core_global_styles_for_standalone();
+		}
+
+		if ( apply_filters( 'kayzart_standalone_dequeue_theme_scripts', true ) ) {
+			self::dequeue_theme_scripts_for_standalone();
+		}
+	}
+
+	/**
+	 * Remove active theme styles from the current queue.
+	 */
+	private static function dequeue_theme_styles_for_standalone(): void {
+		$wp_styles = wp_styles();
+		if ( ! $wp_styles ) {
+			return;
+		}
+
+		foreach ( (array) $wp_styles->queue as $handle ) {
+			$style = $wp_styles->registered[ $handle ] ?? null;
+			if ( ! $style || ! self::is_theme_asset_src( $style->src ) ) {
+				continue;
+			}
+
+			wp_dequeue_style( $handle );
+		}
+	}
+
+	/**
+	 * Remove WordPress core global styles from standalone mode.
+	 */
+	private static function dequeue_core_global_styles_for_standalone(): void {
+		wp_dequeue_style( self::WP_GLOBAL_STYLES_HANDLE );
+	}
+
+	/**
+	 * Remove active theme scripts from the current queue.
+	 */
+	private static function dequeue_theme_scripts_for_standalone(): void {
+		$wp_scripts = wp_scripts();
+		if ( ! $wp_scripts ) {
+			return;
+		}
+
+		foreach ( (array) $wp_scripts->queue as $handle ) {
+			$script = $wp_scripts->registered[ $handle ] ?? null;
+			if ( ! $script || ! self::is_theme_asset_src( $script->src ) ) {
+				continue;
+			}
+
+			wp_dequeue_script( $handle );
+		}
+	}
+
+	/**
+	 * Check whether an asset source points inside the active parent or child theme.
+	 *
+	 * @param mixed $src Asset source.
+	 * @return bool
+	 */
+	private static function is_theme_asset_src( $src ): bool {
+		if ( ! is_string( $src ) || '' === $src ) {
+			return false;
+		}
+
+		$theme_urls = array_unique(
+			array_filter(
+				array(
+					get_template_directory_uri(),
+					get_stylesheet_directory_uri(),
+				)
+			)
+		);
+
+		foreach ( $theme_urls as $theme_url ) {
+			if ( self::asset_src_matches_base_url( $src, $theme_url ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether an asset source is within a base URL.
+	 *
+	 * @param string $src      Asset source.
+	 * @param string $base_url Base URL.
+	 * @return bool
+	 */
+	private static function asset_src_matches_base_url( string $src, string $base_url ): bool {
+		$src_without_query  = strtok( $src, '?#' );
+		$base_without_query = strtok( $base_url, '?#' );
+
+		if ( is_string( $src_without_query ) && is_string( $base_without_query ) ) {
+			$base = trailingslashit( $base_without_query );
+			if ( 0 === strpos( $src_without_query, $base ) ) {
+				return true;
+			}
+		}
+
+		$src_path  = wp_parse_url( $src, PHP_URL_PATH );
+		$base_path = wp_parse_url( $base_url, PHP_URL_PATH );
+		if ( ! is_string( $src_path ) || ! is_string( $base_path ) ) {
+			return false;
+		}
+
+		return 0 === strpos( $src_path, trailingslashit( $base_path ) );
+	}
+
+	/**
 	 * Override single template based on KayzArt template mode.
 	 *
 	 * @param string $template Template path.
@@ -300,7 +361,7 @@ class Frontend {
 			return $template;
 		}
 
-		if ( ! is_singular( Post_Type::POST_TYPE ) ) {
+		if ( ! self::is_kayzart_singular() ) {
 			return $template;
 		}
 
@@ -337,15 +398,10 @@ class Frontend {
 	 * @return string
 	 */
 	private static function get_css_for_post( int $post_id ): string {
-
 		$is_tailwind   = '1' === get_post_meta( $post_id, '_kayzart_tailwind', true );
 		$stored_css    = (string) get_post_meta( $post_id, '_kayzart_css', true );
 		$generated_css = (string) get_post_meta( $post_id, '_kayzart_generated_css', true );
 		$css           = $is_tailwind ? $generated_css : $stored_css;
-
-		if ( $is_tailwind ) {
-			$css = Rest_Save::append_tailwind_shadow_fallbacks( $css );
-		}
 
 		$has_unescaped_arbitrary = ! $is_tailwind
 			&& '' !== $stored_css
@@ -402,7 +458,7 @@ class Frontend {
 	}
 
 	/**
-	 * Filter KayzArt post content for Shadow DOM preview.
+	 * Append inline JavaScript payload for KayzArt post content.
 	 *
 	 * @param string $content Post content.
 	 * @return string
@@ -424,24 +480,17 @@ class Frontend {
 			return $content;
 		}
 
-		if ( ! self::is_shadow_dom_enabled( $post_id ) ) {
-			$script_html = self::build_inline_script_payload( $post_id );
-			return $content . $script_html;
-		}
-
-		$style_html  = self::render_shadow_styles_html( $post_id );
 		$script_html = self::build_inline_script_payload( $post_id );
-		return '<kayzart-output data-post-id="' . esc_attr( $post_id ) . '"><template shadowrootmode="open">' . $style_html . $content . '</template>' . $script_html . '</kayzart-output>';
+		return $content . $script_html;
 	}
 
 	/**
-	 * Render the [kayzart] shortcode.
+	 * Render legacy [kayzart] shortcodes for posts that had embedding enabled.
 	 *
 	 * @param array $atts Shortcode attributes.
 	 * @return string
 	 */
 	public static function shortcode( $atts = array() ): string {
-
 		$atts    = shortcode_atts(
 			array(
 				'post_id' => 0,
@@ -473,190 +522,53 @@ class Frontend {
 			return '';
 		}
 
-		$content = (string) $post->post_content;
-		$content = self::render_allowed_embed_shortcodes( $content );
-		if ( self::is_shadow_dom_enabled( $post_id ) ) {
-			++self::$shortcode_instance;
-			$instance    = self::$shortcode_instance;
-			$style_html  = self::render_shadow_styles_html( $post_id, $instance );
-			$script_html = self::build_inline_script_payload( $post_id, $instance );
-			self::enqueue_shortcode_scripts( $post_id );
-			return '<kayzart-output data-post-id="' . esc_attr( $post_id ) . '"><template shadowrootmode="open">' . $style_html . $content . '</template>' . $script_html . '</kayzart-output>';
-		}
-
-		$style_html = self::prepare_non_shadow_shortcode_assets( $post_id );
-		return $style_html . $content . self::build_inline_script_payload( $post_id );
+		$style_html = self::prepare_legacy_shortcode_assets( $post_id );
+		return $style_html . (string) $post->post_content . self::build_inline_script_payload( $post_id );
 	}
 
 	/**
-	 * Resolve shortcode allowlist configured in admin settings.
-	 *
-	 * @return array<int,string>
-	 */
-	private static function get_shortcode_allowlist(): array {
-
-		$raw = get_option( Admin::OPTION_SHORTCODE_ALLOWLIST, '' );
-		if ( ! is_string( $raw ) || '' === $raw ) {
-			return array();
-		}
-
-		$normalized = str_replace( array( "\r\n", "\r" ), "\n", $raw );
-		$entries    = explode( "\n", $normalized );
-		$unique     = array();
-
-		foreach ( $entries as $entry ) {
-			$tag = sanitize_key( trim( $entry ) );
-			if ( '' === $tag ) {
-					continue;
-			}
-			$unique[ $tag ] = true;
-		}
-
-		return array_keys( $unique );
-	}
-
-	/**
-	 * Render only allowlisted shortcodes for [kayzart] embed content.
-	 *
-	 * @param string $content Post content.
-	 * @return string
-	 */
-	private static function render_allowed_embed_shortcodes( string $content ): string {
-
-		if ( '' === $content ) {
-			return '';
-		}
-
-		$allowlist = self::get_shortcode_allowlist();
-		if ( empty( $allowlist ) ) {
-			return $content;
-		}
-
-		$allowed_tags = array_fill_keys( $allowlist, true );
-
-		$rendered = $content;
-		$filter   = static function ( $output, $tag, $attr, $m ) use ( $allowed_tags ) {
-			unset( $attr );
-			if ( isset( $allowed_tags[ $tag ] ) ) {
-				return $output;
-			}
-
-			return isset( $m[0] ) ? (string) $m[0] : $output;
-		};
-		add_filter( 'pre_do_shortcode_tag', $filter, 10, 4 );
-
-		try {
-			for ( $pass = 0; $pass < self::SHORTCODE_RENDER_MAX_PASSES; $pass++ ) {
-				$previous = $rendered;
-				$rendered = do_shortcode( $previous );
-				if ( $rendered === $previous ) {
-					break;
-				}
-			}
-		} finally {
-			remove_filter( 'pre_do_shortcode_tag', $filter, 10 );
-		}
-
-		return $rendered;
-	}
-	/**
-	 * Build stylesheet HTML for Shadow DOM rendering via WordPress style APIs.
-	 *
-	 * @param int $post_id  KayzArt post ID.
-	 * @param int $instance Instance number.
-	 * @return string
-	 */
-	private static function render_shadow_styles_html( int $post_id, int $instance = 0 ): string {
-		$css             = self::get_css_for_post( $post_id );
-		$external_styles = External_Styles::get_external_styles( $post_id );
-		if ( '' === $css && empty( $external_styles ) ) {
-			return '';
-		}
-
-		++self::$shadow_style_render_count;
-		$suffix       = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
-		$handle_scope = $suffix . '-' . self::$shadow_style_render_count;
-
-		$dependency = '';
-		$handles    = array();
-		foreach ( $external_styles as $index => $style_url ) {
-			$ext_handle = 'kayzart-shadow-ext-style' . $handle_scope . '-' . $index;
-			$ext_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_style_is( $ext_handle, 'registered' ) ) {
-				wp_register_style( $ext_handle, $style_url, $ext_deps, KAYZART_VERSION );
-			}
-			wp_enqueue_style( $ext_handle );
-			$handles[]  = $ext_handle;
-			$dependency = $ext_handle;
-		}
-
-		if ( '' !== $css ) {
-			$inline_handle = 'kayzart-shadow-style' . $handle_scope;
-			$inline_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_style_is( $inline_handle, 'registered' ) ) {
-				wp_register_style( $inline_handle, false, $inline_deps, KAYZART_VERSION );
-			}
-			wp_enqueue_style( $inline_handle );
-			wp_add_inline_style( $inline_handle, self::sanitize_inline_style_css( $css ) );
-			$handles[] = $inline_handle;
-		}
-
-		return self::render_styles_html_from_handles( $handles );
-	}
-
-	/**
-	 * Build stylesheet HTML for non-shadow shortcode rendering.
+	 * Enqueue legacy shortcode assets once per post and return printable CSS.
 	 *
 	 * @param int $post_id KayzArt post ID.
 	 * @return string
 	 */
-	private static function render_non_shadow_shortcode_styles_html( int $post_id ): string {
-		$css             = self::get_css_for_post( $post_id );
-		$external_styles = External_Styles::get_external_styles( $post_id );
-		if ( '' === $css && empty( $external_styles ) ) {
-			return '';
+	private static function prepare_legacy_shortcode_assets( int $post_id ): string {
+		$style_html = '';
+		if ( ! isset( self::$shortcode_assets_loaded[ $post_id ] ) ) {
+			self::$shortcode_assets_loaded[ $post_id ] = true;
+			$style_html                                = self::render_legacy_shortcode_styles_html( $post_id );
 		}
 
-		$dependency = '';
-		$handles    = array();
-		foreach ( $external_styles as $index => $style_url ) {
-			$ext_handle = 'kayzart-shortcode-ext-style-' . $post_id . '-' . $index;
-			$ext_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_style_is( $ext_handle, 'registered' ) ) {
-				wp_register_style( $ext_handle, $style_url, $ext_deps, KAYZART_VERSION );
-			}
-			wp_enqueue_style( $ext_handle );
-			$handles[]  = $ext_handle;
-			$dependency = $ext_handle;
+		$js = (string) get_post_meta( $post_id, '_kayzart_js', true );
+		if ( '' !== $js ) {
+			self::enqueue_runtime();
 		}
 
-		if ( '' !== $css ) {
-			$inline_handle = 'kayzart-shortcode-style-' . $post_id;
-			$inline_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_style_is( $inline_handle, 'registered' ) ) {
-				wp_register_style( $inline_handle, false, $inline_deps, KAYZART_VERSION );
-			}
-			wp_enqueue_style( $inline_handle );
-			wp_add_inline_style( $inline_handle, self::sanitize_inline_style_css( $css ) );
-			$handles[] = $inline_handle;
-		}
-
-		return self::render_styles_html_from_handles( $handles );
+		return $style_html;
 	}
 
 	/**
-	 * Render selected enqueued style handles into HTML.
+	 * Build stylesheet HTML for legacy shortcode rendering.
 	 *
-	 * @param array<int,string> $handles Style handles.
+	 * @param int $post_id KayzArt post ID.
 	 * @return string
 	 */
-	private static function render_styles_html_from_handles( array $handles ): string {
-		if ( empty( $handles ) ) {
+	private static function render_legacy_shortcode_styles_html( int $post_id ): string {
+		$css = self::get_css_for_post( $post_id );
+		if ( '' === $css ) {
 			return '';
 		}
 
+		$handle = 'kayzart-shortcode-style-' . $post_id;
+		if ( ! wp_style_is( $handle, 'registered' ) ) {
+			wp_register_style( $handle, false, array(), KAYZART_VERSION );
+		}
+
+		wp_enqueue_style( $handle );
+		wp_add_inline_style( $handle, self::sanitize_inline_style_css( $css ) );
+
 		ob_start();
-		wp_print_styles( $handles );
+		wp_print_styles( array( $handle ) );
 		return (string) ob_get_clean();
 	}
 
@@ -673,119 +585,27 @@ class Frontend {
 			return '';
 		}
 
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		$wait_attr        = empty( $external_scripts ) ? '' : ' data-kayzart-js-wait="load"';
-		$mode_attr        = ' data-kayzart-js-mode="' . esc_attr( self::get_js_mode_for_post( $post_id ) ) . '"';
-		$suffix           = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
-		$encoded          = rawurlencode( $js );
+		$mode_attr = ' data-kayzart-js-mode="' . esc_attr( self::get_js_mode_for_post( $post_id ) ) . '"';
+		$suffix    = 0 < $instance ? '-' . $post_id . '-' . $instance : '-' . $post_id;
+		$encoded   = rawurlencode( $js );
 		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript
-		return '<script type="application/json" id="kayzart-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . $wait_attr . '>' . esc_html( $encoded ) . '</script>';
+		return '<script type="application/json" id="kayzart-script-data' . esc_attr( $suffix ) . '" data-kayzart-js="1"' . $mode_attr . '>' . esc_html( $encoded ) . '</script>';
 	}
 
 	/**
-	 * Enqueue non-shadow shortcode assets once per post and return style HTML.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 * @return string
+	 * Enqueue runtime script for executing inline JS payloads.
 	 */
-	private static function prepare_non_shadow_shortcode_assets( int $post_id ): string {
-		if ( isset( self::$shortcode_assets_loaded[ $post_id ] ) ) {
-			return '';
-		}
-		self::$shortcode_assets_loaded[ $post_id ] = true;
-
-		$style_html = self::render_non_shadow_shortcode_styles_html( $post_id );
-		self::enqueue_non_shadow_shortcode_scripts( $post_id );
-		return $style_html;
-	}
-
-	/**
-	 * Enqueue scripts for non-shadow shortcode rendering.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 */
-	private static function enqueue_non_shadow_shortcode_scripts( int $post_id ): void {
-		$js               = (string) get_post_meta( $post_id, '_kayzart_js', true );
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		if ( '' === $js && empty( $external_scripts ) ) {
+	private static function enqueue_runtime(): void {
+		if ( self::$runtime_enqueued ) {
 			return;
 		}
+		self::$runtime_enqueued = true;
 
-		self::enqueue_external_scripts( $post_id );
-		if ( '' !== $js ) {
-			self::enqueue_shadow_runtime();
-		}
-	}
-
-	/**
-	 * Enqueue external scripts for shadow-dom shortcode rendering.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 */
-	private static function enqueue_shortcode_scripts( int $post_id ): void {
-		if ( isset( self::$shortcode_assets_loaded[ $post_id ] ) ) {
-			return;
-		}
-		self::$shortcode_assets_loaded[ $post_id ] = true;
-
-		$js = (string) get_post_meta( $post_id, '_kayzart_js', true );
-		if ( '' !== $js ) {
-			self::enqueue_shadow_runtime();
-		}
-
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		if ( empty( $external_scripts ) ) {
-			return;
-		}
-
-		self::enqueue_external_scripts( $post_id );
-	}
-
-	/**
-	 * Enqueue external script URLs once per page.
-	 *
-	 * @param int $post_id KayzArt post ID.
-	 * @return string Last dependency handle.
-	 */
-	private static function enqueue_external_scripts( int $post_id ): string {
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		if ( empty( $external_scripts ) ) {
-			return '';
-		}
-
-		$dependency = '';
-		foreach ( $external_scripts as $index => $script_url ) {
-			if ( isset( self::$external_script_handles[ $script_url ] ) ) {
-				$dependency = self::$external_script_handles[ $script_url ];
-				continue;
-			}
-			$ext_handle = 'kayzart-ext-' . $post_id . '-' . $index;
-			$ext_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_script_is( $ext_handle, 'registered' ) ) {
-				wp_register_script( $ext_handle, $script_url, $ext_deps, KAYZART_VERSION, true );
-			}
-			wp_enqueue_script( $ext_handle );
-			self::$external_script_handles[ $script_url ] = $ext_handle;
-			$dependency                                   = $ext_handle;
-		}
-
-		return $dependency;
-	}
-
-	/**
-	 * Enqueue runtime script for executing Shadow DOM inline JS payloads.
-	 */
-	private static function enqueue_shadow_runtime(): void {
-		if ( self::$shadow_runtime_enqueued ) {
-			return;
-		}
-		self::$shadow_runtime_enqueued = true;
-
-		$handle = 'kayzart-shadow-runtime';
+		$handle = 'kayzart-runtime';
 		if ( ! wp_script_is( $handle, 'registered' ) ) {
 			wp_register_script(
 				$handle,
-				KAYZART_URL . 'includes/shadow-runtime.js',
+				KAYZART_URL . 'includes/runtime.js',
 				array(),
 				KAYZART_VERSION,
 				true
@@ -795,7 +615,7 @@ class Frontend {
 	}
 
 	/**
-	 * Enqueue CSS assets for non-shadow front-end rendering.
+	 * Enqueue CSS assets for front-end rendering.
 	 */
 	public static function enqueue_css(): void {
 		if ( is_admin() ) {
@@ -811,36 +631,15 @@ class Frontend {
 			return;
 		}
 
-		if ( self::is_shadow_dom_enabled( $post_id ) ) {
-			return;
-		}
-
-		$css             = self::get_css_for_post( $post_id );
-		$external_styles = External_Styles::get_external_styles( $post_id );
-		if ( '' === $css && empty( $external_styles ) ) {
-			return;
-		}
-
-		$dependency = '';
-		foreach ( $external_styles as $index => $style_url ) {
-			$ext_handle = 'kayzart-ext-style-' . $post_id . '-' . $index;
-			$ext_deps   = $dependency ? array( $dependency ) : array();
-			if ( ! wp_style_is( $ext_handle, 'registered' ) ) {
-				wp_register_style( $ext_handle, $style_url, $ext_deps, KAYZART_VERSION );
-			}
-			wp_enqueue_style( $ext_handle );
-			$dependency = $ext_handle;
-		}
-
+		$css = self::get_css_for_post( $post_id );
 		if ( '' === $css ) {
 			return;
 		}
 
 		$handle = 'kayzart';
-		$deps   = $dependency ? array( $dependency ) : array();
 
 		if ( ! wp_style_is( $handle, 'registered' ) ) {
-			wp_register_style( $handle, false, $deps, KAYZART_VERSION );
+			wp_register_style( $handle, false, array(), KAYZART_VERSION );
 		}
 
 		wp_enqueue_style( $handle );
@@ -848,7 +647,7 @@ class Frontend {
 	}
 
 	/**
-	 * Enqueue JS assets for non-shadow front-end rendering.
+	 * Enqueue JS assets for front-end rendering.
 	 */
 	public static function enqueue_js(): void {
 		if ( is_admin() ) {
@@ -867,15 +666,11 @@ class Frontend {
 			return;
 		}
 
-		$js               = (string) get_post_meta( $post_id, '_kayzart_js', true );
-		$external_scripts = External_Scripts::get_external_scripts( $post_id );
-		if ( '' === $js && empty( $external_scripts ) ) {
+		$js = (string) get_post_meta( $post_id, '_kayzart_js', true );
+		if ( '' === $js ) {
 			return;
 		}
 
-		self::enqueue_external_scripts( $post_id );
-		if ( '' !== $js ) {
-			self::enqueue_shadow_runtime();
-		}
+		self::enqueue_runtime();
 	}
 }

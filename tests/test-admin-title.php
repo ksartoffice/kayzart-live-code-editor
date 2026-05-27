@@ -47,7 +47,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 			'KayzArt'
 		);
 
-		$this->assertSame( 'KayzArt Live Code Editor: Foo &lsaquo; Test Site - WordPress', $filtered );
+		$this->assertSame( 'KayzArt Landing Page Editor: Foo &lsaquo; Test Site - WordPress', $filtered );
 	}
 
 	public function test_filter_admin_title_uses_untitled_fallback_for_empty_post_title(): void {
@@ -62,7 +62,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 			'KayzArt'
 		);
 
-		$this->assertSame( 'KayzArt Live Code Editor: Untitled &lsaquo; Test Site - WordPress', $filtered );
+		$this->assertSame( 'KayzArt Landing Page Editor: Untitled &lsaquo; Test Site - WordPress', $filtered );
 	}
 
 	public function test_filter_admin_title_supports_utf8_separator_suffix(): void {
@@ -77,7 +77,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 			'KayzArt'
 		);
 
-		$this->assertSame( 'KayzArt Live Code Editor: Foo ' . "\xE2\x80\xB9" . ' Test Site - WordPress', $filtered );
+		$this->assertSame( 'KayzArt Landing Page Editor: Foo ' . "\xE2\x80\xB9" . ' Test Site - WordPress', $filtered );
 	}
 
 	public function test_filter_admin_title_does_not_change_other_admin_pages(): void {
@@ -98,7 +98,7 @@ class Test_Admin_Title extends WP_UnitTestCase {
 
 		$filtered = Admin::filter_admin_title( 'KayzArt', 'KayzArt' );
 
-		$this->assertSame( 'KayzArt Live Code Editor: Foo', $filtered );
+		$this->assertSame( 'KayzArt Landing Page Editor: Foo', $filtered );
 	}
 
 	private function create_kayzart_post( string $title ): int {

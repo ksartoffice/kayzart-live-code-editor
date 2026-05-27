@@ -20,8 +20,7 @@ This document captures project-wide naming conventions. Keep it in sync with the
 
 ## API / Payload Keys
 - Identifiers: post_id
-- Booleans: *Enabled suffix (jsEnabled, shadowDomEnabled, shortcodeEnabled, liveHighlightEnabled, tailwindEnabled)
-- Tailwind flag: tailwindEnabled (not tailwind)
+- Booleans: *Enabled suffix (jsEnabled, shadowDomEnabled, shortcodeEnabled, liveHighlightEnabled)
 
 ## JS Internal vs API Boundary
 - JS/TS internal identifiers use camelCase (postId).

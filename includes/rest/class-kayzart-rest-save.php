@@ -19,45 +19,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Rest_Save {
 
 	private const JS_MODE_VALUES = array( 'classic', 'module' );
-	/**
-	 * Shadow DOM Tailwind custom property fallbacks.
-	 *
-	 * @var string
-	 */
-	private const TAILWIND_SHADOW_FALLBACK_CSS = '@layer base {
-  :host,
-  :host *,
-  :host *::before,
-  :host *::after,
-  :host ::backdrop{
-    --tw-border-style: solid;
-    --tw-gradient-position: initial;
-    --tw-gradient-from: #0000;
-    --tw-gradient-via: #0000;
-    --tw-gradient-to: #0000;
-    --tw-gradient-stops: initial;
-    --tw-gradient-via-stops: initial;
-    --tw-gradient-from-position: 0%;
-    --tw-gradient-via-position: 50%;
-    --tw-gradient-to-position: 100%;
-    --tw-font-weight: initial;
-    --tw-shadow: 0 0 #0000;
-    --tw-shadow-color: initial;
-    --tw-shadow-alpha: 100%;
-    --tw-inset-shadow: 0 0 #0000;
-    --tw-inset-shadow-color: initial;
-    --tw-inset-shadow-alpha: 100%;
-    --tw-ring-color: initial;
-    --tw-ring-shadow: 0 0 #0000;
-    --tw-inset-ring-color: initial;
-    --tw-inset-ring-shadow: 0 0 #0000;
-    --tw-ring-inset: initial;
-    --tw-ring-offset-width: 0px;
-    --tw-ring-offset-color: #fff;
-    --tw-ring-offset-shadow: 0 0 #0000;
-    --radius: 0.25rem;
-  }
-}';
 
 	/**
 	 * Save KayzArt post content and metadata.
@@ -69,6 +30,11 @@ class Rest_Save {
 
 		$post_id          = absint( $request->get_param( 'post_id' ) );
 		$html             = (string) $request->get_param( 'html' );
+		$html_parts       = Html_Document::split_editor_html( $html );
+		$content_html     = (string) $html_parts['content'];
+		$body_attrs       = (string) $html_parts['body_attrs'];
+		$has_custom_head  = $request->has_param( 'customHead' );
+		$custom_head      = $has_custom_head ? (string) $request->get_param( 'customHead' ) : Custom_Head::get_for_post( $post_id );
 		$css_input        = self::sanitize_css_input( (string) $request->get_param( 'css' ) );
 		$js_input         = (string) $request->get_param( 'js' );
 		$has_js           = $request->has_param( 'js' );
@@ -78,7 +44,7 @@ class Rest_Save {
 		$has_settings     = $request->has_param( 'settingsUpdates' );
 		$prepared_updates = null;
 
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -87,8 +53,9 @@ class Rest_Save {
 				400
 			);
 		}
+		Post_Type::enable_for_post( $post_id );
 
-		if ( ( $has_js || $has_js_mode ) && ! current_user_can( 'unfiltered_html' ) ) {
+		if ( ( $has_js || $has_js_mode || $has_custom_head ) && ! current_user_can( 'unfiltered_html' ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -146,7 +113,7 @@ class Rest_Save {
 		}
 
 		if ( $tailwind_enabled ) {
-			$size_validation = self::validate_tailwind_input_size( $html, $css_input );
+			$size_validation = self::validate_tailwind_input_size( $content_html, $css_input );
 			if ( is_wp_error( $size_validation ) ) {
 				return new \WP_REST_Response(
 					array(
@@ -161,7 +128,7 @@ class Rest_Save {
 		$result = wp_update_post(
 			array(
 				'ID'           => $post_id,
-				'post_content' => wp_slash( $html ),
+				'post_content' => wp_slash( $content_html ),
 			),
 			true
 		);
@@ -181,11 +148,10 @@ class Rest_Save {
 			try {
 				$compiled_css = tw::generate(
 					array(
-						'content' => $html,
+						'content' => $content_html,
 						'css'     => $css_input,
 					)
 				);
-				$compiled_css = self::append_tailwind_shadow_fallbacks( $compiled_css );
 			} catch ( \Throwable $e ) {
 				return new \WP_REST_Response(
 					array(
@@ -201,6 +167,12 @@ class Rest_Save {
 			}
 		}
 
+		if ( '' !== $body_attrs ) {
+			update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, wp_slash( $body_attrs ) );
+		} else {
+			delete_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY );
+		}
+		$custom_head_result = Custom_Head::save( $post_id, $custom_head );
 		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
 		if ( $has_js ) {
 			update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
@@ -236,8 +208,10 @@ class Rest_Save {
 
 		return new \WP_REST_Response(
 			array(
-				'ok'       => true,
-				'settings' => Rest_Settings::build_settings_payload( $post_id ),
+				'ok'                    => true,
+				'customHead'            => $custom_head_result['html'],
+				'customHeadRemovedTags' => $custom_head_result['removed'],
+				'settings'              => Rest_Settings::build_settings_payload( $post_id ),
 			),
 			200
 		);
@@ -293,53 +267,6 @@ class Rest_Save {
 	}
 
 	/**
-	 * Append Shadow DOM Tailwind fallback custom properties once.
-	 *
-	 * @param string $css Tailwind generated CSS.
-	 * @return string
-	 */
-	public static function append_tailwind_shadow_fallbacks( string $css ): string {
-		if ( '' === $css ) {
-			return '';
-		}
-
-		$already_injected = false !== strpos( $css, ':host,' )
-			&& false !== strpos( $css, ':host ::backdrop{' )
-			&& false !== strpos( $css, '--tw-border-style: solid;' )
-			&& false !== strpos( $css, '--tw-gradient-position: initial;' )
-			&& false !== strpos( $css, '--tw-gradient-from: #0000;' )
-			&& false !== strpos( $css, '--tw-gradient-via: #0000;' )
-			&& false !== strpos( $css, '--tw-gradient-to: #0000;' )
-			&& false !== strpos( $css, '--tw-gradient-stops: initial;' )
-			&& false !== strpos( $css, '--tw-gradient-via-stops: initial;' )
-			&& false !== strpos( $css, '--tw-gradient-from-position: 0%;' )
-			&& false !== strpos( $css, '--tw-gradient-via-position: 50%;' )
-			&& false !== strpos( $css, '--tw-gradient-to-position: 100%;' )
-			&& false !== strpos( $css, '--tw-font-weight: initial;' )
-			&& false !== strpos( $css, '--tw-shadow: 0 0 #0000;' )
-			&& false !== strpos( $css, '--tw-shadow-color: initial;' )
-			&& false !== strpos( $css, '--tw-shadow-alpha: 100%;' )
-			&& false !== strpos( $css, '--tw-inset-shadow: 0 0 #0000;' )
-			&& false !== strpos( $css, '--tw-inset-shadow-color: initial;' )
-			&& false !== strpos( $css, '--tw-inset-shadow-alpha: 100%;' )
-			&& false !== strpos( $css, '--tw-ring-color: initial;' )
-			&& false !== strpos( $css, '--tw-ring-shadow: 0 0 #0000;' )
-			&& false !== strpos( $css, '--tw-inset-ring-color: initial;' )
-			&& false !== strpos( $css, '--tw-inset-ring-shadow: 0 0 #0000;' )
-			&& false !== strpos( $css, '--tw-ring-inset: initial;' )
-			&& false !== strpos( $css, '--tw-ring-offset-width: 0px;' )
-			&& false !== strpos( $css, '--tw-ring-offset-color: #fff;' )
-			&& false !== strpos( $css, '--tw-ring-offset-shadow: 0 0 #0000;' )
-			&& false !== strpos( $css, '--radius: 0.25rem;' );
-
-		if ( $already_injected ) {
-			return $css;
-		}
-
-		return rtrim( $css ) . "\n\n" . self::TAILWIND_SHADOW_FALLBACK_CSS . "\n";
-	}
-
-	/**
 	 * Validate Tailwind compile input size.
 	 *
 	 * @param string $html HTML input.
@@ -377,7 +304,7 @@ class Rest_Save {
 		$html      = (string) $request->get_param( 'html' );
 		$css_input = (string) $request->get_param( 'css' );
 
-		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -386,6 +313,7 @@ class Rest_Save {
 				400
 			);
 		}
+		Post_Type::enable_for_post( $post_id );
 
 		$size_validation = self::validate_tailwind_input_size( $html, $css_input );
 		if ( is_wp_error( $size_validation ) ) {
@@ -405,7 +333,6 @@ class Rest_Save {
 					'css'     => $css_input,
 				)
 			);
-			$css = self::append_tailwind_shadow_fallbacks( $css );
 		} catch ( \Throwable $e ) {
 			return new \WP_REST_Response(
 				array(

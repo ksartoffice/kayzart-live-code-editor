@@ -20,11 +20,11 @@ describe('template mode logic', () => {
     expect(resolveDefaultTemplateMode('theme')).toBe('theme');
   });
 
-  it('falls back to theme for invalid default template mode values', () => {
-    expect(resolveDefaultTemplateMode('')).toBe('theme');
-    expect(resolveDefaultTemplateMode('frame')).toBe('theme');
-    expect(resolveDefaultTemplateMode('default')).toBe('theme');
-    expect(resolveDefaultTemplateMode(undefined)).toBe('theme');
+  it('falls back to standalone for invalid default template mode values', () => {
+    expect(resolveDefaultTemplateMode('')).toBe('standalone');
+    expect(resolveDefaultTemplateMode('frame')).toBe('standalone');
+    expect(resolveDefaultTemplateMode('default')).toBe('standalone');
+    expect(resolveDefaultTemplateMode(undefined)).toBe('standalone');
   });
 });
 

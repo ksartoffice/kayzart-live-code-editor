@@ -1,6 +1,6 @@
 import { __ } from '@wordpress/i18n';
 
-import { ImagePlus, Lightbulb, Play } from 'lucide';
+import { ImagePlus, Upload } from 'lucide';
 import { renderLucideIcon } from './lucide-icons';
 
 type EditorShellRefs = {
@@ -9,18 +9,24 @@ type EditorShellRefs = {
   compactEditorTabs: HTMLDivElement;
   compactEditorActions: HTMLDivElement;
   compactHtmlTab: HTMLButtonElement;
+  compactCustomHeadTab: HTMLButtonElement;
   compactCssTab: HTMLButtonElement;
   compactJsTab: HTMLButtonElement;
   compactJsModeSelect: HTMLSelectElement;
+  compactFullHtmlImportButton: HTMLButtonElement;
   compactAddMediaButton: HTMLButtonElement;
-  compactRunButton: HTMLButtonElement;
-  compactShadowHintButton: HTMLButtonElement;
-  compactTailwindHintButton: HTMLButtonElement;
+  compactReloadPendingNotice: HTMLSpanElement;
   htmlHeader: HTMLDivElement;
   htmlTitle: HTMLSpanElement;
+  htmlTab: HTMLButtonElement;
+  customHeadTab: HTMLButtonElement;
+  fullHtmlImportButton: HTMLButtonElement;
   addMediaButton: HTMLButtonElement;
   htmlWordWrapButton: HTMLButtonElement;
   htmlEditorDiv: HTMLDivElement;
+  customHeadEditorDiv: HTMLDivElement;
+  customHeadHelp: HTMLDivElement;
+  customHeadPendingNotice: HTMLDivElement;
   cssEditorDiv: HTMLDivElement;
   jsEditorDiv: HTMLDivElement;
   htmlPane: HTMLDivElement;
@@ -28,10 +34,8 @@ type EditorShellRefs = {
   cssTab: HTMLButtonElement;
   jsTab: HTMLButtonElement;
   jsModeSelect: HTMLSelectElement;
+  jsPendingNotice: HTMLSpanElement;
   jsControls: HTMLDivElement;
-  runButton: HTMLButtonElement;
-  shadowHintButton: HTMLButtonElement;
-  tailwindHintButton: HTMLButtonElement;
   editorResizer: HTMLDivElement;
   main: HTMLDivElement;
   left: HTMLDivElement;
@@ -79,8 +83,8 @@ function createJsModeSelect(className: string): HTMLSelectElement {
   select.setAttribute('aria-label', __( 'JavaScript mode', 'kayzart-live-code-editor'));
 
   const options: Array<{ value: string; label: string }> = [
-    { value: 'classic', label: __( 'type: Classic script', 'kayzart-live-code-editor') },
-    { value: 'module', label: __( 'type: Module', 'kayzart-live-code-editor') },
+    { value: 'classic', label: __( 'type: classic script', 'kayzart-live-code-editor') },
+    { value: 'module', label: __( 'type: module', 'kayzart-live-code-editor') },
   ];
 
   options.forEach((optionData) => {
@@ -114,14 +118,11 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   settings.append(settingsInner);
 
   const compactIcons = {
+    fullHtmlImport: renderLucideIcon(Upload, {
+      class: 'lucide lucide-upload-icon lucide-upload',
+    }),
     media: renderLucideIcon(ImagePlus, {
       class: 'lucide lucide-image-plus-icon lucide-image-plus',
-    }),
-    run: renderLucideIcon(Play, {
-      class: 'lucide lucide-play-icon lucide-play',
-    }),
-    hint: renderLucideIcon(Lightbulb, {
-      class: 'lucide lucide-lightbulb-icon lucide-lightbulb',
     }),
   };
 
@@ -136,46 +137,54 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   compactCssTab.type = 'button';
   compactCssTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
   compactCssTab.textContent = __( 'CSS', 'kayzart-live-code-editor');
+  const compactCustomHeadTab = document.createElement('button');
+  compactCustomHeadTab.type = 'button';
+  compactCustomHeadTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
+  compactCustomHeadTab.textContent = __( 'head', 'kayzart-live-code-editor');
   const compactJsTab = document.createElement('button');
   compactJsTab.type = 'button';
   compactJsTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
   compactJsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
   const compactJsModeSelect = createJsModeSelect('kayzart-formSelect kayzart-jsModeSelect kayzart-compactJsModeSelect');
-  compactEditorTabsList.append(compactHtmlTab, compactCssTab, compactJsTab);
+  compactEditorTabsList.append(compactHtmlTab, compactCustomHeadTab, compactCssTab, compactJsTab);
+  const compactFullHtmlImportButton = createCompactActionButton(
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-fullHtmlImport',
+    __( 'フルHTML取込み', 'kayzart-live-code-editor'),
+    compactIcons.fullHtmlImport
+  );
   const compactAddMediaButton = createCompactActionButton(
     'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-media',
     __( 'Add Media', 'kayzart-live-code-editor'),
     compactIcons.media
   );
-  const compactRunButton = createCompactActionButton(
-    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-run',
-    __( 'Run', 'kayzart-live-code-editor'),
-    compactIcons.run
-  );
-  const compactShadowHintButton = createCompactActionButton(
-    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-hint',
-    __( 'Shadow DOM Hint', 'kayzart-live-code-editor'),
-    compactIcons.hint
-  );
-  const compactTailwindHintButton = createCompactActionButton(
-    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-hint',
-    __( 'Tailwind CSS Hint', 'kayzart-live-code-editor'),
-    compactIcons.hint
-  );
+  const compactReloadPendingNotice = el('span', 'kayzart-reloadPendingNotice kayzart-compactReloadPendingNotice');
   compactEditorActions.append(
+    compactFullHtmlImportButton,
     compactAddMediaButton,
     compactJsModeSelect,
-    compactShadowHintButton,
-    compactRunButton,
-    compactTailwindHintButton,
+    compactReloadPendingNotice,
   );
   compactEditorTabs.append(compactEditorTabsList, compactEditorActions);
 
   const htmlPane = el('div', 'kayzart-editorPane kayzart-editorPane-html is-active');
   const htmlHeader = el('div', 'kayzart-editorHeader kayzart-editorHeader-tabs');
+  const htmlTabs = el('div', 'kayzart-editorTabs');
   const htmlTitle = el('span', 'kayzart-editorTitle');
   htmlTitle.textContent = __( 'HTML', 'kayzart-live-code-editor');
+  const htmlTab = document.createElement('button');
+  htmlTab.type = 'button';
+  htmlTab.className = 'kayzart-editorTab is-active';
+  htmlTab.textContent = __( 'HTML', 'kayzart-live-code-editor');
+  const customHeadTab = document.createElement('button');
+  customHeadTab.type = 'button';
+  customHeadTab.className = 'kayzart-editorTab';
+  customHeadTab.textContent = __( 'head', 'kayzart-live-code-editor');
+  htmlTabs.append(htmlTab, customHeadTab);
   const htmlActions = el('div', 'kayzart-editorActions');
+  const fullHtmlImportButton = document.createElement('button');
+  fullHtmlImportButton.type = 'button';
+  fullHtmlImportButton.className = 'kayzart-editorAction kayzart-editorAction-fullHtmlImport';
+  fullHtmlImportButton.textContent = __( 'フルHTML取込み', 'kayzart-live-code-editor');
   const addMediaButton = document.createElement('button');
   addMediaButton.type = 'button';
   addMediaButton.className = 'kayzart-editorAction kayzart-editorAction-media';
@@ -185,11 +194,28 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   htmlWordWrapButton.className = 'kayzart-editorAction kayzart-editorAction-wrap';
   htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
   htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
-  htmlActions.append(addMediaButton, htmlWordWrapButton);
-  htmlHeader.append(htmlTitle, htmlActions);
-  const htmlWrap = el('div', 'kayzart-editorWrap');
-  const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html');
-  htmlWrap.append(htmlEditorDiv);
+  htmlActions.append(fullHtmlImportButton, addMediaButton, htmlWordWrapButton);
+  htmlHeader.append(htmlTabs, htmlActions);
+  const htmlWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
+  const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html is-active');
+  const customHeadPanel = el('div', 'kayzart-editor kayzart-editor-customHead');
+  const customHeadHelp = el('div', 'kayzart-customHeadHelp');
+  const customHeadPendingNotice = el('div', 'kayzart-reloadPendingNotice kayzart-customHeadPendingNotice');
+  customHeadPendingNotice.textContent = __( 'Reload preview to apply head and JavaScript changes.', 'kayzart-live-code-editor');
+  const customHeadHelpLines = [
+    __( 'head内に追加するコードを入力します。', 'kayzart-live-code-editor'),
+    __( '外部CSS、Google Fonts、OGP、構造化データなどに使用できます。', 'kayzart-live-code-editor'),
+    __( '外部JSはここ、またはHTMLエディタ下部に<script src="">として書いてください。', 'kayzart-live-code-editor'),
+    __( '※ <title>、<meta charset>、viewport、<base> は使用できません。', 'kayzart-live-code-editor'),
+  ];
+  customHeadHelp.replaceChildren(
+    ...customHeadHelpLines.flatMap((line, index) =>
+      index === 0 ? [document.createTextNode(line)] : [document.createElement('br'), document.createTextNode(line)]
+    )
+  );
+  const customHeadEditorDiv = el('div', 'kayzart-customHeadEditor');
+  customHeadPanel.append(customHeadHelp, customHeadPendingNotice, customHeadEditorDiv);
+  htmlWrap.append(htmlEditorDiv, customHeadPanel);
   htmlPane.append(htmlHeader, htmlWrap);
 
   const cssPane = el('div', 'kayzart-editorPane kayzart-editorPane-css');
@@ -207,19 +233,10 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   cssTabs.append(cssTab, jsTab);
 
   const jsControls = el('div', 'kayzart-editorActions');
-  const runButton = document.createElement('button');
-  runButton.type = 'button';
-  runButton.className = 'kayzart-editorAction';
-  runButton.textContent = __( 'Run', 'kayzart-live-code-editor');
-  const shadowHintButton = document.createElement('button');
-  shadowHintButton.type = 'button';
-  shadowHintButton.className = 'kayzart-editorAction kayzart-editorAction-hint';
-  shadowHintButton.textContent = __( 'Shadow DOM Hint', 'kayzart-live-code-editor');
-  const tailwindHintButton = document.createElement('button');
-  tailwindHintButton.type = 'button';
-  tailwindHintButton.className = 'kayzart-editorAction kayzart-editorAction-hint';
-  tailwindHintButton.textContent = __( 'Tailwind CSS Hint', 'kayzart-live-code-editor');
-  jsControls.append(jsModeSelect, shadowHintButton, runButton, tailwindHintButton);
+  const jsPendingNotice = el('span', 'kayzart-reloadPendingNotice kayzart-jsPendingNotice');
+  jsPendingNotice.textContent = __( 'Reload preview to apply head and JavaScript changes.', 'kayzart-live-code-editor');
+  compactReloadPendingNotice.textContent = jsPendingNotice.textContent;
+  jsControls.append(jsPendingNotice, jsModeSelect);
 
   cssHeader.append(cssTabs, jsControls);
   const cssWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
@@ -256,18 +273,24 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactEditorTabs,
     compactEditorActions,
     compactHtmlTab,
+    compactCustomHeadTab,
     compactCssTab,
     compactJsTab,
     compactJsModeSelect,
+    compactFullHtmlImportButton,
     compactAddMediaButton,
-    compactRunButton,
-    compactShadowHintButton,
-    compactTailwindHintButton,
+    compactReloadPendingNotice,
     htmlHeader,
     htmlTitle,
+    htmlTab,
+    customHeadTab,
+    fullHtmlImportButton,
     addMediaButton,
     htmlWordWrapButton,
     htmlEditorDiv,
+    customHeadEditorDiv,
+    customHeadHelp,
+    customHeadPendingNotice,
     cssEditorDiv,
     jsEditorDiv,
     htmlPane,
@@ -275,10 +298,8 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     cssTab,
     jsTab,
     jsModeSelect,
+    jsPendingNotice,
     jsControls,
-    runButton,
-    shadowHintButton,
-    tailwindHintButton,
     editorResizer,
     main,
     left,

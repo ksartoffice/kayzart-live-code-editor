@@ -5,7 +5,6 @@ import {
   type SettingsApi,
   type SettingsData,
 } from './settings';
-import { runSetupWizard } from './setup-wizard';
 import { mountToolbar, type ToolbarApi } from './toolbar';
 import { buildEditorShell } from './editor-shell';
 import {
@@ -20,15 +19,18 @@ import {
   getEditableElementText,
   getElementContext,
 } from './element-text';
-import {
-  createTailwindCompiler,
-  type TailwindCompiler,
-} from './persistence';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml } from './logic/media-html';
 import { buildStatusUpdates } from './logic/status-updates';
-import { createSaveExportController } from './controllers/save-export-controller';
+import {
+  buildImportedHtml,
+  parseFullHtmlDocument,
+  type FullHtmlImportSelection,
+  type FullHtmlImportResult,
+} from './logic/full-html-import';
+import { createSaveCopyController } from './controllers/save-copy-controller';
+import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
@@ -42,6 +44,10 @@ import { debounce } from './utils/debounce';
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
+import {
+  createTailwindCompiler,
+  type TailwindCompiler,
+} from './persistence';
 import type {
   EditorSnapshot,
   KayzArtExtensionApi,
@@ -49,7 +55,7 @@ import type {
   SnapshotReplaceOptions,
 } from './extensions/settings-tab-registry';
 import { presentableDiff } from '@codemirror/merge';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
 declare const wp: any;
@@ -89,8 +95,8 @@ const saveHtmlWordWrapMode = (mode: HtmlWordWrapMode) => {
   }
 };
 
-const computeEditorBaseHash = (html: string, css: string, js: string) => {
-  const source = `${html}\n\u0000${css}\n\u0000${js}`;
+const computeEditorBaseHash = (html: string, customHead: string, css: string, js: string) => {
+  const source = `${html}\n\u0000${customHead}\n\u0000${css}\n\u0000${js}`;
   let hash = 0x811c9dc5;
   for (let i = 0; i < source.length; i += 1) {
     hash ^= source.charCodeAt(i);
@@ -254,74 +260,56 @@ async function main() {
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),
   });
-  let setupResult: Awaited<ReturnType<typeof runSetupWizard>> | undefined;
-
   // REST nonce middleware
   if (wp?.apiFetch?.createNonceMiddleware) {
     wp.apiFetch.use(wp.apiFetch.createNonceMiddleware(cfg.restNonce));
   }
 
+  let setupTailwindEnabled: boolean | undefined;
   if (cfg.setupRequired) {
-    if (!cfg.setupRestUrl || !wp?.apiFetch) {
-      ui.app.textContent = __( 'Setup wizard unavailable.', 'kayzart-live-code-editor');
-      return;
-    }
-
-    const setupHost = document.createElement('div');
-    setupHost.className = 'kayzart-setupHost';
-    document.body.append(setupHost);
-
     try {
-      setupResult = await runSetupWizard({
-        container: setupHost,
+      const setupResult = await runSetupWizard({
+        container: ui.app,
         postId,
         restUrl: cfg.setupRestUrl,
-        importRestUrl: cfg.importRestUrl,
         apiFetch: wp?.apiFetch,
         backUrl: cfg.listUrl || cfg.backUrl,
         initialTailwindEnabled: Boolean(cfg.tailwindEnabled),
       });
+      setupTailwindEnabled = setupResult.tailwindEnabled;
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[KayzArt] Setup failed', error);
       ui.app.textContent = __( 'Setup failed.', 'kayzart-live-code-editor');
       return;
-    } finally {
-      setupHost.remove();
     }
   }
 
-  const initialState = resolveInitialState(cfg, setupResult);
+  const initialState = resolveInitialState(cfg, setupTailwindEnabled);
   let tailwindEnabled = initialState.tailwindEnabled;
   let htmlWordWrapMode: HtmlWordWrapMode = readHtmlWordWrapMode();
 
   let codemirror: CodeMirrorType;
   let htmlModel: EditorModel;
+  let customHeadModel: EditorModel;
   let cssModel: EditorModel;
   let jsModel: EditorModel;
   let htmlEditor: CodeEditorInstance;
+  let customHeadEditor: CodeEditorInstance;
   let cssEditor: CodeEditorInstance;
   let jsEditor: CodeEditorInstance;
-  let tailwindCss = initialState.importedGeneratedCss;
+  let tailwindCss = '';
   let settingsOpen = false;
   let activeSettingsTab = 'settings';
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
-  let shadowDomEnabled = Boolean(initialState.settingsData?.shadowDomEnabled);
-  let shortcodeEnabled = Boolean(initialState.settingsData?.shortcodeEnabled);
-  let singlePageEnabled = initialState.settingsData?.singlePageEnabled ?? true;
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
-  let externalScripts = Array.isArray(initialState.settingsData?.externalScripts)
-    ? [...initialState.settingsData.externalScripts]
-    : [];
-  let externalStyles = Array.isArray(initialState.settingsData?.externalStyles)
-    ? [...initialState.settingsData.externalStyles]
-    : [];
   let hasUnsavedChanges = false;
   let pendingSettingsUpdates: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
   let hasSettingsValidationErrors = false;
+  let hasPendingPreviewReloadChanges = false;
   let viewPostUrl = initialState.settingsData?.viewUrl || '';
   let postStatus = initialState.settingsData?.status || 'draft';
   let postTitle = initialState.settingsData?.title || '';
@@ -339,6 +327,7 @@ async function main() {
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let htmlChangeHighlightIds: string[] = [];
+  let customHeadChangeHighlightIds: string[] = [];
   let cssChangeHighlightIds: string[] = [];
   let jsChangeHighlightIds: string[] = [];
   let suppressChangeHighlightClear = 0;
@@ -366,10 +355,10 @@ async function main() {
     return () => contentListeners.delete(listener);
   };
 
-  let saveExportController: ReturnType<typeof createSaveExportController> | null = null;
+  let saveCopyController: ReturnType<typeof createSaveCopyController> | null = null;
 
   const getUnsavedFlags = () => {
-    if (!saveExportController) {
+    if (!saveCopyController) {
       return {
         html: false,
         css: false,
@@ -378,19 +367,51 @@ async function main() {
         hasAny: hasUnsavedSettings,
       };
     }
-    return saveExportController.getUnsavedFlags();
+    return saveCopyController.getUnsavedFlags();
   };
 
   const syncUnsavedUi = () => {
-    saveExportController?.syncUnsavedUi();
+    saveCopyController?.syncUnsavedUi();
   };
 
   const markSavedState = () => {
-    saveExportController?.markSavedState();
+    saveCopyController?.markSavedState();
   };
 
   const syncElementsTabState = () => {
     preview?.sendElementsTabState(settingsOpen && activeSettingsTab === 'elements');
+  };
+
+  const syncPendingPreviewReloadNotice = () => {
+    const activeHtmlTab = editorUiController?.getActiveHtmlTab();
+    const activeCssTab = editorUiController?.getActiveCssTab();
+    const compactTab = editorUiController?.isCompactEditorMode()
+      ? editorUiController.getCompactEditorTab()
+      : null;
+    ui.customHeadPendingNotice.classList.toggle(
+      'is-visible',
+      hasPendingPreviewReloadChanges && activeHtmlTab === 'customHead'
+    );
+    ui.jsPendingNotice.classList.toggle(
+      'is-visible',
+      hasPendingPreviewReloadChanges && activeCssTab === 'js' && canEditJs
+    );
+    ui.compactReloadPendingNotice.classList.toggle(
+      'is-visible',
+      hasPendingPreviewReloadChanges &&
+        canEditJs &&
+        (compactTab === 'customHead' || compactTab === 'js')
+    );
+  };
+
+  const setPendingPreviewReloadChanges = (pending: boolean) => {
+    hasPendingPreviewReloadChanges = pending;
+    syncPendingPreviewReloadNotice();
+  };
+
+  const requestPreviewReload = () => {
+    preview?.resetCanonicalCache();
+    preview?.requestReloadPreview();
   };
 
   const getResolvedTemplateMode = () => (templateMode === 'default' ? defaultTemplateMode : templateMode);
@@ -412,16 +433,7 @@ async function main() {
     postStatus = nextSettings.status || postStatus;
     postTitle = nextSettings.title || postTitle;
     postSlug = nextSettings.slug || postSlug;
-    shadowDomEnabled = Boolean(nextSettings.shadowDomEnabled);
-    shortcodeEnabled = Boolean(nextSettings.shortcodeEnabled);
-    singlePageEnabled = nextSettings.singlePageEnabled ?? singlePageEnabled;
     liveHighlightEnabled = nextSettings.liveHighlightEnabled ?? liveHighlightEnabled;
-    externalScripts = Array.isArray(nextSettings.externalScripts)
-      ? [...nextSettings.externalScripts]
-      : [];
-    externalStyles = Array.isArray(nextSettings.externalStyles)
-      ? [...nextSettings.externalStyles]
-      : [];
     const nextTemplateMode = resolveTemplateMode(nextSettings.templateMode);
     const nextDefaultTemplateMode =
       typeof nextSettings.defaultTemplateMode === 'string'
@@ -431,7 +443,6 @@ async function main() {
       defaultTemplateMode = nextDefaultTemplateMode;
     }
     templateMode = nextTemplateMode;
-    setShadowDomEnabled(shadowDomEnabled);
     setLiveHighlightEnabled(liveHighlightEnabled);
     toolbarApi?.update({ viewPostUrl, postStatus, postTitle, postSlug });
     syncDocumentTitle(postTitle);
@@ -443,24 +454,17 @@ async function main() {
     }
   };
 
-  saveExportController = createSaveExportController({
+  saveCopyController = createSaveCopyController({
     apiFetch: wp.apiFetch,
     restUrl: cfg.restUrl,
-    restCompileUrl: cfg.restCompileUrl,
     postId,
     canEditJs,
     getHtmlModel: () => htmlModel,
+    getCustomHeadModel: () => customHeadModel,
     getCssModel: () => cssModel,
     getJsModel: () => jsModel,
     getJsMode: () => jsMode,
     getTailwindEnabled: () => tailwindEnabled,
-    getTailwindCss: () => tailwindCss,
-    getExternalScripts: () => externalScripts,
-    getExternalStyles: () => externalStyles,
-    getShadowDomEnabled: () => shadowDomEnabled,
-    getShortcodeEnabled: () => shortcodeEnabled,
-    getSinglePageEnabled: () => singlePageEnabled,
-    getLiveHighlightEnabled: () => liveHighlightEnabled,
     getPendingSettingsState: () => ({
       pendingSettingsUpdates,
       hasUnsavedSettings,
@@ -476,15 +480,17 @@ async function main() {
     createSnackbar,
     noticeIds: {
       save: NOTICE_IDS.save,
-      export: NOTICE_IDS.export,
     },
     noticeSuccessMs: NOTICE_SUCCESS_DURATION_MS,
     noticeErrorMs: NOTICE_ERROR_DURATION_MS,
     uiDirtyTargets: {
       htmlTitle: ui.htmlTitle,
+      htmlTab: ui.htmlTab,
+      customHeadTab: ui.customHeadTab,
       cssTab: ui.cssTab,
       jsTab: ui.jsTab,
       compactHtmlTab: ui.compactHtmlTab,
+      compactCustomHeadTab: ui.compactCustomHeadTab,
       compactCssTab: ui.compactCssTab,
       compactJsTab: ui.compactJsTab,
     },
@@ -493,22 +499,15 @@ async function main() {
       toolbarApi?.update({ hasUnsavedChanges });
     },
     onSaveSuccess: () => {
-      preview?.resetCanonicalCache();
-      if (!preview?.isRunJsPending()) {
-        preview?.sendRender();
-      }
+      requestPreviewReload();
     },
   });
 
-  async function handleExport() {
-    await saveExportController?.handleExport();
-  }
-
   async function handleSave(): Promise<{ ok: boolean; error?: string }> {
-    if (!saveExportController) {
+    if (!saveCopyController) {
       return { ok: false, error: __('Save failed.', 'kayzart-live-code-editor') };
     }
-    return await saveExportController.handleSave();
+    return await saveCopyController.handleSave();
   }
 
   const runSaveShortcut = async () => {
@@ -622,9 +621,6 @@ async function main() {
     apiFetch: wp.apiFetch,
     settingsRestUrl: cfg.settingsRestUrl,
     postId,
-    getShadowDomEnabled: () => shadowDomEnabled,
-    getJsMode: () => jsMode,
-    getTailwindEnabled: () => tailwindEnabled,
     isThemeTemplateModeActive,
     getDefaultTemplateMode: () => defaultTemplateMode,
     setTemplateModes: (nextTemplateMode, nextDefaultTemplateMode) => {
@@ -649,6 +645,7 @@ async function main() {
     {
       backUrl: cfg.backUrl || '/wp-admin/',
       listUrl: cfg.listUrl || '',
+      listLabel: cfg.listLabel || '',
       canUndo: false,
       canRedo: false,
       editorCollapsed: viewportController.isEditorCollapsed(),
@@ -667,8 +664,10 @@ async function main() {
       onRedo: () => editorUiController?.getActiveEditor()?.trigger('toolbar', 'redo', null),
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
+      onRefreshPreview: () => {
+        requestPreviewReload();
+      },
       onSave: handleSave,
-      onExport: handleExport,
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),
       onUpdatePostIdentity: async ({ title, slug }) => {
@@ -762,23 +761,118 @@ async function main() {
   // iframe
   ui.iframe.src = getPreviewUrl();
 
+  const replaceWholeModelContent = (model: EditorModel, nextText: string) => {
+    const current = model.getValue();
+    const end = model.getPositionAt(current.length);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new codemirror.Range(1, 1, end.lineNumber, end.column),
+          text: nextText,
+        },
+      ],
+      () => null
+    );
+  };
+
+  const applyFullHtmlImport = (
+    result: FullHtmlImportResult,
+    selection: FullHtmlImportSelection
+  ) => {
+    if (selection.html) {
+      replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs, selection));
+    }
+    if (selection.customHead && canEditJs) {
+      replaceWholeModelContent(customHeadModel, result.customHead.trim());
+      if (result.removedHeadTags.length > 0) {
+        createSnackbar(
+          'warning',
+          sprintf(
+            __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
+            result.removedHeadTags.join(', ')
+          ),
+          undefined,
+          NOTICE_ERROR_DURATION_MS
+        );
+      }
+    }
+    if (selection.css) {
+      replaceWholeModelContent(cssModel, result.css.trim());
+    }
+    if (selection.js && canEditJs) {
+      replaceWholeModelContent(jsModel, result.js.trim());
+    }
+  };
+
+  const confirmAndApplyFullHtmlImport = (
+    result: FullHtmlImportResult,
+    source: string,
+    allowKeepAsHtml: boolean
+  ) => {
+    void (async () => {
+      const action = await modalController?.confirmFullHtmlImport(
+        result,
+        canEditJs
+      );
+      if (action?.type === 'split') {
+        applyFullHtmlImport(result, action.selection);
+        return;
+      }
+      if (allowKeepAsHtml && action?.type === 'keep') {
+        insertHtmlAtSelection(source);
+      }
+    })();
+  };
+
+  const handleFullHtmlPaste = (text: string): boolean => {
+    const result = parseFullHtmlDocument(text);
+    if (!result) {
+      return false;
+    }
+
+    confirmAndApplyFullHtmlImport(result, text, true);
+
+    return true;
+  };
+
+  const openFullHtmlImport = () => {
+    void (async () => {
+      const source = await modalController?.requestFullHtmlImportSource();
+      if (!source) {
+        return;
+      }
+      const result = parseFullHtmlDocument(source);
+      if (!result) {
+        return;
+      }
+      confirmAndApplyFullHtmlImport(result, source, true);
+    })();
+  };
+
   // CodeMirror
   const codeMirrorSetup = await initCodeMirrorEditors({
-        initialHtml: initialState.initialHtml,
+    initialHtml: initialState.initialHtml,
+    initialCustomHead: initialState.initialCustomHead,
     initialCss: initialState.initialCss,
     initialJs: initialState.initialJs,
     htmlWordWrap: htmlWordWrapMode,
     tailwindEnabled,
-    useTailwindDefault: !setupResult?.imported,
+    useTailwindDefault: true,
     canEditJs,
     htmlContainer: ui.htmlEditorDiv,
+    customHeadContainer: ui.customHeadEditorDiv,
     cssContainer: ui.cssEditorDiv,
     jsContainer: ui.jsEditorDiv,
+    onHtmlPaste: handleFullHtmlPaste,
   });
 
-  ({ codemirror, htmlModel, cssModel, jsModel, htmlEditor, cssEditor, jsEditor } = codeMirrorSetup);
+  ({ codemirror, htmlModel, customHeadModel, cssModel, jsModel, htmlEditor, customHeadEditor, cssEditor, jsEditor } = codeMirrorSetup);
 
+  ui.fullHtmlImportButton.addEventListener('click', openFullHtmlImport);
+  ui.compactFullHtmlImportButton.addEventListener('click', openFullHtmlImport);
   registerSaveShortcut(htmlEditor);
+  registerSaveShortcut(customHeadEditor);
   registerSaveShortcut(cssEditor);
   registerSaveShortcut(jsEditor);
   registerHtmlWordWrapAction(htmlEditor);
@@ -813,7 +907,7 @@ async function main() {
     suppressSelectionClear = Math.max(0, suppressSelectionClear - 1);
   };
 
-  const insertHtmlAtSelection = (text: string) => {
+  function insertHtmlAtSelection(text: string) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
     const range =
@@ -838,7 +932,7 @@ async function main() {
       }
     );
     htmlEditor.pushUndoStop();
-  };
+  }
 
   const openMediaModal = () => {
     if (typeof wp?.media !== 'function') {
@@ -974,34 +1068,29 @@ async function main() {
     toolbarApi?.update({ canUndo, canRedo });
   };
 
-  const openShadowHintModal = () => modalController?.openShadowHintModal();
-  const closeShadowHintModal = () => modalController?.closeShadowHintModal();
-  const openTailwindHintModal = () => modalController?.openTailwindHintModal();
-  const closeTailwindHintModal = () => modalController?.closeTailwindHintModal();
   const handleMissingMarkers = () => modalController?.handleMissingMarkers();
 
   editorUiController = createEditorUiController({
     ui,
     canEditJs,
     htmlEditor,
+    customHeadEditor,
     cssEditor,
     jsEditor,
     compactEditorBreakpoint: COMPACT_EDITOR_BREAKPOINT,
     getViewportWidth: () => Math.round(window.visualViewport?.width ?? window.innerWidth),
     getJsEnabled: () => jsEnabled,
-    getShadowDomEnabled: () => shadowDomEnabled,
-    getTailwindEnabled: () => tailwindEnabled,
     onActiveEditorChange: () => {
       updateUndoRedoState();
+      syncPendingPreviewReloadNotice();
     },
+    onEditorViewChange: syncPendingPreviewReloadNotice,
     onCompactEditorModeChange: (isCompact) => {
       toolbarApi?.update({ compactEditorMode: isCompact });
       viewportController.applyViewportLayout();
+      syncPendingPreviewReloadNotice();
     },
     onOpenMedia: openMediaModal,
-    onRunJs: () => preview?.requestRunJs(),
-    onOpenShadowHint: openShadowHintModal,
-    onOpenTailwindHint: openTailwindHintModal,
   });
   editorUiController.initialize();
 
@@ -1016,19 +1105,20 @@ async function main() {
     postId,
     targetOrigin,
     htmlModel,
+    customHeadModel,
     cssModel,
     jsModel,
     htmlEditor,
     cssEditor,
     focusHtmlEditor,
     getPreviewCss,
-    getShadowDomEnabled: () => shadowDomEnabled,
+    getCustomHead: () => customHeadModel.getValue(),
     getLiveHighlightEnabled: () => liveHighlightEnabled,
     getJsEnabled: () => jsEnabled,
     getJsMode: () => jsMode,
-    getExternalScripts: () => externalScripts,
-    getExternalStyles: () => externalStyles,
     isTailwindEnabled: () => tailwindEnabled,
+    getResolvedTemplateMode,
+    onReloadApplied: () => setPendingPreviewReloadChanges(false),
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();
@@ -1085,11 +1175,9 @@ async function main() {
       return;
     }
     if (!enabled) {
-      preview.sendExternalScripts([]);
       preview.requestDisableJs();
       return;
     }
-    preview.sendExternalScripts(externalScripts);
     preview.queueInitialJsRun();
   };
 
@@ -1107,10 +1195,7 @@ async function main() {
     jsMode = normalized;
     syncJsModeSelectors();
     syncUnsavedUi();
-    if (!jsEnabled) {
-      return;
-    }
-    preview?.requestRunJs();
+    setPendingPreviewReloadChanges(true);
   };
 
   syncJsModeSelectors();
@@ -1124,22 +1209,6 @@ async function main() {
     setJsMode(normalizeJsMode(target.value));
   });
 
-  const setShadowDomEnabled = (enabled: boolean) => {
-    shadowDomEnabled = enabled;
-    editorUiController?.syncShadowDomState();
-    if (!shadowDomEnabled) {
-      closeShadowHintModal();
-    }
-    preview?.sendExternalScripts(jsEnabled ? externalScripts : []);
-    preview?.sendExternalStyles(externalStyles);
-    if (!jsEnabled) {
-      preview?.sendRender();
-      preview?.requestDisableJs();
-      return;
-    }
-    preview?.requestRunJs();
-  };
-
   const setLiveHighlightEnabled = (enabled: boolean) => {
     liveHighlightEnabled = enabled;
     preview?.sendLiveHighlightUpdate(enabled);
@@ -1150,38 +1219,34 @@ async function main() {
     ui.app.classList.toggle('is-tailwind', enabled);
     editorUiController?.syncTailwindState();
     toolbarApi?.update({ tailwindEnabled: enabled });
-    if (!enabled) {
-      closeTailwindHintModal();
-    }
     if (enabled) {
       preview?.sendRender();
       tailwindCompiler?.compile();
-    } else {
-      const editorSplitState = viewportController.getEditorSplitState();
-      if (editorSplitState.active && editorSplitState.lastHtmlHeight > 0) {
-        viewportController.setEditorSplitHeight(editorSplitState.lastHtmlHeight);
-      }
-      preview?.sendRender();
+      return;
     }
+    preview?.sendRender();
   };
 
   const setEditorLock = (locked: boolean) => {
     extensionEditorLock = locked;
     htmlEditor.setLocked(locked);
+    customHeadEditor.setLocked(locked);
     cssEditor.setLocked(locked);
     jsEditor.setLocked(locked);
   };
 
   const getEditorSnapshot = (): EditorSnapshot => {
     const html = htmlModel.getValue();
+    const customHead = customHeadModel.getValue();
     const css = cssModel.getValue();
     const js = jsModel.getValue();
     return {
       html,
+      customHead,
       css,
       js,
       jsMode,
-      baseHash: computeEditorBaseHash(html, css, js),
+      baseHash: computeEditorBaseHash(html, customHead, css, js),
     };
   };
 
@@ -1230,6 +1295,10 @@ async function main() {
     htmlChangeHighlightIds = htmlModel.deltaDecorations(htmlChangeHighlightIds, []);
   };
 
+  const clearCustomHeadChangeHighlights = () => {
+    customHeadChangeHighlightIds = customHeadModel.deltaDecorations(customHeadChangeHighlightIds, []);
+  };
+
   const clearCssChangeHighlights = () => {
     cssChangeHighlightIds = cssModel.deltaDecorations(cssChangeHighlightIds, []);
   };
@@ -1240,6 +1309,7 @@ async function main() {
 
   const clearSnapshotChangeHighlights = () => {
     clearHtmlChangeHighlights();
+    clearCustomHeadChangeHighlights();
     clearCssChangeHighlights();
     clearJsChangeHighlights();
   };
@@ -1252,15 +1322,18 @@ async function main() {
     const highlightChanges = Boolean(options?.highlightChanges);
     if (highlightChanges) {
       const nextHtml = snapshot.html ?? '';
+      const nextCustomHead = snapshot.customHead ?? customHeadModel.getValue();
       const nextCss = snapshot.css ?? '';
       const nextJs = snapshot.js ?? '';
       const htmlChanges = computeSnapshotLineChanges(htmlModel.getValue(), nextHtml);
+      const customHeadChanges = computeSnapshotLineChanges(customHeadModel.getValue(), nextCustomHead);
       const cssChanges = computeSnapshotLineChanges(cssModel.getValue(), nextCss);
       const jsChanges = computeSnapshotLineChanges(jsModel.getValue(), nextJs);
 
       suppressChangeHighlightClear += 1;
       try {
         replaceModelContent(htmlModel, nextHtml);
+        replaceModelContent(customHeadModel, nextCustomHead);
         replaceModelContent(cssModel, nextCss);
         replaceModelContent(jsModel, nextJs);
 
@@ -1268,6 +1341,11 @@ async function main() {
           htmlModel,
           htmlChangeHighlightIds,
           htmlChanges
+        );
+        customHeadChangeHighlightIds = applySnapshotChangeHighlight(
+          customHeadModel,
+          customHeadChangeHighlightIds,
+          customHeadChanges
         );
         cssChangeHighlightIds = applySnapshotChangeHighlight(
           cssModel,
@@ -1285,18 +1363,13 @@ async function main() {
     } else {
       clearSnapshotChangeHighlights();
       replaceModelContent(htmlModel, snapshot.html ?? '');
+      replaceModelContent(customHeadModel, snapshot.customHead ?? customHeadModel.getValue());
       replaceModelContent(cssModel, snapshot.css ?? '');
       replaceModelContent(jsModel, snapshot.js ?? '');
     }
 
     setJsMode(snapshot.jsMode ?? 'classic');
-    preview?.resetCanonicalCache();
-    preview?.sendRender();
-    if (jsEnabled) {
-      preview?.requestRunJs();
-    } else {
-      preview?.requestDisableJs();
-    }
+    requestPreviewReload();
     return true;
   };
 
@@ -1364,22 +1437,7 @@ async function main() {
         ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
       }
     },
-    onShadowDomToggle: setShadowDomEnabled,
-    onShortcodeToggle: (enabled) => {
-      shortcodeEnabled = enabled;
-    },
-    onSinglePageToggle: (enabled) => {
-      singlePageEnabled = enabled;
-    },
     onLiveHighlightToggle: setLiveHighlightEnabled,
-    onExternalScriptsChange: (scripts) => {
-      externalScripts = scripts;
-      preview?.sendExternalScripts(jsEnabled ? externalScripts : []);
-    },
-    onExternalStylesChange: (styles) => {
-      externalStyles = styles;
-      preview?.sendExternalStyles(externalStyles);
-    },
     onTabChange: (tab) => {
       activeSettingsTab = tab;
       syncElementsTabState();
@@ -1426,6 +1484,14 @@ async function main() {
     notifyContentChange();
     syncUnsavedUi();
   });
+  customHeadModel.onDidChangeContent(() => {
+    if (suppressChangeHighlightClear === 0) {
+      clearCustomHeadChangeHighlights();
+    }
+    setPendingPreviewReloadChanges(true);
+    updateUndoRedoState();
+    syncUnsavedUi();
+  });
   cssModel.onDidChangeContent(() => {
     if (suppressChangeHighlightClear === 0) {
       clearCssChangeHighlights();
@@ -1446,6 +1512,7 @@ async function main() {
     if (suppressChangeHighlightClear === 0) {
       clearJsChangeHighlights();
     }
+    setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
     syncUnsavedUi();
   });

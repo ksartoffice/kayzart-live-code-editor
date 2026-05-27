@@ -128,20 +128,31 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_rest_import_requires_unfiltered_html(): void {
-		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
-		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id   = $this->create_kayzart_post( $author_id );
-
-		$import_params = $this->get_import_params( $post_id );
-
-		wp_set_current_user( $author_id );
-		$response = $this->dispatch_route( '/kayzart/v1/import', $import_params );
-		$this->assertSame( 403, $response->get_status(), 'Import should require unfiltered_html.' );
+	public function test_rest_routes_allow_enabled_unmarked_page_and_mark_it(): void {
+		$admin_id        = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$marked_page_id  = $this->create_page( $admin_id, true );
+		$normal_page_id  = $this->create_page( $admin_id, false );
 
 		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route( '/kayzart/v1/import', $import_params );
-		$this->assertSame( 200, $response->get_status(), 'Admins should be able to import.' );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id' => $marked_page_id,
+				'html'    => '<p>Page</p>',
+			)
+		);
+		$this->assertSame( 200, $response->get_status(), 'Marked pages should be editable through KayzArt REST.' );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id' => $normal_page_id,
+				'html'    => '<p>Page</p>',
+			)
+		);
+		$this->assertSame( 200, $response->get_status(), 'Enabled unmarked pages should become KayzArt-managed through REST.' );
+		$this->assertSame( '1', get_post_meta( $normal_page_id, Post_Type::ENABLED_META, true ) );
 	}
 
 	public function test_rest_save_requires_unfiltered_html_for_js_payload(): void {
@@ -186,7 +197,40 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save jsMode.' );
 	}
 
-	public function test_rest_save_requires_unfiltered_html_for_js_related_settings_updates(): void {
+	public function test_rest_save_requires_unfiltered_html_for_custom_head_payload(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id   = $this->create_kayzart_post( $author_id );
+
+		$params = array(
+			'post_id'         => $post_id,
+			'html'            => '<p>Test</p>',
+			'customHead'      => '<script>alert(1)</script>',
+			'css'             => '',
+			'tailwindEnabled' => false,
+		);
+
+		wp_set_current_user( $author_id );
+		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
+		$this->assertSame( 403, $response->get_status(), 'Saving custom head should require unfiltered_html.' );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<p>Test</p>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+		$this->assertSame( 200, $response->get_status(), 'Authors should still save HTML/CSS without custom head.' );
+
+		wp_set_current_user( $admin_id );
+		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
+		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save custom head.' );
+	}
+
+	public function test_rest_save_ignores_legacy_shadow_setting_without_extra_permission(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id   = $this->create_kayzart_post( $author_id );
@@ -203,23 +247,21 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 
 		wp_set_current_user( $author_id );
 		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
-		$this->assertSame( 403, $response->get_status(), 'Saving JS-related settings should require unfiltered_html.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy shadowDomEnabled should be ignored.' );
 
 		wp_set_current_user( $admin_id );
 		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
-		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save JS-related settings.' );
+		$this->assertSame( 200, $response->get_status(), 'Admins should also ignore legacy shadowDomEnabled.' );
 	}
 
-	public function test_rest_settings_requires_unfiltered_html_for_js_related_updates(): void {
+	public function test_rest_settings_ignores_legacy_external_resource_updates_without_extra_permission(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id   = $this->create_kayzart_post( $author_id );
 
 		$updates = array(
-			'shadowDomEnabled'  => true,
-			'shortcodeEnabled'  => true,
-			'externalScripts'   => array( 'https://example.com/app.js' ),
-			'externalStyles'    => array( 'https://example.com/app.css' ),
+			'externalScripts' => array( 'https://example.com/app.js' ),
+			'externalStyles'  => array( 'https://example.com/app.css' ),
 		);
 
 		wp_set_current_user( $author_id );
@@ -230,7 +272,9 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'updates' => $updates,
 			)
 		);
-		$this->assertSame( 403, $response->get_status(), 'Settings updates should require unfiltered_html.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy external resource updates should be ignored for authors.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 
 		wp_set_current_user( $admin_id );
 		$response = $this->dispatch_route(
@@ -240,7 +284,9 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 				'updates' => $updates,
 			)
 		);
-		$this->assertSame( 200, $response->get_status(), 'Admins should be able to update JS settings.' );
+		$this->assertSame( 200, $response->get_status(), 'Legacy external resource updates should be ignored for admins.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_scripts', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_external_styles', true ) );
 	}
 
 	public function test_rest_settings_forbid_publish_without_capability(): void {
@@ -282,6 +328,22 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		);
 	}
 
+	private function create_page( int $author_id, bool $kayzart_enabled ): int {
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_status' => 'draft',
+				'post_author' => $author_id,
+			)
+		);
+
+		if ( $kayzart_enabled ) {
+			update_post_meta( $post_id, Post_Type::ENABLED_META, '1' );
+		}
+
+		return $post_id;
+	}
+
 	private function dispatch_route( string $route, array $params, bool $with_nonce = true ): WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', $route );
 		foreach ( $params as $key => $value ) {
@@ -298,45 +360,20 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 	}
 
 	private function get_rest_routes_with_params( int $post_id ): array {
-		$tailwind_css = "@tailwind base;\n@tailwind components;\n@tailwind utilities;";
 		return array(
 			'/kayzart/v1/save' => array(
 				'post_id' => $post_id,
 				'html'    => '<p>Test</p>',
 			),
-			'/kayzart/v1/compile-tailwind' => array(
-				'post_id' => $post_id,
-				'html'    => '<div class="text-sm"></div>',
-				'css'     => $tailwind_css,
-			),
-			'/kayzart/v1/setup' => array(
-				'post_id' => $post_id,
-				'mode'    => 'normal',
-			),
 			'/kayzart/v1/settings' => array(
 				'post_id' => $post_id,
 				'updates' => array(),
 			),
-			'/kayzart/v1/import' => $this->get_import_params( $post_id ),
 		);
 	}
 
 	private function get_author_allowed_routes( int $post_id ): array {
-		$routes = $this->get_rest_routes_with_params( $post_id );
-		unset( $routes['/kayzart/v1/import'] );
-		return $routes;
-	}
-
-	private function get_import_params( int $post_id ): array {
-		return array(
-			'post_id' => $post_id,
-			'payload' => array(
-				'version'         => 1,
-				'html'            => '<p>Import</p>',
-				'css'             => '',
-				'tailwindEnabled' => false,
-			),
-		);
+		return $this->get_rest_routes_with_params( $post_id );
 	}
 }
 

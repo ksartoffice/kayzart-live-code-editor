@@ -147,15 +147,19 @@ export function parseCssRules(cssText: string): CssRuleInfo[] {
     }
 
     if (char === '{') {
-      const prelude = cssText.slice(preludeStart, i).trim();
+      const rawPrelude = cssText.slice(preludeStart, i);
+      const prelude = rawPrelude.trim();
+      const preludeOffset = rawPrelude.search(/\S/);
+      const actualPreludeStart =
+        preludeOffset >= 0 ? preludeStart + preludeOffset : preludeStart;
       if (prelude) {
         if (prelude.startsWith('@')) {
           const match = /^@([\\w-]+)\\s*(.*)$/.exec(prelude);
           const name = match ? match[1].toLowerCase() : '';
           const params = match ? match[2] : '';
-          pushAtRule(name, preludeStart, params);
+          pushAtRule(name, actualPreludeStart, params);
         } else {
-          pushRule(prelude, preludeStart);
+          pushRule(prelude, actualPreludeStart);
         }
       } else {
         stack.push({ type: 'at-rule', atRuleName: '', startOffset: preludeStart });

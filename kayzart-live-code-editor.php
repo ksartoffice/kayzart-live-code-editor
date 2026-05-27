@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: KayzArt Live Code Editor
+ * Plugin Name: KayzArt Landing Page Editor
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
- * Description: Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress.
- * Version: 1.3.6
- * Requires at least: 6.6
- * Tested up to: 6.9
- * Requires PHP: 8.2
+ * Description: Create theme-independent landing pages with live HTML, CSS, and JavaScript editing in WordPress.
+ * Version: 2.0.2
+ * Requires at least: 5.9
+ * Tested up to: 7.0
+ * Requires PHP: 7.4
  * Author: K's Art Office
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '1.3.6' );
+define( 'KAYZART_VERSION', '2.0.2' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 
@@ -35,15 +35,26 @@ require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-admin.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-editor-bridge.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-limits.php';
-require_once KAYZART_PATH . 'includes/class-kayzart-external-scripts.php';
-require_once KAYZART_PATH . 'includes/class-kayzart-external-styles.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-html-document.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-custom-head.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
-require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-import.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-rest.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
+
+if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
+	/**
+	 * Check whether the current KayzArt request resolves to standalone mode.
+	 *
+	 * @param int|null $post_id KayzArt post ID. Defaults to queried object ID.
+	 * @return bool
+	 */
+	function kayzart_is_standalone_mode( ?int $post_id = null ): bool {
+		return \KayzArt\Frontend::is_standalone_mode( $post_id );
+	}
+}
 
 add_action(
 	'plugins_loaded',

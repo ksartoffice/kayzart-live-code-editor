@@ -35,17 +35,35 @@ describe('editor shell iframe security attributes', () => {
 
     expect(ui.jsModeSelect.parentElement).toBe(ui.jsControls);
     expect(Array.from(ui.jsControls.children)).toEqual([
+      ui.jsPendingNotice,
       ui.jsModeSelect,
-      ui.shadowHintButton,
-      ui.runButton,
-      ui.tailwindHintButton,
     ]);
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
+      ui.compactFullHtmlImportButton,
       ui.compactAddMediaButton,
       ui.compactJsModeSelect,
-      ui.compactShadowHintButton,
-      ui.compactRunButton,
-      ui.compactTailwindHintButton,
+      ui.compactReloadPendingNotice,
     ]);
+  });
+
+  it('places full HTML import buttons next to media buttons', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.fullHtmlImportButton.textContent).toBe('フルHTML取込み');
+    expect(ui.compactFullHtmlImportButton.textContent).toBe('フルHTML取込み');
+    expect(ui.fullHtmlImportButton.nextElementSibling).toBe(ui.addMediaButton);
+    expect(ui.compactFullHtmlImportButton.nextElementSibling).toBe(ui.compactAddMediaButton);
+  });
+
+  it('renders custom head tabs and help text', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.htmlTab.textContent).toBe('HTML');
+    expect(ui.customHeadTab.textContent).toBe('head');
+    expect(ui.compactCustomHeadTab.textContent).toBe('head');
+    expect(ui.customHeadHelp.textContent).toContain('head');
+    expect(ui.customHeadHelp.textContent).toContain('<title>');
   });
 });

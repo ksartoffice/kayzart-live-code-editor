@@ -1,38 +1,33 @@
 import { __, sprintf } from '@wordpress/i18n';
-import { exportKayzArt, saveKayzArt } from '../persistence';
+import { saveKayzArt } from '../persistence';
+import { sanitizeCustomHeadInput } from '../logic/custom-head';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
-import type { EditorModel } from '../codemirror';
+import { EditorRange, type EditorModel } from '../codemirror';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
 type UnsavedFlags = {
   html: boolean;
+  customHead: boolean;
   css: boolean;
   js: boolean;
   settings: boolean;
   hasAny: boolean;
 };
 
-type SaveExportControllerDeps = {
+type SaveCopyControllerDeps = {
   apiFetch: ApiFetch;
   restUrl: string;
-  restCompileUrl: string;
   postId: number;
   canEditJs: boolean;
   getHtmlModel: () => EditorModel | undefined;
+  getCustomHeadModel: () => EditorModel | undefined;
   getCssModel: () => EditorModel | undefined;
   getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
   getTailwindEnabled: () => boolean;
-  getTailwindCss: () => string;
-  getExternalScripts: () => string[];
-  getExternalStyles: () => string[];
-  getShadowDomEnabled: () => boolean;
-  getShortcodeEnabled: () => boolean;
-  getSinglePageEnabled: () => boolean;
-  getLiveHighlightEnabled: () => boolean;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
     hasUnsavedSettings: boolean;
@@ -49,15 +44,17 @@ type SaveExportControllerDeps = {
   ) => void;
   noticeIds: {
     save: string;
-    export: string;
   };
   noticeSuccessMs: number;
   noticeErrorMs: number;
   uiDirtyTargets: {
     htmlTitle: HTMLElement;
+    htmlTab: HTMLElement;
+    customHeadTab: HTMLElement;
     cssTab: HTMLElement;
     jsTab: HTMLElement;
     compactHtmlTab: HTMLElement;
+    compactCustomHeadTab: HTMLElement;
     compactCssTab: HTMLElement;
     compactJsTab: HTMLElement;
   };
@@ -65,11 +62,31 @@ type SaveExportControllerDeps = {
   onSaveSuccess?: () => void;
 };
 
-export function createSaveExportController(deps: SaveExportControllerDeps) {
+
+function replaceModelContent(model: EditorModel, nextText: string) {
+  const current = model.getValue();
+  if (current === nextText) {
+    return;
+  }
+  const end = model.getPositionAt(current.length);
+  model.pushEditOperations(
+    [],
+    [
+      {
+        range: new EditorRange(1, 1, end.lineNumber, end.column),
+        text: nextText,
+      },
+    ],
+    () => null
+  );
+}
+
+export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
   let hasUnsavedChanges = false;
-  let lastSaved: { html: string; css: string; js: string; jsMode: JsMode } = {
+  let lastSaved: { html: string; customHead: string; css: string; js: string; jsMode: JsMode } = {
     html: '',
+    customHead: '',
     css: '',
     js: '',
     jsMode: deps.getJsMode(),
@@ -77,12 +94,14 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
 
   const getUnsavedFlags = (): UnsavedFlags => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
     const { hasUnsavedSettings } = deps.getPendingSettingsState();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       return {
         html: false,
+        customHead: false,
         css: false,
         js: false,
         settings: hasUnsavedSettings,
@@ -90,24 +109,29 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
       };
     }
     const htmlDirty = htmlModel.getValue() !== lastSaved.html;
+    const customHeadDirty = deps.canEditJs && customHeadModel.getValue() !== lastSaved.customHead;
     const cssDirty = cssModel.getValue() !== lastSaved.css;
-    const jsDirty = jsModel.getValue() !== lastSaved.js;
-    const jsModeDirty = deps.getJsMode() !== lastSaved.jsMode;
+    const jsDirty = deps.canEditJs && jsModel.getValue() !== lastSaved.js;
+    const jsModeDirty = deps.canEditJs && deps.getJsMode() !== lastSaved.jsMode;
     return {
       html: htmlDirty,
+      customHead: customHeadDirty,
       css: cssDirty,
       js: jsDirty || jsModeDirty,
       settings: hasUnsavedSettings,
-      hasAny: htmlDirty || cssDirty || jsDirty || jsModeDirty || hasUnsavedSettings,
+      hasAny: htmlDirty || customHeadDirty || cssDirty || jsDirty || jsModeDirty || hasUnsavedSettings,
     };
   };
 
   const syncUnsavedUi = () => {
-    const { html, css, js, hasAny } = getUnsavedFlags();
+    const { html, customHead, css, js, hasAny } = getUnsavedFlags();
     deps.uiDirtyTargets.htmlTitle.classList.toggle('has-unsaved', html);
+    deps.uiDirtyTargets.htmlTab.classList.toggle('has-unsaved', html);
+    deps.uiDirtyTargets.customHeadTab.classList.toggle('has-unsaved', customHead);
     deps.uiDirtyTargets.cssTab.classList.toggle('has-unsaved', css);
     deps.uiDirtyTargets.jsTab.classList.toggle('has-unsaved', js);
     deps.uiDirtyTargets.compactHtmlTab.classList.toggle('has-unsaved', html);
+    deps.uiDirtyTargets.compactCustomHeadTab.classList.toggle('has-unsaved', customHead);
     deps.uiDirtyTargets.compactCssTab.classList.toggle('has-unsaved', css);
     deps.uiDirtyTargets.compactJsTab.classList.toggle('has-unsaved', js);
     if (hasAny !== hasUnsavedChanges) {
@@ -118,13 +142,15 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
 
   const markSavedState = () => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       return;
     }
     lastSaved = {
       html: htmlModel.getValue(),
+      customHead: customHeadModel.getValue(),
       css: cssModel.getValue(),
       js: jsModel.getValue(),
       jsMode: deps.getJsMode(),
@@ -132,73 +158,13 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     syncUnsavedUi();
   };
 
-  const handleExport = async () => {
-    const htmlModel = deps.getHtmlModel();
-    const cssModel = deps.getCssModel();
-    const jsModel = deps.getJsModel();
-    if (!htmlModel || !cssModel || !jsModel) {
-      deps.createSnackbar(
-        'error',
-        __('Export unavailable.', 'kayzart-live-code-editor'),
-        deps.noticeIds.export,
-        deps.noticeErrorMs
-      );
-      return;
-    }
-
-    deps.createSnackbar('info', __('Exporting...', 'kayzart-live-code-editor'), deps.noticeIds.export);
-
-    const result = await exportKayzArt({
-      apiFetch: deps.apiFetch,
-      restCompileUrl: deps.restCompileUrl,
-      postId: deps.postId,
-      html: htmlModel.getValue(),
-      css: cssModel.getValue(),
-      tailwindEnabled: deps.getTailwindEnabled(),
-      tailwindCss: deps.getTailwindCss(),
-      js: jsModel.getValue(),
-      jsMode: deps.getJsMode(),
-      externalScripts: deps.getExternalScripts(),
-      externalStyles: deps.getExternalStyles(),
-      shadowDomEnabled: deps.getShadowDomEnabled(),
-      shortcodeEnabled: deps.getShortcodeEnabled(),
-      singlePageEnabled: deps.getSinglePageEnabled(),
-      liveHighlightEnabled: deps.getLiveHighlightEnabled(),
-    });
-
-    if (result.ok) {
-      deps.createSnackbar(
-        'success',
-        __('Exported.', 'kayzart-live-code-editor'),
-        deps.noticeIds.export,
-        deps.noticeSuccessMs
-      );
-      return;
-    }
-
-    if (result.error) {
-      /* translators: %s: error message. */
-      deps.createSnackbar(
-        'error',
-        sprintf(__('Export error: %s', 'kayzart-live-code-editor'), result.error),
-        deps.noticeIds.export,
-        deps.noticeErrorMs
-      );
-    } else {
-      deps.createSnackbar(
-        'error',
-        __('Export failed.', 'kayzart-live-code-editor'),
-        deps.noticeIds.export,
-        deps.noticeErrorMs
-      );
-    }
-  };
 
   const handleSave = async (): Promise<{ ok: boolean; error?: string }> => {
     const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
-    if (!htmlModel || !cssModel || !jsModel) {
+    if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
       return { ok: false, error: __('Save failed.', 'kayzart-live-code-editor') };
     }
     if (!getUnsavedFlags().hasAny) {
@@ -222,12 +188,30 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     const settingsUpdates = hasUnsavedSettings ? { ...pendingSettingsUpdates } : undefined;
     saveInFlight = (async () => {
       deps.createSnackbar('info', __('Saving...', 'kayzart-live-code-editor'), deps.noticeIds.save);
+      if (deps.canEditJs) {
+        const customHeadSanitized = sanitizeCustomHeadInput(customHeadModel.getValue());
+        if (customHeadSanitized.html !== customHeadModel.getValue()) {
+          replaceModelContent(customHeadModel, customHeadSanitized.html);
+        }
+        if (customHeadSanitized.removedTags.length > 0) {
+          deps.createSnackbar(
+            'warning',
+            sprintf(
+              __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
+              customHeadSanitized.removedTags.join(', ')
+            ),
+            deps.noticeIds.save,
+            deps.noticeErrorMs
+          );
+        }
+      }
 
       const result = await saveKayzArt({
         apiFetch: deps.apiFetch,
         restUrl: deps.restUrl,
         postId: deps.postId,
         html: htmlModel.getValue(),
+        customHead: customHeadModel.getValue(),
         css: cssModel.getValue(),
         tailwindEnabled: deps.getTailwindEnabled(),
         canEditJs: deps.canEditJs,
@@ -237,6 +221,20 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
       });
 
       if (result.ok) {
+        if (deps.canEditJs && typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
+          replaceModelContent(customHeadModel, result.customHead);
+        }
+        if (deps.canEditJs && Array.isArray(result.customHeadRemovedTags) && result.customHeadRemovedTags.length > 0) {
+          deps.createSnackbar(
+            'warning',
+            sprintf(
+              __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
+              result.customHeadRemovedTags.join(', ')
+            ),
+            deps.noticeIds.save,
+            deps.noticeErrorMs
+          );
+        }
         if (result.settings) {
           deps.applySavedSettings(result.settings, Boolean(settingsUpdates));
           deps.applySettingsToSidebar(result.settings);
@@ -285,7 +283,5 @@ export function createSaveExportController(deps: SaveExportControllerDeps) {
     syncUnsavedUi,
     markSavedState,
     handleSave,
-    handleExport,
   };
 }
-

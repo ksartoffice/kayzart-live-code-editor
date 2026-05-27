@@ -69,8 +69,28 @@
     });
   };
 
+  var findBlockToolbar = function () {
+    return document.querySelector(
+      [
+        '.editor-document-tools',
+        '.edit-post-header__toolbar',
+        '.editor-header__toolbar',
+        '.edit-post-header-toolbar'
+      ].join(', ')
+    );
+  };
+
+  var findBlockObserverTarget = function () {
+    return (
+      document.querySelector('.interface-interface-skeleton__header') ||
+      document.querySelector('.editor-header') ||
+      document.querySelector('.edit-post-header') ||
+      document.body
+    );
+  };
+
   var insertBlockToolbarButton = function () {
-    var toolbar = document.querySelector('.edit-post-header-toolbar');
+    var toolbar = findBlockToolbar();
     if (!toolbar) {
       return;
     }
@@ -84,7 +104,7 @@
     var button = document.createElement('a');
     button.className = 'components-button is-primary kayzart-editor-toolbar__button';
     button.href = '#';
-    button.textContent = __( 'Edit with KayzArt', 'kayzart-live-code-editor');
+    button.textContent = __( 'Edit landing page', 'kayzart-live-code-editor');
 
     button.addEventListener('click', function (event) {
       event.preventDefault();
@@ -99,19 +119,13 @@
 
     container.appendChild(button);
 
-    if (toolbar.children.length > 1) {
-      toolbar.insertBefore(container, toolbar.children[1]);
-    } else {
-      toolbar.appendChild(container);
-    }
+    toolbar.appendChild(container);
   };
 
   var setupBlockEditor = function () {
     insertBlockToolbarButton();
 
-    var observerTarget =
-      document.querySelector('.interface-interface-skeleton__header') ||
-      document.body;
+    var observerTarget = findBlockObserverTarget();
     var observer = new MutationObserver(function () {
       insertBlockToolbarButton();
     });
@@ -132,7 +146,7 @@
 
     var button = document.createElement('a');
     button.className = 'button button-primary kayzart-editor-bridge__button';
-    button.textContent = __( 'Edit with KayzArt', 'kayzart-live-code-editor');
+    button.textContent = __( 'Edit landing page', 'kayzart-live-code-editor');
     button.href = '#';
 
     container.appendChild(button);
@@ -155,8 +169,12 @@
   };
 
   domReady(function () {
-    if (!document.body.classList.contains('post-type-kayzart')) {
+    if (!data.enabled && !document.body.classList.contains('post-type-kayzart')) {
       return;
+    }
+
+    if (data.enabled) {
+      document.body.classList.add('kayzart-editor-locked');
     }
 
     if (document.body.classList.contains('block-editor-page')) {

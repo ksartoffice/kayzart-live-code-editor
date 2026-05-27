@@ -1,32 +1,25 @@
-﻿msgid ""
+# Copyright (C) 2026 K's Art Office
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
 msgstr ""
-"Project-Id-Version: KayzArt Live Code Editor 1.0.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: Japanese\n"
-"MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
-"Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-01-21T03:57:30+01:00\n"
-"PO-Revision-Date: 2026-01-21 00:00+0000\n"
-"Language: ja\n"
-"Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: WP-CLI 2.12.0\n"
-"X-Domain: kayzart-live-code-editor\n"
+"Project-Id-Version: KayzArt Landing Page Editor 1.3.6\\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n"
+"Language-Team: Japanese\\n"
+"Language: ja\\n"
+"MIME-Version: 1.0\\n"
+"Content-Type: text/plain; charset=UTF-8\\n"
+"Content-Transfer-Encoding: 8bit\\n"
+"PO-Revision-Date: 2026-05-27 00:00+0000\\n"
+"Plural-Forms: nplurals=1; plural=0;\\n"
+"X-Generator: WP-CLI 2.12.0\\n"
+"X-Domain: kayzart-live-code-editor\\n"
+""
 
 #. Plugin Name of the plugin
 #: kayzart-live-code-editor.php
-msgid "KayzArt Live Code Editor"
-msgstr "KayzArt Live Code Editor"
-
-#. Author of the plugin
-#: kayzart-live-code-editor.php
-#: includes/class-kayzart-admin.php:323
-#: includes/class-kayzart-admin.php:324
-#: includes/class-kayzart-admin.php:638
-#: includes/class-kayzart-post-type.php:68
-msgid "KayzArt"
-msgstr "KayzArt"
+msgid "KayzArt Landing Page Editor"
+msgstr "KayzArt Landing Page Editor"
 
 #. Plugin URI of the plugin
 #: kayzart-live-code-editor.php
@@ -35,927 +28,723 @@ msgstr "https://wordpress.org/plugins/kayzart-live-code-editor/"
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "Live HTML/CSS/JS editor with real-time preview and Tailwind CSS support for WordPress."
-msgstr "リアルタイムプレビューと Tailwind CSS 対応を備えた WordPress 用の HTML/CSS/JS エディター。"
+msgid "Live HTML/CSS/JS editor with real-time preview for WordPress."
+msgstr "リアルタイムプレビューを備えた WordPress 用の HTML/CSS/JS エディター。"
 
-#: includes/class-kayzart-admin.php:161
-#: includes/class-kayzart-admin.php:638
+#. Author of the plugin
+#: kayzart-live-code-editor.php
+msgid "K's Art Office"
+msgstr "K's Art Office"
+
+#. translators: %s: post title.
+#: includes/class-kayzart-admin.php:91
+#: assets/dist/main.js:141
+#, php-format,js-format
+msgid "KayzArt Landing Page Editor: %s"
+msgstr "KayzArt Landing Page Editor: %s"
+
+#: includes/class-kayzart-admin.php:121
+#: assets/dist/main.js:96
+#: assets/dist/main.js:141
+msgid "Untitled"
+msgstr "無題"
+
+#: includes/class-kayzart-admin.php:146
+#: includes/class-kayzart-admin.php:168
+#: includes/class-kayzart-admin.php:209
+#: includes/class-kayzart-admin.php:219
+#: includes/class-kayzart-admin.php:275
+#: includes/class-kayzart-admin.php:291
+#: includes/class-kayzart-preview.php:88
+#: includes/class-kayzart-rest.php:121
+#: includes/class-kayzart-rest.php:129
+#: includes/rest/class-kayzart-rest-save.php:62
+#: includes/rest/class-kayzart-rest-settings.php:171
+msgid "Permission denied."
+msgstr "権限がありません。"
+
+#: includes/class-kayzart-admin.php:154
+#: includes/class-kayzart-admin.php:213
 #: includes/class-kayzart-preview.php:80
 msgid "post_id is required."
 msgstr "post_id は必須です。"
 
-#: includes/class-kayzart-admin.php:168
-#: includes/class-kayzart-admin.php:642
+#: includes/class-kayzart-admin.php:161
+#: includes/class-kayzart-admin.php:216
 msgid "This editor is only available for KayzArt posts."
 msgstr "このエディターは KayzArt 投稿でのみ利用できます。"
 
-#: includes/class-kayzart-admin.php:165
-#: includes/class-kayzart-admin.php:171
-#: includes/class-kayzart-admin.php:188
-#: includes/class-kayzart-admin.php:193
-#: includes/class-kayzart-admin.php:206
-#: includes/class-kayzart-admin.php:211
-#: includes/class-kayzart-admin.php:216
-#: includes/class-kayzart-admin.php:645
-#: includes/class-kayzart-preview.php:84
-#: includes/class-kayzart-rest.php:153
-#: includes/rest/class-kayzart-rest-import.php:45
-#: includes/rest/class-kayzart-rest-save.php:92
-#: includes/rest/class-kayzart-rest-settings.php:184
-#: includes/rest/class-kayzart-rest-settings.php:194
-#: includes/rest/class-kayzart-rest-settings.php:210
-#: includes/rest/class-kayzart-rest-settings.php:222
-#: includes/rest/class-kayzart-rest-settings.php:239
-#: includes/rest/class-kayzart-rest-settings.php:281
-msgid "Permission denied."
-msgstr "権限がありません。"
+#: includes/class-kayzart-admin.php:286
+msgid "This post type is not enabled for KayzArt."
+msgstr "この投稿タイプでは KayzArt が有効化されていません。"
 
-#: includes/class-kayzart-external-scripts.php:56
-#: includes/rest/class-kayzart-rest-import.php:191
-#: includes/rest/class-kayzart-rest-import.php:207
-#: assets/dist/main.js:106
-msgid "Invalid externalScripts value."
-msgstr "externalScripts の値が不正です。"
+#: includes/class-kayzart-admin.php:298
+msgid "Untitled landing page"
+msgstr "無題のランディングページ"
 
-#: includes/class-kayzart-external-scripts.php:65
-#: includes/rest/class-kayzart-rest-settings.php:262
-#: assets/dist/main.js:106
-msgid "External scripts must be valid https:// URLs."
-msgstr "外部スクリプトは有効な https:// URL である必要があります。"
-
-#: includes/class-kayzart-external-scripts.php:73
-msgid "External scripts exceed the maximum allowed."
-msgstr "外部スクリプトが上限を超えています。"
-
-#: includes/class-kayzart-external-styles.php:56
-#: includes/rest/class-kayzart-rest-import.php:220
-#: includes/rest/class-kayzart-rest-import.php:236
-#: assets/dist/main.js:106
-msgid "Invalid externalStyles value."
-msgstr "externalStyles の値が不正です。"
-
-#: includes/class-kayzart-external-styles.php:65
-#: includes/rest/class-kayzart-rest-settings.php:304
-#: assets/dist/main.js:106
-msgid "External styles must be valid https:// URLs."
-msgstr "外部スタイルは有効な https:// URL である必要があります。"
-
-#: includes/class-kayzart-external-styles.php:73
-msgid "External styles exceed the maximum allowed."
-msgstr "外部スタイルが上限を超えています。"
-
-#: includes/class-kayzart-post-type.php:52
-msgctxt "post type general name"
+#: includes/class-kayzart-admin.php:433
+#: includes/class-kayzart-admin.php:434
 msgid "KayzArt"
 msgstr "KayzArt"
 
-#: includes/class-kayzart-post-type.php:53
-msgctxt "post type singular name"
-msgid "KayzArt"
-msgstr "KayzArt"
+#: assets/admin/post-type-list.js:30
+#: includes/class-kayzart-admin.php:451
+#: includes/class-kayzart-admin.php:452
+msgid "Add landing page"
+msgstr "ランディングページを追加"
+
+#: includes/class-kayzart-admin.php:461
+#: includes/class-kayzart-admin.php:462
+#: includes/class-kayzart-admin.php:726
+msgid "Landing page settings"
+msgstr "ランディングページ設定"
+
+#: includes/class-kayzart-admin.php:507
+msgid "Permalink"
+msgstr "パーマリンク"
+
+#: includes/class-kayzart-admin.php:515
+#: assets/dist/main.js:96
+msgid "Page template"
+msgstr "ページテンプレート"
+
+#: includes/class-kayzart-admin.php:523
+msgid "KayzArt slug"
+msgstr "KayzArt スラッグ"
+
+#: includes/class-kayzart-admin.php:532
+msgid "Default template mode"
+msgstr "デフォルトのテンプレートモード"
+
+#: includes/class-kayzart-admin.php:540
+msgid "Post types"
+msgstr "投稿タイプ"
+
+#: includes/class-kayzart-admin.php:547
+msgid "Enabled post types"
+msgstr "有効な投稿タイプ"
+
+#: includes/class-kayzart-admin.php:639
+msgid "Change the URL slug for KayzArt posts. Existing URLs will change after saving."
+msgstr "KayzArt 投稿の URL スラッグを変更します。保存後は既存の URL が変更されます。"
+
+#: includes/class-kayzart-admin.php:647
+msgid "Choose the default page template mode used by KayzArt previews."
+msgstr "KayzArt プレビューで使用するデフォルトのページテンプレートモードを選択します。"
+
+#: includes/class-kayzart-admin.php:654
+msgid "Choose which post types can use the KayzArt landing page editor."
+msgstr "KayzArt ランディングページエディターを使用できる投稿タイプを選択します。"
+
+#: includes/class-kayzart-admin.php:663
+msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
+msgstr "使用可能: 英小文字、数字、ハイフン。初期値: kayzart。"
+
+#: includes/class-kayzart-admin.php:674
+#: assets/dist/main.js:96
+msgid "Standalone"
+msgstr "スタンドアロン"
+
+#: includes/class-kayzart-admin.php:675
+#: assets/dist/main.js:96
+msgid "Theme"
+msgstr "テーマ"
+
+#: includes/class-kayzart-admin.php:682
+msgid "Applies when template mode is set to Use admin default."
+msgstr "テンプレートモードが「デフォルト」に設定されている場合に適用されます。"
+
+#: includes/class-kayzart-admin.php:701
+msgid "Existing posts are not converted until they are opened in the KayzArt editor or created with Add landing page."
+msgstr "既存の投稿は、KayzArt エディターで開くか「ランディングページを追加」から作成するまで変換されません。"
+
+#: includes/class-kayzart-admin.php:752
+#: includes/class-kayzart-admin.php:763
+#: includes/class-kayzart-admin.php:777
+msgid "基本設定"
+msgstr "基本設定"
+
+#: includes/class-kayzart-admin.php:1033
+#: includes/class-kayzart-admin.php:1041
+#: assets/dist/main.js:96
+msgid "Posts"
+msgstr "投稿"
 
 #: includes/class-kayzart-post-type.php:55
-msgid "Add New KayzArt Page"
-msgstr "KayzArtページを新規追加"
+msgctxt "post type general name"
+msgid "旧KayzArt"
+msgstr "旧KayzArt"
 
 #: includes/class-kayzart-post-type.php:56
+msgctxt "post type singular name"
+msgid "旧KayzArt"
+msgstr "旧KayzArt"
+
+#: includes/class-kayzart-post-type.php:57
+msgctxt "kayzart"
+msgid "Add New"
+msgstr "新規追加"
+
+#: includes/class-kayzart-post-type.php:58
+msgid "Add New"
+msgstr "新規追加"
+
+#: includes/class-kayzart-post-type.php:59
 msgid "Edit KayzArt"
 msgstr "KayzArt を編集"
 
-#: includes/class-kayzart-post-type.php:57
+#: includes/class-kayzart-post-type.php:60
 msgid "New KayzArt"
 msgstr "新規 KayzArt"
 
-#: includes/class-kayzart-post-type.php:58
-#: includes/class-kayzart-post-type.php:59
+#: includes/class-kayzart-post-type.php:61
+#: includes/class-kayzart-post-type.php:62
 msgid "View on front end"
 msgstr "フロントを表示"
 
-#: includes/class-kayzart-post-type.php:60
+#: includes/class-kayzart-post-type.php:63
 msgid "Search KayzArt"
 msgstr "KayzArt を検索"
 
-#: includes/class-kayzart-post-type.php:61
+#: includes/class-kayzart-post-type.php:64
 msgid "No KayzArt found"
 msgstr "KayzArt が見つかりません"
 
-#: includes/class-kayzart-post-type.php:62
+#: includes/class-kayzart-post-type.php:65
 msgid "No KayzArt found in Trash"
 msgstr "ゴミ箱に KayzArt はありません"
 
-#: includes/class-kayzart-post-type.php:64
+#: includes/class-kayzart-post-type.php:66
+msgid "旧KayzArt一覧"
+msgstr "旧KayzArt一覧"
+
+#: includes/class-kayzart-post-type.php:67
 msgid "KayzArt Archives"
 msgstr "KayzArt アーカイブ"
 
-#: includes/class-kayzart-post-type.php:184
-msgid "Edit in KayzArt"
-msgstr "KayzArtで編集"
+#: includes/class-kayzart-post-type.php:71
+msgid "旧KayzArt"
+msgstr "旧KayzArt"
 
-#: includes/class-kayzart-post-type.php:159
-#: assets/dist/main.js:106
+#: includes/class-kayzart-post-type.php:323
+msgid "Landing page"
+msgstr "ランディングページ"
+
+#: includes/class-kayzart-post-type.php:327
+#: assets/dist/main.js:150
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
-#: includes/class-kayzart-admin.php:223
-msgid "Untitled KayzArt Page"
-msgstr "無題の KayzArt ページ"
+#: assets/admin/editor-bridge.js:107 assets/admin/editor-bridge.js:149
+#: includes/class-kayzart-post-type.php:356
+msgid "Edit landing page"
+msgstr "ランディングページを編集"
 
-#: includes/class-kayzart-preview.php:88
+#: includes/class-kayzart-preview.php:84
 msgid "Invalid preview token."
 msgstr "プレビュートークンが無効です。"
 
 #: includes/class-kayzart-preview.php:92
-#: includes/rest/class-kayzart-rest-import.php:35
-#: includes/rest/class-kayzart-rest-save.php:82
-#: includes/rest/class-kayzart-rest-save.php:327
+#: includes/rest/class-kayzart-rest-save.php:51
+#: includes/rest/class-kayzart-rest-save.php:311
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr "投稿タイプが無効です。"
 
 #: includes/class-kayzart-preview.php:96
-#: includes/rest/class-kayzart-rest-settings.php:136
+#: includes/rest/class-kayzart-rest-settings.php:128
 msgid "Post not found."
 msgstr "投稿が見つかりません。"
 
-#: includes/rest/class-kayzart-rest-import.php:55
-msgid "Invalid import payload."
-msgstr "インポートのペイロードが無効です。"
+#: includes/rest/class-kayzart-rest-save.php:75
+msgid "Invalid jsMode value."
+msgstr "JavaScript モードの値が不正です。"
 
-#: includes/rest/class-kayzart-rest-import.php:66
-#: assets/dist/main.js:106
-msgid "Unsupported import version."
-msgstr "サポートされていないインポートバージョンです。"
-
-#: includes/rest/class-kayzart-rest-import.php:76
-#: assets/dist/main.js:106
-msgid "Invalid HTML value."
-msgstr "HTML の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:86
-#: assets/dist/main.js:106
-msgid "Invalid CSS value."
-msgstr "CSS の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:107
-#: assets/dist/main.js:106
-msgid "Invalid JavaScript value."
-msgstr "JavaScript の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:121
-#: assets/dist/main.js:106
-msgid "Invalid shadowDomEnabled value."
-msgstr "shadowDomEnabled の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:135
-#: assets/dist/main.js:106
-msgid "Invalid shortcodeEnabled value."
-msgstr "shortcodeEnabled の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:149
-#: assets/dist/main.js:106
-msgid "Invalid singlePageEnabled value."
-msgstr "singlePageEnabled の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:163
-#: assets/dist/main.js:106
-msgid "Invalid liveHighlightEnabled value."
-msgstr "liveHighlightEnabled の値が不正です。"
-
-#: includes/rest/class-kayzart-rest-import.php:177
-#: assets/dist/main.js:106
-msgid "Invalid generatedCss value."
-msgstr "generatedCss の値が不正です。"
+#: includes/rest/class-kayzart-rest-save.php:87
+#: includes/rest/class-kayzart-rest-settings.php:90
+msgid "Invalid payload."
+msgstr "ペイロードが不正です。"
 
 #. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-import.php:283
-#: includes/rest/class-kayzart-rest-save.php:178
-#: includes/rest/class-kayzart-rest-save.php:358
+#: includes/rest/class-kayzart-rest-save.php:161
+#: includes/rest/class-kayzart-rest-save.php:342
 #, php-format
 msgid "Tailwind compile failed: %s"
 msgstr "Tailwind のコンパイルに失敗しました: %s"
 
-#: includes/rest/class-kayzart-rest-save.php:103
-#: includes/rest/class-kayzart-rest-settings.php:98
-msgid "Invalid payload."
-msgstr "ペイロードが不正です。"
+#: includes/rest/class-kayzart-rest-save.php:280
+msgid "Tailwind HTML input exceeds the maximum size."
+msgstr "Tailwind HTML 入力が最大サイズを超えています。"
 
-#: includes/rest/class-kayzart-rest-settings.php:246
-msgid "Invalid external scripts payload."
-msgstr "外部スクリプトのペイロードが不正です。"
+#: includes/rest/class-kayzart-rest-save.php:288
+msgid "Tailwind CSS input exceeds the maximum size."
+msgstr "Tailwind CSS 入力が最大サイズを超えています。"
 
-#: includes/rest/class-kayzart-rest-settings.php:288
-msgid "Invalid external styles payload."
-msgstr "外部スタイルのペイロードが不正です。"
-
-#: includes/rest/class-kayzart-rest-setup.php:42
+#: includes/rest/class-kayzart-rest-setup.php:43
 msgid "Invalid setup mode."
 msgstr "セットアップモードが不正です。"
 
-#: includes/class-kayzart-admin.php:584
-#: assets/dist/main.js:106
-msgid "Theme"
-msgstr "テーマ"
-
-#: includes/class-kayzart-admin.php:332
-#: includes/class-kayzart-admin.php:333
-#: assets/dist/main.js:106
-msgid "Settings"
-msgstr "設定"
-
-#: includes/class-kayzart-post-type.php:63
-#: assets/dist/main.js:106
-msgid "KayzArt pages"
-msgstr "KayzArtページ一覧"
-
-#: includes/class-kayzart-admin.php:386
-msgid "Permalink"
-msgstr "パーマリンク"
-
-#: includes/class-kayzart-admin.php:400
-msgid "KayzArt slug"
-msgstr "KayzArt スラッグ"
-
-#: includes/class-kayzart-admin.php:547
-msgid "Change the URL slug for KayzArt posts. Existing URLs will change after saving."
-msgstr "KayzArt 投稿の URL スラッグを変更します。保存後は既存の URL が変更されます。"
-
-#: includes/class-kayzart-admin.php:571
-msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
-msgstr "使用可能: 英小文字、数字、ハイフン。初期値: kayzart。"
-
-#: includes/class-kayzart-admin.php:430
-msgid "Cleanup"
-msgstr "クリーンアップ"
-
-#: includes/class-kayzart-admin.php:437
-msgid "Delete data on uninstall"
-msgstr "アンインストール時にデータを削除"
-
-#: includes/class-kayzart-admin.php:617
-msgid "Choose whether KayzArt posts should be deleted when the plugin is uninstalled."
-msgstr "プラグインをアンインストールする際に KayzArt 投稿を削除するかどうかを選択します。"
-
-#: includes/class-kayzart-admin.php:628
-msgid "Delete all KayzArt posts on uninstall (imported media is kept)."
-msgstr "アンインストール時に KayzArt 投稿をすべて削除します（取り込んだメディアは保持します）。"
-
-#: includes/class-kayzart-admin.php:582
-#: assets/dist/main.js:106
-msgid "Standalone"
-msgstr "スタンドアロン"
-
-#: includes/class-kayzart-admin.php:661
-msgid "KayzArt Live Code Editor Settings"
-msgstr "KayzArt Live Code Editor 設定"
-
-#: includes/rest/class-kayzart-rest-import.php:96
-#: assets/dist/main.js:106
-msgid "Invalid tailwindEnabled value."
-msgstr "tailwindEnabled の値が不正です。"
-
-#: includes/class-kayzart-admin.php:115
-#: assets/dist/main.js:106
-#: assets/dist/main.js:125
-msgid "Untitled"
-msgstr "無題"
-
-#. translators: %s: post title.
-#: includes/class-kayzart-admin.php:90
-#: assets/dist/main.js:125
-#, php-format,js-format
-msgid "KayzArt Live Code Editor: %s"
-msgstr "KayzArt Live Code Editor: %s"
-
-#: includes/class-kayzart-admin.php:393
-#: assets/dist/main.js:106
-msgid "Page template"
-msgstr "ページテンプレート"
-
-#: includes/class-kayzart-admin.php:408
-msgid "Default template mode"
-msgstr "デフォルトのテンプレートモード"
-
-#: includes/class-kayzart-admin.php:555
-msgid "Choose the default page template mode used by KayzArt previews."
-msgstr "KayzArt プレビューで使用するデフォルトのページテンプレートモードを選択します。"
-
-#: includes/class-kayzart-admin.php:591
-msgid "Applies when template mode is set to Use admin default."
-msgstr "テンプレートモードが「デフォルト」に設定されている場合に適用されます。"
-
-#: includes/class-kayzart-post-type.php:54
-msgctxt "kayzart"
-msgid "Add New"
-msgstr "新規追加"
-
-#: includes/rest/class-kayzart-rest-save.php:296
-msgid "Tailwind HTML input exceeds the maximum size."
-msgstr "Tailwind の HTML 入力が最大サイズを超えています。"
-
-#: includes/rest/class-kayzart-rest-save.php:304
-msgid "Tailwind CSS input exceeds the maximum size."
-msgstr "Tailwind の CSS 入力が最大サイズを超えています。"
-
-#: assets/admin/editor-bridge.js:56
-#: assets/dist/main.js:106
-#: assets/dist/main.js:125
-msgid "Saving..."
-msgstr "保存中..."
-
-#: assets/admin/editor-bridge.js:87
-#: assets/admin/editor-bridge.js:135
-msgid "Edit with KayzArt"
-msgstr "KayzArtで編集"
-
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Use default follows the default template mode from plugin settings."
 msgstr "「デフォルト」はプラグイン設定のデフォルトテンプレートモードに従います。"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Standalone hides the theme header and footer."
 msgstr "Standalone はテーマのヘッダーとフッターを非表示にします。"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Theme uses the active theme template."
 msgstr "Theme は有効化中のテーマテンプレートを使用します。"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Template mode"
 msgstr "テンプレートモード"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 #, js-format
 msgid "Use default (%s)"
 msgstr "デフォルト（%s）"
 
-#: assets/dist/main.js:106
-msgid "Output settings"
-msgstr "出力設定"
+#: assets/dist/main.js:96
+msgid "Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display."
+msgstr "スタンドアロンでは body 属性を直接反映します。テーマ表示では body_class にクラス値のみ追加できます。一部の body 属性はテーマ表示に反映されない場合があります。"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
-msgid "Copied"
-msgstr "コピー済み"
-
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
-msgid "Copy"
-msgstr "コピー"
-
-#: assets/dist/main.js:106
-msgid "Copied."
-msgstr "コピーしました。"
-
-#: assets/dist/main.js:106
-msgid "Copy failed."
-msgstr "コピーに失敗しました。"
-
-#: assets/dist/main.js:106
-msgid "Do not publish as single page"
-msgstr "単一ページとして公開しない"
-
-#: assets/dist/main.js:106
-msgid "Requires unfiltered_html capability."
-msgstr "unfiltered_html 権限が必要です。"
-
-#: assets/dist/main.js:106
-msgid "Rendering settings"
-msgstr "レンダリング設定"
-
-#: assets/dist/main.js:106
-msgid "Enable Shadow DOM (DSD)"
-msgstr "Shadow DOM（DSD）を有効化"
-
-#: assets/dist/main.js:106
-msgid "Prevents interference from existing theme CSS. Note: external CSS/JS libraries that do not support Shadow DOM may not style or behave as expected."
-msgstr "既存テーマの CSS との干渉を防ぎます。※ Shadow DOM に未対応の外部 CSS / JS ライブラリは、スタイルや動作が期待どおりにならない場合があります。"
-
-#: assets/dist/main.js:106
-msgid "External resource settings"
-msgstr "外部リソース設定"
-
-#: assets/dist/main.js:106
-msgid "These files are requested from third-party servers in preview and front-end output. Add only trusted URLs."
-msgstr "これらのファイルはプレビューとフロントエンド出力時に第三者サーバーへリクエストされます。信頼できる URL のみ追加してください。"
-
-#: assets/dist/main.js:106
-msgid "External scripts"
-msgstr "外部スクリプト"
-
-#: assets/dist/main.js:106
-msgid "https://example.com/script.js"
-msgstr "https://example.com/script.js"
-
-#: assets/dist/main.js:106
-msgid "Remove external script"
-msgstr "外部スクリプトを削除"
-
-#: assets/dist/main.js:106
-msgid "Remove"
-msgstr "削除"
-
-#: assets/dist/main.js:106
-msgid "Add external script"
-msgstr "外部スクリプトを追加"
-
-#: assets/dist/main.js:106
-msgid "Add"
-msgstr "追加"
-
-#: assets/dist/main.js:106
-#, js-format
-msgid "Only URLs starting with https:// are allowed. You can add up to %d items."
-msgstr "https:// で始まる URL のみ許可されます。最大 %d 件まで追加できます。"
-
-#: assets/dist/main.js:106
-msgid "External styles"
-msgstr "外部スタイル"
-
-#: assets/dist/main.js:106
-msgid "https://example.com/style.css"
-msgstr "https://example.com/style.css"
-
-#: assets/dist/main.js:106
-msgid "Remove external style"
-msgstr "外部スタイルを削除"
-
-#: assets/dist/main.js:106
-msgid "Add external style"
-msgstr "外部スタイルを追加"
-
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Display settings"
 msgstr "表示設定"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Enable live edit highlight"
 msgstr "ライブ編集ハイライトを有効化"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Elements"
 msgstr "要素"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Text"
 msgstr "テキスト"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Attributes"
 msgstr "属性"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Attribute name"
 msgstr "属性名"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Value"
 msgstr "値"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Remove attribute"
 msgstr "属性を削除"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
+msgid "Remove"
+msgstr "削除"
+
+#: assets/dist/main.js:96
 msgid "Add attribute"
 msgstr "属性を追加"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Select an element in the preview to edit its content and attributes."
 msgstr "プレビューで要素を選択して、内容と属性を編集します。"
 
-#: assets/dist/main.js:106
-#, js-format
-msgid "You can add up to %d external scripts."
-msgstr "外部スクリプトは最大 %d 件まで追加できます。"
+#: assets/dist/main.js:96
+msgid "Settings"
+msgstr "設定"
 
-#: assets/dist/main.js:106
-#, js-format
-msgid "You can add up to %d external styles."
-msgstr "外部スタイルは最大 %d 件まで追加できます。"
-
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Settings tabs"
 msgstr "設定タブ"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Close settings panel"
 msgstr "設定パネルを閉じる"
 
-#: assets/dist/main.js:106
-msgid "Import file is not a valid JSON object."
-msgstr "インポートファイルは有効な JSON オブジェクトではありません。"
-
-#: assets/dist/main.js:106
-msgid "Invalid JSON file."
-msgstr "JSON ファイルが不正です。"
-
-#: assets/dist/main.js:106
-msgid "Import unavailable."
-msgstr "インポートを利用できません。"
-
-#: assets/dist/main.js:106
-msgid "Select a JSON file to import."
-msgstr "インポートする JSON ファイルを選択してください。"
-
-#: assets/dist/main.js:106
-msgid "Import failed."
-msgstr "インポートに失敗しました。"
-
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
-msgid "Setup failed."
-msgstr "セットアップに失敗しました。"
-
-#: assets/dist/main.js:106
-msgid "Choose editor mode"
-msgstr "エディターモードを選択"
-
-#: assets/dist/main.js:106
-msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
-msgstr "TailwindCSS または Normal モードを選択してください。この選択は後から変更できません。"
-
-#: assets/dist/main.js:106
-msgid "Normal (HTML/CSS)"
-msgstr "Normal（HTML/CSS）"
-
-#: assets/dist/main.js:106
-msgid "Edit HTML and CSS directly in the code editor."
-msgstr "コードエディターで HTML と CSS を直接編集します。"
-
-#: assets/dist/main.js:106
-msgid "Use utility classes. CSS is compiled automatically."
-msgstr "ユーティリティクラスを使用します。CSS は自動でコンパイルされます。"
-
-#: assets/dist/main.js:106
-msgid "Import JSON"
-msgstr "JSON をインポート"
-
-#: assets/dist/main.js:106
-msgid "Restore from an exported KayzArt JSON file."
-msgstr "エクスポートした KayzArt JSON ファイルから復元します。"
-
-#: assets/dist/main.js:106
-msgid "Choose JSON file"
-msgstr "JSON ファイルを選択"
-
-#: assets/dist/main.js:106
-msgid "No file selected."
-msgstr "ファイルが選択されていません。"
-
-#: assets/dist/main.js:106
-msgid "Back"
-msgstr "戻る"
-
-#: assets/dist/main.js:106
-msgid "Continue"
-msgstr "続行"
-
-#: assets/dist/main.js:106
-msgid "Setup unavailable."
-msgstr "セットアップを利用できません。"
-
-#: assets/dist/main.js:106
-msgid "wp.apiFetch is unavailable."
-msgstr "wp.apiFetch を利用できません。"
-
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Show code"
 msgstr "コードを表示"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Hide code"
 msgstr "コードを隠す"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "View post"
 msgstr "投稿を表示"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Preview"
 msgstr "プレビュー"
 
-#: assets/dist/main.js:106
-msgid "Close settings"
-msgstr "設定を閉じる"
-
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Desktop"
 msgstr "デスクトップ"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Tablet"
 msgstr "タブレット"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Mobile"
 msgstr "モバイル"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Back to WordPress"
 msgstr "WordPress に戻る"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "(Draft)"
 msgstr "（下書き）"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Tailwind CSS"
 msgstr "Tailwind CSS"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Editing in Tailwind CSS mode"
 msgstr "Tailwind CSS モードで編集中"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Save draft"
 msgstr "下書きを保存"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Save for review"
 msgstr "レビュー待ちで保存"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Update as private"
 msgstr "非公開として更新"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Update"
 msgstr "更新"
 
-#: assets/dist/main.js:106
-msgid "Export"
-msgstr "エクスポート"
-
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Publish"
 msgstr "公開"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Move to review"
 msgstr "レビュー待ちにする"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Make private"
 msgstr "非公開にする"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Revert to draft"
 msgstr "下書きに戻す"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
+#: assets/dist/main.js:96
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
 msgid "Update failed."
 msgstr "更新に失敗しました。"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Undo"
 msgstr "元に戻す"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Redo"
 msgstr "やり直し"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Title"
 msgstr "タイトル"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
+#: assets/dist/main.js:96
 msgid "Close"
 msgstr "閉じる"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Slug"
 msgstr "スラッグ"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
+#: assets/dist/main.js:150
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:127
+#: assets/dist/main.js:96
+#: assets/dist/main.js:150
+msgid "Saving..."
+msgstr "保存中..."
+
+#: assets/dist/main.js:96
+#: assets/dist/main.js:153
 msgid "Save"
 msgstr "保存"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Save options"
 msgstr "保存オプション"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 #, js-format
 msgid "Status: %s"
 msgstr "ステータス: %s"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Draft"
 msgstr "下書き"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Pending"
 msgstr "レビュー待ち"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Private"
 msgstr "非公開"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Scheduled"
 msgstr "予約投稿"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Published"
 msgstr "公開済み"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
+msgid "JavaScript mode"
+msgstr "JavaScript モード"
+
+#: assets/dist/main.js:96
+msgid "type: classic script"
+msgstr "type: classic script"
+
+#: assets/dist/main.js:96
+msgid "type: module"
+msgstr "type: module"
+
+#: assets/dist/main.js:96
+#: assets/dist/main.js:150
 msgid "HTML"
 msgstr "HTML"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
+#: assets/dist/main.js:99
+#: assets/dist/main.js:150
 msgid "CSS"
 msgstr "CSS"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
+#: assets/dist/main.js:150
+msgid "head"
+msgstr "head"
+
+#: assets/dist/main.js:96
+#: assets/dist/main.js:99
 msgid "JavaScript"
 msgstr "JavaScript"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
 msgid "Add Media"
 msgstr "メディアを追加"
 
-#: assets/dist/main.js:106
+#: assets/dist/main.js:96
+#: assets/dist/main.js:99
 msgid "Run"
 msgstr "実行"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:125
-msgid "Shadow DOM Hint"
-msgstr "Shadow DOM ヒント"
+#: assets/dist/main.js:96
+msgid "Reload preview to apply head and JavaScript changes."
+msgstr "head と JavaScript の変更はプレビューをリロードすると反映されます。"
 
-#: assets/dist/main.js:106
-#: assets/dist/main.js:125
-msgid "Tailwind CSS Hint"
-msgstr "Tailwind CSS ヒント"
+#: assets/dist/main.js:96
+#: assets/dist/main.js:153
+msgid "Wrap: Off"
+msgstr "折り返し: オフ"
 
-#: assets/dist/main.js:125
+#: assets/dist/main.js:96
+msgid ""
+"head内に追加するコードを入力します。\n"
+"外部CSS、Google Fonts、OGP、構造化データなどに使用できます。\n"
+"外部JSはここ、またはHTMLエディタ下部に<script src=\"\">として書いてください。\n"
+"※ <title>、<meta charset>、viewport、<base> は使用できません。"
+msgstr ""
+"head内に追加するコードを入力します。\\n"
+"外部CSS、Google Fonts、OGP、構造化データなどに使用できます。\\n"
+"外部JSはここ、またはHTMLエディタ下部に<script src=\"\">として書いてください。\\n"
+"※ <title>、<meta charset>、viewport、<base> は使用できません。"
+
+#: assets/dist/main.js:150
 msgid "Tailwind compile failed."
 msgstr "Tailwind のコンパイルに失敗しました。"
 
-#: assets/dist/main.js:125
+#: assets/dist/main.js:150
 #, js-format
 msgid "Tailwind error: %s"
 msgstr "Tailwind エラー: %s"
 
-#: assets/dist/main.js:125
-#: assets/dist/main.js:127
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
 msgid "Save failed."
 msgstr "保存に失敗しました。"
 
-#: assets/dist/main.js:125
+#: assets/dist/main.js:150
 msgid "Fix settings errors before saving."
 msgstr "保存前に設定エラーを修正してください。"
 
-#: assets/dist/main.js:125
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
+#, js-format
+msgid "Removed unsupported head tags: %s"
+msgstr "サポートされていない head タグを削除しました: %s"
+
+#: assets/dist/main.js:150
 msgid "Saved."
 msgstr "保存しました。"
 
-#: assets/dist/main.js:125
+#: assets/dist/main.js:150
 #, js-format
 msgid "Save error: %s"
 msgstr "保存エラー: %s"
 
-#: assets/dist/main.js:125
-msgid "Export unavailable."
-msgstr "エクスポートを利用できません。"
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
+msgid "Setup failed."
+msgstr "セットアップに失敗しました。"
 
-#: assets/dist/main.js:125
-msgid "Exporting..."
-msgstr "エクスポート中..."
+#: assets/dist/main.js:150
+msgid "Choose editor mode"
+msgstr "エディターモードを選択"
 
-#: assets/dist/main.js:125
-msgid "Exported."
-msgstr "エクスポートしました。"
+#: assets/dist/main.js:150
+msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
+msgstr "TailwindCSS またはノーマルモードを選択してください。この選択は後から変更できません。"
 
-#: assets/dist/main.js:125
-#, js-format
-msgid "Export error: %s"
-msgstr "エクスポートエラー: %s"
+#: assets/dist/main.js:150
+msgid "Normal (HTML/CSS)"
+msgstr "ノーマル（HTML/CSS）"
 
-#: assets/dist/main.js:125
-msgid "Export failed."
-msgstr "エクスポートに失敗しました。"
+#: assets/dist/main.js:150
+msgid "Edit HTML and CSS directly in the code editor."
+msgstr "コードエディターで HTML と CSS を直接編集します。"
 
-#: assets/dist/main.js:125
-msgid "When Shadow DOM is enabled, HTML is rendered inside the Shadow Root."
-msgstr "Shadow DOM を有効にすると、HTML は Shadow Root 内にレンダリングされます。"
+#: assets/dist/main.js:150
+msgid "Use utility classes. CSS is compiled automatically."
+msgstr "ユーティリティクラスを使用します。CSS は自動的にコンパイルされます。"
 
-#: assets/dist/main.js:125
-msgid "Use the root below (scoped to this script) instead of document to query elements."
-msgstr "要素の取得には document の代わりに、下記の root（このスクリプト内で有効）を使用してください。"
+#: assets/dist/main.js:150
+msgid "Back"
+msgstr "戻る"
 
-#: assets/dist/main.js:125
-msgid "Note: root can be Document or ShadowRoot; create* APIs are only on Document."
-msgstr "注: root は Document または ShadowRoot です。create* API は Document でのみ利用できます。"
+#: assets/dist/main.js:150
+msgid "Continue"
+msgstr "続行"
 
-#: assets/dist/main.js:125
-msgid "In module mode, use the default export function to receive runtime context."
-msgstr "module モードでは、default export 関数を使ってランタイムコンテキストを受け取ってください。"
+#: assets/dist/main.js:150
+msgid "Setup unavailable."
+msgstr "セットアップを利用できません。"
 
-#: assets/dist/main.js:125
-msgid "Shadow DOM ON: root is ShadowRoot. Shadow DOM OFF: root is document."
-msgstr "Shadow DOM ON: root は ShadowRoot です。Shadow DOM OFF: root は document です。"
+#: assets/dist/main.js:150
+msgid "wp.apiFetch is unavailable."
+msgstr "wp.apiFetch を利用できません。"
 
-#: assets/dist/main.js:125
-msgid "To disable Tailwind CSS preflight (reset CSS), replace `@import \"tailwindcss\";` with the imports below."
-msgstr "Tailwind CSS の preflight（リセット CSS）を無効にするには、`@import \"tailwindcss\";` を下記の import に置き換えてください。"
+#: assets/dist/main.js:150
+msgid "Complete HTML detected"
+msgstr "完全な HTML を検出しました"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:150
+msgid "body content and body attributes"
+msgstr "body の内容と body 属性"
+
+#: assets/dist/main.js:150
+msgid "head additions"
+msgstr "head への追加"
+
+#: assets/dist/main.js:150
+msgid "style tags"
+msgstr "style タグ"
+
+#: assets/dist/main.js:150
+msgid "JS"
+msgstr "JS"
+
+#: assets/dist/main.js:150
+msgid "inline script tags"
+msgstr "インライン script タグ"
+
+#: assets/dist/main.js:150
+msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
+msgstr "貼り付けられたコードは完全な HTML ドキュメントのようです。抽出したどの部分で対応するエディター内容を置き換えるか選択してください。"
+
+#: assets/dist/main.js:150
+msgid "JavaScript will not be imported because your account cannot edit it."
+msgstr "このアカウントでは JavaScript を編集できないため、JavaScript はインポートされません。"
+
+#: assets/dist/main.js:150
+msgid "Replace"
+msgstr "置き換え"
+
+#: assets/dist/main.js:150
+msgid "Skip"
+msgstr "スキップ"
+
+#: assets/dist/main.js:150
+msgid "Paste as HTML"
+msgstr "HTML として貼り付け"
+
+#: assets/dist/main.js:150
+msgid "Split and import"
+msgstr "分割してインポート"
+
+#: assets/dist/main.js:150
 msgid "Theme template unavailable"
 msgstr "テーマテンプレートを利用できません"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:150
 msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone."
 msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。KayzArt はテンプレートモードを Standalone に切り替えます。"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:150
 msgid "OK"
 msgstr "OK"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:150
 msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
 msgstr "テンプレートモードを切り替えてもプレビューマーカーが見つかりません。現在のテンプレートは \"the_content\" を出力していません。"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
 msgid "Settings unavailable."
 msgstr "設定を利用できません。"
 
-#: assets/dist/main.js:127
-msgid "Setup wizard unavailable."
-msgstr "セットアップウィザードを利用できません。"
-
-#: assets/dist/main.js:127
-msgid "Wrap: On"
-msgstr "折り返し: オン"
-
-#: assets/dist/main.js:127
-msgid "Wrap: Off"
-msgstr "折り返し: オフ"
-
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
 msgid "Toggle HTML word wrap"
 msgstr "HTML の折り返しを切り替え"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
+msgid "Wrap: On"
+msgstr "折り返し: オン"
+
+#: assets/dist/main.js:153
 msgid "Loading editor..."
 msgstr "エディターを読み込み中..."
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
 msgid "You may have unsaved changes."
 msgstr "未保存の変更がある可能性があります。"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
 msgid "Media library is unavailable."
 msgstr "メディアライブラリを利用できません。"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
 msgid "Select media to insert into HTML."
 msgstr "HTML に挿入するメディアを選択してください。"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
 msgid "Insert into HTML"
 msgstr "HTML に挿入"
 
-#: assets/dist/main.js:127
+#: assets/dist/main.js:153
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアには URL がないため、挿入されませんでした。"
-
-#: includes/class-kayzart-admin.php:416
-msgid "External embed"
-msgstr "外部埋め込み"
-
-#: includes/class-kayzart-admin.php:423
-msgid "Allowed shortcode tags"
-msgstr "許可するショートコードタグ"
-
-#: includes/class-kayzart-admin.php:563
-msgid "Control which shortcode tags are allowed to execute inside external embeds."
-msgstr "外部埋め込み内で実行を許可するショートコードタグを設定します。"
-
-#: includes/class-kayzart-admin.php:606
-msgid "One shortcode tag per line. Only these tags run inside external embeds ([kayzart post_id=\"...\"]). Other tags stay as plain text."
-msgstr "1行に1つのショートコードタグを入力してください。外部埋め込み（[kayzart post_id=\"...\"]）内では、ここで指定したタグだけを実行します。指定外のタグはプレーンテキストのまま表示されます。"
-
-#: assets/dist/main.js:106
-msgid "Enable external embedding"
-msgstr "外部埋め込みを有効化"
-
-#: assets/dist/main.js:106
-msgid "KayzArt embed code"
-msgstr "KayzArt 埋め込みコード"
-
-#: assets/dist/main.js:106
-msgid "Copy embed code"
-msgstr "埋め込みコードをコピー"
-
-#: assets/dist/main.js:106
-msgid "You can paste this embed code into a Shortcode block in Gutenberg or Elementor."
-msgstr "この埋め込みコードは Gutenberg または Elementor のショートコードブロックに貼り付けできます。"

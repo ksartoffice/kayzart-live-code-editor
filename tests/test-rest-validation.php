@@ -20,222 +20,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	public function test_import_rejects_invalid_version(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload               = $this->get_import_payload_base();
-		$payload['version']    = 2;
-		$response              = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Invalid import version should fail.' );
-	}
-
-	public function test_import_rejects_invalid_tailwind_enabled_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                    = $this->get_import_payload_base();
-		$payload['tailwindEnabled'] = 'yes';
-		$response                   = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'tailwindEnabled must be boolean.' );
-	}
-
-	public function test_import_rejects_invalid_external_scripts_url(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                    = $this->get_import_payload_base();
-		$payload['externalScripts'] = array( 'http://example.com/script.js' );
-		$response                   = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External scripts must be https URLs.' );
-	}
-
-	public function test_import_rejects_invalid_js_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload        = $this->get_import_payload_base();
-		$payload['js']  = array( 'alert(1)' );
-		$response       = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'JavaScript must be string when provided.' );
-	}
-
-	public function test_import_rejects_invalid_js_mode(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload           = $this->get_import_payload_base();
-		$payload['jsMode'] = 'esm';
-		$response          = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'jsMode must be one of classic/module.' );
-	}
-
-	public function test_import_rejects_invalid_generated_css_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload               = $this->get_import_payload_base();
-		$payload['generatedCss'] = array( 'body { color: red; }' );
-		$response              = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'generatedCss must be string when provided.' );
-	}
-
-	public function test_import_rejects_invalid_shadow_dom_enabled_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                    = $this->get_import_payload_base();
-		$payload['shadowDomEnabled'] = 'yes';
-		$response                   = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'shadowDomEnabled must be boolean.' );
-	}
-
-	public function test_import_rejects_invalid_shortcode_enabled_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                    = $this->get_import_payload_base();
-		$payload['shortcodeEnabled'] = 1;
-		$response                   = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'shortcodeEnabled must be boolean.' );
-	}
-
-	public function test_import_rejects_invalid_single_page_enabled_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                     = $this->get_import_payload_base();
-		$payload['singlePageEnabled'] = 'true';
-		$response                    = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'singlePageEnabled must be boolean.' );
-	}
-
-	public function test_import_rejects_invalid_live_highlight_enabled_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                       = $this->get_import_payload_base();
-		$payload['liveHighlightEnabled'] = 'false';
-		$response                      = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'liveHighlightEnabled must be boolean.' );
-	}
-
-	public function test_import_rejects_invalid_external_styles_type(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                   = $this->get_import_payload_base();
-		$payload['externalStyles'] = 'https://example.com/style.css';
-		$response                  = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'externalStyles must be an array.' );
-	}
-
-	public function test_import_rejects_invalid_external_styles_url(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$payload                   = $this->get_import_payload_base();
-		$payload['externalStyles'] = array( 'http://example.com/style.css' );
-		$response                  = $this->dispatch_route(
-			'/kayzart/v1/import',
-			array(
-				'post_id' => $post_id,
-				'payload' => $payload,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External styles must be https URLs.' );
-	}
-
 	public function test_settings_rejects_non_array_updates(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -250,102 +34,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 400, $response->get_status(), 'Updates payload must be array.' );
-	}
-
-	public function test_settings_rejects_external_scripts_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalScripts' => array(
-						'https://example.com/1.js',
-						'https://example.com/2.js',
-						'https://example.com/3.js',
-						'https://example.com/4.js',
-						'https://example.com/5.js',
-						'https://example.com/6.js',
-						'https://example.com/7.js',
-						'https://example.com/8.js',
-						'https://example.com/9.js',
-						'https://example.com/10.js',
-						'https://example.com/11.js',
-					),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External scripts should respect the max limit.' );
-	}
-
-	public function test_settings_rejects_external_scripts_invalid_url(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalScripts' => array( 'http://example.com/app.js' ),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External scripts must be https URLs.' );
-	}
-
-	public function test_settings_rejects_external_styles_invalid_url(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalStyles' => array( 'javascript:alert(1)' ),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External styles must be https URLs.' );
-	}
-
-	public function test_settings_rejects_external_styles_over_limit(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/settings',
-			array(
-				'post_id' => $post_id,
-				'updates' => array(
-					'externalStyles' => array(
-						'https://example.com/1.css',
-						'https://example.com/2.css',
-						'https://example.com/3.css',
-						'https://example.com/4.css',
-						'https://example.com/5.css',
-						'https://example.com/6.css',
-						'https://example.com/7.css',
-						'https://example.com/8.css',
-						'https://example.com/9.css',
-						'https://example.com/10.css',
-						'https://example.com/11.css',
-					),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'External styles should respect the max limit.' );
 	}
 
 	public function test_settings_slug_is_sanitized_before_save(): void {
@@ -411,6 +99,56 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( $resolved_slug, (string) $post->post_name );
 	}
 
+	public function test_save_rejects_invalid_settings_updates_and_preserves_content(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Before save',
+			)
+		);
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => 'After save',
+				'css'             => '',
+				'tailwindEnabled' => false,
+				'settingsUpdates' => 'invalid',
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status(), 'Invalid settings updates should fail save.' );
+
+		$post = get_post( $post_id );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( 'Before save', (string) $post->post_content, 'Content should stay unchanged when settings validation fails.' );
+	}
+
+	public function test_save_rejects_invalid_js_mode(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		wp_set_current_user( $admin_id );
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<p>Invalid mode</p>',
+				'css'             => '',
+				'js'              => 'console.log("x");',
+				'jsMode'          => 'esm',
+				'tailwindEnabled' => false,
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status(), 'Invalid jsMode should fail save.' );
+	}
+
 	public function test_compile_tailwind_rejects_html_over_limit(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -463,58 +201,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should accept exact-limit HTML/CSS.' );
-	}
-
-	public function test_save_rejects_invalid_settings_updates_and_preserves_content(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => 'Before save',
-			)
-		);
-
-		$response = $this->dispatch_route(
-			'/kayzart/v1/save',
-			array(
-				'post_id'         => $post_id,
-				'html'            => 'After save',
-				'css'             => '',
-				'tailwindEnabled' => false,
-				'settingsUpdates' => array(
-					'externalScripts' => array( 'http://example.com/invalid.js' ),
-				),
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Invalid settings updates should fail save.' );
-
-		$post = get_post( $post_id );
-		$this->assertInstanceOf( WP_Post::class, $post );
-		$this->assertSame( 'Before save', (string) $post->post_content, 'Content should stay unchanged when settings validation fails.' );
-	}
-
-	public function test_save_rejects_invalid_js_mode(): void {
-		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		$post_id  = $this->create_kayzart_post( $admin_id );
-
-		wp_set_current_user( $admin_id );
-		$response = $this->dispatch_route(
-			'/kayzart/v1/save',
-			array(
-				'post_id'         => $post_id,
-				'html'            => '<p>Invalid mode</p>',
-				'css'             => '',
-				'js'              => 'console.log("x");',
-				'jsMode'          => 'esm',
-				'tailwindEnabled' => false,
-			)
-		);
-
-		$this->assertSame( 400, $response->get_status(), 'Invalid jsMode should fail save.' );
 	}
 
 	public function test_save_rejects_tailwind_input_over_limit_and_preserves_content(): void {
@@ -631,6 +317,20 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		);
 	}
 
+	private function get_tailwind_css_base(): string {
+		return '@import "tailwindcss";';
+	}
+
+	private function build_tailwind_css_of_size( int $bytes ): string {
+		$base = $this->get_tailwind_css_base();
+		if ( strlen( $base ) >= $bytes ) {
+			return substr( $base, 0, $bytes );
+		}
+
+		$pad = $bytes - strlen( $base );
+		return $base . str_repeat( ' ', $pad );
+	}
+
 	private function dispatch_route( string $route, array $params ): WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', $route );
 		foreach ( $params as $key => $value ) {
@@ -644,33 +344,6 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			$this->fail( $response->get_error_message() );
 		}
 		return $response;
-	}
-
-	private function get_import_payload_base(): array {
-		return array(
-			'version'         => 1,
-			'html'            => '<p>Import</p>',
-			'css'             => '',
-			'tailwindEnabled' => false,
-		);
-	}
-
-	private function get_tailwind_css_base(): string {
-		return "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n";
-	}
-
-	private function build_tailwind_css_of_size( int $bytes ): string {
-		$base = $this->get_tailwind_css_base();
-		if ( strlen( $base ) >= $bytes ) {
-			return substr( $base, 0, $bytes );
-		}
-
-		$pad = $bytes - strlen( $base );
-		if ( $pad < 4 ) {
-			return $base . str_repeat( 'a', $pad );
-		}
-
-		return $base . '/*' . str_repeat( 'a', $pad - 4 ) . '*/';
 	}
 
 }

@@ -26,24 +26,8 @@ Features:
 * Normal / TailwindCSS setup per landing page
 * JavaScript ES Module support with execution type switch (Classic / Module)
 * Live edit highlight and real-time DOM selection
-* Optional trusted external scripts/styles (https only)
 
-External connections and privacy:
-* By default, KayzArt does not contact external servers and does not send telemetry.
-* External requests happen only when an authorized user explicitly adds external HTTPS script or stylesheet URLs in the KayzArt settings for a page.
-* Added external resources are requested by the visitor's browser in the editor preview and on the front-end output where that KayzArt content is rendered.
-* Add only URLs that you trust.
-
-Development repository and build:
-* Source repository: https://github.com/ksartoffice/kayzart-live-code-editor
-* Generated files used by WordPress: assets/dist/main.js and assets/dist/style.css
-* Source files for generated assets: src/admin/main.ts, src/admin/style.css, and related files under src/admin/
-* Build configuration files: package.json, package-lock.json, vite.config.ts, tsconfig.json
-* Build steps:
-1. npm install
-2. composer install
-3. npm run build
-4. npm run plugin-zip
+Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/kayzart-live-code-editor/.
@@ -79,31 +63,8 @@ Choose Standalone for theme-independent landing pages. Choose Theme if you want 
 = Can I use TailwindCSS? =
 Yes. When creating a landing page, choose TailwindCSS mode to use utility classes with automatic CSS compilation.
 
-= Who can edit JavaScript and external resources? =
-Users who can edit the page can use the editor. JavaScript and external scripts/styles require the unfiltered_html capability.
-
-= Does KayzArt contact external servers by default? =
-No. KayzArt does not contact external servers by default and does not send telemetry. External requests happen only when an authorized user adds trusted HTTPS script or stylesheet URLs in the page settings.
-
 = Where is the code stored? =
-HTML is stored in the WordPress post content. CSS, JavaScript, TailwindCSS mode, template mode, external resource URLs, and other KayzArt settings are stored in post meta.
-
-= Where is the source code for the generated assets? =
-Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
-
-Generated files in the distributed plugin:
-* assets/dist/main.js
-* assets/dist/style.css
-
-Source files and build configuration in this repository:
-* src/admin/main.ts and src/admin/style.css (plus related source files under src/admin/)
-* package.json, package-lock.json, vite.config.ts, tsconfig.json
-
-Build commands:
-1. npm install
-2. composer install
-3. npm run build
-4. npm run plugin-zip
+HTML is stored in the WordPress post content. CSS, JavaScript, TailwindCSS mode, template mode, and other KayzArt settings are stored in post meta.
 
 == Changelog ==
 = 1.3.6 =

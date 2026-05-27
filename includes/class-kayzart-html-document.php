@@ -142,6 +142,7 @@ class Html_Document {
 	 */
 	private static function serialize_children( \DOMDocument $document, \DOMElement $element ): string {
 		$html = '';
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMDocument uses camelCase property names.
 		foreach ( $element->childNodes as $child ) {
 			$html .= $document->saveHTML( $child );
 		}
@@ -157,10 +158,12 @@ class Html_Document {
 	private static function serialize_attributes( \DOMElement $element ): string {
 		$attrs = array();
 		foreach ( $element->attributes as $attr ) {
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMDocument uses camelCase property names.
 			$name = self::sanitize_attr_name( $attr->nodeName );
 			if ( '' === $name ) {
 				continue;
 			}
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMDocument uses camelCase property names.
 			$attrs[ $name ] = (string) $attr->nodeValue;
 		}
 
@@ -211,8 +214,10 @@ class Html_Document {
 
 		$parsed = array();
 		foreach ( $body->attributes as $attr ) {
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMDocument uses camelCase property names.
 			$name = self::sanitize_attr_name( $attr->nodeName );
 			if ( '' !== $name ) {
+				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMDocument uses camelCase property names.
 				$parsed[ $name ] = (string) $attr->nodeValue;
 			}
 		}
@@ -227,7 +232,8 @@ class Html_Document {
 	 * @return string
 	 */
 	private static function normalize_attrs_string( string $attrs ): string {
-		return trim( preg_replace( '/\s+/', ' ', $attrs ) ?: '' );
+		$normalized = preg_replace( '/\s+/', ' ', $attrs );
+		return trim( false === $normalized ? '' : $normalized );
 	}
 
 	/**

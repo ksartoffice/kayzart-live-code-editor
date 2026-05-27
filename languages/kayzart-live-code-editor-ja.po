@@ -514,12 +514,12 @@ msgid "JavaScript mode"
 msgstr "JavaScript モード"
 
 #: assets/dist/main.js:96
-msgid "type: Classic script"
-msgstr "種類: クラシックスクリプト"
+msgid "type: classic script"
+msgstr "type: classic script"
 
 #: assets/dist/main.js:96
-msgid "type: Module"
-msgstr "種類: モジュール"
+msgid "type: module"
+msgstr "type: module"
 
 #: assets/dist/main.js:96
 #: assets/dist/main.js:150

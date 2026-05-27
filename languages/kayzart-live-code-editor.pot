@@ -512,11 +512,11 @@ msgid "JavaScript mode"
 msgstr ""
 
 #: assets/dist/main.js:96
-msgid "type: Classic script"
+msgid "type: classic script"
 msgstr ""
 
 #: assets/dist/main.js:96
-msgid "type: Module"
+msgid "type: module"
 msgstr ""
 
 #: assets/dist/main.js:96

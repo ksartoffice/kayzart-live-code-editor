@@ -37,10 +37,6 @@ Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 5. Edit HTML, CSS, and JavaScript with the live preview, then save.
 6. Optional: go to Settings > Landing page settings to enable KayzArt for posts or supported custom post types.
 
-== Screenshots ==
-1. Live HTML/CSS/JS editor with preview.
-2. Landing page settings and template mode controls.
-
 == Frequently Asked Questions ==
 = How do I create a landing page? =
 Go to Pages > Add landing page. KayzArt creates a draft WordPress page, asks you to choose Normal or TailwindCSS mode, and then opens the live editor.
@@ -59,6 +55,9 @@ Theme mode renders the KayzArt content through the active theme template. Use it
 
 = Which mode should I choose? =
 Choose Standalone for theme-independent landing pages. Choose Theme if you want the page to keep the active theme's layout and styling.
+
+= Are plugin CSS and JavaScript disabled in Standalone mode? =
+No. KayzArt does not disable plugin CSS or JavaScript. Standalone mode only removes the active theme layout and theme assets.
 
 = Can I use TailwindCSS? =
 Yes. When creating a landing page, choose TailwindCSS mode to use utility classes with automatic CSS compilation.

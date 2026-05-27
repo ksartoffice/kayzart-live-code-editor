@@ -18,6 +18,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Frontend {
 	/**
+	 * Tracks which legacy shortcode posts have already rendered inline assets.
+	 *
+	 * @var array<int,bool>
+	 */
+	private static array $shortcode_assets_loaded = array();
+
+	/**
 	 * Tracks whether the runtime has been enqueued.
 	 *
 	 * @var bool
@@ -456,14 +463,91 @@ class Frontend {
 	}
 
 	/**
-	 * Keep the legacy [kayzart] shortcode from leaking as plain text.
+	 * Render legacy [kayzart] shortcodes for posts that had embedding enabled.
 	 *
 	 * @param array $atts Shortcode attributes.
 	 * @return string
 	 */
 	public static function shortcode( $atts = array() ): string {
-		unset( $atts );
-		return '';
+		$atts    = shortcode_atts(
+			array(
+				'post_id' => 0,
+			),
+			(array) $atts,
+			'kayzart'
+		);
+		$post_id = absint( $atts['post_id'] ?? 0 );
+		if ( ! $post_id ) {
+			return '';
+		}
+
+		if ( ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return '';
+		}
+
+		if ( '1' !== get_post_meta( $post_id, '_kayzart_shortcode_enabled', true ) ) {
+			return '';
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post ) {
+			return '';
+		}
+		if ( 'publish' !== $post->post_status && ! current_user_can( 'read_post', $post_id ) ) {
+			return '';
+		}
+		if ( post_password_required( $post ) ) {
+			return '';
+		}
+
+		$style_html = self::prepare_legacy_shortcode_assets( $post_id );
+		return $style_html . (string) $post->post_content . self::build_inline_script_payload( $post_id );
+	}
+
+	/**
+	 * Enqueue legacy shortcode assets once per post and return printable CSS.
+	 *
+	 * @param int $post_id KayzArt post ID.
+	 * @return string
+	 */
+	private static function prepare_legacy_shortcode_assets( int $post_id ): string {
+		$style_html = '';
+		if ( ! isset( self::$shortcode_assets_loaded[ $post_id ] ) ) {
+			self::$shortcode_assets_loaded[ $post_id ] = true;
+			$style_html                                = self::render_legacy_shortcode_styles_html( $post_id );
+		}
+
+		$js = (string) get_post_meta( $post_id, '_kayzart_js', true );
+		if ( '' !== $js ) {
+			self::enqueue_runtime();
+		}
+
+		return $style_html;
+	}
+
+	/**
+	 * Build stylesheet HTML for legacy shortcode rendering.
+	 *
+	 * @param int $post_id KayzArt post ID.
+	 * @return string
+	 */
+	private static function render_legacy_shortcode_styles_html( int $post_id ): string {
+		$css = self::get_css_for_post( $post_id );
+		if ( '' === $css ) {
+			return '';
+		}
+
+		$handle = 'kayzart-shortcode-style-' . $post_id;
+		if ( ! wp_style_is( $handle, 'registered' ) ) {
+			wp_register_style( $handle, false, array(), KAYZART_VERSION );
+		}
+
+		wp_enqueue_style( $handle );
+		wp_add_inline_style( $handle, self::sanitize_inline_style_css( $css ) );
+
+		ob_start();
+		wp_print_styles( array( $handle ) );
+		return (string) ob_get_clean();
 	}
 
 	/**

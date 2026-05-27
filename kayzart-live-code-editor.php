@@ -3,7 +3,7 @@
  * Plugin Name: KayzArt Landing Page Editor
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Create theme-independent landing pages with live HTML, CSS, and JavaScript editing in WordPress.
- * Version: 1.3.6
+ * Version: 2.0.0
  * Requires at least: 5.9
  * Tested up to: 7.0
  * Requires PHP: 7.4
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '1.3.6' );
+define( 'KAYZART_VERSION', '2.0.0' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 

@@ -4,7 +4,7 @@ Tags: live preview, code editor, codemirror, landing page
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.3.6
+Stable tag: 2.0.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,11 @@ Yes. When creating a landing page, choose TailwindCSS mode to use utility classe
 HTML is stored in the WordPress post content. CSS, JavaScript, TailwindCSS mode, template mode, and other KayzArt settings are stored in post meta.
 
 == Changelog ==
+= 2.0.0 =
+* Refresh: Rebuilt the landing page editor for a simpler workflow.
+* Improve: Streamlined page creation, editing, preview, and settings.
+* Update: Cleaned up legacy features and internal structure.
+
 = 1.3.6 =
 * Update: Minor changes.
 

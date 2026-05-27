@@ -756,7 +756,7 @@ async function main() {
         createSnackbar(
           'warning',
           sprintf(
-            __('Removed unsupported custom head tags: %s', 'kayzart-live-code-editor'),
+            __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
             result.removedHeadTags.join(', ')
           ),
           undefined,

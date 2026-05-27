@@ -50,8 +50,8 @@ describe('editor shell iframe security attributes', () => {
     const ui = buildEditorShell(root);
 
     expect(ui.htmlTab.textContent).toBe('HTML');
-    expect(ui.customHeadTab.textContent).toBe('\u30ab\u30b9\u30bf\u30e0head');
-    expect(ui.compactCustomHeadTab.textContent).toBe('\u30ab\u30b9\u30bf\u30e0head');
+    expect(ui.customHeadTab.textContent).toBe('head');
+    expect(ui.compactCustomHeadTab.textContent).toBe('head');
     expect(ui.customHeadHelp.textContent).toContain('head');
     expect(ui.customHeadHelp.textContent).toContain('<title>');
   });

@@ -110,7 +110,7 @@ function FullHtmlImportModal({
     },
     {
       key: 'customHead' as const,
-      label: __('Custom head', 'kayzart-live-code-editor'),
+      label: __('head', 'kayzart-live-code-editor'),
       detail: __('head additions', 'kayzart-live-code-editor'),
       enabled: true,
     },

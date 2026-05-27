@@ -137,7 +137,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   const compactCustomHeadTab = document.createElement('button');
   compactCustomHeadTab.type = 'button';
   compactCustomHeadTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
-  compactCustomHeadTab.textContent = __( 'カスタムhead', 'kayzart-live-code-editor');
+  compactCustomHeadTab.textContent = __( 'head', 'kayzart-live-code-editor');
   const compactJsTab = document.createElement('button');
   compactJsTab.type = 'button';
   compactJsTab.className = 'kayzart-editorTab kayzart-compactEditorTab';
@@ -173,7 +173,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   const customHeadTab = document.createElement('button');
   customHeadTab.type = 'button';
   customHeadTab.className = 'kayzart-editorTab';
-  customHeadTab.textContent = __( 'カスタムhead', 'kayzart-live-code-editor');
+  customHeadTab.textContent = __( 'head', 'kayzart-live-code-editor');
   htmlTabs.append(htmlTab, customHeadTab);
   const htmlActions = el('div', 'kayzart-editorActions');
   const addMediaButton = document.createElement('button');

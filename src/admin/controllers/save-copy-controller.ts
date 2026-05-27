@@ -196,7 +196,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         deps.createSnackbar(
           'warning',
           sprintf(
-            __('Removed unsupported custom head tags: %s', 'kayzart-live-code-editor'),
+            __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
             customHeadSanitized.removedTags.join(', ')
           ),
           deps.noticeIds.save,
@@ -226,7 +226,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
           deps.createSnackbar(
             'warning',
             sprintf(
-              __('Removed unsupported custom head tags: %s', 'kayzart-live-code-editor'),
+              __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
               result.customHeadRemovedTags.join(', ')
             ),
             deps.noticeIds.save,

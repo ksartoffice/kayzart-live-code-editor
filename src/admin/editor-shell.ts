@@ -1,6 +1,6 @@
 import { __ } from '@wordpress/i18n';
 
-import { ImagePlus, Play } from 'lucide';
+import { ImagePlus, Play, Upload } from 'lucide';
 import { renderLucideIcon } from './lucide-icons';
 
 type EditorShellRefs = {
@@ -13,12 +13,14 @@ type EditorShellRefs = {
   compactCssTab: HTMLButtonElement;
   compactJsTab: HTMLButtonElement;
   compactJsModeSelect: HTMLSelectElement;
+  compactFullHtmlImportButton: HTMLButtonElement;
   compactAddMediaButton: HTMLButtonElement;
   compactRunButton: HTMLButtonElement;
   htmlHeader: HTMLDivElement;
   htmlTitle: HTMLSpanElement;
   htmlTab: HTMLButtonElement;
   customHeadTab: HTMLButtonElement;
+  fullHtmlImportButton: HTMLButtonElement;
   addMediaButton: HTMLButtonElement;
   htmlWordWrapButton: HTMLButtonElement;
   htmlEditorDiv: HTMLDivElement;
@@ -115,6 +117,9 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   settings.append(settingsInner);
 
   const compactIcons = {
+    fullHtmlImport: renderLucideIcon(Upload, {
+      class: 'lucide lucide-upload-icon lucide-upload',
+    }),
     media: renderLucideIcon(ImagePlus, {
       class: 'lucide lucide-image-plus-icon lucide-image-plus',
     }),
@@ -144,6 +149,11 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   compactJsTab.textContent = __( 'JavaScript', 'kayzart-live-code-editor');
   const compactJsModeSelect = createJsModeSelect('kayzart-formSelect kayzart-jsModeSelect kayzart-compactJsModeSelect');
   compactEditorTabsList.append(compactHtmlTab, compactCustomHeadTab, compactCssTab, compactJsTab);
+  const compactFullHtmlImportButton = createCompactActionButton(
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-fullHtmlImport',
+    __( 'フルHTML取込み', 'kayzart-live-code-editor'),
+    compactIcons.fullHtmlImport
+  );
   const compactAddMediaButton = createCompactActionButton(
     'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-media',
     __( 'Add Media', 'kayzart-live-code-editor'),
@@ -155,6 +165,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactIcons.run
   );
   compactEditorActions.append(
+    compactFullHtmlImportButton,
     compactAddMediaButton,
     compactJsModeSelect,
     compactRunButton,
@@ -176,6 +187,10 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   customHeadTab.textContent = __( 'head', 'kayzart-live-code-editor');
   htmlTabs.append(htmlTab, customHeadTab);
   const htmlActions = el('div', 'kayzart-editorActions');
+  const fullHtmlImportButton = document.createElement('button');
+  fullHtmlImportButton.type = 'button';
+  fullHtmlImportButton.className = 'kayzart-editorAction kayzart-editorAction-fullHtmlImport';
+  fullHtmlImportButton.textContent = __( 'フルHTML取込み', 'kayzart-live-code-editor');
   const addMediaButton = document.createElement('button');
   addMediaButton.type = 'button';
   addMediaButton.className = 'kayzart-editorAction kayzart-editorAction-media';
@@ -185,7 +200,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   htmlWordWrapButton.className = 'kayzart-editorAction kayzart-editorAction-wrap';
   htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
   htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
-  htmlActions.append(addMediaButton, htmlWordWrapButton);
+  htmlActions.append(fullHtmlImportButton, addMediaButton, htmlWordWrapButton);
   htmlHeader.append(htmlTabs, htmlActions);
   const htmlWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
   const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html is-active');
@@ -260,12 +275,14 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactCssTab,
     compactJsTab,
     compactJsModeSelect,
+    compactFullHtmlImportButton,
     compactAddMediaButton,
     compactRunButton,
     htmlHeader,
     htmlTitle,
     htmlTab,
     customHeadTab,
+    fullHtmlImportButton,
     addMediaButton,
     htmlWordWrapButton,
     htmlEditorDiv,

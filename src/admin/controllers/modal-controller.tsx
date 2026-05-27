@@ -8,6 +8,7 @@ import {
 } from '../logic/template-mode';
 import {
   createFullHtmlImportSelection,
+  parseFullHtmlDocument,
   type FullHtmlImportResult,
   type FullHtmlImportSelection,
 } from '../logic/full-html-import';
@@ -58,6 +59,11 @@ type FullHtmlImportModalProps = {
   onChoose: (action: FullHtmlImportDecision) => void;
 };
 
+type FullHtmlImportSourceModalProps = {
+  onCancel: () => void;
+  onSubmit: (source: string) => void;
+};
+
 function MissingMarkersModal({
   title,
   body,
@@ -83,6 +89,85 @@ function MissingMarkersModal({
             onClick={onConfirm}
           >
             {actionLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FullHtmlImportSourceModal({
+  onCancel,
+  onSubmit,
+}: FullHtmlImportSourceModalProps) {
+  const title = __('フルHTMLを取り込み', 'kayzart-live-code-editor');
+  const cancelLabel = __('Cancel', 'kayzart-live-code-editor');
+  const [source, setSource] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    const nextSource = source.trim();
+    if (!nextSource) {
+      setError(__('HTML全体を貼り付けてください。', 'kayzart-live-code-editor'));
+      return;
+    }
+    if (!parseFullHtmlDocument(nextSource)) {
+      setError(__('フルHTMLとして解析できませんでした。', 'kayzart-live-code-editor'));
+      return;
+    }
+    onSubmit(nextSource);
+  };
+
+  return (
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" onClick={onCancel} />
+      <div
+        className="kayzart-modalDialog kayzart-modalDialog-wide"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
+          <button
+            type="button"
+            className="kayzart-modalClose"
+            aria-label={cancelLabel}
+            onClick={onCancel}
+          >
+            ﾃ・
+          </button>
+        </div>
+        <div className="kayzart-modalBody">
+          <div className="kayzart-hintBody">
+            <p className="kayzart-hintText">
+              {__('HTML全体を貼り付けてください。', 'kayzart-live-code-editor')}
+              <br />
+              {__(
+                'head / body / style / script を自動で分けて取り込みます。',
+                'kayzart-live-code-editor'
+              )}
+            </p>
+            <textarea
+              className="kayzart-fullHtmlImportTextarea"
+              value={source}
+              onChange={(event) => {
+                setSource(event.currentTarget.value);
+                if (error) {
+                  setError('');
+                }
+              }}
+              aria-label={title}
+            />
+            {error ? <div className="kayzart-modalError">{error}</div> : null}
+          </div>
+        </div>
+        <div className="kayzart-modalActions">
+          <button type="button" className="kayzart-btn kayzart-btn-secondary" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button type="button" className="kayzart-btn kayzart-btn-primary" onClick={handleSubmit}>
+            {__('解析する', 'kayzart-live-code-editor')}
           </button>
         </div>
       </div>
@@ -241,6 +326,8 @@ export function createModalController(deps: ModalControllerDeps) {
   let modalRoot: ReturnType<typeof createRoot> | null = null;
   let missingMarkersOpen = false;
   let missingMarkersInFlight = false;
+  let fullHtmlImportSourceOpen = false;
+  let fullHtmlImportSourceResolver: ((source: string | null) => void) | null = null;
   let fullHtmlImportResult: FullHtmlImportResult | null = null;
   let fullHtmlImportCanEditJs = true;
   let fullHtmlImportResolver: ((action: FullHtmlImportDecision) => void) | null = null;
@@ -260,7 +347,7 @@ export function createModalController(deps: ModalControllerDeps) {
   };
 
   const unmountIfIdle = () => {
-    if (missingMarkersOpen || fullHtmlImportResult) {
+    if (missingMarkersOpen || fullHtmlImportSourceOpen || fullHtmlImportResult) {
       return;
     }
     if (modalRoot?.unmount) {
@@ -297,6 +384,12 @@ export function createModalController(deps: ModalControllerDeps) {
             onChoose={closeFullHtmlImportModal}
           />
         ) : null}
+        {fullHtmlImportSourceOpen ? (
+          <FullHtmlImportSourceModal
+            onCancel={() => closeFullHtmlImportSourceModal(null)}
+            onSubmit={(source) => closeFullHtmlImportSourceModal(source)}
+          />
+        ) : null}
       </Fragment>
     );
     if (modalRoot) {
@@ -320,6 +413,15 @@ export function createModalController(deps: ModalControllerDeps) {
     renderModals();
     unmountIfIdle();
     resolver?.(action);
+  }
+
+  function closeFullHtmlImportSourceModal(source: string | null) {
+    const resolver = fullHtmlImportSourceResolver;
+    fullHtmlImportSourceResolver = null;
+    fullHtmlImportSourceOpen = false;
+    renderModals();
+    unmountIfIdle();
+    resolver?.(source);
   }
 
   const applyMissingMarkersTemplateMode = async () => {
@@ -433,8 +535,21 @@ export function createModalController(deps: ModalControllerDeps) {
     });
   };
 
+  const requestFullHtmlImportSource = (): Promise<string | null> => {
+    if (fullHtmlImportSourceResolver) {
+      closeFullHtmlImportSourceModal(null);
+    }
+    ensureMounted();
+    fullHtmlImportSourceOpen = true;
+    renderModals();
+    return new Promise((resolve) => {
+      fullHtmlImportSourceResolver = resolve;
+    });
+  };
+
   return {
     handleMissingMarkers,
+    requestFullHtmlImportSource,
     confirmFullHtmlImport,
   };
 }

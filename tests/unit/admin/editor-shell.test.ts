@@ -39,10 +39,21 @@ describe('editor shell iframe security attributes', () => {
       ui.runButton,
     ]);
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
+      ui.compactFullHtmlImportButton,
       ui.compactAddMediaButton,
       ui.compactJsModeSelect,
       ui.compactRunButton,
     ]);
+  });
+
+  it('places full HTML import buttons next to media buttons', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.fullHtmlImportButton.textContent).toBe('フルHTML取込み');
+    expect(ui.compactFullHtmlImportButton.textContent).toBe('フルHTML取込み');
+    expect(ui.fullHtmlImportButton.nextElementSibling).toBe(ui.addMediaButton);
+    expect(ui.compactFullHtmlImportButton.nextElementSibling).toBe(ui.compactAddMediaButton);
   });
 
   it('renders custom head tabs and help text', () => {

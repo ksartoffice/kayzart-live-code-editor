@@ -1404,6 +1404,10 @@ body.admin_page_kayzart #wpbody-content {
   max-height: 80vh;
 }
 
+.kayzart-modalDialog-wide {
+  width: min(760px, 92vw);
+}
+
 .kayzart-modalHeader {
   display: flex;
   align-items: center;
@@ -1477,6 +1481,38 @@ body.admin_page_kayzart #wpbody-content {
   color: #ff9a9a;
   padding: 0 16px;
   font-size: 12px;
+}
+
+.kayzart-hintBody .kayzart-modalError {
+  padding: 0;
+}
+
+.kayzart-fullHtmlImportTextarea {
+  width: 100%;
+  min-height: 320px;
+  box-sizing: border-box;
+  resize: vertical;
+  background: #11141a;
+  border: 1px solid #2b3340;
+  border-radius: 6px;
+  color: #e6e8ea;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: var(
+    --vscode-editor-font-family,
+    'SFMono-Regular',
+    Menlo,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace
+  );
+}
+
+.kayzart-fullHtmlImportTextarea:focus {
+  outline: 2px solid #4c84ff;
+  outline-offset: 1px;
 }
 
 .kayzart-modalWarning {

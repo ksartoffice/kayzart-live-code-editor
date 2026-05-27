@@ -772,12 +772,11 @@ async function main() {
     }
   };
 
-  const handleFullHtmlPaste = (text: string): boolean => {
-    const result = parseFullHtmlDocument(text);
-    if (!result) {
-      return false;
-    }
-
+  const confirmAndApplyFullHtmlImport = (
+    result: FullHtmlImportResult,
+    source: string,
+    allowKeepAsHtml: boolean
+  ) => {
     void (async () => {
       const action = await modalController?.confirmFullHtmlImport(
         result,
@@ -787,12 +786,35 @@ async function main() {
         applyFullHtmlImport(result, action.selection);
         return;
       }
-      if (action?.type === 'keep') {
-        insertHtmlAtSelection(text);
+      if (allowKeepAsHtml && action?.type === 'keep') {
+        insertHtmlAtSelection(source);
       }
     })();
+  };
+
+  const handleFullHtmlPaste = (text: string): boolean => {
+    const result = parseFullHtmlDocument(text);
+    if (!result) {
+      return false;
+    }
+
+    confirmAndApplyFullHtmlImport(result, text, true);
 
     return true;
+  };
+
+  const openFullHtmlImport = () => {
+    void (async () => {
+      const source = await modalController?.requestFullHtmlImportSource();
+      if (!source) {
+        return;
+      }
+      const result = parseFullHtmlDocument(source);
+      if (!result) {
+        return;
+      }
+      confirmAndApplyFullHtmlImport(result, source, true);
+    })();
   };
 
   // CodeMirror
@@ -814,6 +836,8 @@ async function main() {
 
   ({ codemirror, htmlModel, customHeadModel, cssModel, jsModel, htmlEditor, customHeadEditor, cssEditor, jsEditor } = codeMirrorSetup);
 
+  ui.fullHtmlImportButton.addEventListener('click', openFullHtmlImport);
+  ui.compactFullHtmlImportButton.addEventListener('click', openFullHtmlImport);
   registerSaveShortcut(htmlEditor);
   registerSaveShortcut(customHeadEditor);
   registerSaveShortcut(cssEditor);

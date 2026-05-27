@@ -54,6 +54,14 @@ const isJsonLdScript = (node: ElementNode): boolean =>
   node.tagName.toLowerCase() === 'script' &&
   (getAttr(node, 'type') || '').trim().toLowerCase() === 'application/ld+json';
 
+const isBodyExtractableNode = (node: ElementNode): boolean => {
+  const tagName = node.tagName.toLowerCase();
+  return (
+    tagName === 'style' ||
+    (tagName === 'script' && !getAttr(node, 'src') && !isJsonLdScript(node))
+  );
+};
+
 const classifyForbiddenHeadTag = (node: ElementNode): string | null => {
   const tagName = node.tagName.toLowerCase();
   if (tagName === 'title') {
@@ -85,17 +93,30 @@ const getTextContent = (node: Node): string => {
   return node.childNodes.map(getTextContent).join('');
 };
 
-const serializeOriginalNode = (source: string, node: ElementNode): string => {
+const serializeOriginalNode = (
+  source: string,
+  node: ElementNode,
+  useOriginalSource = true
+): string => {
   const location = node.sourceCodeLocation;
-  if (location && typeof location.startOffset === 'number' && typeof location.endOffset === 'number') {
+  if (
+    useOriginalSource &&
+    location &&
+    typeof location.startOffset === 'number' &&
+    typeof location.endOffset === 'number'
+  ) {
     return source.slice(location.startOffset, location.endOffset);
   }
-  return parse5.serialize(node);
+  return parse5.serializeOuter(node);
 };
 
-const serializeBodyChild = (source: string, node: Node): string => {
+const serializeBodyChild = (
+  source: string,
+  node: Node,
+  changedNodes: WeakSet<ElementNode>
+): string => {
   if (isElement(node)) {
-    return serializeOriginalNode(source, node);
+    return serializeOriginalNode(source, node, !changedNodes.has(node));
   }
   if ('value' in node && typeof node.value === 'string') {
     return node.value;
@@ -132,6 +153,36 @@ const findElement = (node: Node, tagName: string): ElementNode | null => {
   return null;
 };
 
+const removeExtractedBodyNodes = (
+  node: ElementNode,
+  extractedNodes: WeakSet<ElementNode>,
+  changedNodes: WeakSet<ElementNode>
+): boolean => {
+  if (!('childNodes' in node)) {
+    return false;
+  }
+
+  let changed = false;
+  node.childNodes = node.childNodes.filter((child) => {
+    if (isElement(child) && extractedNodes.has(child)) {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+
+  node.childNodes.forEach((child) => {
+    if (isElement(child) && removeExtractedBodyNodes(child, extractedNodes, changedNodes)) {
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    changedNodes.add(node);
+  }
+  return changed;
+};
+
 export function isFullHtmlDocumentPaste(text: string): boolean {
   const lowered = text.toLowerCase();
   return (
@@ -157,6 +208,8 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   const bodyParts: string[] = [];
   const customHeadParts: string[] = [];
   const removedHeadTags: string[] = [];
+  const extractedBodyNodes = new WeakSet<ElementNode>();
+  const changedBodyNodes = new WeakSet<ElementNode>();
   let styleCount = 0;
   let inlineScriptCount = 0;
 
@@ -166,6 +219,10 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
 
     const tagName = node.tagName.toLowerCase();
+    if (isBodyExtractableNode(node)) {
+      extractedBodyNodes.add(node);
+    }
+
     if (tagName === 'style') {
       const css = getTextContent(node).trim();
       if (css) {
@@ -228,17 +285,10 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
   });
 
+  removeExtractedBodyNodes(body, extractedBodyNodes, changedBodyNodes);
+
   body.childNodes.forEach((child) => {
-    if (isElement(child)) {
-      const tagName = child.tagName.toLowerCase();
-      const isExtractedStyle = tagName === 'style';
-      const isExtractedScript =
-        tagName === 'script' && !getAttr(child, 'src') && !isJsonLdScript(child);
-      if (isExtractedStyle || isExtractedScript) {
-        return;
-      }
-    }
-    bodyParts.push(serializeBodyChild(source, child));
+    bodyParts.push(serializeBodyChild(source, child, changedBodyNodes));
   });
 
   return {

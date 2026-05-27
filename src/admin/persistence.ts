@@ -132,11 +132,11 @@ export async function saveKayzArt(
     const payload: Record<string, unknown> = {
       post_id: params.postId,
       html: params.html,
-      customHead: params.customHead,
       css: params.css,
       tailwindEnabled: params.tailwindEnabled,
     };
     if (params.canEditJs) {
+      payload.customHead = params.customHead;
       payload.js = params.js;
       payload.jsMode = params.jsMode;
     }

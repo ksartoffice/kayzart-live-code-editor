@@ -108,4 +108,36 @@ describe('editor ui controller', () => {
     ui.cssTab.click();
     expect(ui.jsModeSelect.style.display).toBe('none');
   });
+
+  it('hides custom head tabs and falls back to HTML when unfiltered HTML is unavailable', () => {
+    const ui = createUi();
+    const htmlEditor = createEditor();
+    const customHeadEditor = createEditor();
+    const cssEditor = createEditor();
+    const jsEditor = createEditor();
+
+    const controller = createEditorUiController({
+      ui,
+      canEditJs: false,
+      htmlEditor,
+      customHeadEditor,
+      cssEditor,
+      jsEditor,
+      compactEditorBreakpoint: 900,
+      getViewportWidth: () => 1200,
+      getJsEnabled: () => true,
+      onOpenMedia: () => {},
+    });
+
+    controller.initialize();
+    controller.setHtmlTab('customHead', { focus: true });
+
+    expect(ui.customHeadTab.style.display).toBe('none');
+    expect(ui.customHeadTab.disabled).toBe(true);
+    expect(ui.compactCustomHeadTab.style.display).toBe('none');
+    expect(ui.compactCustomHeadTab.disabled).toBe(true);
+    expect(controller.getActiveHtmlTab()).toBe('html');
+    expect(htmlEditor.focus).toHaveBeenCalled();
+    expect(customHeadEditor.focus).not.toHaveBeenCalled();
+  });
 });

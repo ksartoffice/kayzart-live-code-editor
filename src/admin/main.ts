@@ -783,7 +783,7 @@ async function main() {
     if (selection.html) {
       replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs, selection));
     }
-    if (selection.customHead) {
+    if (selection.customHead && canEditJs) {
       replaceWholeModelContent(customHeadModel, result.customHead.trim());
       if (result.removedHeadTags.length > 0) {
         createSnackbar(

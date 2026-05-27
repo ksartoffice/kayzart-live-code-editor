@@ -197,7 +197,7 @@ function FullHtmlImportModal({
       key: 'customHead' as const,
       label: __('head', 'kayzart-live-code-editor'),
       detail: __('head additions', 'kayzart-live-code-editor'),
-      enabled: true,
+      enabled: canEditJs,
     },
     {
       key: 'css' as const,
@@ -241,7 +241,7 @@ function FullHtmlImportModal({
             {!canEditJs ? (
               <p className="kayzart-modalWarning">
                 {__(
-                  'JavaScript will not be imported because your account cannot edit it.',
+                  'head HTML and JavaScript will not be imported because your account cannot edit them.',
                   'kayzart-live-code-editor'
                 )}
               </p>

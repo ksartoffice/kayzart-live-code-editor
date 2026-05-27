@@ -109,10 +109,10 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       };
     }
     const htmlDirty = htmlModel.getValue() !== lastSaved.html;
-    const customHeadDirty = customHeadModel.getValue() !== lastSaved.customHead;
+    const customHeadDirty = deps.canEditJs && customHeadModel.getValue() !== lastSaved.customHead;
     const cssDirty = cssModel.getValue() !== lastSaved.css;
-    const jsDirty = jsModel.getValue() !== lastSaved.js;
-    const jsModeDirty = deps.getJsMode() !== lastSaved.jsMode;
+    const jsDirty = deps.canEditJs && jsModel.getValue() !== lastSaved.js;
+    const jsModeDirty = deps.canEditJs && deps.getJsMode() !== lastSaved.jsMode;
     return {
       html: htmlDirty,
       customHead: customHeadDirty,
@@ -188,20 +188,22 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     const settingsUpdates = hasUnsavedSettings ? { ...pendingSettingsUpdates } : undefined;
     saveInFlight = (async () => {
       deps.createSnackbar('info', __('Saving...', 'kayzart-live-code-editor'), deps.noticeIds.save);
-      const customHeadSanitized = sanitizeCustomHeadInput(customHeadModel.getValue());
-      if (customHeadSanitized.html !== customHeadModel.getValue()) {
-        replaceModelContent(customHeadModel, customHeadSanitized.html);
-      }
-      if (customHeadSanitized.removedTags.length > 0) {
-        deps.createSnackbar(
-          'warning',
-          sprintf(
-            __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
-            customHeadSanitized.removedTags.join(', ')
-          ),
-          deps.noticeIds.save,
-          deps.noticeErrorMs
-        );
+      if (deps.canEditJs) {
+        const customHeadSanitized = sanitizeCustomHeadInput(customHeadModel.getValue());
+        if (customHeadSanitized.html !== customHeadModel.getValue()) {
+          replaceModelContent(customHeadModel, customHeadSanitized.html);
+        }
+        if (customHeadSanitized.removedTags.length > 0) {
+          deps.createSnackbar(
+            'warning',
+            sprintf(
+              __('Removed unsupported head tags: %s', 'kayzart-live-code-editor'),
+              customHeadSanitized.removedTags.join(', ')
+            ),
+            deps.noticeIds.save,
+            deps.noticeErrorMs
+          );
+        }
       }
 
       const result = await saveKayzArt({
@@ -219,10 +221,10 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       });
 
       if (result.ok) {
-        if (typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
+        if (deps.canEditJs && typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
           replaceModelContent(customHeadModel, result.customHead);
         }
-        if (Array.isArray(result.customHeadRemovedTags) && result.customHeadRemovedTags.length > 0) {
+        if (deps.canEditJs && Array.isArray(result.customHeadRemovedTags) && result.customHeadRemovedTags.length > 0) {
           deps.createSnackbar(
             'warning',
             sprintf(

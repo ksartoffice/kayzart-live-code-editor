@@ -55,7 +55,7 @@ class Rest_Save {
 		}
 		Post_Type::enable_for_post( $post_id );
 
-		if ( ( $has_js || $has_js_mode ) && ! current_user_can( 'unfiltered_html' ) ) {
+		if ( ( $has_js || $has_js_mode || $has_custom_head ) && ! current_user_can( 'unfiltered_html' ) ) {
 			return new \WP_REST_Response(
 				array(
 					'ok'    => false,

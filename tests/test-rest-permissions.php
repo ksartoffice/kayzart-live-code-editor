@@ -197,6 +197,39 @@ class Test_Rest_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save jsMode.' );
 	}
 
+	public function test_rest_save_requires_unfiltered_html_for_custom_head_payload(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id   = $this->create_kayzart_post( $author_id );
+
+		$params = array(
+			'post_id'         => $post_id,
+			'html'            => '<p>Test</p>',
+			'customHead'      => '<script>alert(1)</script>',
+			'css'             => '',
+			'tailwindEnabled' => false,
+		);
+
+		wp_set_current_user( $author_id );
+		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
+		$this->assertSame( 403, $response->get_status(), 'Saving custom head should require unfiltered_html.' );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<p>Test</p>',
+				'css'             => '',
+				'tailwindEnabled' => false,
+			)
+		);
+		$this->assertSame( 200, $response->get_status(), 'Authors should still save HTML/CSS without custom head.' );
+
+		wp_set_current_user( $admin_id );
+		$response = $this->dispatch_route( '/kayzart/v1/save', $params );
+		$this->assertSame( 200, $response->get_status(), 'Admins should be able to save custom head.' );
+	}
+
 	public function test_rest_save_ignores_legacy_shadow_setting_without_extra_permission(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$admin_id  = self::factory()->user->create( array( 'role' => 'administrator' ) );

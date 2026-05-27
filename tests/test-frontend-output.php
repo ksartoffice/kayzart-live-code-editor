@@ -256,6 +256,44 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertTrue( wp_style_is( 'global-styles', 'enqueued' ) );
 	}
 
+	public function test_standalone_mode_removes_core_global_style_hooks(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		$this->restore_core_theme_style_hooks();
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::disable_theme_styles_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertFalse( has_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' ) );
+		$this->assertFalse( has_action( 'wp_footer', 'wp_enqueue_global_styles' ) );
+		$this->assertFalse( has_action( 'wp_head', 'wp_custom_css_cb' ) );
+	}
+
+	public function test_theme_mode_preserves_core_global_style_hooks(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+		$this->restore_core_theme_style_hooks();
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::disable_theme_styles_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertSame( 10, has_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' ) );
+		$this->assertSame( 1, has_action( 'wp_footer', 'wp_enqueue_global_styles' ) );
+		$this->assertSame( 101, has_action( 'wp_head', 'wp_custom_css_cb' ) );
+	}
+
 	public function test_editor_html_wraps_content_only_when_body_attrs_exist(): void {
 		$this->assertSame(
 			'<body class="lp"><main>Hi</main></body>',
@@ -392,6 +430,22 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		wp_deregister_style( 'global-styles' );
 		wp_dequeue_script( 'kayzart-runtime' );
 		wp_deregister_script( 'kayzart-runtime' );
+		$this->restore_core_theme_style_hooks();
+	}
+
+	private function restore_core_theme_style_hooks(): void {
+		if ( function_exists( 'wp_enqueue_global_styles' ) ) {
+			if ( false === has_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' ) ) {
+				add_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
+			}
+			if ( false === has_action( 'wp_footer', 'wp_enqueue_global_styles' ) ) {
+				add_action( 'wp_footer', 'wp_enqueue_global_styles', 1 );
+			}
+		}
+
+		if ( function_exists( 'wp_custom_css_cb' ) && false === has_action( 'wp_head', 'wp_custom_css_cb' ) ) {
+			add_action( 'wp_head', 'wp_custom_css_cb', 101 );
+		}
 	}
 
 	private function create_page( int $author_id, string $status, bool $kayzart_enabled ): int {

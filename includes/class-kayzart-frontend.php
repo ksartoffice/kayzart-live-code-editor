@@ -40,6 +40,7 @@ class Frontend {
 	 */
 	public static function init(): void {
 		add_action( 'wp', array( __CLASS__, 'maybe_disable_autop' ) );
+		add_action( 'wp', array( __CLASS__, 'disable_theme_styles_for_standalone' ), 20 );
 		// Enqueue late so KayzArt styles can override theme styles on the front-end.
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_css' ), 999 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_js' ) );
@@ -203,6 +204,27 @@ class Frontend {
 		}
 
 		return array_values( array_unique( array_merge( $classes, Html_Document::get_stored_body_classes( $post_id ) ) ) );
+	}
+
+	/**
+	 * Prevent WordPress/theme-level CSS from being generated for standalone pages.
+	 */
+	public static function disable_theme_styles_for_standalone(): void {
+		if ( ! self::is_standalone_mode() ) {
+			return;
+		}
+
+		if ( ! apply_filters( 'kayzart_standalone_dequeue_theme_assets', true ) ) {
+			return;
+		}
+
+		if ( ! apply_filters( 'kayzart_standalone_dequeue_theme_styles', true ) ) {
+			return;
+		}
+
+		remove_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
+		remove_action( 'wp_footer', 'wp_enqueue_global_styles', 1 );
+		remove_action( 'wp_head', 'wp_custom_css_cb', 101 );
 	}
 
 	/**

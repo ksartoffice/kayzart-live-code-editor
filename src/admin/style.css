@@ -802,6 +802,27 @@ body.admin_page_kayzart #wpbody-content {
   min-width: 132px;
 }
 
+.kayzart-reloadPendingNotice {
+  display: none;
+  color: #d8b45f;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.kayzart-reloadPendingNotice.is-visible {
+  display: inline-flex;
+}
+
+.kayzart-customHeadPendingNotice.is-visible {
+  display: block;
+  padding: 6px 10px;
+  border-bottom: 1px solid #263040;
+}
+
+.kayzart-compactReloadPendingNotice {
+  max-width: 220px;
+}
+
 .kayzart-editorAction {
   border: 1px solid #39414f;
   background: #2a303b;

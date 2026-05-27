@@ -87,6 +87,7 @@ msgstr "無題のランディングページ"
 msgid "KayzArt"
 msgstr "KayzArt"
 
+#: assets/admin/post-type-list.js:30
 #: includes/class-kayzart-admin.php:451
 #: includes/class-kayzart-admin.php:452
 msgid "Add landing page"
@@ -551,6 +552,10 @@ msgstr "メディアを追加"
 #: assets/dist/main.js:99
 msgid "Run"
 msgstr "実行"
+
+#: assets/dist/main.js:96
+msgid "Reload preview to apply head and JavaScript changes."
+msgstr "head と JavaScript の変更はプレビューをリロードすると反映されます。"
 
 #: assets/dist/main.js:96
 #: assets/dist/main.js:153

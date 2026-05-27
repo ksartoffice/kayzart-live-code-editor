@@ -17,9 +17,9 @@ type EditorUiControllerDeps = {
   getViewportWidth: () => number;
   getJsEnabled: () => boolean;
   onActiveEditorChange?: (editor: EditorInstance) => void;
+  onEditorViewChange?: () => void;
   onCompactEditorModeChange?: (isCompact: boolean) => void;
   onOpenMedia: () => void;
-  onRunJs: () => void;
 };
 
 export function createEditorUiController(deps: EditorUiControllerDeps) {
@@ -47,14 +47,13 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     );
     deps.ui.compactAddMediaButton.style.display = isHtmlTab ? '' : 'none';
     deps.ui.compactJsModeSelect.style.display = isJsTab && deps.canEditJs ? '' : 'none';
-    deps.ui.compactRunButton.style.display = isJsTab && deps.canEditJs ? '' : 'none';
+    deps.onEditorViewChange?.();
   };
 
   const updateJsUi = () => {
     const isJsTab = activeCssTab === 'js';
     const isCompactJsTab = compactEditorTab === 'js';
     const isCompactHtmlTab = compactEditorTab === 'html';
-    const jsEnabled = deps.getJsEnabled();
     deps.ui.jsTab.style.display = deps.canEditJs ? '' : 'none';
     deps.ui.jsTab.disabled = !deps.canEditJs;
     deps.ui.jsModeSelect.style.display = deps.canEditJs && isJsTab ? '' : 'none';
@@ -64,11 +63,8 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactJsModeSelect.style.display = isCompactJsTab && deps.canEditJs ? '' : 'none';
     deps.ui.compactJsModeSelect.disabled = !deps.canEditJs;
     deps.ui.jsControls.style.display = deps.canEditJs && isJsTab ? '' : 'none';
-    deps.ui.runButton.style.display = deps.canEditJs && isJsTab ? '' : 'none';
-    deps.ui.runButton.disabled = !jsEnabled || !deps.canEditJs;
     deps.ui.compactAddMediaButton.style.display = isCompactHtmlTab ? '' : 'none';
-    deps.ui.compactRunButton.style.display = isCompactJsTab && deps.canEditJs ? '' : 'none';
-    deps.ui.compactRunButton.disabled = !jsEnabled || !deps.canEditJs;
+    deps.onEditorViewChange?.();
   };
 
   const setActiveEditor = (editorInstance: EditorInstance, pane: HTMLElement) => {
@@ -296,14 +292,6 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactCustomHeadTab.addEventListener('click', () => setCompactEditorTab('customHead', { focus: true }));
     deps.ui.compactCssTab.addEventListener('click', () => setCompactEditorTab('css', { focus: true }));
     deps.ui.compactJsTab.addEventListener('click', () => setCompactEditorTab('js', { focus: true }));
-    deps.ui.runButton.addEventListener('click', () => {
-      if (!deps.getJsEnabled() || !deps.canEditJs) return;
-      deps.onRunJs();
-    });
-    deps.ui.compactRunButton.addEventListener('click', () => {
-      if (!deps.getJsEnabled() || !deps.canEditJs) return;
-      deps.onRunJs();
-    });
     editorsReady = true;
     updateJsUi();
     updateCompactEditorMode();
@@ -314,6 +302,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     getActiveEditor: () => activeEditor,
     getActiveHtmlTab: () => activeHtmlTab,
     getActiveCssTab: () => activeCssTab,
+    getCompactEditorTab: () => compactEditorTab,
     isCompactEditorMode: () => compactEditorMode,
     setHtmlTab,
     setCssTab,

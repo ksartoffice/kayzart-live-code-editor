@@ -43,8 +43,8 @@ function createUi() {
     htmlWordWrapButton: document.createElement('button'),
     compactAddMediaButton: document.createElement('button'),
     jsControls: document.createElement('div'),
-    runButton: document.createElement('button'),
-    compactRunButton: document.createElement('button'),
+    jsPendingNotice: document.createElement('span'),
+    compactReloadPendingNotice: document.createElement('span'),
   } as any;
 }
 
@@ -67,7 +67,6 @@ describe('editor ui controller', () => {
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
       onOpenMedia: () => {},
-      onRunJs: () => {},
     });
 
     controller.initialize();
@@ -98,7 +97,6 @@ describe('editor ui controller', () => {
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
       onOpenMedia: () => {},
-      onRunJs: () => {},
     });
 
     controller.initialize();

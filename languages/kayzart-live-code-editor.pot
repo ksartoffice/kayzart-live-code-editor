@@ -85,6 +85,7 @@ msgstr ""
 msgid "KayzArt"
 msgstr ""
 
+#: assets/admin/post-type-list.js:30
 #: includes/class-kayzart-admin.php:451
 #: includes/class-kayzart-admin.php:452
 msgid "Add landing page"
@@ -548,6 +549,10 @@ msgstr ""
 #: assets/dist/main.js:96
 #: assets/dist/main.js:99
 msgid "Run"
+msgstr ""
+
+#: assets/dist/main.js:96
+msgid "Reload preview to apply head and JavaScript changes."
 msgstr ""
 
 #: assets/dist/main.js:96

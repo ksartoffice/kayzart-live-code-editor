@@ -309,6 +309,7 @@ async function main() {
   let pendingSettingsUpdates: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
   let hasSettingsValidationErrors = false;
+  let hasPendingPreviewReloadChanges = false;
   let viewPostUrl = initialState.settingsData?.viewUrl || '';
   let postStatus = initialState.settingsData?.status || 'draft';
   let postTitle = initialState.settingsData?.title || '';
@@ -379,6 +380,38 @@ async function main() {
 
   const syncElementsTabState = () => {
     preview?.sendElementsTabState(settingsOpen && activeSettingsTab === 'elements');
+  };
+
+  const syncPendingPreviewReloadNotice = () => {
+    const activeHtmlTab = editorUiController?.getActiveHtmlTab();
+    const activeCssTab = editorUiController?.getActiveCssTab();
+    const compactTab = editorUiController?.isCompactEditorMode()
+      ? editorUiController.getCompactEditorTab()
+      : null;
+    ui.customHeadPendingNotice.classList.toggle(
+      'is-visible',
+      hasPendingPreviewReloadChanges && activeHtmlTab === 'customHead'
+    );
+    ui.jsPendingNotice.classList.toggle(
+      'is-visible',
+      hasPendingPreviewReloadChanges && activeCssTab === 'js' && canEditJs
+    );
+    ui.compactReloadPendingNotice.classList.toggle(
+      'is-visible',
+      hasPendingPreviewReloadChanges &&
+        canEditJs &&
+        (compactTab === 'customHead' || compactTab === 'js')
+    );
+  };
+
+  const setPendingPreviewReloadChanges = (pending: boolean) => {
+    hasPendingPreviewReloadChanges = pending;
+    syncPendingPreviewReloadNotice();
+  };
+
+  const requestPreviewReload = () => {
+    preview?.resetCanonicalCache();
+    preview?.requestReloadPreview();
   };
 
   const getResolvedTemplateMode = () => (templateMode === 'default' ? defaultTemplateMode : templateMode);
@@ -466,10 +499,7 @@ async function main() {
       toolbarApi?.update({ hasUnsavedChanges });
     },
     onSaveSuccess: () => {
-      preview?.resetCanonicalCache();
-      if (!preview?.isRunJsPending()) {
-        preview?.sendRender();
-      }
+      requestPreviewReload();
     },
   });
 
@@ -635,9 +665,7 @@ async function main() {
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
       onRefreshPreview: () => {
-        if (basePreviewUrl) {
-          ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
-        }
+        requestPreviewReload();
       },
       onSave: handleSave,
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
@@ -1054,13 +1082,15 @@ async function main() {
     getJsEnabled: () => jsEnabled,
     onActiveEditorChange: () => {
       updateUndoRedoState();
+      syncPendingPreviewReloadNotice();
     },
+    onEditorViewChange: syncPendingPreviewReloadNotice,
     onCompactEditorModeChange: (isCompact) => {
       toolbarApi?.update({ compactEditorMode: isCompact });
       viewportController.applyViewportLayout();
+      syncPendingPreviewReloadNotice();
     },
     onOpenMedia: openMediaModal,
-    onRunJs: () => preview?.requestRunJs(),
   });
   editorUiController.initialize();
 
@@ -1088,6 +1118,7 @@ async function main() {
     getJsMode: () => jsMode,
     isTailwindEnabled: () => tailwindEnabled,
     getResolvedTemplateMode,
+    onReloadApplied: () => setPendingPreviewReloadChanges(false),
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();
@@ -1164,10 +1195,7 @@ async function main() {
     jsMode = normalized;
     syncJsModeSelectors();
     syncUnsavedUi();
-    if (!jsEnabled) {
-      return;
-    }
-    preview?.requestRunJs();
+    setPendingPreviewReloadChanges(true);
   };
 
   syncJsModeSelectors();
@@ -1341,13 +1369,7 @@ async function main() {
     }
 
     setJsMode(snapshot.jsMode ?? 'classic');
-    preview?.resetCanonicalCache();
-    preview?.sendRender();
-    if (jsEnabled) {
-      preview?.requestRunJs();
-    } else {
-      preview?.requestDisableJs();
-    }
+    requestPreviewReload();
     return true;
   };
 
@@ -1466,7 +1488,7 @@ async function main() {
     if (suppressChangeHighlightClear === 0) {
       clearCustomHeadChangeHighlights();
     }
-    sendRenderDebounced?.();
+    setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
     syncUnsavedUi();
   });
@@ -1490,6 +1512,7 @@ async function main() {
     if (suppressChangeHighlightClear === 0) {
       clearJsChangeHighlights();
     }
+    setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
     syncUnsavedUi();
   });

@@ -35,14 +35,14 @@ describe('editor shell iframe security attributes', () => {
 
     expect(ui.jsModeSelect.parentElement).toBe(ui.jsControls);
     expect(Array.from(ui.jsControls.children)).toEqual([
+      ui.jsPendingNotice,
       ui.jsModeSelect,
-      ui.runButton,
     ]);
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
       ui.compactFullHtmlImportButton,
       ui.compactAddMediaButton,
       ui.compactJsModeSelect,
-      ui.compactRunButton,
+      ui.compactReloadPendingNotice,
     ]);
   });
 

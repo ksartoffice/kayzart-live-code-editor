@@ -63,8 +63,8 @@ function isParentNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAd
   return Array.isArray((node as DefaultTreeAdapterTypes.ParentNode).childNodes);
 }
 
-function isTemplateElement(node: DefaultTreeAdapterTypes.Element): node is DefaultTreeAdapterTypes.Template {
-  return node.tagName === 'template' && Boolean((node as DefaultTreeAdapterTypes.Template).content);
+function isTemplateElement(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAdapterTypes.Template {
+  return isElement(node) && node.tagName === 'template' && Boolean((node as DefaultTreeAdapterTypes.Template).content);
 }
 
 function isTextNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAdapterTypes.TextNode {
@@ -73,6 +73,25 @@ function isTextNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAdap
 
 function isCommentNode(node: DefaultTreeAdapterTypes.Node): boolean {
   return node.nodeName === '#comment';
+}
+
+function collectDescendantText(node: DefaultTreeAdapterTypes.Node): string {
+  if (isTextNode(node)) {
+    return node.value;
+  }
+  if (isCommentNode(node)) {
+    return '';
+  }
+  if (isTemplateElement(node)) {
+    return collectDescendantText(node.content);
+  }
+  if (!isParentNode(node)) {
+    return '';
+  }
+  return (node.childNodes || [])
+    .map((child) => collectDescendantText(child))
+    .filter((text) => text.trim().length > 0)
+    .join(' ');
 }
 
 function isValidTagName(tagName: string) {
@@ -304,10 +323,8 @@ export function getElementContext(html: string, lcId: string): ElementContextInf
             }));
           let text: string | null = null;
           if (!VOID_TAGS.has(child.tagName)) {
-            const innerRange = getInnerRange(html, child.tagName, child.sourceCodeLocation);
-            if (innerRange && (child.childNodes || []).every((entry) => isEditableChild(entry))) {
-              text = html.slice(innerRange.startOffset, innerRange.endOffset);
-            }
+            const descendantText = collectDescendantText(child).replace(/\s+/g, ' ').trim();
+            text = descendantText || null;
           }
           result = {
             lcId: id,

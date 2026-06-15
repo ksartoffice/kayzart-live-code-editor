@@ -5,6 +5,7 @@ import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
 import { EditorRange, type EditorModel } from '../codemirror';
+import { presentableDiff } from '@codemirror/merge';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -60,6 +61,73 @@ type SaveCopyControllerDeps = {
   };
   onUnsavedChange: (hasUnsavedChanges: boolean) => void;
   onSaveSuccess?: () => void;
+};
+
+const buildLineStarts = (text: string): number[] => {
+  const starts = [0];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text.charCodeAt(i) === 10) {
+      starts.push(i + 1);
+    }
+  }
+  return starts;
+};
+
+const getLineNumberAtOffset = (
+  lineStarts: number[],
+  textLength: number,
+  rawOffset: number
+): number => {
+  const offset = Math.max(0, Math.min(rawOffset, textLength));
+  let low = 0;
+  let high = lineStarts.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (lineStarts[mid] <= offset) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return low + 1;
+};
+
+const addCoveredLines = (
+  target: Set<number>,
+  lineStarts: number[],
+  textLength: number,
+  from: number,
+  to: number
+) => {
+  if (to <= from) {
+    return;
+  }
+  const startLine = getLineNumberAtOffset(lineStarts, textLength, from);
+  const endLine = getLineNumberAtOffset(lineStarts, textLength, Math.max(from, to - 1));
+  for (let line = startLine; line <= endLine; line += 1) {
+    target.add(line);
+  }
+};
+
+export const computeUnsavedChangeLines = (savedText: string, currentText: string): number[] => {
+  if (savedText === currentText) {
+    return [];
+  }
+
+  const lineStarts = buildLineStarts(currentText);
+  const changed = new Set<number>();
+  const diff = presentableDiff(savedText, currentText, {
+    scanLimit: 500,
+    timeout: 50,
+  });
+
+  diff.forEach((change) => {
+    if (change.toB > change.fromB) {
+      addCoveredLines(changed, lineStarts, currentText.length, change.fromB, change.toB);
+    }
+  });
+
+  return Array.from(changed).sort((a, b) => a - b);
 };
 
 
@@ -125,6 +193,22 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
   const syncUnsavedUi = () => {
     const { html, customHead, css, js, hasAny } = getUnsavedFlags();
+    const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
+    const cssModel = deps.getCssModel();
+    const jsModel = deps.getJsModel();
+
+    htmlModel?.setUnsavedChangeLines?.(computeUnsavedChangeLines(lastSaved.html, htmlModel.getValue()));
+    customHeadModel?.setUnsavedChangeLines?.(
+      deps.canEditJs
+        ? computeUnsavedChangeLines(lastSaved.customHead, customHeadModel.getValue())
+        : []
+    );
+    cssModel?.setUnsavedChangeLines?.(computeUnsavedChangeLines(lastSaved.css, cssModel.getValue()));
+    jsModel?.setUnsavedChangeLines?.(
+      deps.canEditJs ? computeUnsavedChangeLines(lastSaved.js, jsModel.getValue()) : []
+    );
+
     deps.uiDirtyTargets.htmlTitle.classList.toggle('has-unsaved', html);
     deps.uiDirtyTargets.htmlTab.classList.toggle('has-unsaved', html);
     deps.uiDirtyTargets.customHeadTab.classList.toggle('has-unsaved', customHead);

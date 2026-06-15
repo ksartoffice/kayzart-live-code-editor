@@ -10,10 +10,12 @@ import {
 import {
   Decoration,
   EditorView,
+  GutterMarker,
   ViewPlugin,
   crosshairCursor,
   drawSelection,
   dropCursor,
+  gutter,
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
@@ -124,6 +126,7 @@ export type EditorModel = {
       | null
   ) => EditorSelection[] | null;
   deltaDecorations: (oldDecorationIds: string[], decorations: EditorDecoration[]) => string[];
+  setUnsavedChangeLines: (lineNumbers: number[]) => void;
 };
 
 export type CodeEditorInstance = {
@@ -210,6 +213,41 @@ type EditorWrapper = {
 
 const DECORATION_EFFECT = StateEffect.define<DecorationSpec[]>();
 const SCROLL_RULER_MARKERS_EFFECT = StateEffect.define<ScrollRulerMarkerSpec[]>();
+const UNSAVED_CHANGE_LINES_EFFECT = StateEffect.define<number[]>();
+
+class UnsavedChangeMarker extends GutterMarker {
+  toDOM() {
+    const marker = document.createElement('span');
+    marker.className = 'kayzart-unsaved-change-marker';
+    return marker;
+  }
+}
+
+const unsavedChangeMarker = new UnsavedChangeMarker();
+
+const unsavedChangeLinesField = StateField.define<ReadonlySet<number>>({
+  create() {
+    return new Set();
+  },
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(UNSAVED_CHANGE_LINES_EFFECT)) {
+        return new Set(effect.value);
+      }
+    }
+    return value;
+  },
+});
+
+const unsavedChangeGutter = gutter({
+  class: 'kayzart-unsaved-change-gutter',
+  lineMarker(view, line) {
+    const lineNumber = view.state.doc.lineAt(line.from).number;
+    return view.state.field(unsavedChangeLinesField).has(lineNumber)
+      ? unsavedChangeMarker
+      : null;
+  },
+});
 
 const buildDecorationSet = (specs: DecorationSpec[], state: EditorState): DecorationSet => {
   const ranges: Range<Decoration>[] = [];
@@ -502,6 +540,8 @@ const scrollRulerPlugin = ViewPlugin.fromClass(
 
 const baseEditorSetup: Extension = [
   lineNumbers(),
+  unsavedChangeLinesField,
+  unsavedChangeGutter,
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
@@ -681,6 +721,21 @@ const createEditorWrapper = (options: {
     });
   };
 
+  const setUnsavedChangeLines = (lineNumbers: number[]) => {
+    const maxLine = view.state.doc.lines;
+    const normalized = Array.from(
+      new Set(
+        lineNumbers
+          .filter((lineNumber) => Number.isFinite(lineNumber))
+          .map((lineNumber) => Math.trunc(lineNumber))
+          .filter((lineNumber) => lineNumber >= 1 && lineNumber <= maxLine)
+      )
+    ).sort((a, b) => a - b);
+    view.dispatch({
+      effects: UNSAVED_CHANGE_LINES_EFFECT.of(normalized),
+    });
+  };
+
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
       changeListeners.forEach((listener) => listener());
@@ -826,6 +881,7 @@ const createEditorWrapper = (options: {
       syncDecorations(view);
       return nextIds;
     },
+    setUnsavedChangeLines,
   };
 
   const editor: CodeEditorInstance = {

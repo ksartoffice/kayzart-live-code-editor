@@ -88,6 +88,25 @@ describe('save copy controller', () => {
     expect(computeUnsavedChangeLines('a\nb\nc', 'a\nc')).toEqual([]);
   });
 
+  it('marks only the inserted line when an auto-indented blank line is added', () => {
+    // Enter をオートインデント付きで押すと新しい行に次の行と同じインデントが入り、
+    // presentableDiff は挿入を "\n  " と報告する。追加した行のみをマークすること。
+    const saved = '<section>\n  <div>\n    <p>x</p>';
+    expect(
+      computeUnsavedChangeLines(saved, '<section>\n  \n  <div>\n    <p>x</p>')
+    ).toEqual([2]);
+    expect(
+      computeUnsavedChangeLines('  <div>\n    <p>x</p>', '  <div>\n    \n    <p>x</p>')
+    ).toEqual([2]);
+    // 改行なしの空行挿入や、行に文字を打った後も追加行のみ。
+    expect(
+      computeUnsavedChangeLines(saved, '<section>\n\n  <div>\n    <p>x</p>')
+    ).toEqual([2]);
+    expect(
+      computeUnsavedChangeLines(saved, '<section>\n  ああ\n  <div>\n    <p>x</p>')
+    ).toEqual([2]);
+  });
+
   it('clears unsaved change gutter markers when marking the current state as saved', () => {
     const { controller, htmlModel, customHeadModel, cssModel, jsModel } = createController();
 

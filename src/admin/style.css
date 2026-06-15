@@ -1812,8 +1812,7 @@ body.admin_page_kayzart #wpbody-content {
 .cm-editor .kayzart-unsaved-change-marker {
   display: block;
   width: 3px;
-  height: 100%;
-  min-height: 1.45em;
+  height: 1.45em;
   margin-left: 1px;
   background: #22c55e;
   border-radius: 2px;

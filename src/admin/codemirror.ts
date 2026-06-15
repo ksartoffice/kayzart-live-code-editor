@@ -247,6 +247,12 @@ const unsavedChangeGutter = gutter({
       ? unsavedChangeMarker
       : null;
   },
+  lineMarkerChange(update) {
+    return (
+      update.startState.field(unsavedChangeLinesField) !==
+      update.state.field(unsavedChangeLinesField)
+    );
+  },
 });
 
 const buildDecorationSet = (specs: DecorationSpec[], state: EditorState): DecorationSet => {

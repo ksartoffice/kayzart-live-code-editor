@@ -92,6 +92,8 @@ const getLineNumberAtOffset = (
   return low + 1;
 };
 
+const NEWLINE_CODE = 10;
+
 const addCoveredLines = (
   target: Set<number>,
   lineStarts: number[],
@@ -109,6 +111,37 @@ const addCoveredLines = (
   }
 };
 
+/**
+ * 純粋な挿入（削除を伴わない変更）を、挿入テキストが改行で終わる形へ
+ * 左方向に回転させて正規化する。
+ *
+ * Enter をオートインデント付きで押すと、新しい行には次の行と同じインデントが
+ * 挿入される。このとき presentableDiff は挿入を「改行 + インデント」（例: "\n  "）
+ * と報告するため、変更範囲の末尾が次の行へはみ出し、追加した行とその次の行の
+ * 両方が変更行として扱われてしまう。
+ *
+ * 挿入末尾の文字が挿入直前の文字と一致する限り回転は等価な編集になるため、
+ * 改行境界で終わるよう寄せることで余分な行のマークを防ぐ。
+ */
+const normalizeInsertionRange = (
+  text: string,
+  from: number,
+  to: number
+): { from: number; to: number } => {
+  let nextFrom = from;
+  let nextTo = to;
+  while (
+    nextTo > nextFrom &&
+    text.charCodeAt(nextTo - 1) !== NEWLINE_CODE &&
+    nextFrom > 0 &&
+    text.charCodeAt(nextFrom - 1) === text.charCodeAt(nextTo - 1)
+  ) {
+    nextFrom -= 1;
+    nextTo -= 1;
+  }
+  return { from: nextFrom, to: nextTo };
+};
+
 export const computeUnsavedChangeLines = (savedText: string, currentText: string): number[] => {
   if (savedText === currentText) {
     return [];
@@ -122,9 +155,14 @@ export const computeUnsavedChangeLines = (savedText: string, currentText: string
   });
 
   diff.forEach((change) => {
-    if (change.toB > change.fromB) {
-      addCoveredLines(changed, lineStarts, currentText.length, change.fromB, change.toB);
+    if (change.toB <= change.fromB) {
+      return;
     }
+    const isPureInsertion = change.toA === change.fromA;
+    const { from, to } = isPureInsertion
+      ? normalizeInsertionRange(currentText, change.fromB, change.toB)
+      : { from: change.fromB, to: change.toB };
+    addCoveredLines(changed, lineStarts, currentText.length, from, to);
   });
 
   return Array.from(changed).sort((a, b) => a - b);

@@ -52,23 +52,23 @@ class Post_Type {
 	public static function register(): void {
 		$slug   = self::get_slug();
 		$labels = array(
-			'name'               => _x( '旧KayzArt', 'post type general name', 'kayzart-live-code-editor' ),
-			'singular_name'      => _x( '旧KayzArt', 'post type singular name', 'kayzart-live-code-editor' ),
+			'name'               => _x( '旧Kayzart', 'post type general name', 'kayzart-live-code-editor' ),
+			'singular_name'      => _x( '旧Kayzart', 'post type singular name', 'kayzart-live-code-editor' ),
 			'add_new'            => _x( 'Add New', 'kayzart', 'kayzart-live-code-editor' ),
 			'add_new_item'       => __( 'Add New', 'kayzart-live-code-editor' ),
-			'edit_item'          => __( 'Edit KayzArt', 'kayzart-live-code-editor' ),
-			'new_item'           => __( 'New KayzArt', 'kayzart-live-code-editor' ),
+			'edit_item'          => __( 'Edit Kayzart', 'kayzart-live-code-editor' ),
+			'new_item'           => __( 'New Kayzart', 'kayzart-live-code-editor' ),
 			'view_item'          => __( 'View on front end', 'kayzart-live-code-editor' ),
 			'view_items'         => __( 'View on front end', 'kayzart-live-code-editor' ),
-			'search_items'       => __( 'Search KayzArt', 'kayzart-live-code-editor' ),
-			'not_found'          => __( 'No KayzArt found', 'kayzart-live-code-editor' ),
-			'not_found_in_trash' => __( 'No KayzArt found in Trash', 'kayzart-live-code-editor' ),
-			'all_items'          => __( '旧KayzArt一覧', 'kayzart-live-code-editor' ),
-			'archives'           => __( 'KayzArt Archives', 'kayzart-live-code-editor' ),
+			'search_items'       => __( 'Search Kayzart', 'kayzart-live-code-editor' ),
+			'not_found'          => __( 'No Kayzart found', 'kayzart-live-code-editor' ),
+			'not_found_in_trash' => __( 'No Kayzart found in Trash', 'kayzart-live-code-editor' ),
+			'all_items'          => __( '旧Kayzart一覧', 'kayzart-live-code-editor' ),
+			'archives'           => __( 'Kayzart Archives', 'kayzart-live-code-editor' ),
 		);
 
 		$args = array(
-			'label'               => __( '旧KayzArt', 'kayzart-live-code-editor' ),
+			'label'               => __( '旧Kayzart', 'kayzart-live-code-editor' ),
 			'labels'              => $labels,
 			'public'              => true,
 			'exclude_from_search' => false,

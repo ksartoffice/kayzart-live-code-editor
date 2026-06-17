@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin title tests for KayzArt.
+ * Admin title tests for Kayzart.
  *
  * @package KayzArt
  */
@@ -43,11 +43,11 @@ class Test_Admin_Title extends WP_UnitTestCase {
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title(
-			'KayzArt &lsaquo; Test Site - WordPress',
-			'KayzArt'
+			'Kayzart &lsaquo; Test Site - WordPress',
+			'Kayzart'
 		);
 
-		$this->assertSame( 'KayzArt Landing Page Editor: Foo &lsaquo; Test Site - WordPress', $filtered );
+		$this->assertSame( 'Kayzart Landing Page Editor: Foo &lsaquo; Test Site - WordPress', $filtered );
 	}
 
 	public function test_filter_admin_title_uses_untitled_fallback_for_empty_post_title(): void {
@@ -58,11 +58,11 @@ class Test_Admin_Title extends WP_UnitTestCase {
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title(
-			'KayzArt &lsaquo; Test Site - WordPress',
-			'KayzArt'
+			'Kayzart &lsaquo; Test Site - WordPress',
+			'Kayzart'
 		);
 
-		$this->assertSame( 'KayzArt Landing Page Editor: Untitled &lsaquo; Test Site - WordPress', $filtered );
+		$this->assertSame( 'Kayzart Landing Page Editor: Untitled &lsaquo; Test Site - WordPress', $filtered );
 	}
 
 	public function test_filter_admin_title_supports_utf8_separator_suffix(): void {
@@ -73,11 +73,11 @@ class Test_Admin_Title extends WP_UnitTestCase {
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		$filtered = Admin::filter_admin_title(
-			'KayzArt ' . "\xE2\x80\xB9" . ' Test Site - WordPress',
-			'KayzArt'
+			'Kayzart ' . "\xE2\x80\xB9" . ' Test Site - WordPress',
+			'Kayzart'
 		);
 
-		$this->assertSame( 'KayzArt Landing Page Editor: Foo ' . "\xE2\x80\xB9" . ' Test Site - WordPress', $filtered );
+		$this->assertSame( 'Kayzart Landing Page Editor: Foo ' . "\xE2\x80\xB9" . ' Test Site - WordPress', $filtered );
 	}
 
 	public function test_filter_admin_title_does_not_change_other_admin_pages(): void {
@@ -96,9 +96,9 @@ class Test_Admin_Title extends WP_UnitTestCase {
 		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
-		$filtered = Admin::filter_admin_title( 'KayzArt', 'KayzArt' );
+		$filtered = Admin::filter_admin_title( 'Kayzart', 'Kayzart' );
 
-		$this->assertSame( 'KayzArt Landing Page Editor: Foo', $filtered );
+		$this->assertSame( 'Kayzart Landing Page Editor: Foo', $filtered );
 	}
 
 	private function create_kayzart_post( string $title ): int {

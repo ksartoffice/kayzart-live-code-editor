@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin settings and rewrite behavior tests for KayzArt.
+ * Admin settings and rewrite behavior tests for Kayzart.
  *
  * @package KayzArt
  */
@@ -258,7 +258,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_settings_page();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringNotContainsString( __( 'KayzArt slug', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( __( 'Kayzart slug', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringNotContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
 	}
 
@@ -274,7 +274,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_settings_page();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( __( 'KayzArt slug', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Kayzart slug', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
 	}
 
@@ -490,7 +490,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$_parent_pages = $original_parent_pages;
 
 		$this->assertNotNull( $editor_item );
-		$this->assertSame( 'KayzArt', (string) ( $editor_item[3] ?? '' ) );
+		$this->assertSame( 'Kayzart', (string) ( $editor_item[3] ?? '' ) );
 		$this->assertSame( 'admin.php', Admin::HIDDEN_PARENT_SLUG );
 		$this->assertSame( Admin::HIDDEN_PARENT_SLUG, $registered_parent );
 	}
@@ -569,7 +569,6 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertIsString( $page_title );
 		$this->assertNotSame( '', $page_title );
-		$this->assertSame( 'KayzArt', $page_title );
+		$this->assertSame( 'Kayzart', $page_title );
 	}
 }
-

@@ -204,7 +204,7 @@ function canonicalizeHtml(html: string): CanonicalResult {
 
     return { canonicalHTML: parse5.serialize(fragment), bodyAttrs: {}, hasBody: false, map };
   } catch (error: any) {
-    console.error('[KayzArt] canonicalizeHtml failed', error);
+    console.error('[Kayzart] canonicalizeHtml failed', error);
     return {
       canonicalHTML: html,
       bodyAttrs: {},
@@ -323,7 +323,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     lcSourceMap = canonical.map;
 
     if (canonical.error && canonical.error !== lastCanonicalError) {
-      console.error('[KayzArt] Falling back to raw HTML for preview:', canonical.error);
+      console.error('[Kayzart] Falling back to raw HTML for preview:', canonical.error);
       lastCanonicalError = canonical.error;
     } else if (!canonical.error) {
       lastCanonicalError = null;
@@ -533,7 +533,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   const highlightByLcId = (lcId: string) => {
     const rangeInfo = lcSourceMap[lcId];
     if (!rangeInfo) {
-      console.warn('[KayzArt] No source map for kayzart-id:', lcId);
+      console.warn('[Kayzart] No source map for kayzart-id:', lcId);
       return;
     }
     deps.focusHtmlEditor();
@@ -637,7 +637,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     }
 
     if (data?.type === 'KAYZART_MISSING_MARKERS') {
-      console.warn('[KayzArt] Preview markers are missing in the iframe document.');
+      console.warn('[Kayzart] Preview markers are missing in the iframe document.');
       deps.onMissingMarkers?.();
     }
   };

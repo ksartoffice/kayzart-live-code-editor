@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the KayzArt post type.
+ * Tests for the Kayzart post type.
  *
  * @package KayzArt
  */
@@ -16,10 +16,10 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$post_type = get_post_type_object( Post_Type::POST_TYPE );
 
 		$this->assertNotNull( $post_type );
-		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->label );
-		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->labels->name );
-		$this->assertSame( __( '旧KayzArt', 'kayzart-live-code-editor' ), $post_type->labels->singular_name );
-		$this->assertSame( __( '旧KayzArt一覧', 'kayzart-live-code-editor' ), $post_type->labels->all_items );
+		$this->assertSame( __( '旧Kayzart', 'kayzart-live-code-editor' ), $post_type->label );
+		$this->assertSame( __( '旧Kayzart', 'kayzart-live-code-editor' ), $post_type->labels->name );
+		$this->assertSame( __( '旧Kayzart', 'kayzart-live-code-editor' ), $post_type->labels->singular_name );
+		$this->assertSame( __( '旧Kayzart一覧', 'kayzart-live-code-editor' ), $post_type->labels->all_items );
 		$this->assertSame( 'edit_posts', $post_type->cap->create_posts );
 	}
 
@@ -173,5 +173,4 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'kayzart_edit', $actions );
 	}
 }
-
 

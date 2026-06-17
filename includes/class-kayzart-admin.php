@@ -88,7 +88,7 @@ class Admin {
 		$suffix     = self::extract_admin_title_suffix( $admin_title, $title );
 
 		/* translators: %s: post title. */
-		$editor_title = sprintf( __( 'KayzArt Landing Page Editor: %s', 'kayzart-live-code-editor' ), $post_title );
+		$editor_title = sprintf( __( 'Kayzart Landing Page Editor: %s', 'kayzart-live-code-editor' ), $post_title );
 
 		if ( '' === $suffix ) {
 			return $editor_title;
@@ -158,7 +158,7 @@ class Admin {
 
 		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			if ( $die_on_failure ) {
-				wp_die( esc_html__( 'This editor is only available for KayzArt posts.', 'kayzart-live-code-editor' ) );
+				wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
 			}
 			return 0;
 		}
@@ -213,7 +213,7 @@ class Admin {
 			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 		}
 		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
-			wp_die( esc_html__( 'This editor is only available for KayzArt posts.', 'kayzart-live-code-editor' ) );
+			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
@@ -283,7 +283,7 @@ class Admin {
 	 */
 	private static function create_new_landing_page_post( string $post_type ): void {
 		if ( ! Post_Type::is_post_type_enabled( $post_type ) ) {
-			wp_die( esc_html__( 'This post type is not enabled for KayzArt.', 'kayzart-live-code-editor' ) );
+			wp_die( esc_html__( 'This post type is not enabled for Kayzart.', 'kayzart-live-code-editor' ) );
 		}
 
 		$post_type_object = get_post_type_object( $post_type );
@@ -430,8 +430,8 @@ class Admin {
 		// Use admin.php as a virtual parent so WordPress can resolve a non-null page title.
 		add_submenu_page(
 			self::HIDDEN_PARENT_SLUG,
-			__( 'KayzArt', 'kayzart-live-code-editor' ),
-			__( 'KayzArt', 'kayzart-live-code-editor' ),
+			__( 'Kayzart', 'kayzart-live-code-editor' ),
+			__( 'Kayzart', 'kayzart-live-code-editor' ),
 			'edit_posts',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -520,7 +520,7 @@ class Admin {
 		if ( self::should_show_post_slug_settings() ) {
 			add_settings_field(
 				self::OPTION_POST_SLUG,
-				__( 'KayzArt slug', 'kayzart-live-code-editor' ),
+				__( 'Kayzart slug', 'kayzart-live-code-editor' ),
 				array( __CLASS__, 'render_post_slug_field' ),
 				self::SETTINGS_SLUG,
 				'kayzart_permalink'
@@ -636,7 +636,7 @@ class Admin {
 	 * Render permalink section description.
 	 */
 	public static function render_permalink_section(): void {
-		echo '<p>' . esc_html__( 'Change the URL slug for KayzArt posts. Existing URLs will change after saving.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html__( 'Change the URL slug for Kayzart posts. Existing URLs will change after saving.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -644,14 +644,14 @@ class Admin {
 	 */
 	public static function render_template_mode_section(): void {
 
-		echo '<p>' . esc_html__( 'Choose the default page template mode used by KayzArt previews.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html__( 'Choose the default page template mode used by Kayzart previews.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
 	 * Render post type section description.
 	 */
 	public static function render_post_types_section(): void {
-		echo '<p>' . esc_html__( 'Choose which post types can use the KayzArt landing page editor.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html__( 'Choose which post types can use the Kayzart landing page editor.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -698,7 +698,7 @@ class Admin {
 			echo '</label>';
 		}
 
-		echo '<p class="description">' . esc_html__( 'Existing posts are not converted until they are opened in the KayzArt editor or created with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Existing posts are not converted until they are opened in the Kayzart editor or created with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**

@@ -1,7 +1,7 @@
 {
   "name": "kayzart-live-code-editor",
   "version": "2.0.3",
-  "description": "Live HTML/CSS/JS editor with a custom KayzArt post type, CodeMirror editor, and live preview.",
+  "description": "Live HTML/CSS/JS editor with a custom Kayzart post type, CodeMirror editor, and live preview.",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "version:set": "node scripts/version-set.mjs",

@@ -623,7 +623,7 @@ msgid "Edit HTML and CSS directly in the code editor."
 msgstr ""
 
 #: assets/dist/main.js:150
-msgid "Use utility classes. CSS is compiled automatically."
+msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
 msgstr ""
 
 #: assets/dist/main.js:150

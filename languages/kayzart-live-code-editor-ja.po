@@ -629,8 +629,8 @@ msgid "Edit HTML and CSS directly in the code editor."
 msgstr "コードエディターで HTML と CSS を直接編集します。"
 
 #: assets/dist/main.js:150
-msgid "Use utility classes. CSS is compiled automatically."
-msgstr "ユーティリティクラスを使用します。CSS は自動的にコンパイルされます。"
+msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
+msgstr "Tailwind CSS v4 のユーティリティクラスを使用します。CSS は自動的にコンパイルされます。"
 
 #: assets/dist/main.js:150
 msgid "Back"

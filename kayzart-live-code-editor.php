@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: KayzArt Landing Page Editor
+ * Plugin Name: KayzArt Landing Pages — Paste & Edit AI-Generated HTML
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
- * Description: Create theme-independent landing pages with live HTML, CSS, and JavaScript editing in WordPress.
- * Version: 2.0.2
+ * Description: The place to paste landing pages your AI wrote. Edit HTML, CSS & JavaScript live and publish — without fighting your theme.
+ * Version: 2.0.3
  * Requires at least: 5.9
  * Tested up to: 7.0
  * Requires PHP: 7.4
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '2.0.2' );
+define( 'KAYZART_VERSION', '2.0.3' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 

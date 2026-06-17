@@ -175,7 +175,7 @@ function SettingsSidebar({
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(
-        `[KayzArt] Failed to mount external settings tab "${activeExternalTab.id}".`,
+        `[Kayzart] Failed to mount external settings tab "${activeExternalTab.id}".`,
         error
       );
     }

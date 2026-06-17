@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: KayzArt Landing Pages — Paste & Edit AI-Generated HTML
+ * Plugin Name: Kayzart Landing Pages — Paste & Edit AI-Generated HTML
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: The place to paste landing pages your AI wrote. Edit HTML, CSS & JavaScript live and publish — without fighting your theme.
- * Version: 2.0.3
+ * Version: 2.0.4
  * Requires at least: 5.9
  * Tested up to: 7.0
  * Requires PHP: 7.4
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '2.0.3' );
+define( 'KAYZART_VERSION', '2.0.4' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 
@@ -46,9 +46,9 @@ require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
 
 if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 	/**
-	 * Check whether the current KayzArt request resolves to standalone mode.
+	 * Check whether the current Kayzart request resolves to standalone mode.
 	 *
-	 * @param int|null $post_id KayzArt post ID. Defaults to queried object ID.
+	 * @param int|null $post_id Kayzart post ID. Defaults to queried object ID.
 	 * @return bool
 	 */
 	function kayzart_is_standalone_mode( ?int $post_id = null ): bool {
@@ -59,7 +59,7 @@ if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 add_action(
 	'plugins_loaded',
 	function () {
-		// Custom post type used exclusively by KayzArt.
+		// Custom post type used exclusively by Kayzart.
 		\KayzArt\Post_Type::init();
 
 		// Admin UI.

@@ -90,7 +90,7 @@ declare global {
 
 function warnInvalidTab(message: string, tab: unknown) {
   // eslint-disable-next-line no-console
-  console.warn(`[KayzArt] ${message}`, tab);
+  console.warn(`[Kayzart] ${message}`, tab);
 }
 
 function normalizeTab(tab: ExternalSettingsTab): ResolvedExternalSettingsTab | null {

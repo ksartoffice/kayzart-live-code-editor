@@ -1,9 +1,9 @@
-KayzArt Landing Page Editor - Overview
+Kayzart Landing Page Editor - Overview
 ===================================
 
 Overview
 --------
-- WordPress pages and legacy `kayzart` custom post type entries can be edited in the dedicated KayzArt editor.
+- WordPress pages and legacy `kayzart` custom post type entries can be edited in the dedicated Kayzart editor.
 - The editor provides CodeMirror 6 HTML/CSS/JavaScript tabs and a live iframe preview.
 - New landing page work is page-based. Public output is the page permalink, not shortcode embedding.
 
@@ -22,7 +22,7 @@ Preview
 Front-End Output
 ----------------
 - KayzArt-managed pages output post content normally and enqueue/inline CSS, JS, and configured external assets.
-- `wpautop` and `shortcode_unautop` are removed for KayzArt front-end output to avoid unwanted paragraph insertion.
+- `wpautop` and `shortcode_unautop` are removed for Kayzart front-end output to avoid unwanted paragraph insertion.
 - The legacy `[kayzart]` shortcode remains registered only as a compatibility stub and returns empty output.
 
 Stored Data
@@ -35,7 +35,7 @@ Stored Data
 
 Admin Settings
 --------------
-- `kayzart_post_slug`: slug for legacy KayzArt CPT URLs.
+- `kayzart_post_slug`: slug for legacy Kayzart CPT URLs.
 - `kayzart_default_template_mode`: default template mode, Standalone or Theme.
 
 REST API

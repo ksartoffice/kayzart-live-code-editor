@@ -47,7 +47,7 @@
       try {
         cleanup();
       } catch (error) {
-        console.error('[KayzArt] onCleanup callback failed.', error);
+        console.error('[Kayzart] onCleanup callback failed.', error);
       }
     });
   }
@@ -106,7 +106,7 @@
       }
     } catch (error) {
       if (state.runToken === runToken) {
-        console.error('[KayzArt] Module JS execution failed.', error);
+        console.error('[Kayzart] Module JS execution failed.', error);
       }
     } finally {
       if (state.activeModuleUrl === moduleUrl) {

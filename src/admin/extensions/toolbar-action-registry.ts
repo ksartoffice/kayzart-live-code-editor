@@ -42,7 +42,7 @@ declare global {
 
 function warnInvalidAction(message: string, action: unknown) {
   // eslint-disable-next-line no-console
-  console.warn(`[KayzArt] ${message}`, action);
+  console.warn(`[Kayzart] ${message}`, action);
 }
 
 function normalizeAction(action: ToolbarAction): ResolvedToolbarAction | null {

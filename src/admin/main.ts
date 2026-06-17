@@ -190,7 +190,7 @@ async function main() {
       setupTailwindEnabled = setupResult.tailwindEnabled;
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('[KayzArt] Setup failed', error);
+      console.error('[Kayzart] Setup failed', error);
       ui.app.textContent = __( 'Setup failed.', 'kayzart-live-code-editor');
       return;
     }

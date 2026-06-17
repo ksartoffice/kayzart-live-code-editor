@@ -2,21 +2,21 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: KayzArt Landing Page Editor 1.3.6\n"
+"Project-Id-Version: Kayzart Landing Pages — Paste & Edit AI-Generated HTML 2.0.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-27T02:09:43+02:00\n"
+"POT-Creation-Date: 2026-06-17T09:48:46+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
 
 #. Plugin Name of the plugin
 #: kayzart-live-code-editor.php
-msgid "KayzArt Landing Page Editor"
+msgid "Kayzart Landing Pages — Paste & Edit AI-Generated HTML"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -26,7 +26,7 @@ msgstr ""
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "Live HTML/CSS/JS editor with real-time preview for WordPress."
+msgid "The place to paste landing pages your AI wrote. Edit HTML, CSS & JavaScript live and publish — without fighting your theme."
 msgstr ""
 
 #. Author of the plugin
@@ -36,14 +36,14 @@ msgstr ""
 
 #. translators: %s: post title.
 #: includes/class-kayzart-admin.php:91
-#: assets/dist/main.js:141
+#: assets/dist/main.js:145
 #, php-format,js-format
-msgid "KayzArt Landing Page Editor: %s"
+msgid "Kayzart Landing Page Editor: %s"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:121
-#: assets/dist/main.js:96
-#: assets/dist/main.js:141
+#: assets/dist/main.js:101
+#: assets/dist/main.js:145
 msgid "Untitled"
 msgstr ""
 
@@ -69,11 +69,11 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:161
 #: includes/class-kayzart-admin.php:216
-msgid "This editor is only available for KayzArt posts."
+msgid "This editor is only available for Kayzart posts."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:286
-msgid "This post type is not enabled for KayzArt."
+msgid "This post type is not enabled for Kayzart."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:298
@@ -82,12 +82,12 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:433
 #: includes/class-kayzart-admin.php:434
-msgid "KayzArt"
+msgid "Kayzart"
 msgstr ""
 
-#: assets/admin/post-type-list.js:30
 #: includes/class-kayzart-admin.php:451
 #: includes/class-kayzart-admin.php:452
+#: assets/admin/post-type-list.js:30
 msgid "Add landing page"
 msgstr ""
 
@@ -102,12 +102,12 @@ msgid "Permalink"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:515
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Page template"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:523
-msgid "KayzArt slug"
+msgid "Kayzart slug"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:532
@@ -123,15 +123,15 @@ msgid "Enabled post types"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:639
-msgid "Change the URL slug for KayzArt posts. Existing URLs will change after saving."
+msgid "Change the URL slug for Kayzart posts. Existing URLs will change after saving."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:647
-msgid "Choose the default page template mode used by KayzArt previews."
+msgid "Choose the default page template mode used by Kayzart previews."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:654
-msgid "Choose which post types can use the KayzArt landing page editor."
+msgid "Choose which post types can use the Kayzart landing page editor."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:663
@@ -139,12 +139,12 @@ msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:674
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Standalone"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:675
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Theme"
 msgstr ""
 
@@ -153,7 +153,7 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:701
-msgid "Existing posts are not converted until they are opened in the KayzArt editor or created with Add landing page."
+msgid "Existing posts are not converted until they are opened in the Kayzart editor or created with Add landing page."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:752
@@ -164,18 +164,18 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:1033
 #: includes/class-kayzart-admin.php:1041
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Posts"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:55
 msgctxt "post type general name"
-msgid "旧KayzArt"
+msgid "旧Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:56
 msgctxt "post type singular name"
-msgid "旧KayzArt"
+msgid "旧Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:57
@@ -188,11 +188,11 @@ msgid "Add New"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:59
-msgid "Edit KayzArt"
+msgid "Edit Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:60
-msgid "New KayzArt"
+msgid "New Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:61
@@ -201,27 +201,27 @@ msgid "View on front end"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:63
-msgid "Search KayzArt"
+msgid "Search Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:64
-msgid "No KayzArt found"
+msgid "No Kayzart found"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:65
-msgid "No KayzArt found in Trash"
+msgid "No Kayzart found in Trash"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:66
-msgid "旧KayzArt一覧"
+msgid "旧Kayzart一覧"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:67
-msgid "KayzArt Archives"
+msgid "Kayzart Archives"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:71
-msgid "旧KayzArt"
+msgid "旧Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:323
@@ -229,12 +229,13 @@ msgid "Landing page"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:327
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "TailwindCSS"
 msgstr ""
 
-#: assets/admin/editor-bridge.js:107 assets/admin/editor-bridge.js:149
 #: includes/class-kayzart-post-type.php:356
+#: assets/admin/editor-bridge.js:107
+#: assets/admin/editor-bridge.js:149
 msgid "Edit landing page"
 msgstr ""
 
@@ -282,484 +283,490 @@ msgstr ""
 msgid "Invalid setup mode."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/admin/editor-bridge.js:56
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
+msgid "Saving..."
+msgstr ""
+
+#: assets/dist/main.js:101
 msgid "Use default follows the default template mode from plugin settings."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Standalone hides the theme header and footer."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Theme uses the active theme template."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Template mode"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 #, js-format
 msgid "Use default (%s)"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Display settings"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Enable live edit highlight"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Elements"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Text"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Attributes"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Attribute name"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Value"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Remove attribute"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Remove"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Add attribute"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Select an element in the preview to edit its content and attributes."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Settings"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Settings tabs"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Close settings panel"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Show code"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Hide code"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
+msgid "Reload preview"
+msgstr ""
+
+#: assets/dist/main.js:101
 msgid "View post"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Preview"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Desktop"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Tablet"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Mobile"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Back to WordPress"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "(Draft)"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Tailwind CSS"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Editing in Tailwind CSS mode"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Save draft"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Save for review"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Update as private"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Update"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Publish"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Move to review"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Make private"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Revert to draft"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:150
-#: assets/dist/main.js:153
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
+#: assets/dist/main.js:157
 msgid "Update failed."
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Undo"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Redo"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Title"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Close"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Slug"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:150
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
 msgid "Cancel"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:150
-msgid "Saving..."
-msgstr ""
-
-#: assets/dist/main.js:96
-#: assets/dist/main.js:153
+#: assets/dist/main.js:101
+#: assets/dist/main.js:157
 msgid "Save"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Save options"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 #, js-format
 msgid "Status: %s"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Draft"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Pending"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Private"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Scheduled"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "Published"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "JavaScript mode"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "type: classic script"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
 msgid "type: module"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:150
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
 msgid "HTML"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:99
-#: assets/dist/main.js:150
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
 msgid "CSS"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:150
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
 msgid "head"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:99
+#: assets/dist/main.js:101
 msgid "JavaScript"
 msgstr ""
 
-#: assets/dist/main.js:96
+#: assets/dist/main.js:101
+#: assets/dist/main.js:154
+msgid "Import full HTML"
+msgstr ""
+
+#: assets/dist/main.js:101
 msgid "Add Media"
 msgstr ""
 
-#: assets/dist/main.js:96
-#: assets/dist/main.js:99
-msgid "Run"
-msgstr ""
-
-#: assets/dist/main.js:96
-msgid "Reload preview to apply head and JavaScript changes."
-msgstr ""
-
-#: assets/dist/main.js:96
-#: assets/dist/main.js:153
+#: assets/dist/main.js:101
+#: assets/dist/main.js:157
 msgid "Wrap: Off"
 msgstr ""
 
-#: assets/dist/main.js:96
-msgid ""
-"head内に追加するコードを入力します。\n"
-"外部CSS、Google Fonts、OGP、構造化データなどに使用できます。\n"
-"外部JSはここ、またはHTMLエディタ下部に<script src=\"\">として書いてください。\n"
-"※ <title>、<meta charset>、viewport、<base> は使用できません。"
+#: assets/dist/main.js:101
+msgid "Reload preview to apply head and JavaScript changes."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:101
+msgid "head内に追加するコードを入力します。"
+msgstr ""
+
+#: assets/dist/main.js:101
+msgid "外部CSS、Google Fonts、OGP、構造化データなどに使用できます。"
+msgstr ""
+
+#: assets/dist/main.js:101
+msgid "外部JSはここ、またはHTMLエディタ下部に<script src=\"\">として書いてください。"
+msgstr ""
+
+#: assets/dist/main.js:101
+msgid "※ <title>、<meta charset>、viewport、<base> は使用できません。"
+msgstr ""
+
+#: assets/dist/main.js:154
 msgid "Tailwind compile failed."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 #, js-format
 msgid "Tailwind error: %s"
 msgstr ""
 
-#: assets/dist/main.js:150
-#: assets/dist/main.js:153
+#: assets/dist/main.js:154
+#: assets/dist/main.js:157
 msgid "Save failed."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Fix settings errors before saving."
 msgstr ""
 
-#: assets/dist/main.js:150
-#: assets/dist/main.js:153
+#: assets/dist/main.js:154
+#: assets/dist/main.js:157
 #, js-format
 msgid "Removed unsupported head tags: %s"
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Saved."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 #, js-format
 msgid "Save error: %s"
 msgstr ""
 
-#: assets/dist/main.js:150
-#: assets/dist/main.js:153
+#: assets/dist/main.js:154
+#: assets/dist/main.js:157
 msgid "Setup failed."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Choose editor mode"
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Normal (HTML/CSS)"
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Edit HTML and CSS directly in the code editor."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Back"
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Continue"
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Setup unavailable."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "wp.apiFetch is unavailable."
 msgstr ""
 
-#: assets/dist/main.js:150
-msgid "Complete HTML detected"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "body content and body attributes"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "head additions"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "style tags"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "JS"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "inline script tags"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "JavaScript will not be imported because your account cannot edit it."
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "Replace"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "Skip"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "Paste as HTML"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "Split and import"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "Theme template unavailable"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "This theme does not output \"the_content\", so the preview cannot be rendered. KayzArt will switch the template mode to Standalone."
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "OK"
-msgstr ""
-
-#: assets/dist/main.js:150
-msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
-msgstr ""
-
-#: assets/dist/main.js:150
-#: assets/dist/main.js:153
-msgid "Settings unavailable."
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "Toggle HTML word wrap"
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "Wrap: On"
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "Loading editor..."
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "You may have unsaved changes."
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "Media library is unavailable."
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "Select media to insert into HTML."
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "Insert into HTML"
-msgstr ""
-
-#: assets/dist/main.js:153
-msgid "The selected media has no URL and was not inserted."
-msgstr ""
-
-#: assets/dist/main.js:150
-#: assets/dist/main.js:153
-msgid "Import full HTML"
-msgstr ""
-
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Paste a complete HTML document."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Could not parse the content as a complete HTML document."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "head, body, style, and script sections are split and imported automatically."
 msgstr ""
 
-#: assets/dist/main.js:150
+#: assets/dist/main.js:154
 msgid "Parse"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Complete HTML detected"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "body content and body attributes"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "head additions"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "style tags"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "JS"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "inline script tags"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "head HTML and JavaScript will not be imported because your account cannot edit them."
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Replace"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Skip"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Paste as HTML"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Split and import"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Theme template unavailable"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "This theme does not output \"the_content\", so the preview cannot be rendered. Kayzart will switch the template mode to Standalone."
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "OK"
+msgstr ""
+
+#: assets/dist/main.js:154
+msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
+msgstr ""
+
+#: assets/dist/main.js:154
+#: assets/dist/main.js:157
+msgid "Settings unavailable."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Toggle HTML word wrap"
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Wrap: On"
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Loading editor..."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "You may have unsaved changes."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Media library is unavailable."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Select media to insert into HTML."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Insert into HTML"
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "The selected media has no URL and was not inserted."
 msgstr ""

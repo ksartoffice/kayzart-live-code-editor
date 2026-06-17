@@ -65,8 +65,6 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 == Changelog ==
 = 2.0.3 =
 * Add: Show unsaved changes in the editor gutter.
-* Fix: Mark auto-indented blank-line edits correctly.
-* Improve: Use descendant text for element context.
 
 = 2.0.2 =
 * Fix: Bug fixes and stability improvements.

@@ -1803,12 +1803,28 @@ body.admin_page_kayzart #wpbody-content {
   background: rgba(96, 165, 250, 0.92);
 }
 
-.cm-editor .kayzart-change-line-added {
-  background: rgba(34, 197, 94, 0.18);
+.cm-editor .kayzart-unsaved-change-gutter {
+  width: 5px;
+  min-width: 5px;
+  background: transparent;
 }
 
-.cm-editor .kayzart-change-line-removed {
-  background: rgba(239, 68, 68, 0.2);
+.cm-editor .kayzart-unsaved-change-marker {
+  display: block;
+  width: 3px;
+  height: 1.45em;
+  margin-left: 1px;
+  background: #22c55e;
+  border-radius: 2px;
+}
+
+.cm-editor .kayzart-unsaved-deletion-marker {
+  display: block;
+  width: 3px;
+  height: 1.45em;
+  margin-left: 1px;
+  background: #ef4444;
+  border-radius: 2px;
 }
 
 .kayzart-tailwindBadge {

@@ -113,7 +113,7 @@ function SetupWizard({
                 {__('TailwindCSS', 'kayzart-live-code-editor')}
               </span>
               <span className="kayzart-setupOptionDesc">
-                {__('Use utility classes. CSS is compiled automatically.', 'kayzart-live-code-editor')}
+                {__('Use Tailwind CSS v4 utility classes. CSS is compiled automatically.', 'kayzart-live-code-editor')}
               </span>
             </span>
           </label>

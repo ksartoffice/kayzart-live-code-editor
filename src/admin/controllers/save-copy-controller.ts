@@ -5,6 +5,7 @@ import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
 import { EditorRange, type EditorModel } from '../codemirror';
+import { presentableDiff } from '@codemirror/merge';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -60,6 +61,133 @@ type SaveCopyControllerDeps = {
   };
   onUnsavedChange: (hasUnsavedChanges: boolean) => void;
   onSaveSuccess?: () => void;
+};
+
+const buildLineStarts = (text: string): number[] => {
+  const starts = [0];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text.charCodeAt(i) === 10) {
+      starts.push(i + 1);
+    }
+  }
+  return starts;
+};
+
+const getLineNumberAtOffset = (
+  lineStarts: number[],
+  textLength: number,
+  rawOffset: number
+): number => {
+  const offset = Math.max(0, Math.min(rawOffset, textLength));
+  let low = 0;
+  let high = lineStarts.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (lineStarts[mid] <= offset) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return low + 1;
+};
+
+const NEWLINE_CODE = 10;
+
+const addCoveredLines = (
+  target: Set<number>,
+  lineStarts: number[],
+  textLength: number,
+  from: number,
+  to: number
+) => {
+  if (to <= from) {
+    return;
+  }
+  const startLine = getLineNumberAtOffset(lineStarts, textLength, from);
+  const endLine = getLineNumberAtOffset(lineStarts, textLength, Math.max(from, to - 1));
+  for (let line = startLine; line <= endLine; line += 1) {
+    target.add(line);
+  }
+};
+
+/**
+ * 純粋な挿入（削除を伴わない変更）を、挿入テキストが改行で終わる形へ
+ * 左方向に回転させて正規化する。
+ *
+ * Enter をオートインデント付きで押すと、新しい行には次の行と同じインデントが
+ * 挿入される。このとき presentableDiff は挿入を「改行 + インデント」（例: "\n  "）
+ * と報告するため、変更範囲の末尾が次の行へはみ出し、追加した行とその次の行の
+ * 両方が変更行として扱われてしまう。
+ *
+ * 挿入末尾の文字が挿入直前の文字と一致する限り回転は等価な編集になるため、
+ * 改行境界で終わるよう寄せることで余分な行のマークを防ぐ。
+ */
+const normalizeInsertionRange = (
+  text: string,
+  from: number,
+  to: number
+): { from: number; to: number } => {
+  let nextFrom = from;
+  let nextTo = to;
+  while (
+    nextTo > nextFrom &&
+    text.charCodeAt(nextTo - 1) !== NEWLINE_CODE &&
+    nextFrom > 0 &&
+    text.charCodeAt(nextFrom - 1) === text.charCodeAt(nextTo - 1)
+  ) {
+    nextFrom -= 1;
+    nextTo -= 1;
+  }
+  return { from: nextFrom, to: nextTo };
+};
+
+export type UnsavedChangeMarkers = {
+  changedLines: number[];
+  deletedLines: number[];
+};
+
+export const computeUnsavedChangeMarkers = (
+  savedText: string,
+  currentText: string
+): UnsavedChangeMarkers => {
+  if (savedText === currentText) {
+    return { changedLines: [], deletedLines: [] };
+  }
+
+  const lineStarts = buildLineStarts(currentText);
+  const changed = new Set<number>();
+  const deleted = new Set<number>();
+  const diff = presentableDiff(savedText, currentText, {
+    scanLimit: 500,
+    timeout: 50,
+  });
+
+  diff.forEach((change) => {
+    if (change.toB <= change.fromB) {
+      const anchorLine = getLineNumberAtOffset(lineStarts, currentText.length, change.fromB);
+      deleted.add(anchorLine);
+      return;
+    }
+    const isPureInsertion = change.toA === change.fromA;
+    const { from, to } = isPureInsertion
+      ? normalizeInsertionRange(currentText, change.fromB, change.toB)
+      : { from: change.fromB, to: change.toB };
+    addCoveredLines(changed, lineStarts, currentText.length, from, to);
+  });
+
+  changed.forEach((line) => {
+    deleted.delete(line);
+  });
+
+  return {
+    changedLines: Array.from(changed).sort((a, b) => a - b),
+    deletedLines: Array.from(deleted).sort((a, b) => a - b),
+  };
+};
+
+export const computeUnsavedChangeLines = (savedText: string, currentText: string): number[] => {
+  return computeUnsavedChangeMarkers(savedText, currentText).changedLines;
 };
 
 
@@ -125,6 +253,35 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
 
   const syncUnsavedUi = () => {
     const { html, customHead, css, js, hasAny } = getUnsavedFlags();
+    const htmlModel = deps.getHtmlModel();
+    const customHeadModel = deps.getCustomHeadModel();
+    const cssModel = deps.getCssModel();
+    const jsModel = deps.getJsModel();
+
+    const htmlMarkers = htmlModel
+      ? computeUnsavedChangeMarkers(lastSaved.html, htmlModel.getValue())
+      : { changedLines: [], deletedLines: [] };
+    const customHeadMarkers =
+      deps.canEditJs && customHeadModel
+        ? computeUnsavedChangeMarkers(lastSaved.customHead, customHeadModel.getValue())
+        : { changedLines: [], deletedLines: [] };
+    const cssMarkers = cssModel
+      ? computeUnsavedChangeMarkers(lastSaved.css, cssModel.getValue())
+      : { changedLines: [], deletedLines: [] };
+    const jsMarkers =
+      deps.canEditJs && jsModel
+        ? computeUnsavedChangeMarkers(lastSaved.js, jsModel.getValue())
+        : { changedLines: [], deletedLines: [] };
+
+    htmlModel?.setUnsavedChangeLines?.(htmlMarkers.changedLines);
+    htmlModel?.setUnsavedDeletionLines?.(htmlMarkers.deletedLines);
+    customHeadModel?.setUnsavedChangeLines?.(customHeadMarkers.changedLines);
+    customHeadModel?.setUnsavedDeletionLines?.(customHeadMarkers.deletedLines);
+    cssModel?.setUnsavedChangeLines?.(cssMarkers.changedLines);
+    cssModel?.setUnsavedDeletionLines?.(cssMarkers.deletedLines);
+    jsModel?.setUnsavedChangeLines?.(jsMarkers.changedLines);
+    jsModel?.setUnsavedDeletionLines?.(jsMarkers.deletedLines);
+
     deps.uiDirtyTargets.htmlTitle.classList.toggle('has-unsaved', html);
     deps.uiDirtyTargets.htmlTab.classList.toggle('has-unsaved', html);
     deps.uiDirtyTargets.customHeadTab.classList.toggle('has-unsaved', customHead);

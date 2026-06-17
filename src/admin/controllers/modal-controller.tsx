@@ -100,7 +100,7 @@ function FullHtmlImportSourceModal({
   onCancel,
   onSubmit,
 }: FullHtmlImportSourceModalProps) {
-  const title = __('フルHTMLを取り込み', 'kayzart-live-code-editor');
+  const title = __('Import full HTML', 'kayzart-live-code-editor');
   const cancelLabel = __('Cancel', 'kayzart-live-code-editor');
   const [source, setSource] = useState('');
   const [error, setError] = useState('');
@@ -108,11 +108,11 @@ function FullHtmlImportSourceModal({
   const handleSubmit = () => {
     const nextSource = source.trim();
     if (!nextSource) {
-      setError(__('HTML全体を貼り付けてください。', 'kayzart-live-code-editor'));
+      setError(__('Paste a complete HTML document.', 'kayzart-live-code-editor'));
       return;
     }
     if (!parseFullHtmlDocument(nextSource)) {
-      setError(__('フルHTMLとして解析できませんでした。', 'kayzart-live-code-editor'));
+      setError(__('Could not parse the content as a complete HTML document.', 'kayzart-live-code-editor'));
       return;
     }
     onSubmit(nextSource);
@@ -141,10 +141,10 @@ function FullHtmlImportSourceModal({
         <div className="kayzart-modalBody">
           <div className="kayzart-hintBody">
             <p className="kayzart-hintText">
-              {__('HTML全体を貼り付けてください。', 'kayzart-live-code-editor')}
+              {__('Paste a complete HTML document.', 'kayzart-live-code-editor')}
               <br />
               {__(
-                'head / body / style / script を自動で分けて取り込みます。',
+                'head, body, style, and script sections are split and imported automatically.',
                 'kayzart-live-code-editor'
               )}
             </p>
@@ -167,7 +167,7 @@ function FullHtmlImportSourceModal({
             {cancelLabel}
           </button>
           <button type="button" className="kayzart-btn kayzart-btn-primary" onClick={handleSubmit}>
-            {__('解析する', 'kayzart-live-code-editor')}
+            {__('Parse', 'kayzart-live-code-editor')}
           </button>
         </div>
       </div>

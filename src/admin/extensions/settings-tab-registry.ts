@@ -60,16 +60,12 @@ export type EditorSnapshot = {
 
 export type EditorMode = 'normal';
 
-export type SnapshotReplaceOptions = {
-  highlightChanges?: boolean;
-};
-
 export type KayzArtExtensionApi = {
   registerSettingsTab: RegisterSettingsTab;
   registerToolbarAction?: RegisterToolbarAction;
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
-  replaceEditorSnapshot?: (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => boolean;
+  replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
   getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;

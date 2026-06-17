@@ -52,9 +52,7 @@ import type {
   EditorSnapshot,
   KayzArtExtensionApi,
   SelectedElementContext,
-  SnapshotReplaceOptions,
 } from './extensions/settings-tab-registry';
-import { presentableDiff } from '@codemirror/merge';
 import { __, sprintf } from '@wordpress/i18n';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
@@ -106,60 +104,6 @@ const computeEditorBaseHash = (html: string, customHead: string, css: string, js
   return hash.toString(16).padStart(8, '0');
 };
 
-type SnapshotLineChanges = {
-  addedLines: number[];
-  removedAnchorLines: number[];
-};
-
-const CHANGE_LINE_ADDED_CLASS = 'kayzart-change-line-added';
-const CHANGE_LINE_REMOVED_CLASS = 'kayzart-change-line-removed';
-
-const buildLineStarts = (text: string): number[] => {
-  const starts = [0];
-  for (let i = 0; i < text.length; i += 1) {
-    if (text.charCodeAt(i) === 10) {
-      starts.push(i + 1);
-    }
-  }
-  return starts;
-};
-
-const getLineNumberAtOffset = (
-  lineStarts: number[],
-  textLength: number,
-  rawOffset: number
-): number => {
-  const offset = Math.max(0, Math.min(rawOffset, textLength));
-  let low = 0;
-  let high = lineStarts.length - 1;
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (lineStarts[mid] <= offset) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return low + 1;
-};
-
-const addCoveredLines = (
-  target: Set<number>,
-  lineStarts: number[],
-  textLength: number,
-  from: number,
-  to: number
-) => {
-  if (to <= from) {
-    return;
-  }
-  const startLine = getLineNumberAtOffset(lineStarts, textLength, from);
-  const endLine = getLineNumberAtOffset(lineStarts, textLength, Math.max(from, to - 1));
-  for (let line = startLine; line <= endLine; line += 1) {
-    target.add(line);
-  }
-};
-
 const readSettingsPanelWidth = (): number | undefined => {
   try {
     const saved = window.localStorage.getItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY);
@@ -185,39 +129,6 @@ const saveSettingsPanelWidth = (width: number) => {
   } catch {
     // Ignore storage errors and keep editing.
   }
-};
-
-const computeSnapshotLineChanges = (beforeText: string, nextText: string): SnapshotLineChanges => {
-  if (beforeText === nextText) {
-    return { addedLines: [], removedAnchorLines: [] };
-  }
-
-  const lineStarts = buildLineStarts(nextText);
-  const added = new Set<number>();
-  const removed = new Set<number>();
-  const diff = presentableDiff(beforeText, nextText, {
-    scanLimit: 500,
-    timeout: 50,
-  });
-
-  diff.forEach((change) => {
-    if (change.toB > change.fromB) {
-      addCoveredLines(added, lineStarts, nextText.length, change.fromB, change.toB);
-    }
-    if (change.toA > change.fromA) {
-      const anchor = getLineNumberAtOffset(lineStarts, nextText.length, change.fromB);
-      removed.add(anchor);
-    }
-  });
-
-  added.forEach((line) => {
-    removed.delete(line);
-  });
-
-  return {
-    addedLines: Array.from(added).sort((a, b) => a - b),
-    removedAnchorLines: Array.from(removed).sort((a, b) => a - b),
-  };
 };
 
 async function main() {
@@ -326,11 +237,6 @@ async function main() {
   let sendRenderDebounced: (() => void) | null = null;
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
-  let htmlChangeHighlightIds: string[] = [];
-  let customHeadChangeHighlightIds: string[] = [];
-  let cssChangeHighlightIds: string[] = [];
-  let jsChangeHighlightIds: string[] = [];
-  let suppressChangeHighlightClear = 0;
   let extensionEditorLock = false;
   let suppressSelectionClear = 0;
   const selectionListeners = new Set<(lcId: string | null) => void>();
@@ -1269,104 +1175,15 @@ async function main() {
     return true;
   };
 
-  const applySnapshotChangeHighlight = (
-    model: EditorModel,
-    decorationIds: string[],
-    lineChanges: SnapshotLineChanges
-  ) => {
-    const decorations = [
-      ...lineChanges.addedLines.map((lineNumber) => ({
-        range: new codemirror.Range(lineNumber, 1, lineNumber, 1),
-        options: {
-          className: CHANGE_LINE_ADDED_CLASS,
-        },
-      })),
-      ...lineChanges.removedAnchorLines.map((lineNumber) => ({
-        range: new codemirror.Range(lineNumber, 1, lineNumber, 1),
-        options: {
-          className: CHANGE_LINE_REMOVED_CLASS,
-        },
-      })),
-    ];
-    return model.deltaDecorations(decorationIds, decorations);
-  };
-
-  const clearHtmlChangeHighlights = () => {
-    htmlChangeHighlightIds = htmlModel.deltaDecorations(htmlChangeHighlightIds, []);
-  };
-
-  const clearCustomHeadChangeHighlights = () => {
-    customHeadChangeHighlightIds = customHeadModel.deltaDecorations(customHeadChangeHighlightIds, []);
-  };
-
-  const clearCssChangeHighlights = () => {
-    cssChangeHighlightIds = cssModel.deltaDecorations(cssChangeHighlightIds, []);
-  };
-
-  const clearJsChangeHighlights = () => {
-    jsChangeHighlightIds = jsModel.deltaDecorations(jsChangeHighlightIds, []);
-  };
-
-  const clearSnapshotChangeHighlights = () => {
-    clearHtmlChangeHighlights();
-    clearCustomHeadChangeHighlights();
-    clearCssChangeHighlights();
-    clearJsChangeHighlights();
-  };
-
-  const replaceEditorSnapshot = (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => {
+  const replaceEditorSnapshot = (snapshot: EditorSnapshot) => {
     if (!snapshot || typeof snapshot !== 'object') {
       return false;
     }
 
-    const highlightChanges = Boolean(options?.highlightChanges);
-    if (highlightChanges) {
-      const nextHtml = snapshot.html ?? '';
-      const nextCustomHead = snapshot.customHead ?? customHeadModel.getValue();
-      const nextCss = snapshot.css ?? '';
-      const nextJs = snapshot.js ?? '';
-      const htmlChanges = computeSnapshotLineChanges(htmlModel.getValue(), nextHtml);
-      const customHeadChanges = computeSnapshotLineChanges(customHeadModel.getValue(), nextCustomHead);
-      const cssChanges = computeSnapshotLineChanges(cssModel.getValue(), nextCss);
-      const jsChanges = computeSnapshotLineChanges(jsModel.getValue(), nextJs);
-
-      suppressChangeHighlightClear += 1;
-      try {
-        replaceModelContent(htmlModel, nextHtml);
-        replaceModelContent(customHeadModel, nextCustomHead);
-        replaceModelContent(cssModel, nextCss);
-        replaceModelContent(jsModel, nextJs);
-
-        htmlChangeHighlightIds = applySnapshotChangeHighlight(
-          htmlModel,
-          htmlChangeHighlightIds,
-          htmlChanges
-        );
-        customHeadChangeHighlightIds = applySnapshotChangeHighlight(
-          customHeadModel,
-          customHeadChangeHighlightIds,
-          customHeadChanges
-        );
-        cssChangeHighlightIds = applySnapshotChangeHighlight(
-          cssModel,
-          cssChangeHighlightIds,
-          cssChanges
-        );
-        jsChangeHighlightIds = applySnapshotChangeHighlight(
-          jsModel,
-          jsChangeHighlightIds,
-          jsChanges
-        );
-      } finally {
-        suppressChangeHighlightClear = Math.max(0, suppressChangeHighlightClear - 1);
-      }
-    } else {
-      clearSnapshotChangeHighlights();
-      replaceModelContent(htmlModel, snapshot.html ?? '');
-      replaceModelContent(customHeadModel, snapshot.customHead ?? customHeadModel.getValue());
-      replaceModelContent(cssModel, snapshot.css ?? '');
-      replaceModelContent(jsModel, snapshot.js ?? '');
-    }
+    replaceModelContent(htmlModel, snapshot.html ?? '');
+    replaceModelContent(customHeadModel, snapshot.customHead ?? customHeadModel.getValue());
+    replaceModelContent(cssModel, snapshot.css ?? '');
+    replaceModelContent(jsModel, snapshot.js ?? '');
 
     setJsMode(snapshot.jsMode ?? 'classic');
     requestPreviewReload();
@@ -1467,9 +1284,6 @@ async function main() {
   viewportController.applyViewportLayout(true);
 
   htmlModel.onDidChangeContent(() => {
-    if (suppressChangeHighlightClear === 0) {
-      clearHtmlChangeHighlights();
-    }
     preview?.resetCanonicalCache();
     preview?.clearSelectionHighlight();
     sendRenderDebounced?.();
@@ -1485,17 +1299,11 @@ async function main() {
     syncUnsavedUi();
   });
   customHeadModel.onDidChangeContent(() => {
-    if (suppressChangeHighlightClear === 0) {
-      clearCustomHeadChangeHighlights();
-    }
     setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
     syncUnsavedUi();
   });
   cssModel.onDidChangeContent(() => {
-    if (suppressChangeHighlightClear === 0) {
-      clearCssChangeHighlights();
-    }
     if (!tailwindEnabled) {
       sendRenderDebounced?.();
     }
@@ -1509,9 +1317,6 @@ async function main() {
   });
 
   jsModel.onDidChangeContent(() => {
-    if (suppressChangeHighlightClear === 0) {
-      clearJsChangeHighlights();
-    }
     setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
     syncUnsavedUi();

@@ -52,7 +52,6 @@ import type {
   EditorSnapshot,
   KayzArtExtensionApi,
   SelectedElementContext,
-  SnapshotReplaceOptions,
 } from './extensions/settings-tab-registry';
 import { __, sprintf } from '@wordpress/i18n';
 
@@ -1176,12 +1175,11 @@ async function main() {
     return true;
   };
 
-  const replaceEditorSnapshot = (snapshot: EditorSnapshot, options?: SnapshotReplaceOptions) => {
+  const replaceEditorSnapshot = (snapshot: EditorSnapshot) => {
     if (!snapshot || typeof snapshot !== 'object') {
       return false;
     }
 
-    void options;
     replaceModelContent(htmlModel, snapshot.html ?? '');
     replaceModelContent(customHeadModel, snapshot.customHead ?? customHeadModel.getValue());
     replaceModelContent(cssModel, snapshot.css ?? '');

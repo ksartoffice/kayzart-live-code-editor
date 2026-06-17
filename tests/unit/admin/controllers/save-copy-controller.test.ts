@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
+  computeUnsavedChangeMarkers,
   computeUnsavedChangeLines,
   createSaveCopyController,
 } from '../../../../src/admin/controllers/save-copy-controller';
@@ -23,20 +24,24 @@ describe('save copy controller', () => {
     const htmlModel = {
       getValue: () => '<p>hello</p>',
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const customHeadModel = {
       getValue: () => '<meta property="og:title" content="hello">',
       getPositionAt: () => ({ lineNumber: 1, column: 1 }),
       pushEditOperations: vi.fn(),
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const cssModel = {
       getValue: () => '.hello { color: red; }',
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const jsModel = {
       getValue: () => 'console.log("hello");',
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const createSnackbar = vi.fn();
 
@@ -88,6 +93,21 @@ describe('save copy controller', () => {
     expect(computeUnsavedChangeLines('a\nb\nc', 'a\nc')).toEqual([]);
   });
 
+  it('computes current-side unsaved deletion anchor lines', () => {
+    expect(computeUnsavedChangeMarkers('abc', 'ac')).toEqual({
+      changedLines: [],
+      deletedLines: [1],
+    });
+    expect(computeUnsavedChangeMarkers('a\nb\nc', 'a\nc')).toEqual({
+      changedLines: [],
+      deletedLines: [2],
+    });
+    expect(computeUnsavedChangeMarkers('a\nb', 'a\n')).toEqual({
+      changedLines: [],
+      deletedLines: [2],
+    });
+  });
+
   it('marks only the inserted line when an auto-indented blank line is added', () => {
     // Enter をオートインデント付きで押すと新しい行に次の行と同じインデントが入り、
     // presentableDiff は挿入を "\n  " と報告する。追加した行のみをマークすること。
@@ -113,9 +133,13 @@ describe('save copy controller', () => {
     controller.markSavedState();
 
     expect(htmlModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(htmlModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
     expect(customHeadModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(customHeadModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
     expect(cssModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(cssModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
     expect(jsModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(jsModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
   });
 
   it('syncs unsaved change gutter markers for each editable model', () => {
@@ -128,18 +152,22 @@ describe('save copy controller', () => {
     const htmlModel = {
       getValue: () => values.html,
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const customHeadModel = {
       getValue: () => values.customHead,
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const cssModel = {
       getValue: () => values.css,
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
     const jsModel = {
       getValue: () => values.js,
       setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
     } as any;
 
     const { controller } = createController({
@@ -157,9 +185,65 @@ describe('save copy controller', () => {
     controller.syncUnsavedUi();
 
     expect(htmlModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([1]);
+    expect(htmlModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
     expect(customHeadModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([1]);
+    expect(customHeadModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
     expect(cssModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([2]);
+    expect(cssModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
     expect(jsModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([1]);
+    expect(jsModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([]);
+  });
+
+  it('syncs unsaved deletion gutter markers separately from changed lines', () => {
+    const values = {
+      html: '<p>hello</p>',
+      customHead: '<meta property="og:title" content="hello">',
+      css: '.hello {\n  color: red;\n}',
+      js: 'console.log("hello");',
+    };
+    const htmlModel = {
+      getValue: () => values.html,
+      setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
+    } as any;
+    const customHeadModel = {
+      getValue: () => values.customHead,
+      setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
+    } as any;
+    const cssModel = {
+      getValue: () => values.css,
+      setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
+    } as any;
+    const jsModel = {
+      getValue: () => values.js,
+      setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
+    } as any;
+
+    const { controller } = createController({
+      getHtmlModel: () => htmlModel,
+      getCustomHeadModel: () => customHeadModel,
+      getCssModel: () => cssModel,
+      getJsModel: () => jsModel,
+    });
+
+    controller.markSavedState();
+    values.html = '<p>helo</p>';
+    values.customHead = '<meta property="og:title" content="helo">';
+    values.css = '.hello {\n}';
+    values.js = 'console.log("helo");';
+    controller.syncUnsavedUi();
+
+    expect(htmlModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(htmlModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([1]);
+    expect(customHeadModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(customHeadModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([1]);
+    expect(cssModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(cssModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([2]);
+    expect(jsModel.setUnsavedChangeLines).toHaveBeenLastCalledWith([]);
+    expect(jsModel.setUnsavedDeletionLines).toHaveBeenLastCalledWith([1]);
   });
 
   it('calls onSaveSuccess when save succeeds', async () => {

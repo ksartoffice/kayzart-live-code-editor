@@ -142,13 +142,22 @@ const normalizeInsertionRange = (
   return { from: nextFrom, to: nextTo };
 };
 
-export const computeUnsavedChangeLines = (savedText: string, currentText: string): number[] => {
+export type UnsavedChangeMarkers = {
+  changedLines: number[];
+  deletedLines: number[];
+};
+
+export const computeUnsavedChangeMarkers = (
+  savedText: string,
+  currentText: string
+): UnsavedChangeMarkers => {
   if (savedText === currentText) {
-    return [];
+    return { changedLines: [], deletedLines: [] };
   }
 
   const lineStarts = buildLineStarts(currentText);
   const changed = new Set<number>();
+  const deleted = new Set<number>();
   const diff = presentableDiff(savedText, currentText, {
     scanLimit: 500,
     timeout: 50,
@@ -156,6 +165,8 @@ export const computeUnsavedChangeLines = (savedText: string, currentText: string
 
   diff.forEach((change) => {
     if (change.toB <= change.fromB) {
+      const anchorLine = getLineNumberAtOffset(lineStarts, currentText.length, change.fromB);
+      deleted.add(anchorLine);
       return;
     }
     const isPureInsertion = change.toA === change.fromA;
@@ -165,7 +176,18 @@ export const computeUnsavedChangeLines = (savedText: string, currentText: string
     addCoveredLines(changed, lineStarts, currentText.length, from, to);
   });
 
-  return Array.from(changed).sort((a, b) => a - b);
+  changed.forEach((line) => {
+    deleted.delete(line);
+  });
+
+  return {
+    changedLines: Array.from(changed).sort((a, b) => a - b),
+    deletedLines: Array.from(deleted).sort((a, b) => a - b),
+  };
+};
+
+export const computeUnsavedChangeLines = (savedText: string, currentText: string): number[] => {
+  return computeUnsavedChangeMarkers(savedText, currentText).changedLines;
 };
 
 
@@ -236,16 +258,29 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
 
-    htmlModel?.setUnsavedChangeLines?.(computeUnsavedChangeLines(lastSaved.html, htmlModel.getValue()));
-    customHeadModel?.setUnsavedChangeLines?.(
-      deps.canEditJs
-        ? computeUnsavedChangeLines(lastSaved.customHead, customHeadModel.getValue())
-        : []
-    );
-    cssModel?.setUnsavedChangeLines?.(computeUnsavedChangeLines(lastSaved.css, cssModel.getValue()));
-    jsModel?.setUnsavedChangeLines?.(
-      deps.canEditJs ? computeUnsavedChangeLines(lastSaved.js, jsModel.getValue()) : []
-    );
+    const htmlMarkers = htmlModel
+      ? computeUnsavedChangeMarkers(lastSaved.html, htmlModel.getValue())
+      : { changedLines: [], deletedLines: [] };
+    const customHeadMarkers =
+      deps.canEditJs && customHeadModel
+        ? computeUnsavedChangeMarkers(lastSaved.customHead, customHeadModel.getValue())
+        : { changedLines: [], deletedLines: [] };
+    const cssMarkers = cssModel
+      ? computeUnsavedChangeMarkers(lastSaved.css, cssModel.getValue())
+      : { changedLines: [], deletedLines: [] };
+    const jsMarkers =
+      deps.canEditJs && jsModel
+        ? computeUnsavedChangeMarkers(lastSaved.js, jsModel.getValue())
+        : { changedLines: [], deletedLines: [] };
+
+    htmlModel?.setUnsavedChangeLines?.(htmlMarkers.changedLines);
+    htmlModel?.setUnsavedDeletionLines?.(htmlMarkers.deletedLines);
+    customHeadModel?.setUnsavedChangeLines?.(customHeadMarkers.changedLines);
+    customHeadModel?.setUnsavedDeletionLines?.(customHeadMarkers.deletedLines);
+    cssModel?.setUnsavedChangeLines?.(cssMarkers.changedLines);
+    cssModel?.setUnsavedDeletionLines?.(cssMarkers.deletedLines);
+    jsModel?.setUnsavedChangeLines?.(jsMarkers.changedLines);
+    jsModel?.setUnsavedDeletionLines?.(jsMarkers.deletedLines);
 
     deps.uiDirtyTargets.htmlTitle.classList.toggle('has-unsaved', html);
     deps.uiDirtyTargets.htmlTab.classList.toggle('has-unsaved', html);

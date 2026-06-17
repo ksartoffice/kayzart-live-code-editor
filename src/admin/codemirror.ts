@@ -127,6 +127,7 @@ export type EditorModel = {
   ) => EditorSelection[] | null;
   deltaDecorations: (oldDecorationIds: string[], decorations: EditorDecoration[]) => string[];
   setUnsavedChangeLines: (lineNumbers: number[]) => void;
+  setUnsavedDeletionLines: (lineNumbers: number[]) => void;
 };
 
 export type CodeEditorInstance = {
@@ -214,6 +215,7 @@ type EditorWrapper = {
 const DECORATION_EFFECT = StateEffect.define<DecorationSpec[]>();
 const SCROLL_RULER_MARKERS_EFFECT = StateEffect.define<ScrollRulerMarkerSpec[]>();
 const UNSAVED_CHANGE_LINES_EFFECT = StateEffect.define<number[]>();
+const UNSAVED_DELETION_LINES_EFFECT = StateEffect.define<number[]>();
 
 class UnsavedChangeMarker extends GutterMarker {
   toDOM() {
@@ -224,6 +226,16 @@ class UnsavedChangeMarker extends GutterMarker {
 }
 
 const unsavedChangeMarker = new UnsavedChangeMarker();
+
+class UnsavedDeletionMarker extends GutterMarker {
+  toDOM() {
+    const marker = document.createElement('span');
+    marker.className = 'kayzart-unsaved-deletion-marker';
+    return marker;
+  }
+}
+
+const unsavedDeletionMarker = new UnsavedDeletionMarker();
 
 const unsavedChangeLinesField = StateField.define<ReadonlySet<number>>({
   create() {
@@ -239,18 +251,37 @@ const unsavedChangeLinesField = StateField.define<ReadonlySet<number>>({
   },
 });
 
+const unsavedDeletionLinesField = StateField.define<ReadonlySet<number>>({
+  create() {
+    return new Set();
+  },
+  update(value, transaction) {
+    for (const effect of transaction.effects) {
+      if (effect.is(UNSAVED_DELETION_LINES_EFFECT)) {
+        return new Set(effect.value);
+      }
+    }
+    return value;
+  },
+});
+
 const unsavedChangeGutter = gutter({
   class: 'kayzart-unsaved-change-gutter',
   lineMarker(view, line) {
     const lineNumber = view.state.doc.lineAt(line.from).number;
-    return view.state.field(unsavedChangeLinesField).has(lineNumber)
-      ? unsavedChangeMarker
+    if (view.state.field(unsavedChangeLinesField).has(lineNumber)) {
+      return unsavedChangeMarker;
+    }
+    return view.state.field(unsavedDeletionLinesField).has(lineNumber)
+      ? unsavedDeletionMarker
       : null;
   },
   lineMarkerChange(update) {
     return (
       update.startState.field(unsavedChangeLinesField) !==
-      update.state.field(unsavedChangeLinesField)
+        update.state.field(unsavedChangeLinesField) ||
+      update.startState.field(unsavedDeletionLinesField) !==
+        update.state.field(unsavedDeletionLinesField)
     );
   },
 });
@@ -547,6 +578,7 @@ const scrollRulerPlugin = ViewPlugin.fromClass(
 const baseEditorSetup: Extension = [
   lineNumbers(),
   unsavedChangeLinesField,
+  unsavedDeletionLinesField,
   unsavedChangeGutter,
   highlightActiveLineGutter(),
   highlightSpecialChars(),
@@ -727,9 +759,9 @@ const createEditorWrapper = (options: {
     });
   };
 
-  const setUnsavedChangeLines = (lineNumbers: number[]) => {
+  const normalizeUnsavedLineNumbers = (lineNumbers: number[]) => {
     const maxLine = view.state.doc.lines;
-    const normalized = Array.from(
+    return Array.from(
       new Set(
         lineNumbers
           .filter((lineNumber) => Number.isFinite(lineNumber))
@@ -737,8 +769,17 @@ const createEditorWrapper = (options: {
           .filter((lineNumber) => lineNumber >= 1 && lineNumber <= maxLine)
       )
     ).sort((a, b) => a - b);
+  };
+
+  const setUnsavedChangeLines = (lineNumbers: number[]) => {
     view.dispatch({
-      effects: UNSAVED_CHANGE_LINES_EFFECT.of(normalized),
+      effects: UNSAVED_CHANGE_LINES_EFFECT.of(normalizeUnsavedLineNumbers(lineNumbers)),
+    });
+  };
+
+  const setUnsavedDeletionLines = (lineNumbers: number[]) => {
+    view.dispatch({
+      effects: UNSAVED_DELETION_LINES_EFFECT.of(normalizeUnsavedLineNumbers(lineNumbers)),
     });
   };
 
@@ -888,6 +929,7 @@ const createEditorWrapper = (options: {
       return nextIds;
     },
     setUnsavedChangeLines,
+    setUnsavedDeletionLines,
   };
 
   const editor: CodeEditorInstance = {

@@ -50,8 +50,8 @@ describe('editor shell iframe security attributes', () => {
     const root = document.createElement('div');
     const ui = buildEditorShell(root);
 
-    expect(ui.fullHtmlImportButton.textContent).toBe('フルHTML取込み');
-    expect(ui.compactFullHtmlImportButton.textContent).toBe('フルHTML取込み');
+    expect(ui.fullHtmlImportButton.textContent).toBe('Import full HTML');
+    expect(ui.compactFullHtmlImportButton.textContent).toBe('Import full HTML');
     expect(ui.fullHtmlImportButton.nextElementSibling).toBe(ui.addMediaButton);
     expect(ui.compactFullHtmlImportButton.nextElementSibling).toBe(ui.compactAddMediaButton);
   });

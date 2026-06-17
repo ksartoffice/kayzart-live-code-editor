@@ -42,7 +42,7 @@ Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
 == Frequently Asked Questions ==
 = I have a page from ChatGPT / Claude. How do I use it in WordPress? =
-Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs. The live preview renders it immediately, and you can keep editing before you publish.
+Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs. If your AI tool gave you one complete HTML document, use the full HTML import feature to split it into the right fields. The live preview renders it immediately, and you can keep editing before you publish.
 
 = Can AI edit the page for me, right inside WordPress? =
 Not yet in this free plugin — today KayzArt is the editor and runtime where you paste and refine AI-generated code. AI-assisted editing inside WordPress is on our roadmap. For now, generate your HTML/CSS/JS in ChatGPT, Claude, or Gemini, then paste it here to publish and keep editing.

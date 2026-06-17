@@ -149,7 +149,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   compactEditorTabsList.append(compactHtmlTab, compactCustomHeadTab, compactCssTab, compactJsTab);
   const compactFullHtmlImportButton = createCompactActionButton(
     'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-fullHtmlImport',
-    __( 'フルHTML取込み', 'kayzart-live-code-editor'),
+    __( 'Import full HTML', 'kayzart-live-code-editor'),
     compactIcons.fullHtmlImport
   );
   const compactAddMediaButton = createCompactActionButton(
@@ -184,7 +184,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   const fullHtmlImportButton = document.createElement('button');
   fullHtmlImportButton.type = 'button';
   fullHtmlImportButton.className = 'kayzart-editorAction kayzart-editorAction-fullHtmlImport';
-  fullHtmlImportButton.textContent = __( 'フルHTML取込み', 'kayzart-live-code-editor');
+  fullHtmlImportButton.textContent = __( 'Import full HTML', 'kayzart-live-code-editor');
   const addMediaButton = document.createElement('button');
   addMediaButton.type = 'button';
   addMediaButton.className = 'kayzart-editorAction kayzart-editorAction-media';

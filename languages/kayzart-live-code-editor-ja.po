@@ -748,3 +748,24 @@ msgstr "HTML に挿入"
 #: assets/dist/main.js:153
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアには URL がないため、挿入されませんでした。"
+
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
+msgid "Import full HTML"
+msgstr "フルHTML取込み"
+
+#: assets/dist/main.js:150
+msgid "Paste a complete HTML document."
+msgstr "HTML全体を貼り付けてください。"
+
+#: assets/dist/main.js:150
+msgid "Could not parse the content as a complete HTML document."
+msgstr "フルHTMLとして解析できませんでした。"
+
+#: assets/dist/main.js:150
+msgid "head, body, style, and script sections are split and imported automatically."
+msgstr "head / body / style / script を自動で分けて取り込みます。"
+
+#: assets/dist/main.js:150
+msgid "Parse"
+msgstr "解析する"

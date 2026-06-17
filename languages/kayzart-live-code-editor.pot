@@ -742,3 +742,24 @@ msgstr ""
 #: assets/dist/main.js:153
 msgid "The selected media has no URL and was not inserted."
 msgstr ""
+
+#: assets/dist/main.js:150
+#: assets/dist/main.js:153
+msgid "Import full HTML"
+msgstr ""
+
+#: assets/dist/main.js:150
+msgid "Paste a complete HTML document."
+msgstr ""
+
+#: assets/dist/main.js:150
+msgid "Could not parse the content as a complete HTML document."
+msgstr ""
+
+#: assets/dist/main.js:150
+msgid "head, body, style, and script sections are split and imported automatically."
+msgstr ""
+
+#: assets/dist/main.js:150
+msgid "Parse"
+msgstr ""

@@ -24,6 +24,7 @@
   let selectBox = null;
   let selectActionGroup = null;
   let selectActionAddonButton = null;
+  let selectActionParentButton = null;
   let selectActionEditButton = null;
   let elementsTabOpen = false;
   let markerNodes = null;
@@ -205,6 +206,16 @@
       group.appendChild(selectActionAddonButton);
     }
 
+    selectActionParentButton = createSelectActionButton({
+      id: 'kayzart-select-parent-action',
+      ariaLabel: 'Select parent element',
+      background: '#2563eb',
+      iconSvg:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-to-line-icon lucide-arrow-up-to-line"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg>',
+      onClick: selectParentElement,
+    });
+    group.appendChild(selectActionParentButton);
+
     selectActionEditButton = createSelectActionButton({
       id: 'kayzart-select-action',
       ariaLabel: 'Open element settings',
@@ -218,6 +229,36 @@
     document.body.appendChild(group);
     selectActionGroup = group;
     return group;
+  }
+
+  function getSelectableParent(el) {
+    let parent = el && el.parentElement ? el.parentElement : null;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      if (parent.hasAttribute(KAYZART_ATTR_NAME)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  }
+
+  function selectElement(el) {
+    if (!el || !(el instanceof Element)) {
+      return;
+    }
+    drawSelection(el);
+    const lcId = el.getAttribute(KAYZART_ATTR_NAME);
+    if (lcId) {
+      reply('KAYZART_SELECT', { lcId: lcId });
+    }
+  }
+
+  function selectParentElement() {
+    const parent = getSelectableParent(selectTarget);
+    if (!parent) {
+      return;
+    }
+    selectElement(parent);
   }
 
   function hideSelectActionButtons() {
@@ -240,14 +281,19 @@
       Boolean(selectActionAddonButton) &&
       (!elementsTabOpen ||
         Boolean(overlayActionConfig && overlayActionConfig.showWhenElementsTabOpen));
+    const showParentButton = Boolean(selectActionParentButton && getSelectableParent(selectTarget));
     const showEditButton = !elementsTabOpen && Boolean(selectActionEditButton);
-    const buttonCount = (showAddonButton ? 1 : 0) + (showEditButton ? 1 : 0);
+    const buttonCount =
+      (showAddonButton ? 1 : 0) + (showParentButton ? 1 : 0) + (showEditButton ? 1 : 0);
     if (buttonCount === 0) {
       hideSelectActionButtons();
       return;
     }
     if (selectActionAddonButton) {
       selectActionAddonButton.style.display = showAddonButton ? 'flex' : 'none';
+    }
+    if (selectActionParentButton) {
+      selectActionParentButton.style.display = showParentButton ? 'flex' : 'none';
     }
     if (selectActionEditButton) {
       selectActionEditButton.style.display = showEditButton ? 'flex' : 'none';
@@ -347,11 +393,7 @@
     if (!target) return;
     event.preventDefault();
     event.stopPropagation();
-    drawSelection(target);
-    const lcId = target.getAttribute(KAYZART_ATTR_NAME);
-    if (lcId) {
-      reply('KAYZART_SELECT', { lcId: lcId });
-    }
+    selectElement(target);
   }
 
   function attachDomSelector() {

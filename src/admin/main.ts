@@ -24,6 +24,7 @@ import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml } from './logic/media-html';
 import { buildStatusUpdates } from './logic/status-updates';
 import {
+  buildTailwindImportCss,
   buildImportedHtml,
   parseFullHtmlDocument,
   type FullHtmlImportSelection,
@@ -45,6 +46,7 @@ import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
 import {
+  createKayzArtFromImport,
   createTailwindCompiler,
   type TailwindCompiler,
 } from './persistence';
@@ -711,12 +713,59 @@ async function main() {
     }
   };
 
+  const createPostFromFullHtmlImport = async (
+    result: FullHtmlImportResult,
+    source: string
+  ) => {
+    const isTailwindImport = result.tailwindCdn.version === 'v4';
+    const importResult = isTailwindImport
+      ? parseFullHtmlDocument(source, { removeTailwindCdn: true }) || result
+      : result;
+    const importRestUrl = cfg.importRestUrl || cfg.restUrl.replace(/\/save\/?$/, '/create-from-import');
+    const response = await createKayzArtFromImport({
+      apiFetch: wp.apiFetch,
+      restUrl: importRestUrl,
+      postId,
+      mode: isTailwindImport ? 'tailwind' : 'normal',
+      html: buildImportedHtml(importResult, canEditJs),
+      customHead: canEditJs ? importResult.customHead.trim() : '',
+      css: isTailwindImport ? buildTailwindImportCss(importResult.css) : importResult.css.trim(),
+      js: canEditJs ? importResult.js.trim() : '',
+      jsMode: canEditJs ? jsMode : 'classic',
+    });
+
+    if (!response.ok || !response.editUrl) {
+      createSnackbar(
+        'error',
+        response.error || __('Import failed.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    window.location.href = response.editUrl;
+  };
+
   const confirmAndApplyFullHtmlImport = (
     result: FullHtmlImportResult,
     source: string,
     allowKeepAsHtml: boolean
   ) => {
     void (async () => {
+      if (result.tailwindCdn.detected) {
+        const cdnAction = await modalController?.confirmTailwindCdnImport(
+          result.tailwindCdn.version
+        );
+        if (!cdnAction || cdnAction === 'cancel') {
+          return;
+        }
+        if (cdnAction === 'create') {
+          await createPostFromFullHtmlImport(result, source);
+          return;
+        }
+      }
+
       const action = await modalController?.confirmFullHtmlImport(
         result,
         canEditJs

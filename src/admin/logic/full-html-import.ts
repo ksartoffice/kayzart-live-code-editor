@@ -8,10 +8,24 @@ export type FullHtmlImportResult = {
   removedHeadTags: string[];
   css: string;
   js: string;
+  tailwindCdn: TailwindCdnDetection;
   summary: {
     styleCount: number;
     inlineScriptCount: number;
   };
+};
+
+export type TailwindCdnVersion = 'v3' | 'v4' | 'unknown';
+
+export type TailwindCdnDetection = {
+  detected: boolean;
+  version: TailwindCdnVersion;
+  scriptCount: number;
+  configScriptCount: number;
+};
+
+export type FullHtmlParseOptions = {
+  removeTailwindCdn?: boolean;
 };
 
 export type FullHtmlImportSelection = {
@@ -30,6 +44,14 @@ export const createFullHtmlImportSelection = (
   js: true,
   ...overrides,
 });
+
+export const buildTailwindImportCss = (css: string): string => {
+  const trimmed = css.trim();
+  if (/@import\s+(?:url\()?["']tailwindcss["']\)?\s*;/.test(trimmed)) {
+    return trimmed;
+  }
+  return trimmed ? `@import "tailwindcss";\n\n${trimmed}` : '@import "tailwindcss";';
+};
 
 type ElementNode = DefaultTreeAdapterTypes.Element;
 type Node = DefaultTreeAdapterTypes.Node;
@@ -53,6 +75,34 @@ const isViewportMeta = (node: ElementNode): boolean =>
 const isJsonLdScript = (node: ElementNode): boolean =>
   node.tagName.toLowerCase() === 'script' &&
   (getAttr(node, 'type') || '').trim().toLowerCase() === 'application/ld+json';
+
+const classifyTailwindCdnScript = (node: ElementNode): TailwindCdnVersion | null => {
+  if (node.tagName.toLowerCase() !== 'script') {
+    return null;
+  }
+  const src = (getAttr(node, 'src') || '').trim().toLowerCase();
+  if (!src) {
+    return null;
+  }
+  if (src.includes('cdn.tailwindcss.com')) {
+    return 'v3';
+  }
+  if (src.includes('@tailwindcss/browser@4')) {
+    return 'v4';
+  }
+  if (src.includes('@tailwindcss/browser') || src.includes('tailwindcss/browser')) {
+    return 'unknown';
+  }
+  if (src.includes('tailwindcss') && (src.includes('unpkg.com') || src.includes('jsdelivr.net'))) {
+    return 'unknown';
+  }
+  return null;
+};
+
+const isTailwindConfigScript = (node: ElementNode): boolean =>
+  node.tagName.toLowerCase() === 'script' &&
+  !getAttr(node, 'src') &&
+  /(?:window\.)?tailwind\s*\.\s*config\s*=/.test(getTextContent(node));
 
 const isBodyExtractableNode = (node: ElementNode): boolean => {
   const tagName = node.tagName.toLowerCase();
@@ -191,7 +241,26 @@ export function isFullHtmlDocumentPaste(text: string): boolean {
   );
 }
 
-export function parseFullHtmlDocument(source: string): FullHtmlImportResult | null {
+const mergeTailwindVersion = (
+  current: TailwindCdnVersion,
+  next: TailwindCdnVersion
+): TailwindCdnVersion => {
+  if (current === next) {
+    return current;
+  }
+  if (current === 'unknown') {
+    return next;
+  }
+  if (next === 'unknown') {
+    return current;
+  }
+  return 'unknown';
+};
+
+export function parseFullHtmlDocument(
+  source: string,
+  options: FullHtmlParseOptions = {}
+): FullHtmlImportResult | null {
   if (!isFullHtmlDocumentPaste(source)) {
     return null;
   }
@@ -212,6 +281,9 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
   const changedBodyNodes = new WeakSet<ElementNode>();
   let styleCount = 0;
   let inlineScriptCount = 0;
+  let tailwindCdnVersion: TailwindCdnVersion = 'unknown';
+  let tailwindScriptCount = 0;
+  let tailwindConfigScriptCount = 0;
 
   const visitExtractable = (node: Node) => {
     if (!isElement(node)) {
@@ -219,6 +291,19 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
 
     const tagName = node.tagName.toLowerCase();
+    const tailwindCdnVersionForNode = classifyTailwindCdnScript(node);
+    const tailwindConfigScript = isTailwindConfigScript(node);
+    if (tailwindCdnVersionForNode) {
+      tailwindCdnVersion = mergeTailwindVersion(tailwindCdnVersion, tailwindCdnVersionForNode);
+      tailwindScriptCount += 1;
+    }
+    if (tailwindConfigScript) {
+      tailwindConfigScriptCount += 1;
+    }
+    if (options.removeTailwindCdn && (tailwindCdnVersionForNode || tailwindConfigScript)) {
+      extractedBodyNodes.add(node);
+      return;
+    }
     if (isBodyExtractableNode(node)) {
       extractedBodyNodes.add(node);
     }
@@ -270,6 +355,18 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     }
 
     const tagName = child.tagName.toLowerCase();
+    const tailwindCdnVersionForNode = classifyTailwindCdnScript(child);
+    const tailwindConfigScript = isTailwindConfigScript(child);
+    if (tailwindCdnVersionForNode) {
+      tailwindCdnVersion = mergeTailwindVersion(tailwindCdnVersion, tailwindCdnVersionForNode);
+      tailwindScriptCount += 1;
+    }
+    if (tailwindConfigScript) {
+      tailwindConfigScriptCount += 1;
+    }
+    if (options.removeTailwindCdn && (tailwindCdnVersionForNode || tailwindConfigScript)) {
+      return;
+    }
     if (tagName === 'style') {
       const css = getTextContent(child).trim();
       if (css) {
@@ -298,6 +395,12 @@ export function parseFullHtmlDocument(source: string): FullHtmlImportResult | nu
     removedHeadTags: unique(removedHeadTags),
     css: cssParts.join('\n\n'),
     js: jsParts.join('\n\n'),
+    tailwindCdn: {
+      detected: tailwindScriptCount > 0,
+      version: tailwindScriptCount > 0 ? tailwindCdnVersion : 'unknown',
+      scriptCount: tailwindScriptCount,
+      configScriptCount: tailwindConfigScriptCount,
+    },
     summary: {
       styleCount,
       inlineScriptCount,

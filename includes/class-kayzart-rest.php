@@ -84,6 +84,46 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
+			'/create-from-import',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( Rest_Import::class, 'create_from_import' ),
+				'permission_callback' => array( __CLASS__, 'permission_check' ),
+				'args'                => array(
+					'post_id'    => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'mode'       => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'html'       => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+					'css'        => array(
+						'type'     => 'string',
+						'required' => false,
+					),
+					'customHead' => array(
+						'type'     => 'string',
+						'required' => false,
+					),
+					'js'         => array(
+						'type'     => 'string',
+						'required' => false,
+					),
+					'jsMode'     => array(
+						'type'     => 'string',
+						'required' => false,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'kayzart/v1',
 			'/settings',
 			array(
 				'methods'             => 'POST',

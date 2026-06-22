@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildTailwindImportCss,
   buildImportedHtml,
   createFullHtmlImportSelection,
   isFullHtmlDocumentPaste,
@@ -107,6 +108,85 @@ describe('full html import logic', () => {
 
     expect(result?.customHead).toBe('<link rel="preload stylesheet" href="https://cdn.example.com/a.css" media="screen" integrity="sha384-css" onclick="nope()">');
     expect(html).toBe('<div id="app"></div>\n  <script src="https://cdn.example.com/a.js" defer integrity="sha384-js" data-x="nope"></script>');
+  });
+
+  it('detects Tailwind v4 CDN scripts', () => {
+    const result = parseFullHtmlDocument(`<!doctype html>
+<html>
+<head>
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+</head>
+<body>
+  <div class="text-sm">Hello</div>
+</body>
+</html>`);
+
+    expect(result).not.toBeNull();
+    expect(result?.tailwindCdn).toMatchObject({
+      detected: true,
+      version: 'v4',
+      scriptCount: 1,
+      configScriptCount: 0,
+    });
+  });
+
+  it('detects Tailwind v3 CDN and config scripts', () => {
+    const result = parseFullHtmlDocument(`<!doctype html>
+<html>
+<head>
+  <script>tailwind.config = { theme: { extend: {} } }</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="text-sm">Hello</div>
+</body>
+</html>`);
+
+    expect(result).not.toBeNull();
+    expect(result?.tailwindCdn).toMatchObject({
+      detected: true,
+      version: 'v3',
+      scriptCount: 1,
+      configScriptCount: 1,
+    });
+    expect(result?.customHead).toContain('tailwind.config');
+    expect(result?.customHead).toContain('cdn.tailwindcss.com');
+  });
+
+  it('removes Tailwind CDN scripts only when requested', () => {
+    const result = parseFullHtmlDocument(
+      `<!doctype html>
+<html>
+<head>
+  <script>window.tailwind.config = { darkMode: 'class' }</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div class="text-sm">Hello</div>
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+</body>
+</html>`,
+      { removeTailwindCdn: true }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result?.customHead).not.toContain('tailwind');
+    expect(result?.html).not.toContain('tailwindcss');
+    expect(result?.tailwindCdn).toMatchObject({
+      detected: true,
+      version: 'unknown',
+      scriptCount: 2,
+      configScriptCount: 1,
+    });
+  });
+
+  it('adds Tailwind import without duplicating it', () => {
+    expect(buildTailwindImportCss('.a { color: red; }')).toBe(
+      '@import "tailwindcss";\n\n.a { color: red; }'
+    );
+    expect(buildTailwindImportCss('@import "tailwindcss";\n\n.a {}')).toBe(
+      '@import "tailwindcss";\n\n.a {}'
+    );
   });
 
   it('removes nested extracted styles and inline scripts from body html', () => {

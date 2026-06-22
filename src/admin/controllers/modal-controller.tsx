@@ -11,6 +11,7 @@ import {
   parseFullHtmlDocument,
   type FullHtmlImportResult,
   type FullHtmlImportSelection,
+  type TailwindCdnVersion,
 } from '../logic/full-html-import';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
@@ -51,6 +52,8 @@ export type FullHtmlImportDecision =
   | { type: 'keep' }
   | { type: 'cancel' };
 
+export type TailwindCdnImportDecision = 'create' | 'current' | 'cancel';
+
 type FullHtmlImportSelectableItem = keyof FullHtmlImportSelection;
 
 type FullHtmlImportModalProps = {
@@ -62,6 +65,11 @@ type FullHtmlImportModalProps = {
 type FullHtmlImportSourceModalProps = {
   onCancel: () => void;
   onSubmit: (source: string) => void;
+};
+
+type TailwindCdnModalProps = {
+  version: TailwindCdnVersion;
+  onChoose: (action: TailwindCdnImportDecision) => void;
 };
 
 function MissingMarkersModal({
@@ -89,6 +97,70 @@ function MissingMarkersModal({
             onClick={onConfirm}
           >
             {actionLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TailwindCdnModal({
+  version,
+  onChoose,
+}: TailwindCdnModalProps) {
+  const cancelLabel = __('Cancel', 'kayzart-live-code-editor');
+  const title = version === 'v3'
+    ? __('TailwindCSS v3 CDN detected', 'kayzart-live-code-editor')
+    : version === 'v4'
+      ? __('TailwindCSS v4 CDN detected', 'kayzart-live-code-editor')
+      : __('TailwindCSS CDN detected', 'kayzart-live-code-editor');
+  const body = version === 'v4'
+    ? __('TailwindCSS v4 CDN was detected. Import this as a new TailwindCSS-mode post?', 'kayzart-live-code-editor')
+    : version === 'v3'
+      ? __('TailwindCSS v3 CDN was detected. To preserve the v3 appearance, import this as a new Normal-mode post with the CDN kept.', 'kayzart-live-code-editor')
+      : __('A TailwindCSS CDN script was detected. To avoid changing this post mode, import this as a new Normal-mode post.', 'kayzart-live-code-editor');
+
+  return (
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" />
+      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
+          <button
+            type="button"
+            className="kayzart-modalClose"
+            aria-label={cancelLabel}
+            onClick={() => onChoose('cancel')}
+          >
+            ﾃ・
+          </button>
+        </div>
+        <div className="kayzart-modalBody">
+          <div className="kayzart-hintBody">
+            <p className="kayzart-hintText">{body}</p>
+          </div>
+        </div>
+        <div className="kayzart-modalActions">
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-secondary"
+            onClick={() => onChoose('cancel')}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-secondary"
+            onClick={() => onChoose('current')}
+          >
+            {__('Import into current post', 'kayzart-live-code-editor')}
+          </button>
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-primary"
+            onClick={() => onChoose('create')}
+          >
+            {__('Import as new post', 'kayzart-live-code-editor')}
           </button>
         </div>
       </div>
@@ -331,6 +403,8 @@ export function createModalController(deps: ModalControllerDeps) {
   let fullHtmlImportResult: FullHtmlImportResult | null = null;
   let fullHtmlImportCanEditJs = true;
   let fullHtmlImportResolver: ((action: FullHtmlImportDecision) => void) | null = null;
+  let tailwindCdnVersion: TailwindCdnVersion | null = null;
+  let tailwindCdnResolver: ((action: TailwindCdnImportDecision) => void) | null = null;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
 
@@ -347,7 +421,7 @@ export function createModalController(deps: ModalControllerDeps) {
   };
 
   const unmountIfIdle = () => {
-    if (missingMarkersOpen || fullHtmlImportSourceOpen || fullHtmlImportResult) {
+    if (missingMarkersOpen || fullHtmlImportSourceOpen || fullHtmlImportResult || tailwindCdnVersion) {
       return;
     }
     if (modalRoot?.unmount) {
@@ -382,6 +456,12 @@ export function createModalController(deps: ModalControllerDeps) {
             result={fullHtmlImportResult}
             canEditJs={fullHtmlImportCanEditJs}
             onChoose={closeFullHtmlImportModal}
+          />
+        ) : null}
+        {tailwindCdnVersion ? (
+          <TailwindCdnModal
+            version={tailwindCdnVersion}
+            onChoose={closeTailwindCdnModal}
           />
         ) : null}
         {fullHtmlImportSourceOpen ? (
@@ -422,6 +502,15 @@ export function createModalController(deps: ModalControllerDeps) {
     renderModals();
     unmountIfIdle();
     resolver?.(source);
+  }
+
+  function closeTailwindCdnModal(action: TailwindCdnImportDecision) {
+    const resolver = tailwindCdnResolver;
+    tailwindCdnResolver = null;
+    tailwindCdnVersion = null;
+    renderModals();
+    unmountIfIdle();
+    resolver?.(action);
   }
 
   const applyMissingMarkersTemplateMode = async () => {
@@ -547,10 +636,25 @@ export function createModalController(deps: ModalControllerDeps) {
     });
   };
 
+  const confirmTailwindCdnImport = (
+    version: TailwindCdnVersion
+  ): Promise<TailwindCdnImportDecision> => {
+    if (tailwindCdnResolver) {
+      closeTailwindCdnModal('cancel');
+    }
+    ensureMounted();
+    tailwindCdnVersion = version;
+    renderModals();
+    return new Promise((resolve) => {
+      tailwindCdnResolver = resolve;
+    });
+  };
+
   return {
     handleMissingMarkers,
     requestFullHtmlImportSource,
     confirmFullHtmlImport,
+    confirmTailwindCdnImport,
   };
 }
 

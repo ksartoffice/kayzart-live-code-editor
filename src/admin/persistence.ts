@@ -1,7 +1,7 @@
 import type { SettingsData } from './settings';
 import { __, sprintf } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
-import type { CompileTailwindResponse, SaveResponse } from './types/rest';
+import type { CompileTailwindResponse, CreateFromImportResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
 
 const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
@@ -168,6 +168,43 @@ export async function saveKayzArt(
     return {
       ok: false,
       error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
+    };
+  }
+}
+
+export async function createKayzArtFromImport(params: {
+  apiFetch: ApiFetch;
+  restUrl: string;
+  postId: number;
+  mode: 'normal' | 'tailwind';
+  html: string;
+  customHead: string;
+  css: string;
+  js: string;
+  jsMode: JsMode;
+}): Promise<{ ok: boolean; error?: string; postId?: number; editUrl?: string }> {
+  try {
+    const res = await params.apiFetch<CreateFromImportResponse>({
+      url: params.restUrl,
+      method: 'POST',
+      data: {
+        post_id: params.postId,
+        mode: params.mode,
+        html: params.html,
+        customHead: params.customHead,
+        css: params.css,
+        js: params.js,
+        jsMode: params.jsMode,
+      },
+    });
+    if (res?.ok) {
+      return { ok: true, postId: res.postId, editUrl: res.editUrl };
+    }
+    return { ok: false, error: res?.error || __('Import failed.', 'kayzart-live-code-editor') };
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      error: resolveUnknownErrorMessage(error, __('Import failed.', 'kayzart-live-code-editor')),
     };
   }
 }

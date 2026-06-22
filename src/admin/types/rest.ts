@@ -19,3 +19,10 @@ export type CompileTailwindResponse = {
   error?: string;
   css?: string;
 };
+
+export type CreateFromImportResponse = {
+  ok?: boolean;
+  error?: string;
+  postId?: number;
+  editUrl?: string;
+};

@@ -439,7 +439,6 @@ class Frontend {
 			return '';
 		}
 
-		$css = wp_strip_all_tags( $css, false );
 		return self::escape_style_tag( $css );
 	}
 

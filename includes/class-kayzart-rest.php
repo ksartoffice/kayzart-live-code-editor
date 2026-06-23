@@ -84,6 +84,22 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
+			'/templates/catalog',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( Rest_Templates::class, 'get_catalog' ),
+				'permission_callback' => array( __CLASS__, 'permission_check' ),
+				'args'                => array(
+					'post_id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'kayzart/v1',
 			'/create-from-import',
 			array(
 				'methods'             => 'POST',

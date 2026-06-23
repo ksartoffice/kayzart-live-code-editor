@@ -14,6 +14,7 @@ export type AppConfig = {
   restUrl: string;
   restCompileUrl: string;
   setupRestUrl: string;
+  templateCatalogRestUrl?: string;
   importRestUrl?: string;
   settingsRestUrl: string;
   settingsData: SettingsData;

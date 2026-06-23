@@ -1869,6 +1869,12 @@ body.admin_page_kayzart #wpbody-content {
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
 }
 
+.kayzart-templateCatalogCard {
+  width: min(860px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+}
+
 .kayzart-setupTitle {
   font-size: 20px;
   font-weight: 700;
@@ -1939,6 +1945,114 @@ body.admin_page_kayzart #wpbody-content {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
+}
+
+.kayzart-templateFilters {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.kayzart-templateFilter {
+  min-width: 44px;
+  padding: 7px 12px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #17212d;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kayzart-templateFilter.is-active {
+  border-color: #22d3ee;
+  background: #123040;
+  color: #f8fafc;
+}
+
+.kayzart-templateState {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #17212d;
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.kayzart-templateState.is-error {
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+.kayzart-templateGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.kayzart-templateCard {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #17212d;
+}
+
+.kayzart-templateCard.is-disabled {
+  opacity: 0.5;
+}
+
+.kayzart-templateThumbWrap {
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.kayzart-templateThumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kayzart-templateBody {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+}
+
+.kayzart-templateMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.kayzart-templateBadge {
+  color: #fbbf24;
+}
+
+.kayzart-templateTitle {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.kayzart-templateDescription {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 @media (max-width: 1280px) {

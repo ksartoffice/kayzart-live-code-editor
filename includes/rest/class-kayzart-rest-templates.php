@@ -334,11 +334,23 @@ class Rest_Templates {
 
 		$checksum = isset( $detail['checksum'] ) ? sanitize_text_field( (string) $detail['checksum'] ) : '';
 		if ( '' !== $checksum ) {
-			$encoded_theme = wp_json_encode( $theme );
-			if ( false === $encoded_theme ) {
+			// Verify against the original published payload. The publishing pipeline
+			// computes sha256 over a stable (recursively key-sorted) JSON encoding of
+			// { html: html.trim(), theme }, so the checksum must be checked against the
+			// raw detail values, not the sanitized theme.
+			$canonical = wp_json_encode(
+				self::stable_sort(
+					array(
+						'html'  => trim( (string) ( $detail['html'] ?? '' ) ),
+						'theme' => isset( $detail['theme'] ) ? $detail['theme'] : array(),
+					)
+				),
+				JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+			);
+			if ( false === $canonical ) {
 				return new \WP_Error( 'kayzart_template_checksum_invalid', __( 'Template checksum is invalid.', 'kayzart-live-code-editor' ) );
 			}
-			$expected = 'sha256:' . hash( 'sha256', $html . "\n" . $encoded_theme );
+			$expected = 'sha256:' . hash( 'sha256', $canonical );
 			if ( ! hash_equals( $expected, $checksum ) ) {
 				return new \WP_Error( 'kayzart_template_checksum_mismatch', __( 'Template checksum is invalid.', 'kayzart-live-code-editor' ) );
 			}
@@ -348,6 +360,40 @@ class Rest_Templates {
 			'html'  => $html,
 			'theme' => $theme,
 		);
+	}
+
+	/**
+	 * Recursively key-sort a value to mirror the publishing pipeline's stable JSON.
+	 *
+	 * Associative arrays (and empty arrays) are emitted as JSON objects with their
+	 * keys sorted; lists keep their order. Combined with
+	 * JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE this matches JavaScript's
+	 * stable JSON.stringify output used to generate template checksums.
+	 *
+	 * @param mixed $value Value to normalize.
+	 * @return mixed
+	 */
+	private static function stable_sort( $value ) {
+		if ( ! is_array( $value ) ) {
+			return $value;
+		}
+
+		if ( array() === $value ) {
+			return new \stdClass();
+		}
+
+		$is_list = array_keys( $value ) === range( 0, count( $value ) - 1 );
+		if ( $is_list ) {
+			return array_map( array( __CLASS__, 'stable_sort' ), $value );
+		}
+
+		ksort( $value );
+		$result = array();
+		foreach ( $value as $key => $item ) {
+			$result[ $key ] = self::stable_sort( $item );
+		}
+
+		return (object) $result;
 	}
 
 	/**

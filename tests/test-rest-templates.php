@@ -187,6 +187,47 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 		$this->assertNotSame( '', get_post_meta( $post_id, '_kayzart_generated_css', true ) );
 	}
 
+	public function test_apply_accepts_valid_checksum(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+
+		$detail             = $this->valid_detail( array( 'id' => 'hero-en' ) );
+		$detail['checksum'] = self::compute_checksum( $detail );
+
+		$this->mock_catalog_and_detail_response(
+			$this->valid_template( array( 'id' => 'hero-en' ) ),
+			$detail
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'hero-en' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( true, $response->get_data()['ok'] ?? false );
+	}
+
+	public function test_apply_rejects_invalid_checksum(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+
+		$this->mock_catalog_and_detail_response(
+			$this->valid_template( array( 'id' => 'hero-en' ) ),
+			$this->valid_detail(
+				array(
+					'id'       => 'hero-en',
+					'checksum' => 'sha256:' . str_repeat( '0', 64 ),
+				)
+			)
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'hero-en' );
+
+		$this->assertSame( 400, $response->get_status() );
+	}
+
 	public function test_apply_rejects_pro_or_unavailable_template(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -349,6 +390,40 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 			),
 			$overrides
 		);
+	}
+
+	/**
+	 * Compute the checksum the publishing pipeline produces:
+	 * sha256 over a stable (recursively key-sorted) JSON of { html: html.trim(), theme }.
+	 */
+	private static function compute_checksum( array $detail ): string {
+		$payload = self::stable_sort(
+			array(
+				'html'  => trim( (string) ( $detail['html'] ?? '' ) ),
+				'theme' => $detail['theme'] ?? array(),
+			)
+		);
+
+		return 'sha256:' . hash( 'sha256', wp_json_encode( $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+	}
+
+	private static function stable_sort( $value ) {
+		if ( ! is_array( $value ) ) {
+			return $value;
+		}
+		if ( array() === $value ) {
+			return new stdClass();
+		}
+		$is_list = array_keys( $value ) === range( 0, count( $value ) - 1 );
+		if ( $is_list ) {
+			return array_map( array( __CLASS__, 'stable_sort' ), $value );
+		}
+		ksort( $value );
+		$result = array();
+		foreach ( $value as $key => $item ) {
+			$result[ $key ] = self::stable_sort( $item );
+		}
+		return (object) $result;
 	}
 
 	private function mock_catalog_response( array $body ): void {

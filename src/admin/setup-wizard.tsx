@@ -7,6 +7,7 @@ import {
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
+import { resolveUnknownErrorMessage } from './persistence';
 import type { SetupResponse } from './types/rest';
 import type {
   TemplateApplyResponse,
@@ -129,11 +130,9 @@ export function SetupWizard({
       setTemplates(sanitizeTemplateSummaries(response.templates));
     } catch (error: unknown) {
       setTemplates([]);
-      if (error instanceof Error) {
-        setTemplateError(error.message);
-      } else {
-        setTemplateError(String(error));
-      }
+      setTemplateError(
+        resolveUnknownErrorMessage(error, __('Failed to load templates.', 'kayzart-live-code-editor'))
+      );
     } finally {
       setTemplateLoading(false);
     }
@@ -163,11 +162,7 @@ export function SetupWizard({
 
       onComplete({ tailwindEnabled: Boolean(response.tailwindEnabled) });
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError(String(error));
-      }
+      setError(resolveUnknownErrorMessage(error, __('Setup failed.', 'kayzart-live-code-editor')));
     } finally {
       setSaving(false);
     }
@@ -203,11 +198,9 @@ export function SetupWizard({
         initialCss: response.css ?? '',
       });
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        setTemplateError(error.message);
-      } else {
-        setTemplateError(String(error));
-      }
+      setTemplateError(
+        resolveUnknownErrorMessage(error, __('Failed to apply template.', 'kayzart-live-code-editor'))
+      );
     } finally {
       setApplyingTemplateId('');
     }

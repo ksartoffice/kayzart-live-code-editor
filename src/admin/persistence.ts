@@ -4,7 +4,7 @@ import type { ApiFetch } from './types/api-fetch';
 import type { CompileTailwindResponse, CreateFromImportResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
 
-const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
+export const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }

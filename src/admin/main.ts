@@ -31,7 +31,7 @@ import {
   type FullHtmlImportResult,
 } from './logic/full-html-import';
 import { createSaveCopyController } from './controllers/save-copy-controller';
-import { runSetupWizard } from './setup-wizard';
+import { runSetupWizard, type SetupWizardResult } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
 import { createEditorUiController } from './controllers/editor-ui-controller';
 import { createViewportController } from './controllers/viewport-controller';
@@ -178,19 +178,19 @@ async function main() {
     wp.apiFetch.use(wp.apiFetch.createNonceMiddleware(cfg.restNonce));
   }
 
-  let setupTailwindEnabled: boolean | undefined;
+  let setupResult: SetupWizardResult | undefined;
   if (cfg.setupRequired) {
     try {
-      const setupResult = await runSetupWizard({
+      setupResult = await runSetupWizard({
         container: ui.app,
         postId,
         restUrl: cfg.setupRestUrl,
         templateCatalogRestUrl: cfg.templateCatalogRestUrl,
+        templateApplyRestUrl: cfg.templateApplyRestUrl,
         apiFetch: wp?.apiFetch,
         backUrl: cfg.listUrl || cfg.backUrl,
         initialTailwindEnabled: Boolean(cfg.tailwindEnabled),
       });
-      setupTailwindEnabled = setupResult.tailwindEnabled;
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[Kayzart] Setup failed', error);
@@ -199,7 +199,7 @@ async function main() {
     }
   }
 
-  const initialState = resolveInitialState(cfg, setupTailwindEnabled);
+  const initialState = resolveInitialState(cfg, setupResult);
   let tailwindEnabled = initialState.tailwindEnabled;
   let htmlWordWrapMode: HtmlWordWrapMode = readHtmlWordWrapMode();
 

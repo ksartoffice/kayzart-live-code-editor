@@ -20,3 +20,11 @@ export type TemplateCatalogResponse = {
   error?: string;
   templates?: TemplateSummary[];
 };
+
+export type TemplateApplyResponse = {
+  ok?: boolean;
+  error?: string;
+  tailwindEnabled?: boolean;
+  html?: string;
+  css?: string;
+};

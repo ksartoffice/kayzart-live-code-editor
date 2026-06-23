@@ -2055,6 +2055,11 @@ body.admin_page_kayzart #wpbody-content {
   line-height: 1.45;
 }
 
+.kayzart-templateUseButton {
+  justify-self: start;
+  margin-top: 2px;
+}
+
 @media (max-width: 1280px) {
   .kayzart-toolbar {
     grid-template-columns: minmax(0, 1fr) minmax(0, auto);

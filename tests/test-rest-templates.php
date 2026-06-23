@@ -154,6 +154,161 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 		$this->assertNotSame( 200, $response->get_status() );
 	}
 
+	public function test_apply_free_template_updates_setup_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+		$original_content = get_post( $post_id )->post_content;
+
+		$html = '<section class="mx-auto"><a href="#contact">Contact</a></section>';
+		$this->mock_catalog_and_detail_response(
+			$this->valid_template( array( 'id' => 'hero-en' ) ),
+			$this->valid_detail(
+				array(
+					'id'   => 'hero-en',
+					'html' => $html,
+				)
+			)
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'hero-en' );
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( true, $data['ok'] ?? false );
+		$this->assertSame( true, $data['tailwindEnabled'] ?? false );
+		$this->assertSame( $html, get_post( $post_id )->post_content );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_setup_required', true ) );
+		$this->assertStringContainsString( '@import "tailwindcss";', (string) get_post_meta( $post_id, '_kayzart_css', true ) );
+		$this->assertStringContainsString( '--color-primary: #2563eb;', (string) get_post_meta( $post_id, '_kayzart_css', true ) );
+		$this->assertNotSame( '', get_post_meta( $post_id, '_kayzart_generated_css', true ) );
+	}
+
+	public function test_apply_rejects_pro_or_unavailable_template(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+
+		$this->mock_catalog_response(
+			array(
+				'templates' => array(
+					$this->valid_template(
+						array(
+							'id'        => 'pricing-pro',
+							'tier'      => 'pro',
+							'available' => false,
+						)
+					),
+				),
+			)
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'pricing-pro' );
+
+		$this->assertSame( 403, $response->get_status() );
+	}
+
+	public function test_apply_rejects_forbidden_html(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+		$original_content = get_post( $post_id )->post_content;
+
+		$this->mock_catalog_and_detail_response(
+			$this->valid_template( array( 'id' => 'bad-html' ) ),
+			$this->valid_detail(
+				array(
+					'id'   => 'bad-html',
+					'html' => '<section><script>alert("x")</script></section>',
+				)
+			)
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'bad-html' );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( $original_content, get_post( $post_id )->post_content );
+	}
+
+	public function test_apply_rejects_invalid_theme_tokens(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+
+		$this->mock_catalog_and_detail_response(
+			$this->valid_template( array( 'id' => 'bad-theme' ) ),
+			$this->valid_detail(
+				array(
+					'id'    => 'bad-theme',
+					'theme' => array(
+						'colors' => array(
+							'primary' => 'url(https://example.com/a.css)',
+						),
+					),
+				)
+			)
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'bad-theme' );
+
+		$this->assertSame( 400, $response->get_status() );
+	}
+
+	public function test_apply_returns_error_when_detail_fetch_fails(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		wp_set_current_user( $admin_id );
+
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $parsed_args, $url ) {
+				if ( self::CATALOG_URL === $url ) {
+					return array(
+						'headers'  => array(),
+						'body'     => wp_json_encode(
+							array(
+								'templates' => array(
+									self::valid_template( array( 'id' => 'hero-en' ) ),
+								),
+							)
+						),
+						'response' => array(
+							'code'    => 200,
+							'message' => 'OK',
+						),
+						'cookies'  => array(),
+					);
+				}
+
+				return new WP_Error( 'detail_failed', 'Detail failed' );
+			},
+			10,
+			3
+		);
+
+		$response = $this->dispatch_apply_route( $post_id, 'hero-en' );
+
+		$this->assertSame( 502, $response->get_status() );
+	}
+
+	public function test_apply_requires_permission(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+
+		wp_set_current_user( 0 );
+		$response = $this->dispatch_apply_route( $post_id, 'hero-en', false );
+
+		$this->assertNotSame( 200, $response->get_status() );
+	}
+
 	private static function valid_template( array $overrides = array() ): array {
 		return array_merge(
 			array(
@@ -167,6 +322,30 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 				'requiresTailwind' => true,
 				'available'        => true,
 				'version'          => '1.0.0',
+			),
+			$overrides
+		);
+	}
+
+	private static function valid_detail( array $overrides = array() ): array {
+		return array_merge(
+			array(
+				'id'       => 'hero-en',
+				'version'  => '1.0.0',
+				'market'   => 'en',
+				'html'     => '<section class="mx-auto">Hello</section>',
+				'theme'    => array(
+					'colors'  => array(
+						'primary' => '#2563eb',
+					),
+					'radius'  => array(
+						'md' => '8px',
+					),
+					'spacing' => array(
+						'section' => '64px',
+					),
+				),
+				'checksum' => '',
 			),
 			$overrides
 		);
@@ -189,6 +368,29 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 		);
 	}
 
+	private function mock_catalog_and_detail_response( array $template, array $detail ): void {
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $parsed_args, $url ) use ( $template, $detail ) {
+				$body = self::CATALOG_URL === $url
+					? array( 'templates' => array( $template ) )
+					: $detail;
+
+				return array(
+					'headers'  => array(),
+					'body'     => wp_json_encode( $body ),
+					'response' => array(
+						'code'    => 200,
+						'message' => 'OK',
+					),
+					'cookies'  => array(),
+				);
+			},
+			10,
+			3
+		);
+	}
+
 	private function create_kayzart_post( int $author_id ): int {
 		return (int) self::factory()->post->create(
 			array(
@@ -202,6 +404,20 @@ class Test_Rest_Templates extends WP_UnitTestCase {
 	private function dispatch_route( int $post_id, bool $with_nonce = true ): WP_REST_Response {
 		$request = new WP_REST_Request( 'GET', '/kayzart/v1/templates/catalog' );
 		$request->set_param( 'post_id', $post_id );
+		if ( $with_nonce && get_current_user_id() > 0 ) {
+			$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		}
+		$response = rest_do_request( $request );
+		if ( is_wp_error( $response ) ) {
+			$this->fail( $response->get_error_message() );
+		}
+		return $response;
+	}
+
+	private function dispatch_apply_route( int $post_id, string $template_id, bool $with_nonce = true ): WP_REST_Response {
+		$request = new WP_REST_Request( 'POST', '/kayzart/v1/templates/apply' );
+		$request->set_param( 'post_id', $post_id );
+		$request->set_param( 'template_id', $template_id );
 		if ( $with_nonce && get_current_user_id() > 0 ) {
 			$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
 		}

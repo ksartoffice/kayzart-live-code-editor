@@ -49,6 +49,7 @@ import {
   createTailwindCompiler,
   type TailwindCompiler,
 } from './persistence';
+import type { TailwindExportCssDecision } from './controllers/modal-controller';
 import type {
   EditorSnapshot,
   KayzArtExtensionApi,
@@ -589,7 +590,7 @@ async function main() {
         await handleCopyFullHtmlExport();
       },
       onDownloadFullHtml: () => {
-        handleDownloadFullHtmlExport();
+        return handleDownloadFullHtmlExport();
       },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),
@@ -862,11 +863,45 @@ async function main() {
     return copied;
   };
 
-  function getCurrentFullHtmlExport(): string {
+  async function resolveTailwindExportCssChoice(): Promise<TailwindExportCssDecision> {
+    if (!tailwindEnabled) {
+      return 'editor';
+    }
+    return (await modalController?.confirmTailwindExportCss()) || 'cancel';
+  }
+
+  async function getCurrentFullHtmlExport(): Promise<string | null> {
+    const cssChoice = await resolveTailwindExportCssChoice();
+    if (cssChoice === 'cancel') {
+      return null;
+    }
+    let exportCss = cssModel.getValue();
+    let cssMode: 'standard' | 'tailwind-source' = 'standard';
+    if (tailwindEnabled && cssChoice === 'compiled') {
+      if (!tailwindCss.trim()) {
+        await tailwindCompiler?.compile();
+      }
+      exportCss = tailwindCss;
+    } else if (tailwindEnabled) {
+      cssMode = 'tailwind-source';
+    }
+
+    if (tailwindEnabled && cssChoice === 'compiled' && !exportCss.trim()) {
+      createSnackbar(
+        'warning',
+        __('Compiled Tailwind CSS is not available yet. The CSS editor content will be exported instead.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      exportCss = cssModel.getValue();
+      cssMode = 'tailwind-source';
+    }
+
     return buildFullHtmlExport({
       html: htmlModel.getValue(),
       customHead: customHeadModel.getValue(),
-      css: cssModel.getValue(),
+      css: exportCss,
+      cssMode,
       js: jsModel.getValue(),
       jsMode,
       canEditJs,
@@ -874,7 +909,11 @@ async function main() {
   }
 
   async function handleCopyFullHtmlExport() {
-    const copied = await writeClipboardText(getCurrentFullHtmlExport());
+    const fullHtml = await getCurrentFullHtmlExport();
+    if (!fullHtml) {
+      return;
+    }
+    const copied = await writeClipboardText(fullHtml);
     if (!copied) {
       createSnackbar(
         'error',
@@ -893,8 +932,12 @@ async function main() {
     );
   }
 
-  function handleDownloadFullHtmlExport() {
-    const blob = new Blob([getCurrentFullHtmlExport()], {
+  async function handleDownloadFullHtmlExport() {
+    const fullHtml = await getCurrentFullHtmlExport();
+    if (!fullHtml) {
+      return;
+    }
+    const blob = new Blob([fullHtml], {
       type: 'text/html;charset=utf-8',
     });
     const url = URL.createObjectURL(blob);

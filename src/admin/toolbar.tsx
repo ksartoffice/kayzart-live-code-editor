@@ -60,7 +60,7 @@ type ToolbarHandlers = {
   onRefreshPreview: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
   onCopyFullHtml: () => Promise<void>;
-  onDownloadFullHtml: () => void;
+  onDownloadFullHtml: () => Promise<void>;
   onToggleSettings: () => void;
   onViewportChange: (mode: ViewportMode) => void;
   onUpdatePostIdentity: (payload: {
@@ -328,14 +328,14 @@ function Toolbar({
 
   const handleCopyFullHtml = async (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
-    await onCopyFullHtml();
     setExportMenuOpen(false);
+    await onCopyFullHtml();
   };
 
-  const handleDownloadFullHtml = (event: { stopPropagation: () => void }) => {
+  const handleDownloadFullHtml = async (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
-    onDownloadFullHtml();
     setExportMenuOpen(false);
+    await onDownloadFullHtml();
   };
 
   const handleStatusSelect = async (

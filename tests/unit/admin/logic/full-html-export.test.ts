@@ -54,13 +54,30 @@ describe('full html export logic', () => {
       html: '<div class="text-red-500">Tailwind</div>',
       customHead: '',
       css: '@import "tailwindcss";\n@theme { --color-brand: #123456; }',
+      cssMode: 'tailwind-source',
       js: '',
       jsMode: 'classic',
       canEditJs: true,
     });
 
+    expect(html).toContain('<style type="text/tailwindcss">');
     expect(html).toContain('@import "tailwindcss";');
     expect(html).toContain('@theme { --color-brand: #123456; }');
+  });
+
+  it('writes compiled Tailwind CSS as normal style content', () => {
+    const html = buildFullHtmlExport({
+      html: '<div class="text-red-500">Tailwind</div>',
+      customHead: '',
+      css: '.text-red-500 { color: rgb(239 68 68); }',
+      cssMode: 'standard',
+      js: '',
+      jsMode: 'classic',
+      canEditJs: true,
+    });
+
+    expect(html).toContain('<style>\n.text-red-500 { color: rgb(239 68 68); }\n</style>');
+    expect(html).not.toContain('text/tailwindcss');
   });
 
   it('escapes closing style and script tag sequences in inline blocks', () => {

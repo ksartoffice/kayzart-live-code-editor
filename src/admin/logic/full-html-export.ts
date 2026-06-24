@@ -10,6 +10,7 @@ export type FullHtmlExportInput = {
   html: string;
   customHead: string;
   css: string;
+  cssMode?: 'standard' | 'tailwind-source';
   js: string;
   jsMode: JsMode;
   canEditJs: boolean;
@@ -87,7 +88,8 @@ export function buildFullHtmlExport(input: FullHtmlExportInput): string {
     headParts.push(customHead);
   }
   if (css) {
-    headParts.push(`<style>\n${escapeStyleText(css)}\n</style>`);
+    const styleAttrs = input.cssMode === 'tailwind-source' ? ' type="text/tailwindcss"' : '';
+    headParts.push(`<style${styleAttrs}>\n${escapeStyleText(css)}\n</style>`);
   }
 
   const bodyParts = [bodyHtml];

@@ -61,7 +61,7 @@ describe('toolbar', () => {
           onRefreshPreview: vi.fn(),
           onSave: vi.fn(async () => ({ ok: true })),
           onCopyFullHtml: vi.fn(async () => {}),
-          onDownloadFullHtml: vi.fn(),
+          onDownloadFullHtml: vi.fn(async () => {}),
           onToggleSettings: vi.fn(),
           onViewportChange: vi.fn(),
           onUpdatePostIdentity: vi.fn(async () => ({ ok: true })),

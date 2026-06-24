@@ -29,6 +29,7 @@ import {
   type FullHtmlImportSelection,
   type FullHtmlImportResult,
 } from './logic/full-html-import';
+import { buildFullHtmlExport } from './logic/full-html-export';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
@@ -102,6 +103,16 @@ const computeEditorBaseHash = (html: string, customHead: string, css: string, js
     hash >>>= 0;
   }
   return hash.toString(16).padStart(8, '0');
+};
+
+const buildHtmlExportFilename = (slug: string, title: string): string => {
+  const source = (slug || title || '').trim();
+  const safe = source
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.\-\s]+|[.\-\s]+$/g, '');
+  return `${safe || 'kayzart-export'}.html`;
 };
 
 const readSettingsPanelWidth = (): number | undefined => {
@@ -574,6 +585,12 @@ async function main() {
         requestPreviewReload();
       },
       onSave: handleSave,
+      onCopyFullHtml: async () => {
+        await handleCopyFullHtmlExport();
+      },
+      onDownloadFullHtml: () => {
+        handleDownloadFullHtmlExport();
+      },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),
       onUpdatePostIdentity: async ({ title, slug }) => {
@@ -844,6 +861,58 @@ async function main() {
     }
     return copied;
   };
+
+  function getCurrentFullHtmlExport(): string {
+    return buildFullHtmlExport({
+      html: htmlModel.getValue(),
+      customHead: customHeadModel.getValue(),
+      css: cssModel.getValue(),
+      js: jsModel.getValue(),
+      jsMode,
+      canEditJs,
+    });
+  }
+
+  async function handleCopyFullHtmlExport() {
+    const copied = await writeClipboardText(getCurrentFullHtmlExport());
+    if (!copied) {
+      createSnackbar(
+        'error',
+        __( 'Could not copy full HTML to the clipboard.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    createSnackbar(
+      'success',
+      __( 'Full HTML copied.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  }
+
+  function handleDownloadFullHtmlExport() {
+    const blob = new Blob([getCurrentFullHtmlExport()], {
+      type: 'text/html;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = buildHtmlExportFilename(postSlug, postTitle);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    createSnackbar(
+      'success',
+      __( 'HTML download started.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  }
 
   const handleCopyElementHtml = async (lcId: string) => {
     const context = getElementContext(htmlModel.getValue(), lcId);

@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronDown,
   ExternalLink,
+  FileDown,
   Monitor,
   PanelBottomClose,
   PanelBottomOpen,
@@ -58,6 +59,8 @@ type ToolbarHandlers = {
   onToggleEditor: () => void;
   onRefreshPreview: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
+  onCopyFullHtml: () => Promise<void>;
+  onDownloadFullHtml: () => void;
   onToggleSettings: () => void;
   onViewportChange: (mode: ViewportMode) => void;
   onUpdatePostIdentity: (payload: {
@@ -88,6 +91,9 @@ const ICONS = {
   }),
   save: renderLucideIcon(Save, {
     class: 'lucide lucide-save-icon lucide-save',
+  }),
+  export: renderLucideIcon(FileDown, {
+    class: 'lucide lucide-file-down-icon lucide-file-down',
   }),
   refreshPreview: renderLucideIcon(RefreshCw, {
     class: 'lucide lucide-refresh-cw-icon lucide-refresh-cw',
@@ -157,6 +163,8 @@ function Toolbar({
   onToggleEditor,
   onRefreshPreview,
   onSave,
+  onCopyFullHtml,
+  onDownloadFullHtml,
   onToggleSettings,
   onViewportChange,
   onUpdatePostIdentity,
@@ -168,6 +176,7 @@ function Toolbar({
   const [titleError, setTitleError] = useState('');
   const [titleSaving, setTitleSaving] = useState(false);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [externalToolbarActions, setExternalToolbarActions] = useState<ResolvedToolbarAction[]>(
     () => getExternalToolbarActions()
@@ -206,6 +215,9 @@ function Toolbar({
   const normalizedStatus = postStatus === 'auto-draft' ? 'draft' : postStatus;
   const tailwindBadgeLabel = __( 'Tailwind CSS', 'kayzart-live-code-editor');
   const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
+  const exportLabel = __( 'Export', 'kayzart-live-code-editor');
+  const copyFullHtmlLabel = __( 'Copy full HTML', 'kayzart-live-code-editor');
+  const downloadHtmlLabel = __( 'Download HTML', 'kayzart-live-code-editor');
   const resolvedListLabel = listLabel || __( 'Posts', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'
@@ -289,19 +301,41 @@ function Toolbar({
   };
 
   useEffect(() => {
-    if (!saveMenuOpen) {
+    if (!saveMenuOpen && !exportMenuOpen) {
       return;
     }
-    const handleDocClick = () => setSaveMenuOpen(false);
+    const handleDocClick = () => {
+      setSaveMenuOpen(false);
+      setExportMenuOpen(false);
+    };
     document.addEventListener('click', handleDocClick);
     return () => {
       document.removeEventListener('click', handleDocClick);
     };
-  }, [saveMenuOpen]);
+  }, [saveMenuOpen, exportMenuOpen]);
 
   const toggleSaveMenu = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
+    setExportMenuOpen(false);
     setSaveMenuOpen((prev) => !prev);
+  };
+
+  const toggleExportMenu = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    setSaveMenuOpen(false);
+    setExportMenuOpen((prev) => !prev);
+  };
+
+  const handleCopyFullHtml = async (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    await onCopyFullHtml();
+    setExportMenuOpen(false);
+  };
+
+  const handleDownloadFullHtml = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    onDownloadFullHtml();
+    setExportMenuOpen(false);
   };
 
   const handleStatusSelect = async (
@@ -625,6 +659,45 @@ function Toolbar({
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.viewPost }} />
             </a>
           ) : null}
+          <div className="kayzart-exportMenu">
+            <button
+              className="kayzart-btn kayzart-btn-icon kayzart-btn-export"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={exportMenuOpen}
+              aria-label={exportLabel}
+              data-tooltip={exportLabel}
+              onClick={toggleExportMenu}
+            >
+              <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.export }} />
+            </button>
+            {exportMenuOpen ? (
+              <div
+                className="kayzart-splitMenu kayzart-exportMenuDropdown"
+                role="menu"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="kayzart-splitMenuList">
+                  <button
+                    className="kayzart-splitMenuItem"
+                    type="button"
+                    role="menuitem"
+                    onClick={handleCopyFullHtml}
+                  >
+                    <span className="kayzart-splitMenuLabel">{copyFullHtmlLabel}</span>
+                  </button>
+                  <button
+                    className="kayzart-splitMenuItem"
+                    type="button"
+                    role="menuitem"
+                    onClick={handleDownloadFullHtml}
+                  >
+                    <span className="kayzart-splitMenuLabel">{downloadHtmlLabel}</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
           {beforeSettingsActions.map(renderExternalToolbarAction)}
           <button
             className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}`}

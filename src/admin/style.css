@@ -387,6 +387,11 @@ body.admin_page_kayzart #wpbody-content {
   align-items: stretch;
 }
 
+.kayzart-exportMenu {
+  position: relative;
+  display: inline-flex;
+}
+
 .kayzart-splitButton-main {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;

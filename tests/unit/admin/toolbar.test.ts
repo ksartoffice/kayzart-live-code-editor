@@ -88,6 +88,6 @@ describe('toolbar', () => {
     });
 
     expect(container.textContent).toContain('Copy full HTML');
-    expect(container.textContent).toContain('Download HTML');
+    expect(container.textContent).toContain('Download full HTML');
   });
 });

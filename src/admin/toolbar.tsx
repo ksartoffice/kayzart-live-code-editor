@@ -217,7 +217,7 @@ function Toolbar({
   const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
   const exportLabel = __( 'Export', 'kayzart-live-code-editor');
   const copyFullHtmlLabel = __( 'Copy full HTML', 'kayzart-live-code-editor');
-  const downloadHtmlLabel = __( 'Download HTML', 'kayzart-live-code-editor');
+  const downloadHtmlLabel = __( 'Download full HTML', 'kayzart-live-code-editor');
   const resolvedListLabel = listLabel || __( 'Posts', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'

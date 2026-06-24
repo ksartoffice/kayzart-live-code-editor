@@ -321,6 +321,11 @@ class Preview {
 				'start'    => self::MARKER_START,
 				'end'      => self::MARKER_END,
 			),
+			'labels'               => array(
+				'moveToParent' => __( 'Move to parent element', 'kayzart-live-code-editor' ),
+				'copyHtml'     => __( 'Copy HTML', 'kayzart-live-code-editor' ),
+				'delete'       => __( 'Delete', 'kayzart-live-code-editor' ),
+			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
 

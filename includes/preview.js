@@ -16,6 +16,7 @@
   const markerPostId = postId === null ? '' : String(postId);
   const markerStart = config.markers && config.markers.start ? String(config.markers.start) : 'start';
   const markerEnd = config.markers && config.markers.end ? String(config.markers.end) : 'end';
+  const labels = resolveLabels(config.labels);
   const allowedOrigin = getAllowedOrigin();
   let isReady = false;
   let hoverTarget = null;
@@ -28,6 +29,8 @@
   let selectActionMenuButton = null;
   let selectActionMenu = null;
   let selectActionParentMenuItem = null;
+  let selectActionCopyMenuItem = null;
+  let selectActionDeleteMenuItem = null;
   let elementsTabOpen = false;
   let markerNodes = null;
   let htmlScriptsReady = Promise.resolve();
@@ -261,12 +264,75 @@
       lineHeight: '1.4',
     });
 
-    selectActionParentMenuItem = document.createElement('button');
-    selectActionParentMenuItem.id = 'kayzart-select-parent-menu-item';
-    selectActionParentMenuItem.type = 'button';
-    selectActionParentMenuItem.setAttribute('role', 'menuitem');
-    selectActionParentMenuItem.textContent = '親要素へ移動';
-    Object.assign(selectActionParentMenuItem.style, {
+    selectActionParentMenuItem = createSelectMenuItem(
+      'kayzart-select-parent-menu-item',
+      labels.moveToParent
+    );
+    selectActionParentMenuItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!getSelectableParent(selectTarget)) {
+        return;
+      }
+      selectParentElement();
+      closeSelectContextMenu();
+    });
+    menu.appendChild(selectActionParentMenuItem);
+
+    selectActionCopyMenuItem = createSelectMenuItem(
+      'kayzart-select-copy-html-menu-item',
+      labels.copyHtml
+    );
+    selectActionCopyMenuItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const lcId = getSelectedLcId();
+      if (!lcId) {
+        return;
+      }
+      reply('KAYZART_COPY_ELEMENT_HTML', { lcId: lcId });
+      closeSelectContextMenu();
+    });
+    menu.appendChild(selectActionCopyMenuItem);
+
+    selectActionDeleteMenuItem = createSelectMenuItem(
+      'kayzart-select-delete-menu-item',
+      labels.delete
+    );
+    selectActionDeleteMenuItem.style.color = '#b91c1c';
+    selectActionDeleteMenuItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const lcId = getSelectedLcId();
+      if (!lcId) {
+        return;
+      }
+      reply('KAYZART_DELETE_ELEMENT', { lcId: lcId });
+      closeSelectContextMenu();
+    });
+    menu.appendChild(selectActionDeleteMenuItem);
+
+    document.body.appendChild(menu);
+    selectActionMenu = menu;
+    return menu;
+  }
+
+  function resolveLabels(rawLabels) {
+    const source = rawLabels && typeof rawLabels === 'object' ? rawLabels : {};
+    return {
+      moveToParent: source.moveToParent ? String(source.moveToParent) : 'Move to parent element',
+      copyHtml: source.copyHtml ? String(source.copyHtml) : 'Copy HTML',
+      delete: source.delete ? String(source.delete) : 'Delete',
+    };
+  }
+
+  function createSelectMenuItem(id, label) {
+    const item = document.createElement('button');
+    item.id = id;
+    item.type = 'button';
+    item.setAttribute('role', 'menuitem');
+    item.textContent = label;
+    Object.assign(item.style, {
       display: 'block',
       width: '100%',
       border: 'none',
@@ -280,20 +346,13 @@
       cursor: 'pointer',
       font: 'inherit',
     });
-    selectActionParentMenuItem.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!getSelectableParent(selectTarget)) {
-        return;
-      }
-      selectParentElement();
-      closeSelectContextMenu();
-    });
-    menu.appendChild(selectActionParentMenuItem);
+    return item;
+  }
 
-    document.body.appendChild(menu);
-    selectActionMenu = menu;
-    return menu;
+  function getSelectedLcId() {
+    return selectTarget && selectTarget.getAttribute
+      ? selectTarget.getAttribute(KAYZART_ATTR_NAME)
+      : '';
   }
 
   function getSelectableParent(el) {

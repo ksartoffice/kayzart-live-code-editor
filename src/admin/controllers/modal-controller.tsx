@@ -51,6 +51,8 @@ export type FullHtmlImportDecision =
   | { type: 'keep' }
   | { type: 'cancel' };
 
+export type TailwindExportCssDecision = 'compiled' | 'editor' | 'cancel';
+
 type FullHtmlImportSelectableItem = keyof FullHtmlImportSelection;
 
 type FullHtmlImportModalProps = {
@@ -62,6 +64,10 @@ type FullHtmlImportModalProps = {
 type FullHtmlImportSourceModalProps = {
   onCancel: () => void;
   onSubmit: (source: string) => void;
+};
+
+type TailwindExportCssModalProps = {
+  onChoose: (choice: TailwindExportCssDecision) => void;
 };
 
 function MissingMarkersModal({
@@ -313,6 +319,53 @@ function FullHtmlImportModal({
   );
 }
 
+function TailwindExportCssModal({ onChoose }: TailwindExportCssModalProps) {
+  const title = __('Include compiled Tailwind CSS?', 'kayzart-live-code-editor');
+  const cancelLabel = __('Cancel', 'kayzart-live-code-editor');
+  return (
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" onClick={() => onChoose('cancel')} />
+      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
+          <button
+            type="button"
+            className="kayzart-modalClose"
+            aria-label={cancelLabel}
+            onClick={() => onChoose('cancel')}
+          >
+            ×
+          </button>
+        </div>
+        <div className="kayzart-modalBody">
+          <p className="kayzart-hintText">
+            {__(
+              'Include it if this HTML should keep the current Tailwind styling when opened by itself. Choose “No” to write the CSS editor content instead.',
+              'kayzart-live-code-editor'
+            )}
+          </p>
+        </div>
+        <div className="kayzart-modalActions">
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-secondary"
+            onClick={() => onChoose('editor')}
+          >
+            {__('No, use CSS editor content', 'kayzart-live-code-editor')}
+          </button>
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-primary"
+            onClick={() => onChoose('compiled')}
+          >
+            {__('Yes, include compiled CSS', 'kayzart-live-code-editor')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function createModalController(deps: ModalControllerDeps) {
   const missingMarkersTitle = __('Theme template unavailable', 'kayzart-live-code-editor');
   const missingMarkersBody = __(
@@ -331,6 +384,7 @@ export function createModalController(deps: ModalControllerDeps) {
   let fullHtmlImportResult: FullHtmlImportResult | null = null;
   let fullHtmlImportCanEditJs = true;
   let fullHtmlImportResolver: ((action: FullHtmlImportDecision) => void) | null = null;
+  let tailwindExportCssResolver: ((choice: TailwindExportCssDecision) => void) | null = null;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
 
@@ -347,7 +401,12 @@ export function createModalController(deps: ModalControllerDeps) {
   };
 
   const unmountIfIdle = () => {
-    if (missingMarkersOpen || fullHtmlImportSourceOpen || fullHtmlImportResult) {
+    if (
+      missingMarkersOpen ||
+      fullHtmlImportSourceOpen ||
+      fullHtmlImportResult ||
+      tailwindExportCssResolver
+    ) {
       return;
     }
     if (modalRoot?.unmount) {
@@ -390,6 +449,9 @@ export function createModalController(deps: ModalControllerDeps) {
             onSubmit={(source) => closeFullHtmlImportSourceModal(source)}
           />
         ) : null}
+        {tailwindExportCssResolver ? (
+          <TailwindExportCssModal onChoose={closeTailwindExportCssModal} />
+        ) : null}
       </Fragment>
     );
     if (modalRoot) {
@@ -422,6 +484,14 @@ export function createModalController(deps: ModalControllerDeps) {
     renderModals();
     unmountIfIdle();
     resolver?.(source);
+  }
+
+  function closeTailwindExportCssModal(choice: TailwindExportCssDecision) {
+    const resolver = tailwindExportCssResolver;
+    tailwindExportCssResolver = null;
+    renderModals();
+    unmountIfIdle();
+    resolver?.(choice);
   }
 
   const applyMissingMarkersTemplateMode = async () => {
@@ -547,10 +617,23 @@ export function createModalController(deps: ModalControllerDeps) {
     });
   };
 
+  const confirmTailwindExportCss = (): Promise<TailwindExportCssDecision> => {
+    if (tailwindExportCssResolver) {
+      closeTailwindExportCssModal('cancel');
+    }
+    ensureMounted();
+    renderModals();
+    return new Promise((resolve) => {
+      tailwindExportCssResolver = resolve;
+      renderModals();
+    });
+  };
+
   return {
     handleMissingMarkers,
     requestFullHtmlImportSource,
     confirmFullHtmlImport,
+    confirmTailwindExportCss,
   };
 }
 

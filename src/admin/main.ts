@@ -29,6 +29,7 @@ import {
   type FullHtmlImportSelection,
   type FullHtmlImportResult,
 } from './logic/full-html-import';
+import { buildFullHtmlExport } from './logic/full-html-export';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
@@ -45,9 +46,11 @@ import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
 import {
+  compileTailwindSnapshot,
   createTailwindCompiler,
   type TailwindCompiler,
 } from './persistence';
+import type { TailwindExportCssDecision } from './controllers/modal-controller';
 import type {
   EditorSnapshot,
   KayzArtExtensionApi,
@@ -102,6 +105,16 @@ const computeEditorBaseHash = (html: string, customHead: string, css: string, js
     hash >>>= 0;
   }
   return hash.toString(16).padStart(8, '0');
+};
+
+const buildHtmlExportFilename = (slug: string, title: string): string => {
+  const source = (slug || title || '').trim();
+  const safe = source
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.\-\s]+|[.\-\s]+$/g, '');
+  return `${safe || 'kayzart-export'}.html`;
 };
 
 const readSettingsPanelWidth = (): number | undefined => {
@@ -574,6 +587,12 @@ async function main() {
         requestPreviewReload();
       },
       onSave: handleSave,
+      onCopyFullHtml: async () => {
+        await handleCopyFullHtmlExport();
+      },
+      onDownloadFullHtml: () => {
+        return handleDownloadFullHtmlExport();
+      },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: (mode) => viewportController.setViewportMode(mode),
       onUpdatePostIdentity: async ({ title, slug }) => {
@@ -813,6 +832,206 @@ async function main() {
     suppressSelectionClear = Math.max(0, suppressSelectionClear - 1);
   };
 
+  const writeClipboardText = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Fall through to the textarea fallback below.
+      }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    Object.assign(textarea.style, {
+      position: 'fixed',
+      top: '-1000px',
+      left: '-1000px',
+      opacity: '0',
+    });
+    document.body.appendChild(textarea);
+    textarea.select();
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch {
+      copied = false;
+    } finally {
+      textarea.remove();
+    }
+    return copied;
+  };
+
+  async function resolveTailwindExportCssChoice(): Promise<TailwindExportCssDecision> {
+    if (!tailwindEnabled) {
+      return 'editor';
+    }
+    return (await modalController?.confirmTailwindExportCss()) || 'cancel';
+  }
+
+  async function getCurrentFullHtmlExport(): Promise<string | null> {
+    const cssChoice = await resolveTailwindExportCssChoice();
+    if (cssChoice === 'cancel') {
+      return null;
+    }
+    let exportCss = cssModel.getValue();
+    let cssMode: 'standard' | 'tailwind-source' = 'standard';
+    if (tailwindEnabled && cssChoice === 'compiled') {
+      exportCss =
+        (await compileTailwindSnapshot({
+          apiFetch: wp.apiFetch,
+          restCompileUrl: cfg.restCompileUrl,
+          postId,
+          html: htmlModel.getValue(),
+          css: cssModel.getValue(),
+        })) || '';
+    } else if (tailwindEnabled) {
+      cssMode = 'tailwind-source';
+    }
+
+    if (tailwindEnabled && cssChoice === 'compiled' && !exportCss.trim()) {
+      createSnackbar(
+        'warning',
+        __('Compiled Tailwind CSS is not available yet. The CSS editor content will be exported instead.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      exportCss = cssModel.getValue();
+      cssMode = 'tailwind-source';
+    }
+
+    return buildFullHtmlExport({
+      html: htmlModel.getValue(),
+      customHead: customHeadModel.getValue(),
+      css: exportCss,
+      cssMode,
+      js: jsModel.getValue(),
+      jsMode,
+      canEditJs,
+    });
+  }
+
+  async function handleCopyFullHtmlExport() {
+    const fullHtml = await getCurrentFullHtmlExport();
+    if (!fullHtml) {
+      return;
+    }
+    const copied = await writeClipboardText(fullHtml);
+    if (!copied) {
+      createSnackbar(
+        'error',
+        __( 'Could not copy full HTML to the clipboard.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    createSnackbar(
+      'success',
+      __( 'Full HTML copied.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  }
+
+  async function handleDownloadFullHtmlExport() {
+    const fullHtml = await getCurrentFullHtmlExport();
+    if (!fullHtml) {
+      return;
+    }
+    const blob = new Blob([fullHtml], {
+      type: 'text/html;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = buildHtmlExportFilename(postSlug, postTitle);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    createSnackbar(
+      'success',
+      __( 'HTML download started.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  }
+
+  const handleCopyElementHtml = async (lcId: string) => {
+    const context = getElementContext(htmlModel.getValue(), lcId);
+    if (!context || !context.outerHTML) {
+      createSnackbar(
+        'error',
+        __( 'Could not find the selected element HTML.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const copied = await writeClipboardText(context.outerHTML);
+    if (!copied) {
+      createSnackbar(
+        'error',
+        __( 'Could not copy HTML to the clipboard.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    createSnackbar(
+      'success',
+      __( 'Element HTML copied.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  };
+
+  const handleDeleteElement = (lcId: string) => {
+    const context = getElementContext(htmlModel.getValue(), lcId);
+    const sourceRange = context?.sourceRange;
+    if (
+      !context ||
+      !sourceRange ||
+      sourceRange.startOffset < 0 ||
+      sourceRange.endOffset < sourceRange.startOffset
+    ) {
+      createSnackbar(
+        'error',
+        __( 'Could not find the selected element range.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      __( 'Delete the selected element?', 'kayzart-live-code-editor')
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    htmlEditor.pushUndoStop();
+    applyHtmlEdit(sourceRange.startOffset, sourceRange.endOffset, '');
+    htmlEditor.pushUndoStop();
+    selectedLcId = null;
+    notifySelection();
+    preview?.clearSelectionHighlight();
+    createSnackbar(
+      'success',
+      __( 'Element deleted.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  };
+
   function insertHtmlAtSelection(text: string) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
@@ -1036,6 +1255,12 @@ async function main() {
       if (activeSettingsTab !== 'elements') {
         settingsApi?.openTab('elements');
       }
+    },
+    onCopyElementHtml: (lcId) => {
+      void handleCopyElementHtml(lcId);
+    },
+    onDeleteElement: (lcId) => {
+      handleDeleteElement(lcId);
     },
     onOverlayAction: (actionId) => {
       window.dispatchEvent(

@@ -151,7 +151,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
         <div className="kayzart-formLabel">{__( 'Attributes', 'kayzart-live-code-editor')}</div>
         <div className="kayzart-settingsScriptList">
           {attributes.map((attr, index) => (
-            <div className="kayzart-settingsScriptRow" key={`attr-${index}`}>
+            <div className="kayzart-settingsScriptRow kayzart-elementsAttrRow" key={`attr-${index}`}>
               <input
                 type="text"
                 className="kayzart-formInput kayzart-settingsAttrNameInput"
@@ -161,7 +161,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
               />
               <input
                 type="text"
-                className="kayzart-formInput kayzart-settingsScriptInput"
+                className="kayzart-formInput kayzart-settingsScriptInput kayzart-settingsAttrValueInput"
                 placeholder={__( 'Value', 'kayzart-live-code-editor')}
                 value={attr.value}
                 onChange={(event) => handleAttributeValueChange(index, event.target.value)}

@@ -350,6 +350,18 @@ msgstr "属性を追加"
 msgid "Select an element in the preview to edit its content and attributes."
 msgstr "プレビューで要素を選択して、内容と属性を編集します。"
 
+#: includes/class-kayzart-preview.php:321
+msgid "Move to parent element"
+msgstr "親要素へ移動"
+
+#: includes/class-kayzart-preview.php:322
+msgid "Copy HTML"
+msgstr "HTMLをコピー"
+
+#: includes/class-kayzart-preview.php:323
+msgid "Delete"
+msgstr "削除"
+
 #: assets/dist/main.js:101
 msgid "Settings"
 msgstr "設定"
@@ -723,6 +735,30 @@ msgstr "HTML に挿入"
 #: assets/dist/main.js:157
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアには URL がないため、挿入されませんでした。"
+
+#: assets/dist/main.js:157
+msgid "Could not find the selected element HTML."
+msgstr "選択した要素の HTML が見つかりませんでした。"
+
+#: assets/dist/main.js:157
+msgid "Could not copy HTML to the clipboard."
+msgstr "HTML をクリップボードにコピーできませんでした。"
+
+#: assets/dist/main.js:157
+msgid "Element HTML copied."
+msgstr "要素の HTML をコピーしました。"
+
+#: assets/dist/main.js:157
+msgid "Could not find the selected element range."
+msgstr "選択した要素の範囲が見つかりませんでした。"
+
+#: assets/dist/main.js:157
+msgid "Delete the selected element?"
+msgstr "選択した要素を削除しますか？"
+
+#: assets/dist/main.js:157
+msgid "Element deleted."
+msgstr "要素を削除しました。"
 
 #: assets/dist/main.js:101
 #: assets/dist/main.js:154

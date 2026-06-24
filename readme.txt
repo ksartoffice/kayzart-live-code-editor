@@ -4,7 +4,7 @@ Tags: landing page, ai, custom html, html editor, tailwind
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.5
+Stable tag: 2.0.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,6 +50,9 @@ Not yet in this free plugin — today Kayzart is the editor and runtime where yo
 = Do I need to know how to code? =
 No — most people paste what an AI produced and tweak from there. Basic familiarity with HTML/CSS helps when fine-tuning, but isn't required.
 
+= Can I use shortcodes? =
+Yes. You can place WordPress shortcodes directly in the HTML editor. They are not expanded inside the live preview iframe, but they are processed normally on the published page or front-end view.
+
 = Can I use TailwindCSS? =
 Yes. Choose TailwindCSS mode when creating a page and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
 
@@ -72,6 +75,10 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 7. Select preview text and refine the matching element from the Elements panel.
 
 == Changelog ==
+= 2.0.6 =
+* Add: Export full HTML from the editor.
+* Improve: Refine element attribute field layout.
+
 = 2.0.5 =
 * Add: Select parent elements from the preview tools.
 * Fix: Bug fixes and stability improvements.

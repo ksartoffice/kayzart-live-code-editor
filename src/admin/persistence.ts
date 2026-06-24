@@ -43,10 +43,38 @@ type TailwindCompilerDeps = {
   onStatusClear: () => void;
 };
 
+type CompileTailwindSnapshotParams = {
+  apiFetch: ApiFetch;
+  restCompileUrl: string;
+  postId: number;
+  html: string;
+  css: string;
+};
+
 export type TailwindCompiler = {
   compile: () => Promise<void>;
   isInFlight: () => boolean;
 };
+
+export async function compileTailwindSnapshot(
+  params: CompileTailwindSnapshotParams
+): Promise<string | null> {
+  const res = await params.apiFetch<CompileTailwindResponse>({
+    url: params.restCompileUrl,
+    method: 'POST',
+    data: {
+      post_id: params.postId,
+      html: params.html,
+      css: params.css,
+    },
+  });
+
+  if (res?.ok && typeof res.css === 'string') {
+    return res.css;
+  }
+
+  return null;
+}
 
 export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindCompiler {
   let tailwindCompileToken = 0;

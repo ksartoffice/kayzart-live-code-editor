@@ -577,19 +577,19 @@ msgid "Reload preview to apply head and JavaScript changes."
 msgstr ""
 
 #: assets/dist/main.js:101
-msgid "head内に追加するコードを入力します。"
+msgid "Enter code to add inside the head."
 msgstr ""
 
 #: assets/dist/main.js:101
-msgid "外部CSS、Google Fonts、OGP、構造化データなどに使用できます。"
+msgid "Use this for external CSS, Google Fonts, OGP, structured data, and similar head markup."
 msgstr ""
 
 #: assets/dist/main.js:101
-msgid "外部JSはここ、またはHTMLエディタ下部に<script src=\"\">として書いてください。"
+msgid "Write external JS here, or add it as <script src=\"\"> at the bottom of the HTML editor."
 msgstr ""
 
 #: assets/dist/main.js:101
-msgid "※ <title>、<meta charset>、viewport、<base> は使用できません。"
+msgid "Note: <title>, <meta charset>, viewport, and <base> cannot be used."
 msgstr ""
 
 #: assets/dist/main.js:154

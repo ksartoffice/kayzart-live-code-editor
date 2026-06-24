@@ -221,6 +221,76 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertSame( 999999, $priority );
 	}
 
+	public function test_force_preview_query_resolves_static_front_page_to_target_page(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$page_id  = $this->create_kayzart_page( $admin_id, 'publish' );
+
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_on_front', $page_id );
+
+		$query = $this->set_main_preview_query(
+			array(
+				'kayzart_preview' => '1',
+				'post_id'         => (string) $page_id,
+				'token'           => wp_create_nonce( 'kayzart_preview_' . $page_id ),
+				'pagename'        => '',
+			)
+		);
+
+		Preview::maybe_force_preview_query( $query );
+
+		$this->assertSame( (string) $page_id, (string) $query->get( 'page_id' ) );
+		$this->assertSame( '', (string) $query->get( 'p' ) );
+		$this->assertSame( Post_Type::PAGE_TYPE, $query->get( 'post_type' ) );
+		$this->assertTrue( is_page() );
+		$this->assertTrue( is_singular() );
+		$this->assertFalse( is_home() );
+		$this->assertFalse( is_404() );
+		$this->assertSame( $page_id, get_queried_object_id() );
+	}
+
+	public function test_force_preview_query_resolves_kayzart_cpt_to_target_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		$query = $this->set_main_preview_query(
+			array(
+				'kayzart_preview' => '1',
+				'post_id'         => (string) $post_id,
+				'token'           => wp_create_nonce( 'kayzart_preview_' . $post_id ),
+				'name'            => 'sample',
+			)
+		);
+
+		Preview::maybe_force_preview_query( $query );
+
+		$this->assertSame( (string) $post_id, (string) $query->get( 'p' ) );
+		$this->assertSame( '', (string) $query->get( 'page_id' ) );
+		$this->assertSame( Post_Type::POST_TYPE, $query->get( 'post_type' ) );
+		$this->assertTrue( is_single() );
+		$this->assertTrue( is_singular() );
+		$this->assertFalse( is_home() );
+		$this->assertFalse( is_404() );
+		$this->assertSame( $post_id, get_queried_object_id() );
+	}
+
+	public function test_force_preview_query_ignores_non_preview_requests(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$page_id  = $this->create_kayzart_page( $admin_id, 'publish' );
+
+		$query = $this->set_main_preview_query(
+			array(
+				'page_id' => (string) $page_id,
+			)
+		);
+
+		Preview::maybe_force_preview_query( $query );
+
+		$this->assertSame( '', (string) $query->get( 'post_status' ) );
+		$this->assertSame( '', (string) $query->get( 'kayzart_preview' ) );
+		$this->assertSame( (string) $page_id, (string) $query->get( 'page_id' ) );
+	}
+
 	public function test_filter_content_skips_target_post_outside_loop(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -390,6 +460,41 @@ class Test_Preview extends WP_UnitTestCase {
 		);
 	}
 
+	private function create_kayzart_page( int $author_id, string $status ): int {
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_status' => $status,
+				'post_author' => $author_id,
+			)
+		);
+
+		update_post_meta( $post_id, Post_Type::ENABLED_META, '1' );
+
+		return $post_id;
+	}
+
+	private function set_main_preview_query( array $query_vars ): WP_Query {
+		global $wp_query, $wp_the_query;
+
+		$query = new WP_Query();
+		$query->parse_query( $query_vars );
+		if ( isset( $query_vars['kayzart_preview'] ) ) {
+			$query->set( 'kayzart_preview', $query_vars['kayzart_preview'] );
+		}
+		if ( isset( $query_vars['post_id'] ) ) {
+			$query->set( 'post_id', $query_vars['post_id'] );
+		}
+		if ( isset( $query_vars['token'] ) ) {
+			$query->set( 'token', $query_vars['token'] );
+		}
+
+		$wp_query     = $query;
+		$wp_the_query = $query;
+
+		return $query;
+	}
+
 	private function set_preview_query_vars( ?int $post_id, ?string $token ): void {
 		global $wp_query, $wp_the_query;
 		if ( ! $wp_query ) {
@@ -508,5 +613,3 @@ class Test_Preview extends WP_UnitTestCase {
 		return $origin;
 	}
 }
-
-

@@ -203,10 +203,10 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   const customHeadPendingNotice = el('div', 'kayzart-reloadPendingNotice kayzart-customHeadPendingNotice');
   customHeadPendingNotice.textContent = __( 'Reload preview to apply head and JavaScript changes.', 'kayzart-live-code-editor');
   const customHeadHelpLines = [
-    __( 'head内に追加するコードを入力します。', 'kayzart-live-code-editor'),
-    __( '外部CSS、Google Fonts、OGP、構造化データなどに使用できます。', 'kayzart-live-code-editor'),
-    __( '外部JSはここ、またはHTMLエディタ下部に<script src="">として書いてください。', 'kayzart-live-code-editor'),
-    __( '※ <title>、<meta charset>、viewport、<base> は使用できません。', 'kayzart-live-code-editor'),
+    __( 'Enter code to add inside the head.', 'kayzart-live-code-editor'),
+    __( 'Use this for external CSS, Google Fonts, OGP, structured data, and similar head markup.', 'kayzart-live-code-editor'),
+    __( 'Write external JS here, or add it as <script src=""> at the bottom of the HTML editor.', 'kayzart-live-code-editor'),
+    __( 'Note: <title>, <meta charset>, viewport, and <base> cannot be used.', 'kayzart-live-code-editor'),
   ];
   customHeadHelp.replaceChildren(
     ...customHeadHelpLines.flatMap((line, index) =>

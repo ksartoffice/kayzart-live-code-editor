@@ -37,6 +37,7 @@ class Preview {
 	 */
 	public static function init(): void {
 		add_filter( 'query_vars', array( __CLASS__, 'register_query_vars' ) );
+		add_action( 'pre_get_posts', array( __CLASS__, 'maybe_force_preview_query' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_handle_preview' ) );
 		add_filter( 'the_content', array( __CLASS__, 'filter_content' ), 999999 );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
@@ -63,6 +64,88 @@ class Preview {
 	 */
 	private static function is_preview_request(): bool {
 		return (bool) get_query_var( 'kayzart_preview' );
+	}
+
+	/**
+	 * Force preview requests to resolve to the requested KayzArt post.
+	 *
+	 * WordPress treats the static front page permalink as the site root. Adding
+	 * custom query args to that URL can make the main query resolve as blog/404
+	 * instead of the front page. Preview requests carry the intended post_id, so
+	 * use it to keep the template, loop, and queried object aligned.
+	 *
+	 * @param \WP_Query $query Main query candidate.
+	 */
+	public static function maybe_force_preview_query( \WP_Query $query ): void {
+		if ( is_admin() ) {
+			return;
+		}
+
+		if ( ! $query->is_main_query() ) {
+			return;
+		}
+
+		if ( ! $query->get( 'kayzart_preview' ) ) {
+			return;
+		}
+
+		$post_id = absint( $query->get( 'post_id' ) );
+		if ( ! $post_id ) {
+			return;
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post ) {
+			return;
+		}
+
+		if ( ! Post_Type::is_kayzart_post( $post ) ) {
+			return;
+		}
+
+		$query->set( 'post_type', $post->post_type );
+		$query->set( 'post_status', 'any' );
+		$query->set( 'name', '' );
+		$query->set( 'pagename', '' );
+		$query->set( 'page', '' );
+		$query->set( 'paged', '' );
+		$query->set( 'error', '' );
+
+		if ( Post_Type::PAGE_TYPE === $post->post_type ) {
+			$query->set( 'page_id', $post_id );
+			$query->set( 'p', '' );
+		} else {
+			$query->set( 'p', $post_id );
+			$query->set( 'page_id', '' );
+		}
+
+		self::mark_query_as_singular_preview( $query, $post );
+	}
+
+	/**
+	 * Update conditional flags after changing query vars in pre_get_posts.
+	 *
+	 * @param \WP_Query $query Query to update.
+	 * @param \WP_Post  $post  Preview post.
+	 */
+	private static function mark_query_as_singular_preview( \WP_Query $query, \WP_Post $post ): void {
+		$query->is_home              = false;
+		$query->is_archive           = false;
+		$query->is_post_type_archive = false;
+		$query->is_date              = false;
+		$query->is_author            = false;
+		$query->is_category          = false;
+		$query->is_tag               = false;
+		$query->is_tax               = false;
+		$query->is_search            = false;
+		$query->is_feed              = false;
+		$query->is_comment_feed      = false;
+		$query->is_404               = false;
+		$query->is_singular          = true;
+		$query->is_single            = Post_Type::PAGE_TYPE !== $post->post_type;
+		$query->is_page              = Post_Type::PAGE_TYPE === $post->post_type;
+		$query->queried_object       = $post;
+		$query->queried_object_id    = (int) $post->ID;
 	}
 
 	/**

@@ -77,7 +77,6 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 == Changelog ==
 = 2.0.7 =
 * Fix: Resolve front page preview returning a 404.
-* Improve: Translate the in-header code help message to English.
 
 = 2.0.6 =
 * Add: Export full HTML from the editor.

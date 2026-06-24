@@ -154,6 +154,31 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '.text-[2rem]', $inline_css );
 	}
 
+	public function test_enqueue_css_preserves_tailwind_property_syntax_values(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		$css = '@property --tw-gradient-from-position { syntax: "<length-percentage>"; inherits: false; initial-value: 0%; }';
+		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css ) );
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::enqueue_css();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertTrue( wp_style_is( 'kayzart', 'enqueued' ) );
+
+		$styles       = wp_styles();
+		$inline_rules = $styles->get_data( 'kayzart', 'after' );
+		$this->assertIsArray( $inline_rules );
+		$inline_css = implode( "\n", $inline_rules );
+
+		$this->assertStringContainsString( 'syntax: "<length-percentage>"', $inline_css );
+		$this->assertStringNotContainsString( 'syntax: ""', $inline_css );
+	}
+
 	public function test_marked_page_receives_frontend_assets_and_unmarked_page_does_not(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$page_id  = $this->create_page( $admin_id, 'publish', true );

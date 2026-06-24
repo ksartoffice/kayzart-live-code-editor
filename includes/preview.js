@@ -25,6 +25,9 @@
   let selectActionGroup = null;
   let selectActionAddonButton = null;
   let selectActionEditButton = null;
+  let selectActionMenuButton = null;
+  let selectActionMenu = null;
+  let selectActionParentMenuItem = null;
   let elementsTabOpen = false;
   let markerNodes = null;
   let htmlScriptsReady = Promise.resolve();
@@ -215,12 +218,178 @@
     });
     group.appendChild(selectActionEditButton);
 
+    selectActionMenuButton = createSelectActionButton({
+      id: 'kayzart-select-menu-action',
+      ariaLabel: 'Open selection menu',
+      background: '#a855f7',
+      iconSvg:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+      onClick: toggleSelectContextMenu,
+    });
+    selectActionMenuButton.setAttribute('aria-haspopup', 'menu');
+    selectActionMenuButton.setAttribute('aria-expanded', 'false');
+    group.appendChild(selectActionMenuButton);
+
     document.body.appendChild(group);
     selectActionGroup = group;
     return group;
   }
 
+  function ensureSelectContextMenu() {
+    if (selectActionMenu) return selectActionMenu;
+
+    const menu = document.createElement('div');
+    menu.id = 'kayzart-select-context-menu';
+    menu.setAttribute('role', 'menu');
+    Object.assign(menu.style, {
+      position: 'fixed',
+      display: 'none',
+      minWidth: '168px',
+      padding: '6px',
+      margin: '0',
+      borderRadius: '8px',
+      border: '1px solid rgba(17, 24, 39, 0.12)',
+      background: '#fff',
+      color: '#111827',
+      boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+      boxSizing: 'border-box',
+      zIndex: 2147483647,
+      pointerEvents: 'auto',
+      fontFamily:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      fontSize: '13px',
+      lineHeight: '1.4',
+    });
+
+    selectActionParentMenuItem = document.createElement('button');
+    selectActionParentMenuItem.id = 'kayzart-select-parent-menu-item';
+    selectActionParentMenuItem.type = 'button';
+    selectActionParentMenuItem.setAttribute('role', 'menuitem');
+    selectActionParentMenuItem.textContent = '親要素へ移動';
+    Object.assign(selectActionParentMenuItem.style, {
+      display: 'block',
+      width: '100%',
+      border: 'none',
+      borderRadius: '6px',
+      background: 'transparent',
+      color: '#111827',
+      padding: '8px 10px',
+      margin: '0',
+      boxSizing: 'border-box',
+      textAlign: 'left',
+      cursor: 'pointer',
+      font: 'inherit',
+    });
+    selectActionParentMenuItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!getSelectableParent(selectTarget)) {
+        return;
+      }
+      selectParentElement();
+      closeSelectContextMenu();
+    });
+    menu.appendChild(selectActionParentMenuItem);
+
+    document.body.appendChild(menu);
+    selectActionMenu = menu;
+    return menu;
+  }
+
+  function getSelectableParent(el) {
+    let parent = el && el.parentElement ? el.parentElement : null;
+    while (parent && parent !== document.body && parent !== document.documentElement) {
+      if (parent.hasAttribute(KAYZART_ATTR_NAME)) {
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    return null;
+  }
+
+  function selectElement(el) {
+    if (!el || !(el instanceof Element)) {
+      return;
+    }
+    drawSelection(el);
+    const lcId = el.getAttribute(KAYZART_ATTR_NAME);
+    if (lcId) {
+      reply('KAYZART_SELECT', { lcId: lcId });
+    }
+  }
+
+  function selectParentElement() {
+    const parent = getSelectableParent(selectTarget);
+    if (!parent) {
+      return;
+    }
+    selectElement(parent);
+  }
+
+  function isSelectContextMenuOpen() {
+    return Boolean(selectActionMenu && selectActionMenu.style.display !== 'none');
+  }
+
+  function updateSelectContextMenuState() {
+    if (!selectActionParentMenuItem) {
+      return;
+    }
+    const hasParent = Boolean(getSelectableParent(selectTarget));
+    selectActionParentMenuItem.setAttribute('aria-disabled', hasParent ? 'false' : 'true');
+    selectActionParentMenuItem.style.color = hasParent ? '#111827' : '#9ca3af';
+    selectActionParentMenuItem.style.cursor = hasParent ? 'pointer' : 'default';
+  }
+
+  function positionSelectContextMenu() {
+    if (!selectActionMenu || !selectActionMenuButton || selectActionMenu.style.display === 'none') {
+      return;
+    }
+    const buttonRect = selectActionMenuButton.getBoundingClientRect();
+    const menuRect = selectActionMenu.getBoundingClientRect();
+    const gap = 6;
+    const padding = 6;
+    const maxTop = window.innerHeight - menuRect.height - padding;
+    const maxLeft = window.innerWidth - menuRect.width - padding;
+    let top = buttonRect.bottom + gap;
+    let left = buttonRect.right - menuRect.width;
+    top = Math.max(padding, Math.min(top, maxTop));
+    left = Math.max(padding, Math.min(left, maxLeft));
+    selectActionMenu.style.top = top + 'px';
+    selectActionMenu.style.left = left + 'px';
+  }
+
+  function openSelectContextMenu() {
+    if (!selectTarget) {
+      return;
+    }
+    const menu = ensureSelectContextMenu();
+    updateSelectContextMenuState();
+    menu.style.display = 'block';
+    if (selectActionMenuButton) {
+      selectActionMenuButton.setAttribute('aria-expanded', 'true');
+    }
+    positionSelectContextMenu();
+  }
+
+  function closeSelectContextMenu() {
+    if (selectActionMenu) {
+      selectActionMenu.style.display = 'none';
+    }
+    if (selectActionMenuButton) {
+      selectActionMenuButton.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function toggleSelectContextMenu() {
+    if (isSelectContextMenuOpen()) {
+      closeSelectContextMenu();
+      return;
+    }
+    openSelectContextMenu();
+  }
+
   function hideSelectActionButtons() {
+    closeSelectContextMenu();
     if (selectActionGroup) {
       selectActionGroup.style.display = 'none';
     }
@@ -241,7 +410,9 @@
       (!elementsTabOpen ||
         Boolean(overlayActionConfig && overlayActionConfig.showWhenElementsTabOpen));
     const showEditButton = !elementsTabOpen && Boolean(selectActionEditButton);
-    const buttonCount = (showAddonButton ? 1 : 0) + (showEditButton ? 1 : 0);
+    const showMenuButton = Boolean(selectActionMenuButton);
+    const buttonCount =
+      (showAddonButton ? 1 : 0) + (showEditButton ? 1 : 0) + (showMenuButton ? 1 : 0);
     if (buttonCount === 0) {
       hideSelectActionButtons();
       return;
@@ -251,6 +422,9 @@
     }
     if (selectActionEditButton) {
       selectActionEditButton.style.display = showEditButton ? 'flex' : 'none';
+    }
+    if (selectActionMenuButton) {
+      selectActionMenuButton.style.display = showMenuButton ? 'flex' : 'none';
     }
     const groupWidth = size * buttonCount + gap * (buttonCount - 1);
     const maxTop = window.innerHeight - size - padding;
@@ -263,6 +437,8 @@
     group.style.top = top + 'px';
     group.style.left = left + 'px';
     group.style.display = 'flex';
+    updateSelectContextMenuState();
+    positionSelectContextMenu();
   }
 
   function clearHighlight() {
@@ -331,6 +507,30 @@
     return event.target.closest('[' + KAYZART_ATTR_NAME + ']');
   }
 
+  function handleSelectMenuDocumentClick(event) {
+    if (!isSelectContextMenuOpen()) {
+      return;
+    }
+    const target = event.target;
+    if (
+      target instanceof Node &&
+      ((selectActionMenu && selectActionMenu.contains(target)) ||
+        (selectActionMenuButton && selectActionMenuButton.contains(target)))
+    ) {
+      return;
+    }
+    closeSelectContextMenu();
+  }
+
+  function handleSelectMenuKeydown(event) {
+    if (event.key === 'Escape' && isSelectContextMenuOpen()) {
+      closeSelectContextMenu();
+      if (selectActionMenuButton) {
+        selectActionMenuButton.focus();
+      }
+    }
+  }
+
   function handlePointerMove(event) {
     if (!domSelectorEnabled) return;
     const target = getComposedTarget(event);
@@ -347,11 +547,7 @@
     if (!target) return;
     event.preventDefault();
     event.stopPropagation();
-    drawSelection(target);
-    const lcId = target.getAttribute(KAYZART_ATTR_NAME);
-    if (lcId) {
-      reply('KAYZART_SELECT', { lcId: lcId });
-    }
+    selectElement(target);
   }
 
   function attachDomSelector() {
@@ -378,6 +574,8 @@
         drawSelection(selectTarget);
       }
     });
+    document.addEventListener('click', handleSelectMenuDocumentClick, true);
+    document.addEventListener('keydown', handleSelectMenuKeydown, true);
     document.addEventListener('click', handleClick, true);
   }
 

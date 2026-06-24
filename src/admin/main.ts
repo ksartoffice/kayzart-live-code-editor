@@ -46,6 +46,7 @@ import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
 import {
+  compileTailwindSnapshot,
   createTailwindCompiler,
   type TailwindCompiler,
 } from './persistence';
@@ -878,10 +879,14 @@ async function main() {
     let exportCss = cssModel.getValue();
     let cssMode: 'standard' | 'tailwind-source' = 'standard';
     if (tailwindEnabled && cssChoice === 'compiled') {
-      if (!tailwindCss.trim()) {
-        await tailwindCompiler?.compile();
-      }
-      exportCss = tailwindCss;
+      exportCss =
+        (await compileTailwindSnapshot({
+          apiFetch: wp.apiFetch,
+          restCompileUrl: cfg.restCompileUrl,
+          postId,
+          html: htmlModel.getValue(),
+          css: cssModel.getValue(),
+        })) || '';
     } else if (tailwindEnabled) {
       cssMode = 'tailwind-source';
     }

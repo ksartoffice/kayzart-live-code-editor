@@ -50,6 +50,9 @@ Not yet in this free plugin — today Kayzart is the editor and runtime where yo
 = Do I need to know how to code? =
 No — most people paste what an AI produced and tweak from there. Basic familiarity with HTML/CSS helps when fine-tuning, but isn't required.
 
+= Can I use shortcodes? =
+Yes. You can place WordPress shortcodes directly in the HTML editor. They are not expanded inside the live preview iframe, but they are processed normally on the published page or front-end view.
+
 = Can I use TailwindCSS? =
 Yes. Choose TailwindCSS mode when creating a page and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
 

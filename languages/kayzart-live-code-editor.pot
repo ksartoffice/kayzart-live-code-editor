@@ -358,6 +358,18 @@ msgstr ""
 msgid "Select an element in the preview to edit its content and attributes."
 msgstr ""
 
+#: includes/class-kayzart-preview.php:321
+msgid "Move to parent element"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:322
+msgid "Copy HTML"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:323
+msgid "Delete"
+msgstr ""
+
 #: assets/dist/main.js:101
 msgid "Settings"
 msgstr ""
@@ -769,4 +781,28 @@ msgstr ""
 
 #: assets/dist/main.js:157
 msgid "The selected media has no URL and was not inserted."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Could not find the selected element HTML."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Could not copy HTML to the clipboard."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Element HTML copied."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Could not find the selected element range."
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Delete the selected element?"
+msgstr ""
+
+#: assets/dist/main.js:157
+msgid "Element deleted."
 msgstr ""

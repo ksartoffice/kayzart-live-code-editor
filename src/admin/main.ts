@@ -813,6 +813,108 @@ async function main() {
     suppressSelectionClear = Math.max(0, suppressSelectionClear - 1);
   };
 
+  const writeClipboardText = async (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Fall through to the textarea fallback below.
+      }
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    Object.assign(textarea.style, {
+      position: 'fixed',
+      top: '-1000px',
+      left: '-1000px',
+      opacity: '0',
+    });
+    document.body.appendChild(textarea);
+    textarea.select();
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch {
+      copied = false;
+    } finally {
+      textarea.remove();
+    }
+    return copied;
+  };
+
+  const handleCopyElementHtml = async (lcId: string) => {
+    const context = getElementContext(htmlModel.getValue(), lcId);
+    if (!context || !context.outerHTML) {
+      createSnackbar(
+        'error',
+        __( 'Could not find the selected element HTML.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const copied = await writeClipboardText(context.outerHTML);
+    if (!copied) {
+      createSnackbar(
+        'error',
+        __( 'Could not copy HTML to the clipboard.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    createSnackbar(
+      'success',
+      __( 'Element HTML copied.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  };
+
+  const handleDeleteElement = (lcId: string) => {
+    const context = getElementContext(htmlModel.getValue(), lcId);
+    const sourceRange = context?.sourceRange;
+    if (
+      !context ||
+      !sourceRange ||
+      sourceRange.startOffset < 0 ||
+      sourceRange.endOffset < sourceRange.startOffset
+    ) {
+      createSnackbar(
+        'error',
+        __( 'Could not find the selected element range.', 'kayzart-live-code-editor'),
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      __( 'Delete the selected element?', 'kayzart-live-code-editor')
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    htmlEditor.pushUndoStop();
+    applyHtmlEdit(sourceRange.startOffset, sourceRange.endOffset, '');
+    htmlEditor.pushUndoStop();
+    selectedLcId = null;
+    notifySelection();
+    preview?.clearSelectionHighlight();
+    createSnackbar(
+      'success',
+      __( 'Element deleted.', 'kayzart-live-code-editor'),
+      undefined,
+      NOTICE_SUCCESS_DURATION_MS
+    );
+  };
+
   function insertHtmlAtSelection(text: string) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
@@ -1036,6 +1138,12 @@ async function main() {
       if (activeSettingsTab !== 'elements') {
         settingsApi?.openTab('elements');
       }
+    },
+    onCopyElementHtml: (lcId) => {
+      void handleCopyElementHtml(lcId);
+    },
+    onDeleteElement: (lcId) => {
+      handleDeleteElement(lcId);
     },
     onOverlayAction: (actionId) => {
       window.dispatchEvent(

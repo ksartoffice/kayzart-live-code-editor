@@ -4,6 +4,7 @@ Kayzart Landing Page Editor - Overview
 Overview
 --------
 - WordPress pages and legacy `kayzart` custom post type entries can be edited in the dedicated Kayzart editor.
+- Existing WordPress pages become Kayzart-managed only after an explicit Convert to landing page action.
 - The editor provides CodeMirror 6 HTML/CSS/JavaScript tabs and a live iframe preview.
 - New landing page work is page-based. Public output is the page permalink, not shortcode embedding.
 

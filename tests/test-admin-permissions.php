@@ -275,6 +275,98 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( $before, $after, 'Action without nonce must not create page drafts.' );
 	}
 
+	public function test_action_convert_existing_post_marks_page_requires_setup_and_preserves_content(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$content = '<section><h1>Translated page</h1></section>';
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_status'  => 'publish',
+				'post_author'  => $admin_id,
+				'post_content' => $content,
+			)
+		);
+
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_id'  => (string) $page_id,
+			'_wpnonce' => wp_create_nonce( Admin::CONVERT_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_convert_existing_post();
+			}
+		);
+
+		$_GET = $original_get;
+
+		$page = get_post( $page_id );
+		$this->assertInstanceOf( WP_Post::class, $page );
+		$this->assertSame( $content, $page->post_content );
+		$this->assertSame( '1', get_post_meta( $page_id, Post_Type::ENABLED_META, true ) );
+		$this->assertSame( '1', get_post_meta( $page_id, '_kayzart_setup_required', true ) );
+		$this->assertSame( Post_Type::get_editor_url( $page_id ), $location );
+	}
+
+	public function test_action_convert_existing_post_requires_valid_nonce(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+			)
+		);
+
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $page_id;
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_convert_existing_post();
+			}
+		);
+
+		$_GET = $original_get;
+
+		$this->assertSame( '', get_post_meta( $page_id, Post_Type::ENABLED_META, true ) );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
+	}
+
+	public function test_action_convert_existing_post_denies_user_without_edit_permission(): void {
+		$author_id     = self::factory()->user->create( array( 'role' => 'author' ) );
+		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$page_id       = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $author_id,
+			)
+		);
+
+		wp_set_current_user( $subscriber_id );
+
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_id'  => (string) $page_id,
+			'_wpnonce' => wp_create_nonce( Admin::CONVERT_POST_NONCE_ACTION ),
+		);
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_convert_existing_post();
+			}
+		);
+
+		$_GET = $original_get;
+
+		$this->assertSame( '', get_post_meta( $page_id, Post_Type::ENABLED_META, true ) );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
+	}
+
 	private function create_kayzart_post( int $author_id ): int {
 		return (int) self::factory()->post->create(
 			array(

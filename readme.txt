@@ -34,15 +34,15 @@ Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
 == Installation ==
 1. Install and activate Kayzart from Plugins.
-2. Go to Pages > Add landing page.
+2. Go to Pages > Add landing page to create a new landing page, or open Pages and choose Convert to landing page for an existing page.
 3. Choose Normal or TailwindCSS mode.
-4. Paste your AI-generated HTML/CSS/JS (or write your own), watch the live preview, and adjust.
-5. Publish. Use Standalone mode for a clean, theme-free landing page.
+4. Paste your AI-generated HTML/CSS/JS (or keep editing the existing page content), watch the live preview, and adjust.
+5. Publish or update. Use Standalone mode for a clean, theme-free landing page.
 6. Optional: Settings > Landing page settings to enable Kayzart for posts or custom post types.
 
 == Frequently Asked Questions ==
 = I have a page from ChatGPT / Claude. How do I use it in WordPress? =
-Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs. If your AI tool gave you one complete HTML document, use the full HTML import feature to split it into the right fields. The live preview renders it immediately, and you can keep editing before you publish.
+Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs. You can also convert an existing WordPress page from the page list or edit screen; Kayzart keeps the existing post content as the initial HTML. If your AI tool gave you one complete HTML document, use the full HTML import feature to split it into the right fields. The live preview renders it immediately, and you can keep editing before you publish.
 
 = Can AI edit the page for me, right inside WordPress? =
 Not yet in this free plugin — today Kayzart is the editor and runtime where you paste and refine AI-generated code. AI-assisted editing inside WordPress is on our roadmap. For now, generate your HTML/CSS/JS in ChatGPT, Claude, or Gemini, then paste it here to publish and keep editing.
@@ -54,7 +54,7 @@ No — most people paste what an AI produced and tweak from there. Basic familia
 Yes. You can place WordPress shortcodes directly in the HTML editor. They are not expanded inside the live preview iframe, but they are processed normally on the published page or front-end view.
 
 = Can I use TailwindCSS? =
-Yes. Choose TailwindCSS mode when creating a page and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
+Yes. Choose TailwindCSS mode when creating or converting a page and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
 
 = What is Standalone mode? =
 Standalone mode renders your landing page without the active theme's layout — the theme's header, footer, content template, styles, and scripts are not loaded, so your page isn't affected by theme CSS or JavaScript. Kayzart's own styles and scripts (and your page's CSS/JS) are still loaded, so the editor runtime and your page behave as expected. Use it when you want a clean, theme-independent landing page.

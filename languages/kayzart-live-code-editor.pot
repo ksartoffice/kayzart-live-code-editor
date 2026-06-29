@@ -153,7 +153,7 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:701
-msgid "Existing posts are not converted until they are opened in the Kayzart editor or created with Add landing page."
+msgid "Existing posts are converted only when you choose Convert to landing page or create one with Add landing page."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:752
@@ -233,9 +233,15 @@ msgstr ""
 msgid "TailwindCSS"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:356
-#: assets/admin/editor-bridge.js:107
-#: assets/admin/editor-bridge.js:149
+#: includes/class-kayzart-post-type.php:360
+#: assets/admin/editor-bridge.js:13
+msgid "Convert to landing page"
+msgstr ""
+
+#: includes/class-kayzart-post-type.php:354
+#: assets/admin/editor-bridge.js:13
+#: assets/admin/editor-bridge.js:122
+#: assets/admin/editor-bridge.js:164
 msgid "Edit landing page"
 msgstr ""
 

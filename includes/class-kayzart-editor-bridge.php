@@ -65,6 +65,7 @@ class Editor_Bridge {
 	 */
 	private static function enqueue_assets(): void {
 		$post_id = self::resolve_post_id();
+		$post    = $post_id > 0 ? get_post( $post_id ) : null;
 		wp_register_script(
 			self::SCRIPT_HANDLE,
 			KAYZART_URL . 'assets/admin/editor-bridge.js',
@@ -83,16 +84,22 @@ class Editor_Bridge {
 		wp_enqueue_script( self::SCRIPT_HANDLE );
 		wp_enqueue_style( self::STYLE_HANDLE );
 
-		$post_type = get_post_type( $post_id );
+		$post_type = $post ? $post->post_type : get_post_type( $post_id );
 		if ( ! is_string( $post_type ) || '' === $post_type ) {
 			$post_type = Post_Type::POST_TYPE;
 		}
 
+		$is_managed = $post instanceof \WP_Post
+			&& ( Post_Type::POST_TYPE === $post->post_type || Post_Type::is_kayzart_enabled_post( (int) $post->ID ) );
+
 		$data = array(
-			'postId'    => $post_id,
-			'postType'  => $post_type,
-			'actionUrl' => Admin::get_action_redirect_url(),
-			'enabled'   => $post_id > 0,
+			'postId'     => $post_id,
+			'postType'   => $post_type,
+			'actionUrl'  => Admin::get_action_redirect_url(),
+			'convertUrl' => Admin::get_convert_post_action_url(),
+			'enabled'    => $is_managed,
+			'isManaged'  => $is_managed,
+			'canConvert' => $post_id > 0 && ! $is_managed,
 		);
 		$json = wp_json_encode( $data );
 		if ( false === $json ) {
@@ -124,10 +131,6 @@ class Editor_Bridge {
 			return 0;
 		}
 
-		if ( ! Post_Type::is_kayzart_enabled_post( (int) $post->ID ) ) {
-			return 0;
-		}
-
 		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 			return 0;
 		}
@@ -136,7 +139,7 @@ class Editor_Bridge {
 	}
 
 	/**
-	 * Check if the screen is for the KayzArt CPT.
+	 * Check if the screen can show the KayzArt editor bridge.
 	 *
 	 * @param \WP_Screen|null $screen Current screen.
 	 * @return bool
@@ -151,6 +154,6 @@ class Editor_Bridge {
 		return $post instanceof \WP_Post
 			&& $screen->post_type === $post->post_type
 			&& Post_Type::is_editor_enabled_post( $post )
-			&& Post_Type::is_kayzart_enabled_post( (int) $post->ID );
+			&& current_user_can( 'edit_post', $post->ID );
 	}
 }

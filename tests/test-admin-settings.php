@@ -294,6 +294,19 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
+	public function test_render_enabled_post_types_field_mentions_convert_action_for_existing_posts(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		ob_start();
+		Admin::render_enabled_post_types_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'Convert to landing page', $output );
+		$this->assertStringContainsString( 'Add landing page', $output );
+		$this->assertStringNotContainsString( 'opened in the Kayzart editor', $output );
+	}
+
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {
 		update_option( Admin::OPTION_FLUSH_REWRITE, '0' );
 

@@ -904,6 +904,7 @@ async function main() {
 
     return buildFullHtmlExport({
       html: htmlModel.getValue(),
+      documentHtmlAttributes: cfg.documentHtmlAttributes,
       customHead: customHeadModel.getValue(),
       css: exportCss,
       cssMode,

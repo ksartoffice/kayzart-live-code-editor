@@ -9,6 +9,7 @@ export type AppConfig = {
   initialJs: string;
   initialJsMode?: JsMode;
   canEditJs: boolean;
+  documentHtmlAttributes: string;
   previewUrl: string;
   iframePreviewUrl?: string;
   restUrl: string;

@@ -5,6 +5,7 @@ describe('full html export logic', () => {
   it('builds a complete document from current editor content', () => {
     const html = buildFullHtmlExport({
       html: '<main><h1>Hello</h1></main>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '<meta name="description" content="Landing page">',
       css: '.hero { color: red; }',
       js: 'console.log("hello");',
@@ -13,7 +14,7 @@ describe('full html export logic', () => {
     });
 
     expect(html).toContain('<!doctype html>');
-    expect(html).toContain('<html lang="ja">');
+    expect(html).toContain('<html lang="en-US">');
     expect(html).toContain('<meta charset="utf-8">');
     expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
     expect(html).toContain('<meta name="description" content="Landing page">');
@@ -25,6 +26,7 @@ describe('full html export logic', () => {
   it('preserves body attributes without nesting body tags', () => {
     const html = buildFullHtmlExport({
       html: '<body class="lp" data-page="x"><main>Hi</main></body>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '',
       css: '',
       js: '',
@@ -39,6 +41,7 @@ describe('full html export logic', () => {
   it('uses module scripts when the current JavaScript mode is module', () => {
     const html = buildFullHtmlExport({
       html: '<div id="app"></div>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '',
       css: '',
       js: 'import "./app.js";',
@@ -52,6 +55,7 @@ describe('full html export logic', () => {
   it('uses the CSS editor value directly for Tailwind-style input', () => {
     const html = buildFullHtmlExport({
       html: '<div class="text-red-500">Tailwind</div>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '',
       css: '@import "tailwindcss";\n@theme { --color-brand: #123456; }',
       cssMode: 'tailwind-source',
@@ -68,6 +72,7 @@ describe('full html export logic', () => {
   it('writes compiled Tailwind CSS as normal style content', () => {
     const html = buildFullHtmlExport({
       html: '<div class="text-red-500">Tailwind</div>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '',
       css: '.text-red-500 { color: rgb(239 68 68); }',
       cssMode: 'standard',
@@ -83,6 +88,7 @@ describe('full html export logic', () => {
   it('escapes closing style and script tag sequences in inline blocks', () => {
     const html = buildFullHtmlExport({
       html: '<main>Safe</main>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '',
       css: '.x::before { content: "</style>"; }',
       js: 'const tag = "</script>";',
@@ -97,6 +103,7 @@ describe('full html export logic', () => {
   it('omits custom head and JavaScript when the user cannot edit unfiltered HTML', () => {
     const html = buildFullHtmlExport({
       html: '<main>Content</main>',
+      documentHtmlAttributes: 'lang="en-US"',
       customHead: '<meta name="robots" content="noindex">',
       css: '.x { color: red; }',
       js: 'alert("nope");',
@@ -107,5 +114,34 @@ describe('full html export logic', () => {
     expect(html).not.toContain('robots');
     expect(html).not.toContain('alert("nope")');
     expect(html).toContain('.x { color: red; }');
+  });
+
+  it('uses RTL language attributes from WordPress config', () => {
+    const html = buildFullHtmlExport({
+      html: '<main>RTL</main>',
+      documentHtmlAttributes: 'lang="ar" dir="rtl"',
+      customHead: '',
+      css: '',
+      js: '',
+      jsMode: 'classic',
+      canEditJs: true,
+    });
+
+    expect(html).toContain('<html lang="ar" dir="rtl">');
+  });
+
+  it('falls back to a bare html element when document attributes are empty', () => {
+    const html = buildFullHtmlExport({
+      html: '<main>No lang</main>',
+      documentHtmlAttributes: '',
+      customHead: '',
+      css: '',
+      js: '',
+      jsMode: 'classic',
+      canEditJs: true,
+    });
+
+    expect(html).toContain('<html>');
+    expect(html).not.toContain('<html ');
   });
 });

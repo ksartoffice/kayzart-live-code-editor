@@ -29,6 +29,7 @@
   let selectActionMenuButton = null;
   let selectActionMenu = null;
   let selectActionParentMenuItem = null;
+  let selectActionReplaceImageMenuItem = null;
   let selectActionCopyMenuItem = null;
   let selectActionDeleteMenuItem = null;
   let elementsTabOpen = false;
@@ -279,6 +280,25 @@
     });
     menu.appendChild(selectActionParentMenuItem);
 
+    selectActionReplaceImageMenuItem = createSelectMenuItem(
+      'kayzart-select-replace-image-menu-item',
+      labels.replaceImage
+    );
+    selectActionReplaceImageMenuItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isSelectedImage()) {
+        return;
+      }
+      const lcId = getSelectedLcId();
+      if (!lcId) {
+        return;
+      }
+      reply('KAYZART_REPLACE_IMAGE', { lcId: lcId });
+      closeSelectContextMenu();
+    });
+    menu.appendChild(selectActionReplaceImageMenuItem);
+
     selectActionCopyMenuItem = createSelectMenuItem(
       'kayzart-select-copy-html-menu-item',
       labels.copyHtml
@@ -321,6 +341,7 @@
     const source = rawLabels && typeof rawLabels === 'object' ? rawLabels : {};
     return {
       moveToParent: source.moveToParent ? String(source.moveToParent) : 'Move to parent element',
+      replaceImage: source.replaceImage ? String(source.replaceImage) : 'Replace image',
       copyHtml: source.copyHtml ? String(source.copyHtml) : 'Copy HTML',
       delete: source.delete ? String(source.delete) : 'Delete',
     };
@@ -353,6 +374,10 @@
     return selectTarget && selectTarget.getAttribute
       ? selectTarget.getAttribute(KAYZART_ATTR_NAME)
       : '';
+  }
+
+  function isSelectedImage() {
+    return Boolean(selectTarget && selectTarget.tagName === 'IMG');
   }
 
   function getSelectableParent(el) {
@@ -397,6 +422,9 @@
     selectActionParentMenuItem.setAttribute('aria-disabled', hasParent ? 'false' : 'true');
     selectActionParentMenuItem.style.color = hasParent ? '#111827' : '#9ca3af';
     selectActionParentMenuItem.style.cursor = hasParent ? 'pointer' : 'default';
+    if (selectActionReplaceImageMenuItem) {
+      selectActionReplaceImageMenuItem.style.display = isSelectedImage() ? 'block' : 'none';
+    }
   }
 
   function positionSelectContextMenu() {

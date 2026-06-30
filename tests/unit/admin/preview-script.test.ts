@@ -155,4 +155,64 @@ describe('preview selector overlay', () => {
     parentMenuItem?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(postMessage).not.toHaveBeenCalled();
   });
+
+  it('shows replace image only for image selections and posts the selected id', async () => {
+    document.body.innerHTML = [
+      '<span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>',
+      '<span data-kayzart-marker="end" data-kayzart-post-id="1" hidden></span>',
+    ].join('');
+    (window as any).KAYZART_PREVIEW = {
+      allowedOrigin: window.location.origin,
+      post_id: 1,
+      liveHighlightEnabled: true,
+      labels: {
+        replaceImage: 'Replace image',
+      },
+      markers: {
+        attr: 'data-kayzart-marker',
+        postAttr: 'data-kayzart-post-id',
+        start: 'start',
+        end: 'end',
+      },
+    };
+    const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML:
+        '<section data-kayzart-id="section-1">Text</section><img data-kayzart-id="image-1" src="old.jpg">',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const section = document.querySelector('[data-kayzart-id="section-1"]');
+    section?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    const menuButton = document.getElementById('kayzart-select-menu-action');
+    menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const replaceImageMenuItem = document.getElementById('kayzart-select-replace-image-menu-item');
+    expect(replaceImageMenuItem).toBeTruthy();
+    expect(replaceImageMenuItem?.textContent).toBe('Replace image');
+    expect(replaceImageMenuItem?.style.display).toBe('none');
+
+    menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    const image = document.querySelector('[data-kayzart-id="image-1"]');
+    image?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(replaceImageMenuItem?.style.display).toBe('block');
+
+    postMessage.mockClear();
+    replaceImageMenuItem?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'KAYZART_REPLACE_IMAGE', lcId: 'image-1' }),
+      window.location.origin
+    );
+  });
 });

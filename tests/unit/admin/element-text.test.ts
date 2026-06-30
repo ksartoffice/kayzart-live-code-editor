@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getElementContext } from '../../../src/admin/element-text';
+import { getElementContext, getImageSourceEditInfo } from '../../../src/admin/element-text';
 
 describe('getElementContext', () => {
   it('uses descendant text for selected element context', () => {
@@ -28,5 +28,53 @@ describe('getElementContext', () => {
     const context = getElementContext(html, 'empty-1');
 
     expect(context?.text).toBeNull();
+  });
+});
+
+describe('getImageSourceEditInfo', () => {
+  it('returns only the src value range for a selected image', () => {
+    const html = '<img data-kayzart-id="image-1" src="old.jpg" alt="Sample">';
+    const info = getImageSourceEditInfo(html, 'image-1');
+    const from = html.indexOf('old.jpg');
+
+    expect(info).toEqual({
+      startOffset: from,
+      endOffset: from + 'old.jpg'.length,
+      insertPrefix: '',
+      insertSuffix: '',
+    });
+  });
+
+  it('returns an insertion point when the selected image has no src', () => {
+    const html = '<img data-kayzart-id="image-1" alt="Sample">';
+    const info = getImageSourceEditInfo(html, 'image-1');
+    const offset = html.indexOf('>');
+
+    expect(info).toEqual({
+      startOffset: offset,
+      endOffset: offset,
+      insertPrefix: ' src="',
+      insertSuffix: '"',
+    });
+  });
+
+  it('returns an empty value range when the selected image has an empty src', () => {
+    const html = '<img data-kayzart-id="image-1" src="" alt="Sample">';
+    const info = getImageSourceEditInfo(html, 'image-1');
+    const offset = html.indexOf('""') + 1;
+
+    expect(info).toEqual({
+      startOffset: offset,
+      endOffset: offset,
+      insertPrefix: '',
+      insertSuffix: '',
+    });
+  });
+
+  it('returns null for non-image elements and unknown ids', () => {
+    const html = '<section data-kayzart-id="section-1"><img src="old.jpg"></section>';
+
+    expect(getImageSourceEditInfo(html, 'section-1')).toBeNull();
+    expect(getImageSourceEditInfo(html, 'missing')).toBeNull();
   });
 });

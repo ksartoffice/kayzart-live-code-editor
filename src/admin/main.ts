@@ -18,6 +18,7 @@ import {
   getEditableElementAttributes,
   getEditableElementText,
   getElementContext,
+  getImageSourceEditInfo,
 } from './element-text';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
@@ -1186,6 +1187,98 @@ async function main() {
     );
   };
 
+  const openReplaceImageMediaModal = (lcId: string) => {
+    if (typeof wp?.media !== 'function') {
+      createSnackbar(
+        'error',
+        __( 'Media library is unavailable.', 'kayzart-live-code-editor'),
+        NOTICE_IDS.media,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const imageEdit = getImageSourceEditInfo(htmlModel.getValue(), lcId);
+    if (!imageEdit) {
+      createSnackbar(
+        'error',
+        __( 'Could not find the selected image source.', 'kayzart-live-code-editor'),
+        NOTICE_IDS.media,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const frame = wp.media({
+      frame: 'post',
+      state: 'insert',
+      title: __( 'Select replacement image.', 'kayzart-live-code-editor'),
+      button: {
+        text: __( 'Replace image', 'kayzart-live-code-editor'),
+      },
+      library: {
+        type: 'image',
+      },
+      multiple: false,
+    });
+
+    frame.on('insert', (selectionArg: any) => {
+      const state = frame.state?.();
+      const selection = selectionArg || state?.get?.('selection');
+      const selectedModel = selection?.first?.();
+      const attachment = selectedModel?.toJSON?.();
+      if (!attachment || typeof attachment !== 'object') {
+        return;
+      }
+      const display =
+        typeof state?.display === 'function'
+          ? state.display(selectedModel)?.toJSON?.()
+          : undefined;
+      const mediaDisplay =
+        display && typeof display === 'object' ? (display as Record<string, unknown>) : undefined;
+      const url = buildMediaUrl(
+        attachment as Record<string, unknown>,
+        mediaDisplay,
+        wp?.media?.string?.props
+      );
+      if (!url) {
+        createSnackbar(
+          'warning',
+          __( 'The selected media has no URL and was not inserted.', 'kayzart-live-code-editor'),
+          NOTICE_IDS.media,
+          NOTICE_ERROR_DURATION_MS
+        );
+        return;
+      }
+      const latestImageEdit = getImageSourceEditInfo(htmlModel.getValue(), lcId);
+      if (!latestImageEdit) {
+        createSnackbar(
+          'error',
+          __( 'Could not find the selected image source.', 'kayzart-live-code-editor'),
+          NOTICE_IDS.media,
+          NOTICE_ERROR_DURATION_MS
+        );
+        return;
+      }
+
+      htmlEditor.pushUndoStop();
+      applyHtmlEdit(
+        latestImageEdit.startOffset,
+        latestImageEdit.endOffset,
+        `${latestImageEdit.insertPrefix}${url}${latestImageEdit.insertSuffix}`
+      );
+      htmlEditor.pushUndoStop();
+      createSnackbar(
+        'success',
+        __( 'Image replaced.', 'kayzart-live-code-editor'),
+        NOTICE_IDS.media,
+        NOTICE_SUCCESS_DURATION_MS
+      );
+    });
+
+    frame.open();
+  };
+
   function insertHtmlAtSelection(text: string, replacementRange?: TextRange) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
@@ -1448,6 +1541,9 @@ async function main() {
     },
     onDeleteElement: (lcId) => {
       handleDeleteElement(lcId);
+    },
+    onReplaceImage: (lcId) => {
+      openReplaceImageMediaModal(lcId);
     },
     onOverlayAction: (actionId) => {
       window.dispatchEvent(

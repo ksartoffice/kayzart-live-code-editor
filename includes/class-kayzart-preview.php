@@ -406,6 +406,7 @@ class Preview {
 			),
 			'labels'               => array(
 				'moveToParent' => __( 'Move to parent element', 'kayzart-live-code-editor' ),
+				'replaceImage' => __( 'Replace image', 'kayzart-live-code-editor' ),
 				'copyHtml'     => __( 'Copy HTML', 'kayzart-live-code-editor' ),
 				'delete'       => __( 'Delete', 'kayzart-live-code-editor' ),
 			),

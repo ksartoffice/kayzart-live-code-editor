@@ -238,6 +238,7 @@ async function main() {
   let pendingSettingsUpdates: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
   let hasSettingsValidationErrors = false;
+  let importFullHtmlHandler = () => {};
   let hasPendingPreviewReloadChanges = false;
   let viewPostUrl = initialState.settingsData?.viewUrl || '';
   let postStatus = initialState.settingsData?.status || 'draft';
@@ -712,6 +713,9 @@ async function main() {
         requestPreviewReload();
       },
       onSave: handleSave,
+      onImportFullHtml: () => {
+        importFullHtmlHandler();
+      },
       onCopyFullHtml: async () => {
         await handleCopyFullHtmlExport();
       },
@@ -919,8 +923,7 @@ async function main() {
 
   ({ codemirror, htmlModel, customHeadModel, cssModel, jsModel, htmlEditor, customHeadEditor, cssEditor, jsEditor } = codeMirrorSetup);
 
-  ui.fullHtmlImportButton.addEventListener('click', openFullHtmlImport);
-  ui.compactFullHtmlImportButton.addEventListener('click', openFullHtmlImport);
+  importFullHtmlHandler = openFullHtmlImport;
   registerSaveShortcut(htmlEditor);
   registerSaveShortcut(customHeadEditor);
   registerSaveShortcut(cssEditor);

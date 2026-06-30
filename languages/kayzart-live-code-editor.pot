@@ -569,6 +569,10 @@ msgstr ""
 msgid "Import full HTML"
 msgstr ""
 
+#: src/admin/toolbar.tsx
+msgid "Import / Export"
+msgstr ""
+
 #: assets/dist/main.js:101
 msgid "Add Media"
 msgstr ""

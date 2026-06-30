@@ -40,7 +40,6 @@ describe('editor shell iframe security attributes', () => {
       ui.jsModeSelect,
     ]);
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
-      ui.compactFullHtmlImportButton,
       ui.compactAddMediaButton,
       ui.compactFormatButton,
       ui.compactJsModeSelect,
@@ -48,14 +47,14 @@ describe('editor shell iframe security attributes', () => {
     ]);
   });
 
-  it('places full HTML import buttons next to media buttons', () => {
+  it('keeps full HTML import out of editor actions', () => {
     const root = document.createElement('div');
     const ui = buildEditorShell(root);
 
-    expect(ui.fullHtmlImportButton.textContent).toBe('Import full HTML');
-    expect(ui.compactFullHtmlImportButton.textContent).toBe('Import full HTML');
-    expect(ui.fullHtmlImportButton.nextElementSibling).toBe(ui.addMediaButton);
-    expect(ui.compactFullHtmlImportButton.nextElementSibling).toBe(ui.compactAddMediaButton);
+    expect(ui.htmlHeader.textContent).not.toContain('Import full HTML');
+    expect(ui.compactEditorActions.textContent).not.toContain('Import full HTML');
+    expect(ui.addMediaButton.previousElementSibling).toBeNull();
+    expect(ui.compactAddMediaButton.previousElementSibling).toBeNull();
   });
 
   it('renders format buttons for regular and compact editor controls', () => {

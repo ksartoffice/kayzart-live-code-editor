@@ -771,6 +771,10 @@ msgstr "要素を削除しました。"
 msgid "Import full HTML"
 msgstr "フルHTML取込み"
 
+#: src/admin/toolbar.tsx
+msgid "Import / Export"
+msgstr "インポート / エクスポート"
+
 #: assets/dist/main.js:154
 msgid "Paste a complete HTML document."
 msgstr "HTML全体を貼り付けてください。"

@@ -8,10 +8,10 @@ import {
 } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import {
+  ArrowDownUp,
   ChevronLeft,
   ChevronDown,
   ExternalLink,
-  FileDown,
   Monitor,
   PanelBottomClose,
   PanelBottomOpen,
@@ -59,6 +59,7 @@ type ToolbarHandlers = {
   onToggleEditor: () => void;
   onRefreshPreview: () => void;
   onSave: () => Promise<{ ok: boolean; error?: string }>;
+  onImportFullHtml: () => void;
   onCopyFullHtml: () => Promise<void>;
   onDownloadFullHtml: () => Promise<void>;
   onToggleSettings: () => void;
@@ -92,8 +93,8 @@ const ICONS = {
   save: renderLucideIcon(Save, {
     class: 'lucide lucide-save-icon lucide-save',
   }),
-  export: renderLucideIcon(FileDown, {
-    class: 'lucide lucide-file-down-icon lucide-file-down',
+  export: renderLucideIcon(ArrowDownUp, {
+    class: 'lucide lucide-arrow-down-up-icon lucide-arrow-down-up',
   }),
   refreshPreview: renderLucideIcon(RefreshCw, {
     class: 'lucide lucide-refresh-cw-icon lucide-refresh-cw',
@@ -163,6 +164,7 @@ function Toolbar({
   onToggleEditor,
   onRefreshPreview,
   onSave,
+  onImportFullHtml,
   onCopyFullHtml,
   onDownloadFullHtml,
   onToggleSettings,
@@ -215,7 +217,8 @@ function Toolbar({
   const normalizedStatus = postStatus === 'auto-draft' ? 'draft' : postStatus;
   const tailwindBadgeLabel = __( 'Tailwind CSS', 'kayzart-live-code-editor');
   const tailwindTooltip = __( 'Editing in Tailwind CSS mode', 'kayzart-live-code-editor');
-  const exportLabel = __( 'Export', 'kayzart-live-code-editor');
+  const importExportLabel = __( 'Import / Export', 'kayzart-live-code-editor');
+  const importFullHtmlLabel = __( 'Import full HTML', 'kayzart-live-code-editor');
   const copyFullHtmlLabel = __( 'Copy full HTML', 'kayzart-live-code-editor');
   const downloadHtmlLabel = __( 'Download full HTML', 'kayzart-live-code-editor');
   const resolvedListLabel = listLabel || __( 'Posts', 'kayzart-live-code-editor');
@@ -324,6 +327,12 @@ function Toolbar({
     event.stopPropagation();
     setSaveMenuOpen(false);
     setExportMenuOpen((prev) => !prev);
+  };
+
+  const handleImportFullHtml = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    setExportMenuOpen(false);
+    onImportFullHtml();
   };
 
   const handleCopyFullHtml = async (event: { stopPropagation: () => void }) => {
@@ -665,8 +674,8 @@ function Toolbar({
               type="button"
               aria-haspopup="menu"
               aria-expanded={exportMenuOpen}
-              aria-label={exportLabel}
-              data-tooltip={exportLabel}
+              aria-label={importExportLabel}
+              data-tooltip={importExportLabel}
               onClick={toggleExportMenu}
             >
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.export }} />
@@ -678,6 +687,14 @@ function Toolbar({
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="kayzart-splitMenuList">
+                  <button
+                    className="kayzart-splitMenuItem"
+                    type="button"
+                    role="menuitem"
+                    onClick={handleImportFullHtml}
+                  >
+                    <span className="kayzart-splitMenuLabel">{importFullHtmlLabel}</span>
+                  </button>
                   <button
                     className="kayzart-splitMenuItem"
                     type="button"

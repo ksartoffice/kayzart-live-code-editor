@@ -21,7 +21,8 @@ import {
 } from './element-text';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
-import { buildMediaHtml } from './logic/media-html';
+import { buildMediaHtml, buildMediaUrl } from './logic/media-html';
+import { resolveQuotedValueReplacementRange, type TextRange } from './logic/media-insertion';
 import { buildStatusUpdates } from './logic/status-updates';
 import {
   buildImportedHtml,
@@ -1185,17 +1186,28 @@ async function main() {
     );
   };
 
-  function insertHtmlAtSelection(text: string) {
+  function insertHtmlAtSelection(text: string, replacementRange?: TextRange) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
+    const replacementStart = replacementRange
+      ? htmlModel.getPositionAt(replacementRange.from)
+      : null;
+    const replacementEnd = replacementRange ? htmlModel.getPositionAt(replacementRange.to) : null;
     const range =
-      selection ||
-      new codemirror.Range(
-        cursor?.lineNumber || 1,
-        cursor?.column || 1,
-        cursor?.lineNumber || 1,
-        cursor?.column || 1
-      );
+      replacementStart && replacementEnd
+        ? new codemirror.Range(
+            replacementStart.lineNumber,
+            replacementStart.column,
+            replacementEnd.lineNumber,
+            replacementEnd.column
+          )
+        : selection ||
+          new codemirror.Range(
+            cursor?.lineNumber || 1,
+            cursor?.column || 1,
+            cursor?.lineNumber || 1,
+            cursor?.column || 1
+          );
     htmlEditor.pushUndoStop();
     htmlModel.pushEditOperations(
       [],
@@ -1245,11 +1257,32 @@ async function main() {
         typeof state?.display === 'function'
           ? state.display(selectedModel)?.toJSON?.()
           : undefined;
-      const html = buildMediaHtml(
-        attachment as Record<string, unknown>,
-        display && typeof display === 'object' ? (display as Record<string, unknown>) : undefined,
-        wp?.media?.string?.props
-      );
+      const mediaDisplay =
+        display && typeof display === 'object' ? (display as Record<string, unknown>) : undefined;
+      const mediaPropsResolver = wp?.media?.string?.props;
+      const currentSelection = htmlEditor.getSelection();
+      const selectedRange = currentSelection
+        ? {
+            from: htmlModel.getOffsetAt({
+              lineNumber: currentSelection.startLineNumber,
+              column: currentSelection.startColumn,
+            }),
+            to: htmlModel.getOffsetAt({
+              lineNumber: currentSelection.endLineNumber,
+              column: currentSelection.endColumn,
+            }),
+          }
+        : null;
+      const urlReplacementRange = selectedRange
+        ? resolveQuotedValueReplacementRange(htmlModel.getValue(), selectedRange)
+        : null;
+      const html = urlReplacementRange
+        ? buildMediaUrl(attachment as Record<string, unknown>, mediaDisplay, mediaPropsResolver)
+        : buildMediaHtml(
+            attachment as Record<string, unknown>,
+            mediaDisplay,
+            mediaPropsResolver
+          );
       if (!html) {
         createSnackbar(
           'warning',
@@ -1264,7 +1297,7 @@ async function main() {
       } else {
         htmlEditor.focus();
       }
-      insertHtmlAtSelection(html);
+      insertHtmlAtSelection(html, urlReplacementRange || undefined);
     });
 
     frame.open();

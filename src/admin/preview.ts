@@ -520,18 +520,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         title: `CSS match ${index + 1}`,
       }))
     );
-    const first = matched[0];
-    if (first) {
-      const startPos = deps.cssModel.getPositionAt(first.startOffset);
-      const endPos = deps.cssModel.getPositionAt(first.endOffset);
-      const range = new EditorRange(
-        startPos.lineNumber,
-        startPos.column,
-        endPos.lineNumber,
-        endPos.column
-      );
-      deps.cssEditor.revealRangeInCenter(range);
-    }
   };
 
   const highlightByLcId = (lcId: string) => {

@@ -372,6 +372,38 @@ describe('preview lazy media reveal', () => {
 describe('preview scroll restoration', () => {
   let nextPostId = 100;
   let currentPostId = 100;
+  const rects = new Map<string, Partial<DOMRect>>();
+  const rectSequences = new Map<string, Partial<DOMRect>[]>();
+
+  const makeRect = (rect: Partial<DOMRect>): DOMRect => {
+    const top = rect.top ?? 0;
+    const left = rect.left ?? 0;
+    const width = rect.width ?? 0;
+    const height = rect.height ?? 0;
+    return {
+      x: left,
+      y: top,
+      top,
+      left,
+      width,
+      height,
+      right: rect.right ?? left + width,
+      bottom: rect.bottom ?? top + height,
+      toJSON: () => ({}),
+    } as DOMRect;
+  };
+
+  const setElementRect = (lcId: string, rect: Partial<DOMRect>, textContent = '') => {
+    rects.set(textContent ? `${lcId}:${textContent}` : lcId, rect);
+  };
+
+  const setElementRectSequence = (
+    lcId: string,
+    sequence: Partial<DOMRect>[],
+    textContent = ''
+  ) => {
+    rectSequences.set(textContent ? `${lcId}:${textContent}` : lcId, sequence);
+  };
 
   const setScrollValues = (x: number, y: number) => {
     Object.defineProperty(window, 'scrollX', { configurable: true, value: x });
@@ -401,11 +433,12 @@ describe('preview scroll restoration', () => {
     });
   };
 
-  const setupPreview = () => {
+  const setupPreview = (initialHtml = '') => {
     currentPostId = nextPostId;
     nextPostId += 1;
     document.body.innerHTML = [
       `<span data-kayzart-marker="start" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+      initialHtml,
       `<span data-kayzart-marker="end" data-kayzart-post-id="${currentPostId}" hidden></span>`,
     ].join('');
     (window as any).KAYZART_PREVIEW = {
@@ -423,10 +456,12 @@ describe('preview scroll restoration', () => {
     dispatchPreviewMessage({ type: 'KAYZART_INIT' });
   };
 
-  const dispatchRender = () => {
+  const dispatchRender = (
+    canonicalHTML = '<main data-kayzart-id="main-1" style="height: 2400px">Content</main>'
+  ) => {
     dispatchPreviewMessage({
       type: 'KAYZART_RENDER',
-      canonicalHTML: '<main data-kayzart-id="main-1" style="height: 2400px">Content</main>',
+      canonicalHTML,
       cssText: '',
       bodyAttrs: {},
       hasBody: false,
@@ -435,8 +470,19 @@ describe('preview scroll restoration', () => {
   };
 
   beforeEach(() => {
+    rects.clear();
+    rectSequences.clear();
     setScrollValues(0, 0);
     setScrollBounds(3000, 600);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const lcId = this.getAttribute('data-kayzart-id');
+      const textKey = lcId ? `${lcId}:${this.textContent || ''}` : '';
+      const sequence = (textKey && rectSequences.get(textKey)) || (lcId && rectSequences.get(lcId));
+      if (sequence && sequence.length) {
+        return makeRect(sequence.length > 1 ? sequence.shift() || {} : sequence[0]);
+      }
+      return makeRect((textKey && rects.get(textKey)) || (lcId && rects.get(lcId)) || {});
+    });
     Object.defineProperty(window, 'scrollTo', {
       configurable: true,
       value: vi.fn((x: number, y: number) => {
@@ -453,29 +499,81 @@ describe('preview scroll restoration', () => {
     delete (window as any).KAYZART_PREVIEW;
   });
 
-  it('restores the previous scroll position after rendering', () => {
+  it('restores the previous anchor offset after rendering', () => {
     setScrollValues(0, 900);
-    setupPreview();
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    setElementRect('main-1', { top: 260, left: 0, width: 800, height: 1200 }, 'Content');
 
     dispatchRender();
 
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 900);
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 1010);
   });
 
-  it('clamps restored scroll position to the new document height', () => {
+  it('falls back to the clamped scroll position when the anchor is removed', () => {
     setScrollValues(0, 1200);
     setScrollBounds(1000, 600);
-    setupPreview();
+    setElementRect('old-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="old-1" style="height: 2400px">Old</main>');
 
     dispatchRender();
 
     expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
   });
 
+  it('falls back to the clamped scroll position when no visible anchor exists', () => {
+    setScrollValues(0, 1200);
+    setScrollBounds(1000, 600);
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+
+    dispatchRender();
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
+  });
+
+  it('re-applies anchor restoration after layout shifts', () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      value: undefined,
+    });
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    setElementRect('main-1', { top: 250, left: 0, width: 800, height: 1200 }, 'Content');
+
+    dispatchRender();
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1000);
+
+    vi.advanceTimersByTime(0);
+    setElementRect('main-1', { top: 190, left: 0, width: 800, height: 1200 }, 'Content');
+    vi.advanceTimersByTime(60);
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1040);
+  });
+
+  it('restores the anchor offset after CSS-only updates', () => {
+    setScrollValues(0, 900);
+    setElementRectSequence('main-1', [
+      { top: 150, left: 0, width: 800, height: 1200 },
+      { top: 230, left: 0, width: 800, height: 1200 },
+    ], 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+
+    dispatchPreviewMessage({
+      type: 'KAYZART_SET_CSS',
+      cssText: '.example { color: red; }',
+    });
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 980);
+  });
+
   it('stops pending restoration when the user scrolls', () => {
     vi.useFakeTimers();
     setScrollValues(0, 900);
-    setupPreview();
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Content');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
 
     dispatchRender();
     expect(window.scrollTo).toHaveBeenCalledTimes(1);

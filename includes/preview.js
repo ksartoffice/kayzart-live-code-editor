@@ -1259,15 +1259,136 @@
     return Math.max(min, Math.min(value, max));
   }
 
+  function getScrollX() {
+    return window.scrollX || window.pageXOffset || 0;
+  }
+
+  function getScrollY() {
+    return window.scrollY || window.pageYOffset || 0;
+  }
+
+  function escapeAttrValue(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value);
+    }
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function isVisibleRect(rect) {
+    return Boolean(
+      rect &&
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < (window.innerHeight || 0) &&
+      rect.left < (window.innerWidth || 0)
+    );
+  }
+
+  function getScrollAnchorLine() {
+    const viewportHeight = window.innerHeight || 0;
+    if (viewportHeight <= 1) {
+      return 0;
+    }
+    return Math.min(Math.max(24, viewportHeight * 0.25), viewportHeight - 1);
+  }
+
+  function findScrollAnchor() {
+    const markers = findMarkers();
+    if (!markers) {
+      return null;
+    }
+    const candidates = document.querySelectorAll
+      ? Array.prototype.slice.call(document.querySelectorAll('[' + KAYZART_ATTR_NAME + ']'))
+      : [];
+    const anchorLine = getScrollAnchorLine();
+    let best = null;
+
+    candidates.forEach((node) => {
+      if (!(node instanceof Element)) {
+        return;
+      }
+      const lcId = node.getAttribute(KAYZART_ATTR_NAME);
+      if (!lcId) {
+        return;
+      }
+      const beforeStart = Boolean(
+        markers.start.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING
+      );
+      const afterEnd = Boolean(
+        markers.end.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      if (beforeStart || afterEnd) {
+        return;
+      }
+      const rect = node.getBoundingClientRect();
+      if (!isVisibleRect(rect)) {
+        return;
+      }
+      const overlapsLine = rect.top <= anchorLine && rect.bottom >= anchorLine;
+      const distance = overlapsLine
+        ? 0
+        : Math.min(Math.abs(rect.top - anchorLine), Math.abs(rect.bottom - anchorLine));
+      if (
+        !best ||
+        (overlapsLine && !best.overlapsLine) ||
+        (overlapsLine === best.overlapsLine && distance < best.distance)
+      ) {
+        best = {
+          lcId: lcId,
+          top: rect.top,
+          left: rect.left,
+          distance: distance,
+          overlapsLine: overlapsLine,
+        };
+      }
+    });
+
+    return best
+      ? {
+          lcId: best.lcId,
+          top: best.top,
+          left: best.left,
+        }
+      : null;
+  }
+
   function captureScrollPosition() {
     return {
-      x: window.scrollX || window.pageXOffset || 0,
-      y: window.scrollY || window.pageYOffset || 0,
+      x: getScrollX(),
+      y: getScrollY(),
+      anchor: findScrollAnchor(),
     };
   }
 
+  function findCurrentScrollAnchor(anchor) {
+    if (!anchor || !anchor.lcId) {
+      return null;
+    }
+    const node = document.querySelector(
+      '[' + KAYZART_ATTR_NAME + '="' + escapeAttrValue(anchor.lcId) + '"]'
+    );
+    if (!(node instanceof Element)) {
+      return null;
+    }
+    const rect = node.getBoundingClientRect();
+    if (!isVisibleRect(rect)) {
+      return null;
+    }
+    return rect;
+  }
+
+  function resolveRestoredScrollY(snapshot) {
+    const rect = findCurrentScrollAnchor(snapshot.anchor);
+    if (rect) {
+      return clamp(getScrollY() + (rect.top - snapshot.anchor.top), 0, getMaxScrollTop());
+    }
+    return clamp(snapshot.y, 0, getMaxScrollTop());
+  }
+
   function restoreScrollPosition(snapshot) {
-    if (!snapshot || (!snapshot.x && !snapshot.y)) {
+    if (!snapshot || (!snapshot.x && !snapshot.y && !snapshot.anchor)) {
       return;
     }
     const token = ++scrollRestoreToken;
@@ -1316,7 +1437,7 @@
         return;
       }
       const x = clamp(snapshot.x, 0, getMaxScrollLeft());
-      const y = clamp(snapshot.y, 0, getMaxScrollTop());
+      const y = resolveRestoredScrollY(snapshot);
       applyingScrollRestoreToken = token;
       window.scrollTo(x, y);
       if (releaseApplyingTimer) {
@@ -1424,10 +1545,12 @@
   }
 
   function setCssText(css) {
+    const scrollPosition = captureScrollPosition();
     const styleEl = ensureStyleElement();
     if (styleEl) {
       styleEl.textContent = css || '';
     }
+    restoreScrollPosition(scrollPosition);
   }
 
   function reply(type, payload) {

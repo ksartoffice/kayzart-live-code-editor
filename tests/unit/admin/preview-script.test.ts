@@ -272,6 +272,103 @@ describe('preview selector overlay', () => {
   });
 });
 
+describe('preview lazy media reveal', () => {
+  let nextPostId = 50;
+  let currentPostId = 50;
+
+  const setupPreview = () => {
+    currentPostId = nextPostId;
+    nextPostId += 1;
+    document.body.innerHTML = [
+      `<span data-kayzart-marker="start" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+      `<span data-kayzart-marker="end" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+    ].join('');
+    (window as any).KAYZART_PREVIEW = {
+      allowedOrigin: window.location.origin,
+      post_id: currentPostId,
+      liveHighlightEnabled: true,
+      markers: {
+        attr: 'data-kayzart-marker',
+        postAttr: 'data-kayzart-post-id',
+        start: 'start',
+        end: 'end',
+      },
+    };
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+  };
+
+  const dispatchRender = (canonicalHTML: string) => {
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML,
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('copies lazy media attributes into preview display attributes', async () => {
+    setupPreview();
+
+    dispatchRender([
+      '<img data-kayzart-id="lozad-image" class="lozad" data-src="image.webp" alt="">',
+      '<picture data-kayzart-id="picture-1">',
+      '<source data-kayzart-id="source-1" data-srcset="wide.webp 1200w, narrow.webp 600w">',
+      '<img data-kayzart-id="srcset-image" data-srcset="fallback.webp 800w" alt="">',
+      '</picture>',
+      '<iframe data-kayzart-id="frame-1" data-src="frame.html"></iframe>',
+      '<div data-kayzart-id="bg-1" data-bg="background.jpg"></div>',
+    ].join(''));
+    await flushAsync();
+
+    expect(document.querySelector('[data-kayzart-id="lozad-image"]')?.getAttribute('src')).toBe(
+      'image.webp'
+    );
+    expect(document.querySelector('[data-kayzart-id="source-1"]')?.getAttribute('srcset')).toBe(
+      'wide.webp 1200w, narrow.webp 600w'
+    );
+    expect(document.querySelector('[data-kayzart-id="srcset-image"]')?.getAttribute('srcset')).toBe(
+      'fallback.webp 800w'
+    );
+    expect(document.querySelector('[data-kayzart-id="frame-1"]')?.getAttribute('src')).toBe(
+      'frame.html'
+    );
+    expect((document.querySelector('[data-kayzart-id="bg-1"]') as HTMLElement)?.style.backgroundImage).toBe(
+      'url("background.jpg")'
+    );
+  });
+
+  it('does not overwrite existing preview display attributes', async () => {
+    setupPreview();
+
+    dispatchRender([
+      '<img data-kayzart-id="image-1" src="existing.jpg" data-src="lazy.jpg" alt="">',
+      '<source data-kayzart-id="source-1" srcset="existing.webp 1x" data-srcset="lazy.webp 1x">',
+      '<div data-kayzart-id="bg-1" style="background-image: url(existing.jpg)" data-bg="lazy.jpg"></div>',
+    ].join(''));
+    await flushAsync();
+
+    expect(document.querySelector('[data-kayzart-id="image-1"]')?.getAttribute('src')).toBe(
+      'existing.jpg'
+    );
+    expect(document.querySelector('[data-kayzart-id="source-1"]')?.getAttribute('srcset')).toBe(
+      'existing.webp 1x'
+    );
+    expect((document.querySelector('[data-kayzart-id="bg-1"]') as HTMLElement)?.style.backgroundImage).toBe(
+      'url("existing.jpg")'
+    );
+  });
+});
+
 describe('preview scroll restoration', () => {
   let nextPostId = 100;
   let currentPostId = 100;

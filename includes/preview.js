@@ -1146,6 +1146,71 @@
     return pending.length ? Promise.all(pending).then(() => undefined) : Promise.resolve();
   }
 
+  function queryLazyMedia(root, selector) {
+    const matches = [];
+    if (!root || !selector) {
+      return matches;
+    }
+    if (root.nodeType === Node.ELEMENT_NODE && root.matches && root.matches(selector)) {
+      matches.push(root);
+    }
+    if (root.querySelectorAll) {
+      return matches.concat(Array.prototype.slice.call(root.querySelectorAll(selector)));
+    }
+    return matches;
+  }
+
+  function copyAttrIfMissing(root, selector, sourceAttr, targetAttr) {
+    queryLazyMedia(root, selector).forEach((node) => {
+      if (!node || !node.getAttribute || !node.setAttribute) {
+        return;
+      }
+      if (node.getAttribute(targetAttr)) {
+        return;
+      }
+      const value = node.getAttribute(sourceAttr);
+      if (value) {
+        node.setAttribute(targetAttr, value);
+      }
+    });
+  }
+
+  function formatBackgroundImage(value) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (/^url\(/i.test(trimmed)) {
+      return trimmed;
+    }
+    return 'url("' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")';
+  }
+
+  function revealLazyBackgrounds(root) {
+    queryLazyMedia(root, '[data-bg], [data-background], [data-background-image]').forEach((node) => {
+      if (!node || !node.getAttribute || !node.style || node.style.backgroundImage) {
+        return;
+      }
+      const value =
+        node.getAttribute('data-bg') ||
+        node.getAttribute('data-background') ||
+        node.getAttribute('data-background-image');
+      const backgroundImage = formatBackgroundImage(value);
+      if (backgroundImage) {
+        node.style.backgroundImage = backgroundImage;
+      }
+    });
+  }
+
+  function revealLazyMedia(root) {
+    copyAttrIfMissing(root, 'img[data-src], iframe[data-src], video[data-src], audio[data-src]', 'data-src', 'src');
+    copyAttrIfMissing(root, 'img[data-srcset], source[data-srcset]', 'data-srcset', 'srcset');
+    copyAttrIfMissing(root, 'img[data-lazy-src], iframe[data-lazy-src]', 'data-lazy-src', 'src');
+    copyAttrIfMissing(root, 'img[data-lazy-srcset], source[data-lazy-srcset]', 'data-lazy-srcset', 'srcset');
+    copyAttrIfMissing(root, 'img[data-original], iframe[data-original]', 'data-original', 'src');
+    revealLazyBackgrounds(root);
+  }
+
   function replaceEditableContent(html) {
     const markers = findMarkers();
     if (!markers) return Promise.resolve();
@@ -1158,6 +1223,7 @@
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
     const scriptsReady = reviveScripts(wrapper);
+    revealLazyMedia(wrapper);
     const frag = document.createDocumentFragment();
     while (wrapper.firstChild) {
       frag.appendChild(wrapper.firstChild);

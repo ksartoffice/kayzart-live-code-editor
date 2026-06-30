@@ -256,6 +256,7 @@ async function main() {
   let modalController: ReturnType<typeof createModalController> | null = null;
   let tailwindCompiler: TailwindCompiler | null = null;
   let previewRenderScheduler: PreviewRenderScheduler | null = null;
+  let sendCssUpdateDebounced: (() => void) | null = null;
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let extensionEditorLock = false;
@@ -1581,6 +1582,7 @@ async function main() {
   });
 
   previewRenderScheduler = createPreviewRenderScheduler(() => preview?.sendRender(), 350);
+  sendCssUpdateDebounced = debounce(() => preview?.sendCssUpdate(getPreviewCss()), 120);
   compileTailwindDebounced = debounce(() => tailwindCompiler?.compile(), 300);
 
   const setJsEnabled = (enabled: boolean) => {
@@ -1814,7 +1816,7 @@ async function main() {
   });
   cssModel.onDidChangeContent(() => {
     if (!tailwindEnabled) {
-      previewRenderScheduler?.schedule();
+      sendCssUpdateDebounced?.();
     }
     if (tailwindEnabled) {
       compileTailwindDebounced?.();

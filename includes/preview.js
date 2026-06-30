@@ -47,6 +47,8 @@
   let markerRetryStartedAt = 0;
   let initialBodyAttrs = null;
   let appliedBodyAttrNames = [];
+  let scrollRestoreToken = 0;
+  let applyingScrollRestoreToken = 0;
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
   const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
@@ -1165,6 +1167,126 @@
     return scriptsReady;
   }
 
+  function getMaxScrollLeft() {
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollWidth = Math.max(
+      doc ? doc.scrollWidth : 0,
+      body ? body.scrollWidth : 0
+    );
+    const viewportWidth = window.innerWidth || (doc ? doc.clientWidth : 0) || 0;
+    return Math.max(0, scrollWidth - viewportWidth);
+  }
+
+  function getMaxScrollTop() {
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollHeight = Math.max(
+      doc ? doc.scrollHeight : 0,
+      body ? body.scrollHeight : 0
+    );
+    const viewportHeight = window.innerHeight || (doc ? doc.clientHeight : 0) || 0;
+    return Math.max(0, scrollHeight - viewportHeight);
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  function captureScrollPosition() {
+    return {
+      x: window.scrollX || window.pageXOffset || 0,
+      y: window.scrollY || window.pageYOffset || 0,
+    };
+  }
+
+  function restoreScrollPosition(snapshot) {
+    if (!snapshot || (!snapshot.x && !snapshot.y)) {
+      return;
+    }
+    const token = ++scrollRestoreToken;
+    let cancelled = false;
+    let listening = false;
+    let releaseApplyingTimer = 0;
+    const timers = [];
+
+    const cleanup = () => {
+      if (releaseApplyingTimer) {
+        window.clearTimeout(releaseApplyingTimer);
+        releaseApplyingTimer = 0;
+      }
+      while (timers.length) {
+        window.clearTimeout(timers.pop());
+      }
+      if (applyingScrollRestoreToken === token) {
+        applyingScrollRestoreToken = 0;
+      }
+      if (!listening) {
+        return;
+      }
+      listening = false;
+      window.removeEventListener('scroll', cancelFromUserScroll, true);
+      window.removeEventListener('wheel', cancelFromUserIntent, true);
+      window.removeEventListener('touchmove', cancelFromUserIntent, true);
+      window.removeEventListener('keydown', cancelFromUserIntent, true);
+    };
+
+    const cancelFromUserIntent = () => {
+      cancelled = true;
+      cleanup();
+    };
+
+    const cancelFromUserScroll = () => {
+      if (applyingScrollRestoreToken === token) {
+        return;
+      }
+      cancelled = true;
+      cleanup();
+    };
+
+    const apply = () => {
+      if (cancelled || token !== scrollRestoreToken) {
+        cleanup();
+        return;
+      }
+      const x = clamp(snapshot.x, 0, getMaxScrollLeft());
+      const y = clamp(snapshot.y, 0, getMaxScrollTop());
+      applyingScrollRestoreToken = token;
+      window.scrollTo(x, y);
+      if (releaseApplyingTimer) {
+        window.clearTimeout(releaseApplyingTimer);
+      }
+      releaseApplyingTimer = window.setTimeout(() => {
+        if (applyingScrollRestoreToken === token) {
+          applyingScrollRestoreToken = 0;
+        }
+      }, 0);
+    };
+
+    const scheduleApply = (delay) => {
+      timers.push(
+        window.setTimeout(() => {
+          apply();
+        }, delay)
+      );
+    };
+
+    apply();
+    listening = true;
+    window.addEventListener('scroll', cancelFromUserScroll, true);
+    window.addEventListener('wheel', cancelFromUserIntent, true);
+    window.addEventListener('touchmove', cancelFromUserIntent, true);
+    window.addEventListener('keydown', cancelFromUserIntent, true);
+
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(apply);
+    }
+    scheduleApply(60);
+    scheduleApply(180);
+    scheduleApply(360);
+    timers.push(window.setTimeout(cleanup, 420));
+  }
+
   function clearMarkerRetryTimer() {
     if (markerRetryTimer) {
       window.clearTimeout(markerRetryTimer);
@@ -1214,6 +1336,7 @@
     pendingRenderPayload = null;
     clearMarkerRetryTimer();
 
+    const scrollPosition = captureScrollPosition();
     const contentScriptsReady = replaceEditableContent(html);
     applyBodyAttrs(bodyAttrs, hasBody, templateMode);
     const customHeadScriptsReady =
@@ -1225,6 +1348,7 @@
     if (styleEl) {
       styleEl.textContent = css || '';
     }
+    restoreScrollPosition(scrollPosition);
     const currentHtmlScriptsReady = htmlScriptsReady;
     currentHtmlScriptsReady.then(() => {
       if (currentHtmlScriptsReady === htmlScriptsReady) {

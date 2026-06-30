@@ -64,6 +64,7 @@ type PreviewControllerDeps = {
   onOverlayAction?: (actionId: string) => void;
   onMissingMarkers?: () => void;
   onReloadApplied?: () => void;
+  onRenderComplete?: () => void;
 };
 
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
@@ -616,6 +617,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     }
 
     if (data?.type === 'KAYZART_RENDERED') {
+      deps.onRenderComplete?.();
       if (pendingJsAction === 'run') {
         pendingJsAction = null;
         sendRunJs();

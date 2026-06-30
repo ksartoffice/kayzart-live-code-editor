@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const previewScript = readFileSync('includes/preview.js', 'utf8');
@@ -16,6 +16,61 @@ const dispatchPreviewMessage = (data: Record<string, unknown>) => {
 const flushAsync = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
+
+let activeWindowTimers = new Set<number>();
+let nativeWindowSetTimeout: typeof window.setTimeout;
+let nativeWindowClearTimeout: typeof window.clearTimeout;
+
+beforeEach(() => {
+  activeWindowTimers = new Set();
+  nativeWindowSetTimeout = window.setTimeout.bind(window);
+  nativeWindowClearTimeout = window.clearTimeout.bind(window);
+  Object.defineProperty(window, 'setTimeout', {
+    configurable: true,
+    value: ((handler: TimerHandler, timeout?: number, ...args: any[]) => {
+      const timer = nativeWindowSetTimeout(() => {
+        activeWindowTimers.delete(timer);
+        if (typeof handler === 'function') {
+          handler(...args);
+          return;
+        }
+        window.eval(String(handler));
+      }, timeout);
+      activeWindowTimers.add(timer);
+      return timer;
+    }) as typeof window.setTimeout,
+  });
+  Object.defineProperty(window, 'clearTimeout', {
+    configurable: true,
+    value: ((timer?: number) => {
+      if (typeof timer === 'number') {
+        activeWindowTimers.delete(timer);
+      }
+      nativeWindowClearTimeout(timer);
+    }) as typeof window.clearTimeout,
+  });
+  Object.defineProperty(window, 'scrollTo', {
+    configurable: true,
+    value: vi.fn(),
+  });
+});
+
+afterEach(() => {
+  activeWindowTimers.forEach((timer) => nativeWindowClearTimeout(timer));
+  activeWindowTimers.clear();
+  if (nativeWindowSetTimeout) {
+    Object.defineProperty(window, 'setTimeout', {
+      configurable: true,
+      value: nativeWindowSetTimeout,
+    });
+  }
+  if (nativeWindowClearTimeout) {
+    Object.defineProperty(window, 'clearTimeout', {
+      configurable: true,
+      value: nativeWindowClearTimeout,
+    });
+  }
+});
 
 describe('preview selector overlay', () => {
   afterEach(() => {
@@ -214,5 +269,124 @@ describe('preview selector overlay', () => {
       expect.objectContaining({ type: 'KAYZART_REPLACE_IMAGE', lcId: 'image-1' }),
       window.location.origin
     );
+  });
+});
+
+describe('preview scroll restoration', () => {
+  let nextPostId = 100;
+  let currentPostId = 100;
+
+  const setScrollValues = (x: number, y: number) => {
+    Object.defineProperty(window, 'scrollX', { configurable: true, value: x });
+    Object.defineProperty(window, 'pageXOffset', { configurable: true, value: x });
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: y });
+    Object.defineProperty(window, 'pageYOffset', { configurable: true, value: y });
+  };
+
+  const setScrollBounds = (scrollHeight: number, viewportHeight: number) => {
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: viewportHeight });
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+      configurable: true,
+      value: scrollHeight,
+    });
+    Object.defineProperty(document.body, 'scrollHeight', {
+      configurable: true,
+      value: scrollHeight,
+    });
+    Object.defineProperty(document.documentElement, 'scrollWidth', {
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(document.body, 'scrollWidth', {
+      configurable: true,
+      value: 1024,
+    });
+  };
+
+  const setupPreview = () => {
+    currentPostId = nextPostId;
+    nextPostId += 1;
+    document.body.innerHTML = [
+      `<span data-kayzart-marker="start" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+      `<span data-kayzart-marker="end" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+    ].join('');
+    (window as any).KAYZART_PREVIEW = {
+      allowedOrigin: window.location.origin,
+      post_id: currentPostId,
+      liveHighlightEnabled: true,
+      markers: {
+        attr: 'data-kayzart-marker',
+        postAttr: 'data-kayzart-post-id',
+        start: 'start',
+        end: 'end',
+      },
+    };
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+  };
+
+  const dispatchRender = () => {
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<main data-kayzart-id="main-1" style="height: 2400px">Content</main>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+  };
+
+  beforeEach(() => {
+    setScrollValues(0, 0);
+    setScrollBounds(3000, 600);
+    Object.defineProperty(window, 'scrollTo', {
+      configurable: true,
+      value: vi.fn((x: number, y: number) => {
+        setScrollValues(Number(x), Number(y));
+      }),
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('restores the previous scroll position after rendering', () => {
+    setScrollValues(0, 900);
+    setupPreview();
+
+    dispatchRender();
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 900);
+  });
+
+  it('clamps restored scroll position to the new document height', () => {
+    setScrollValues(0, 1200);
+    setScrollBounds(1000, 600);
+    setupPreview();
+
+    dispatchRender();
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
+  });
+
+  it('stops pending restoration when the user scrolls', () => {
+    vi.useFakeTimers();
+    setScrollValues(0, 900);
+    setupPreview();
+
+    dispatchRender();
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(0);
+    window.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(500);
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
   });
 });

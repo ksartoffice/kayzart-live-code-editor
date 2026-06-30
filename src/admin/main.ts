@@ -48,7 +48,7 @@ import {
   NOTICE_IDS,
   NOTICE_SUCCESS_DURATION_MS,
 } from './ui/notices';
-import { debounce } from './utils/debounce';
+import { createPreviewRenderScheduler, debounce, type PreviewRenderScheduler } from './utils/debounce';
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
@@ -255,7 +255,7 @@ async function main() {
   let settingsApi: SettingsApi | null = null;
   let modalController: ReturnType<typeof createModalController> | null = null;
   let tailwindCompiler: TailwindCompiler | null = null;
-  let sendRenderDebounced: (() => void) | null = null;
+  let previewRenderScheduler: PreviewRenderScheduler | null = null;
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let extensionEditorLock = false;
@@ -1524,6 +1524,7 @@ async function main() {
     isTailwindEnabled: () => tailwindEnabled,
     getResolvedTemplateMode,
     onReloadApplied: () => setPendingPreviewReloadChanges(false),
+    onRenderComplete: () => previewRenderScheduler?.markComplete(),
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();
@@ -1579,7 +1580,7 @@ async function main() {
     onStatusClear: () => removeNotice(NOTICE_IDS.tailwind),
   });
 
-  sendRenderDebounced = debounce(() => preview?.sendRender(), 120);
+  previewRenderScheduler = createPreviewRenderScheduler(() => preview?.sendRender(), 350);
   compileTailwindDebounced = debounce(() => tailwindCompiler?.compile(), 300);
 
   const setJsEnabled = (enabled: boolean) => {
@@ -1794,7 +1795,7 @@ async function main() {
   htmlModel.onDidChangeContent(() => {
     preview?.resetCanonicalCache();
     preview?.clearSelectionHighlight();
-    sendRenderDebounced?.();
+    previewRenderScheduler?.schedule();
     if (tailwindEnabled) {
       compileTailwindDebounced?.();
     }
@@ -1813,7 +1814,7 @@ async function main() {
   });
   cssModel.onDidChangeContent(() => {
     if (!tailwindEnabled) {
-      sendRenderDebounced?.();
+      previewRenderScheduler?.schedule();
     }
     if (tailwindEnabled) {
       compileTailwindDebounced?.();

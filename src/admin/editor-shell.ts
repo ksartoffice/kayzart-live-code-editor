@@ -1,6 +1,6 @@
 import { __ } from '@wordpress/i18n';
 
-import { ImagePlus, Upload } from 'lucide';
+import { AlignLeft, ImagePlus, Upload } from 'lucide';
 import { renderLucideIcon } from './lucide-icons';
 
 type EditorShellRefs = {
@@ -15,6 +15,7 @@ type EditorShellRefs = {
   compactJsModeSelect: HTMLSelectElement;
   compactFullHtmlImportButton: HTMLButtonElement;
   compactAddMediaButton: HTMLButtonElement;
+  compactFormatButton: HTMLButtonElement;
   compactReloadPendingNotice: HTMLSpanElement;
   htmlHeader: HTMLDivElement;
   htmlTitle: HTMLSpanElement;
@@ -22,6 +23,7 @@ type EditorShellRefs = {
   customHeadTab: HTMLButtonElement;
   fullHtmlImportButton: HTMLButtonElement;
   addMediaButton: HTMLButtonElement;
+  htmlFormatButton: HTMLButtonElement;
   htmlWordWrapButton: HTMLButtonElement;
   htmlEditorDiv: HTMLDivElement;
   customHeadEditorDiv: HTMLDivElement;
@@ -124,6 +126,9 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     media: renderLucideIcon(ImagePlus, {
       class: 'lucide lucide-image-plus-icon lucide-image-plus',
     }),
+    format: renderLucideIcon(AlignLeft, {
+      class: 'lucide lucide-align-left-icon lucide-align-left',
+    }),
   };
 
   const compactEditorTabs = el('div', 'kayzart-compactEditorTabs');
@@ -157,10 +162,16 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     __( 'Add Media', 'kayzart-live-code-editor'),
     compactIcons.media
   );
+  const compactFormatButton = createCompactActionButton(
+    'kayzart-editorAction kayzart-compactEditorAction kayzart-compactEditorAction-format',
+    __( 'Format HTML', 'kayzart-live-code-editor'),
+    compactIcons.format
+  );
   const compactReloadPendingNotice = el('span', 'kayzart-reloadPendingNotice kayzart-compactReloadPendingNotice');
   compactEditorActions.append(
     compactFullHtmlImportButton,
     compactAddMediaButton,
+    compactFormatButton,
     compactJsModeSelect,
     compactReloadPendingNotice,
   );
@@ -189,12 +200,18 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   addMediaButton.type = 'button';
   addMediaButton.className = 'kayzart-editorAction kayzart-editorAction-media';
   addMediaButton.textContent = __( 'Add Media', 'kayzart-live-code-editor');
+  const htmlFormatButton = document.createElement('button');
+  htmlFormatButton.type = 'button';
+  htmlFormatButton.className = 'kayzart-editorAction kayzart-editorAction-format';
+  htmlFormatButton.textContent = __( 'Format', 'kayzart-live-code-editor');
+  htmlFormatButton.setAttribute('aria-label', __( 'Format HTML', 'kayzart-live-code-editor'));
+  htmlFormatButton.setAttribute('title', __( 'Format HTML', 'kayzart-live-code-editor'));
   const htmlWordWrapButton = document.createElement('button');
   htmlWordWrapButton.type = 'button';
   htmlWordWrapButton.className = 'kayzart-editorAction kayzart-editorAction-wrap';
   htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
   htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
-  htmlActions.append(fullHtmlImportButton, addMediaButton, htmlWordWrapButton);
+  htmlActions.append(fullHtmlImportButton, addMediaButton, htmlFormatButton, htmlWordWrapButton);
   htmlHeader.append(htmlTabs, htmlActions);
   const htmlWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
   const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html is-active');
@@ -279,6 +296,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     compactJsModeSelect,
     compactFullHtmlImportButton,
     compactAddMediaButton,
+    compactFormatButton,
     compactReloadPendingNotice,
     htmlHeader,
     htmlTitle,
@@ -286,6 +304,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     customHeadTab,
     fullHtmlImportButton,
     addMediaButton,
+    htmlFormatButton,
     htmlWordWrapButton,
     htmlEditorDiv,
     customHeadEditorDiv,

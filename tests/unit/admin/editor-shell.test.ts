@@ -41,6 +41,7 @@ describe('editor shell iframe security attributes', () => {
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
       ui.compactFullHtmlImportButton,
       ui.compactAddMediaButton,
+      ui.compactFormatButton,
       ui.compactJsModeSelect,
       ui.compactReloadPendingNotice,
     ]);
@@ -54,6 +55,18 @@ describe('editor shell iframe security attributes', () => {
     expect(ui.compactFullHtmlImportButton.textContent).toBe('Import full HTML');
     expect(ui.fullHtmlImportButton.nextElementSibling).toBe(ui.addMediaButton);
     expect(ui.compactFullHtmlImportButton.nextElementSibling).toBe(ui.compactAddMediaButton);
+  });
+
+  it('renders format buttons for regular and compact editor controls', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.htmlFormatButton.textContent).toBe('Format');
+    expect(ui.htmlFormatButton.previousElementSibling).toBe(ui.addMediaButton);
+    expect(ui.htmlFormatButton.nextElementSibling).toBe(ui.htmlWordWrapButton);
+    expect(ui.compactFormatButton.textContent).toContain('Format HTML');
+    expect(ui.compactFormatButton.previousElementSibling).toBe(ui.compactAddMediaButton);
+    expect(ui.compactFormatButton.nextElementSibling).toBe(ui.compactJsModeSelect);
   });
 
   it('renders custom head tabs and help text', () => {

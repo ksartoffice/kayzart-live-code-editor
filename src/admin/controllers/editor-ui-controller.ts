@@ -20,6 +20,7 @@ type EditorUiControllerDeps = {
   onEditorViewChange?: () => void;
   onCompactEditorModeChange?: (isCompact: boolean) => void;
   onOpenMedia: () => void;
+  onFormatHtml: () => void;
 };
 
 export function createEditorUiController(deps: EditorUiControllerDeps) {
@@ -37,6 +38,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
       compactEditorTab = 'html';
     }
     const isHtmlTab = compactEditorTab === 'html';
+    const isHtmlLikeTab = compactEditorTab === 'html' || compactEditorTab === 'customHead';
     const isJsTab = compactEditorTab === 'js';
     deps.ui.compactHtmlTab.classList.toggle('is-active', compactEditorTab === 'html');
     deps.ui.compactCustomHeadTab.classList.toggle('is-active', compactEditorTab === 'customHead');
@@ -51,6 +53,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
       compactEditorTab !== 'html' && compactEditorTab !== 'customHead'
     );
     deps.ui.compactAddMediaButton.style.display = isHtmlTab ? '' : 'none';
+    deps.ui.compactFormatButton.style.display = isHtmlLikeTab ? '' : 'none';
     deps.ui.compactJsModeSelect.style.display = isJsTab && deps.canEditJs ? '' : 'none';
     deps.onEditorViewChange?.();
   };
@@ -62,6 +65,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     const isJsTab = activeCssTab === 'js';
     const isCompactJsTab = compactEditorTab === 'js';
     const isCompactHtmlTab = compactEditorTab === 'html';
+    const isCompactHtmlLikeTab = compactEditorTab === 'html' || compactEditorTab === 'customHead';
     deps.ui.customHeadTab.style.display = canEditCustomHead() ? '' : 'none';
     deps.ui.customHeadTab.disabled = !canEditCustomHead();
     deps.ui.compactCustomHeadTab.style.display = canEditCustomHead() ? '' : 'none';
@@ -79,6 +83,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactJsModeSelect.disabled = !deps.canEditJs;
     deps.ui.jsControls.style.display = deps.canEditJs && isJsTab ? '' : 'none';
     deps.ui.compactAddMediaButton.style.display = isCompactHtmlTab ? '' : 'none';
+    deps.ui.compactFormatButton.style.display = isCompactHtmlLikeTab ? '' : 'none';
     deps.onEditorViewChange?.();
   };
 
@@ -104,6 +109,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.htmlEditorDiv.classList.toggle('is-active', nextTab === 'html');
     deps.ui.customHeadEditorDiv.parentElement?.classList.toggle('is-active', nextTab === 'customHead');
     deps.ui.addMediaButton.style.display = nextTab === 'html' ? '' : 'none';
+    deps.ui.htmlFormatButton.style.display = '';
     deps.ui.htmlWordWrapButton.style.display = nextTab === 'html' ? '' : 'none';
     if (compactEditorMode && options.syncCompactTab !== false) {
       compactEditorTab = nextTab;
@@ -309,6 +315,8 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.jsEditor.onDidFocusEditorText(() => setCssTab('js', { focus: false }));
     deps.ui.addMediaButton.addEventListener('click', deps.onOpenMedia);
     deps.ui.compactAddMediaButton.addEventListener('click', deps.onOpenMedia);
+    deps.ui.htmlFormatButton.addEventListener('click', deps.onFormatHtml);
+    deps.ui.compactFormatButton.addEventListener('click', deps.onFormatHtml);
     deps.ui.htmlTab.addEventListener('click', () => setHtmlTab('html', { focus: true }));
     deps.ui.customHeadTab.addEventListener('click', () => setHtmlTab('customHead', { focus: true }));
     deps.ui.cssTab.addEventListener('click', () => setCssTab('css', { focus: true }));

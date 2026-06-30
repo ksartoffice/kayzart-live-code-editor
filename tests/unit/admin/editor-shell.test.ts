@@ -35,6 +35,7 @@ describe('editor shell iframe security attributes', () => {
 
     expect(ui.jsModeSelect.parentElement).toBe(ui.jsControls);
     expect(Array.from(ui.jsControls.children)).toEqual([
+      ui.cssFormatButton,
       ui.jsPendingNotice,
       ui.jsModeSelect,
     ]);
@@ -64,6 +65,9 @@ describe('editor shell iframe security attributes', () => {
     expect(ui.htmlFormatButton.textContent).toBe('Format');
     expect(ui.htmlFormatButton.previousElementSibling).toBe(ui.addMediaButton);
     expect(ui.htmlFormatButton.nextElementSibling).toBe(ui.htmlWordWrapButton);
+    expect(ui.cssFormatButton.textContent).toBe('Format');
+    expect(ui.cssFormatButton.previousElementSibling).toBeNull();
+    expect(ui.cssFormatButton.nextElementSibling).toBe(ui.jsPendingNotice);
     expect(ui.compactFormatButton.textContent).toContain('Format HTML');
     expect(ui.compactFormatButton.previousElementSibling).toBe(ui.compactAddMediaButton);
     expect(ui.compactFormatButton.nextElementSibling).toBe(ui.compactJsModeSelect);

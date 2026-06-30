@@ -44,6 +44,7 @@ function createUi() {
     htmlWordWrapButton: document.createElement('button'),
     compactAddMediaButton: document.createElement('button'),
     compactFormatButton: document.createElement('button'),
+    cssFormatButton: document.createElement('button'),
     jsControls: document.createElement('div'),
     jsPendingNotice: document.createElement('span'),
     compactReloadPendingNotice: document.createElement('span'),
@@ -69,7 +70,7 @@ describe('editor ui controller', () => {
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
       onOpenMedia: () => {},
-      onFormatHtml: () => {},
+      onFormatCode: () => {},
     });
 
     controller.initialize();
@@ -100,7 +101,7 @@ describe('editor ui controller', () => {
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
       onOpenMedia: () => {},
-      onFormatHtml: () => {},
+      onFormatCode: () => {},
     });
 
     controller.initialize();
@@ -131,7 +132,7 @@ describe('editor ui controller', () => {
       getViewportWidth: () => 1200,
       getJsEnabled: () => true,
       onOpenMedia: () => {},
-      onFormatHtml: () => {},
+      onFormatCode: () => {},
     });
 
     controller.initialize();
@@ -146,7 +147,7 @@ describe('editor ui controller', () => {
     expect(customHeadEditor.focus).not.toHaveBeenCalled();
   });
 
-  it('shows format controls on HTML and custom head tabs only', () => {
+  it('shows format controls and syncs labels for code tabs', () => {
     const ui = createUi();
     const htmlEditor = createEditor();
     const customHeadEditor = createEditor();
@@ -164,7 +165,7 @@ describe('editor ui controller', () => {
       getViewportWidth: () => 800,
       getJsEnabled: () => true,
       onOpenMedia: () => {},
-      onFormatHtml: () => {},
+      onFormatCode: () => {},
     });
 
     controller.initialize();
@@ -172,11 +173,26 @@ describe('editor ui controller', () => {
 
     ui.compactHtmlTab.click();
     expect(ui.compactFormatButton.style.display).toBe('');
+    expect(ui.compactFormatButton.getAttribute('aria-label')).toBe('Format HTML');
+
+    ui.compactCssTab.click();
+    expect(ui.compactFormatButton.style.display).toBe('');
+    expect(ui.compactFormatButton.getAttribute('aria-label')).toBe('Format CSS');
 
     ui.compactJsTab.click();
-    expect(ui.compactFormatButton.style.display).toBe('none');
+    expect(ui.compactFormatButton.style.display).toBe('');
+    expect(ui.compactFormatButton.getAttribute('aria-label')).toBe('Format JavaScript');
 
     ui.compactCustomHeadTab.click();
     expect(ui.compactFormatButton.style.display).toBe('');
+    expect(ui.compactFormatButton.getAttribute('aria-label')).toBe('Format HTML');
+
+    controller.setCssTab('css', { focus: true });
+    expect(ui.cssFormatButton.style.display).toBe('');
+    expect(ui.cssFormatButton.getAttribute('aria-label')).toBe('Format CSS');
+
+    controller.setCssTab('js', { focus: true });
+    expect(ui.cssFormatButton.style.display).toBe('');
+    expect(ui.cssFormatButton.getAttribute('aria-label')).toBe('Format JavaScript');
   });
 });

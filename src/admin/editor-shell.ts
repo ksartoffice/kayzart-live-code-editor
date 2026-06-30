@@ -35,6 +35,7 @@ type EditorShellRefs = {
   cssPane: HTMLDivElement;
   cssTab: HTMLButtonElement;
   jsTab: HTMLButtonElement;
+  cssFormatButton: HTMLButtonElement;
   jsModeSelect: HTMLSelectElement;
   jsPendingNotice: HTMLSpanElement;
   jsControls: HTMLDivElement;
@@ -250,10 +251,16 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   cssTabs.append(cssTab, jsTab);
 
   const jsControls = el('div', 'kayzart-editorActions');
+  const cssFormatButton = document.createElement('button');
+  cssFormatButton.type = 'button';
+  cssFormatButton.className = 'kayzart-editorAction kayzart-editorAction-format';
+  cssFormatButton.textContent = __( 'Format', 'kayzart-live-code-editor');
+  cssFormatButton.setAttribute('aria-label', __( 'Format CSS', 'kayzart-live-code-editor'));
+  cssFormatButton.setAttribute('title', __( 'Format CSS', 'kayzart-live-code-editor'));
   const jsPendingNotice = el('span', 'kayzart-reloadPendingNotice kayzart-jsPendingNotice');
   jsPendingNotice.textContent = __( 'Reload preview to apply head and JavaScript changes.', 'kayzart-live-code-editor');
   compactReloadPendingNotice.textContent = jsPendingNotice.textContent;
-  jsControls.append(jsPendingNotice, jsModeSelect);
+  jsControls.append(cssFormatButton, jsPendingNotice, jsModeSelect);
 
   cssHeader.append(cssTabs, jsControls);
   const cssWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
@@ -316,6 +323,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     cssPane,
     cssTab,
     jsTab,
+    cssFormatButton,
     jsModeSelect,
     jsPendingNotice,
     jsControls,

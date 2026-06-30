@@ -30,7 +30,11 @@ import {
   type FullHtmlImportResult,
 } from './logic/full-html-import';
 import { buildFullHtmlExport } from './logic/full-html-export';
-import { formatHtmlCode } from './logic/format-code';
+import {
+  formatCssCode,
+  formatHtmlCode,
+  formatJavaScriptCode,
+} from './logic/format-code';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
@@ -483,17 +487,20 @@ async function main() {
     return true;
   };
 
-  const formatHtmlEditorContent = (
+  const formatEditorContent = (
     editorInstance: CodeEditorInstance,
-    model: EditorModel
+    model: EditorModel,
+    formatCode: (source: string) => string,
+    successMessage: string,
+    errorMessage: string
   ) => {
     try {
-      const formatted = formatHtmlCode(model.getValue());
+      const formatted = formatCode(model.getValue());
       const changed = replaceModelForFormatting(editorInstance, model, formatted);
       if (changed) {
         createSnackbar(
           'success',
-          __( 'Formatted HTML.', 'kayzart-live-code-editor'),
+          successMessage,
           undefined,
           NOTICE_SUCCESS_DURATION_MS
         );
@@ -501,14 +508,56 @@ async function main() {
     } catch (error) {
       createSnackbar(
         'error',
-        __( 'Could not format HTML.', 'kayzart-live-code-editor'),
+        errorMessage,
         undefined,
         NOTICE_ERROR_DURATION_MS
       );
     }
   };
 
-  const formatActiveHtmlEditorContent = () => {
+  const formatHtmlEditorContent = (
+    editorInstance: CodeEditorInstance,
+    model: EditorModel
+  ) => {
+    formatEditorContent(
+      editorInstance,
+      model,
+      formatHtmlCode,
+      __( 'Formatted HTML.', 'kayzart-live-code-editor'),
+      __( 'Could not format HTML.', 'kayzart-live-code-editor')
+    );
+  };
+
+  const formatCssEditorContent = () => {
+    formatEditorContent(
+      cssEditor,
+      cssModel,
+      formatCssCode,
+      __( 'Formatted CSS.', 'kayzart-live-code-editor'),
+      __( 'Could not format CSS.', 'kayzart-live-code-editor')
+    );
+  };
+
+  const formatJavaScriptEditorContent = () => {
+    formatEditorContent(
+      jsEditor,
+      jsModel,
+      formatJavaScriptCode,
+      __( 'Formatted JavaScript.', 'kayzart-live-code-editor'),
+      __( 'Could not format JavaScript.', 'kayzart-live-code-editor')
+    );
+  };
+
+  const formatActiveCodeContent = () => {
+    const activeEditor = editorUiController?.getActiveEditor();
+    if (activeEditor === cssEditor) {
+      formatCssEditorContent();
+      return;
+    }
+    if (activeEditor === jsEditor) {
+      formatJavaScriptEditorContent();
+      return;
+    }
     const activeHtmlTab = editorUiController?.getActiveHtmlTab() ?? 'html';
     if (activeHtmlTab === 'customHead') {
       formatHtmlEditorContent(customHeadEditor, customHeadModel);
@@ -517,19 +566,19 @@ async function main() {
     formatHtmlEditorContent(htmlEditor, htmlModel);
   };
 
-  const registerHtmlFormatAction = (
+  const registerFormatAction = (
     editorInstance: CodeEditorInstance,
-    model: EditorModel
+    actionId: string,
+    label: string,
+    run: () => void
   ) => {
     editorInstance.addAction({
-      id: 'kayzart.formatHtml',
-      label: __( 'Format HTML', 'kayzart-live-code-editor'),
+      id: actionId,
+      label,
       keybindings: [
         codemirror.KeyMod.Shift | codemirror.KeyMod.Alt | codemirror.KeyCode.KeyF,
       ],
-      run: () => {
-        formatHtmlEditorContent(editorInstance, model);
-      },
+      run,
     });
   };
 
@@ -877,8 +926,30 @@ async function main() {
   registerSaveShortcut(cssEditor);
   registerSaveShortcut(jsEditor);
   registerHtmlWordWrapAction(htmlEditor);
-  registerHtmlFormatAction(htmlEditor, htmlModel);
-  registerHtmlFormatAction(customHeadEditor, customHeadModel);
+  registerFormatAction(
+    htmlEditor,
+    'kayzart.formatHtml',
+    __( 'Format HTML', 'kayzart-live-code-editor'),
+    () => formatHtmlEditorContent(htmlEditor, htmlModel)
+  );
+  registerFormatAction(
+    customHeadEditor,
+    'kayzart.formatHtml',
+    __( 'Format HTML', 'kayzart-live-code-editor'),
+    () => formatHtmlEditorContent(customHeadEditor, customHeadModel)
+  );
+  registerFormatAction(
+    cssEditor,
+    'kayzart.formatCss',
+    __( 'Format CSS', 'kayzart-live-code-editor'),
+    formatCssEditorContent
+  );
+  registerFormatAction(
+    jsEditor,
+    'kayzart.formatJavaScript',
+    __( 'Format JavaScript', 'kayzart-live-code-editor'),
+    formatJavaScriptEditorContent
+  );
 
   removeNotice(NOTICE_IDS.editor);
   markSavedState();
@@ -1295,7 +1366,7 @@ async function main() {
       syncPendingPreviewReloadNotice();
     },
     onOpenMedia: openMediaModal,
-    onFormatHtml: formatActiveHtmlEditorContent,
+    onFormatCode: formatActiveCodeContent,
   });
   editorUiController.initialize();
 

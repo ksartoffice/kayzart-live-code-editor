@@ -53,6 +53,8 @@
   let initialSavedScrollRestorePending = true;
   let capturedScrollSnapshot = null;
   let capturedScrollRestoreBlockedUntil = 0;
+  let scrollSaveSuppressedUntil = 0;
+  let pendingScrollRestoreSnapshot = null;
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
   const scrollStorageKey = postId ? 'kayzart:preview-scroll:' + String(postId) : '';
@@ -1371,20 +1373,39 @@
       }
     });
 
-    return best
-      ? {
-          lcId: best.lcId,
-          top: best.top,
-          left: best.left,
-        }
-      : null;
+    if (!best) {
+      return null;
+    }
+
+    const anchor = {
+      lcId: best.lcId,
+      top: best.top,
+      left: best.left,
+      distance: best.distance,
+      overlapsLine: best.overlapsLine,
+      score: best.score,
+    };
+    return anchor;
   }
 
-  function captureScrollPosition() {
+  function captureScrollPosition(reason) {
+    if (
+      reason === 'render-before-dom-replace' &&
+      pendingScrollRestoreSnapshot &&
+      scrollSaveSuppressedUntil &&
+      Date.now() < scrollSaveSuppressedUntil
+    ) {
+      return {
+        x: pendingScrollRestoreSnapshot.x,
+        y: pendingScrollRestoreSnapshot.y,
+        anchor: pendingScrollRestoreSnapshot.anchor,
+      };
+    }
+    const anchor = findScrollAnchor();
     return {
       x: getScrollX(),
       y: getScrollY(),
-      anchor: findScrollAnchor(),
+      anchor: anchor,
     };
   }
 
@@ -1435,7 +1456,7 @@
       }
       window.sessionStorage.setItem(
         scrollStorageKey,
-        JSON.stringify(captureScrollPosition())
+        JSON.stringify(captureScrollPosition('session-save'))
       );
     } catch (e) {
       // Ignore storage errors and keep the preview usable.
@@ -1443,7 +1464,7 @@
   }
 
   function captureScrollSnapshot() {
-    capturedScrollSnapshot = captureScrollPosition();
+    capturedScrollSnapshot = captureScrollPosition('captured-snapshot');
     capturedScrollRestoreBlockedUntil = 0;
   }
 
@@ -1456,6 +1477,9 @@
 
   function queueScrollPositionSave() {
     if (initialSavedScrollRestorePending) {
+      return;
+    }
+    if (scrollSaveSuppressedUntil && Date.now() < scrollSaveSuppressedUntil) {
       return;
     }
     if (scrollSaveTimer) {
@@ -1478,7 +1502,7 @@
   function restoreSavedScrollPosition() {
     const saved = readSavedScrollPosition();
     if (saved) {
-      restoreScrollPosition(saved);
+      restoreScrollPosition(saved, 'saved-scroll');
     }
   }
 
@@ -1487,7 +1511,7 @@
       return;
     }
     if (capturedScrollSnapshot) {
-      restoreScrollPosition(capturedScrollSnapshot);
+      restoreScrollPosition(capturedScrollSnapshot, 'captured-scroll');
     }
   }
 
@@ -1495,36 +1519,75 @@
     if (!anchor || !anchor.lcId) {
       return null;
     }
-    const node = document.querySelector(
-      '[' + KAYZART_ATTR_NAME + '="' + escapeAttrValue(anchor.lcId) + '"]'
-    );
-    if (!(node instanceof Element)) {
+    const selector = '[' + KAYZART_ATTR_NAME + '="' + escapeAttrValue(anchor.lcId) + '"]';
+    const nodes = document.querySelectorAll
+      ? Array.prototype.slice.call(document.querySelectorAll(selector))
+      : [];
+    if (!nodes.length) {
       return null;
     }
-    const rect = node.getBoundingClientRect();
-    if (!hasRenderableRect(rect)) {
+
+    const markers = findMarkers();
+    let best = null;
+
+    nodes.forEach((node) => {
+      if (!(node instanceof Element)) {
+        return;
+      }
+      const outsideMarkers = Boolean(
+        markers &&
+          ((markers.start.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING) ||
+            (markers.end.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING))
+      );
+      const rect = node.getBoundingClientRect();
+      if (outsideMarkers || !hasRenderableRect(rect)) {
+        return;
+      }
+      const distance = Math.abs(rect.top - anchor.top);
+      if (!best || distance < best.distance) {
+        best = {
+          rect: rect,
+          distance: distance,
+        };
+      }
+    });
+
+    if (!best) {
       return null;
     }
-    return rect;
+
+    return best.rect;
   }
 
   function resolveRestoredScrollY(snapshot) {
     const rect = findCurrentScrollAnchor(snapshot.anchor);
     if (rect) {
-      return clamp(getScrollY() + (rect.top - snapshot.anchor.top), 0, getMaxScrollTop());
+      const delta = rect.top - snapshot.anchor.top;
+      return {
+        y: clamp(getScrollY() + delta, 0, getMaxScrollTop()),
+        mode: 'anchor',
+      };
     }
-    return clamp(snapshot.y, 0, getMaxScrollTop());
+    return {
+      y: clamp(snapshot.y, 0, getMaxScrollTop()),
+      mode: 'absolute-fallback',
+      currentAnchor: null,
+    };
   }
 
-  function restoreScrollPosition(snapshot) {
+  function restoreScrollPosition(snapshot, reason) {
     if (!snapshot || (!snapshot.x && !snapshot.y && !snapshot.anchor)) {
       return;
     }
     const token = ++scrollRestoreToken;
+    const startedAt = Date.now();
+    const maxDeferredWait = reason === 'render-after-dom-replace' ? 1400 : 600;
     let cancelled = false;
     let listening = false;
     let releaseApplyingTimer = 0;
     const timers = [];
+    pendingScrollRestoreSnapshot = snapshot;
+    scrollSaveSuppressedUntil = Math.max(scrollSaveSuppressedUntil, Date.now() + maxDeferredWait + 250);
 
     const cleanup = () => {
       if (releaseApplyingTimer) {
@@ -1536,6 +1599,9 @@
       }
       if (applyingScrollRestoreToken === token) {
         applyingScrollRestoreToken = 0;
+      }
+      if (scrollRestoreToken === token) {
+        pendingScrollRestoreSnapshot = null;
       }
       if (!listening) {
         return;
@@ -1549,6 +1615,7 @@
 
     const cancelFromUserIntent = () => {
       blockCapturedScrollRestore();
+      pendingScrollRestoreSnapshot = null;
       cancelled = true;
       cleanup();
     };
@@ -1557,7 +1624,11 @@
       if (applyingScrollRestoreToken === token) {
         return;
       }
+      if (scrollSaveSuppressedUntil && Date.now() < scrollSaveSuppressedUntil) {
+        return;
+      }
       blockCapturedScrollRestore();
+      pendingScrollRestoreSnapshot = null;
       cancelled = true;
       cleanup();
     };
@@ -1567,8 +1638,23 @@
         cleanup();
         return;
       }
+      const maxY = getMaxScrollTop();
       const x = clamp(snapshot.x, 0, getMaxScrollLeft());
-      const y = resolveRestoredScrollY(snapshot);
+      const resolved = resolveRestoredScrollY(snapshot);
+      const y = resolved.y;
+      const targetWasClampedByHeight = snapshot.y > maxY && y >= maxY;
+      const anchorMissingDuringRender =
+        reason === 'render-after-dom-replace' && snapshot.anchor && resolved.mode !== 'anchor';
+      const heightStillCollapsed =
+        reason === 'render-after-dom-replace' &&
+        snapshot.y > maxY &&
+        maxY < snapshot.y * 0.85;
+      const canDefer =
+        Date.now() - startedAt < maxDeferredWait &&
+        (anchorMissingDuringRender || heightStillCollapsed || targetWasClampedByHeight);
+      if (canDefer) {
+        return;
+      }
       applyingScrollRestoreToken = token;
       window.scrollTo(x, y);
       if (releaseApplyingTimer) {
@@ -1602,7 +1688,12 @@
     scheduleApply(60);
     scheduleApply(180);
     scheduleApply(360);
-    timers.push(window.setTimeout(cleanup, 420));
+    if (reason === 'render-after-dom-replace') {
+      scheduleApply(720);
+      scheduleApply(1200);
+    }
+    scheduleApply(maxDeferredWait + 20);
+    timers.push(window.setTimeout(cleanup, maxDeferredWait + 320));
   }
 
   function clearMarkerRetryTimer() {
@@ -1654,7 +1745,7 @@
     pendingRenderPayload = null;
     clearMarkerRetryTimer();
 
-    const scrollPosition = captureScrollPosition();
+    const scrollPosition = captureScrollPosition('render-before-dom-replace');
     const contentScriptsReady = replaceEditableContent(html);
     applyBodyAttrs(bodyAttrs, hasBody, templateMode);
     const customHeadScriptsReady =
@@ -1666,7 +1757,7 @@
     if (styleEl) {
       styleEl.textContent = css || '';
     }
-    restoreScrollPosition(scrollPosition);
+    restoreScrollPosition(scrollPosition, 'render-after-dom-replace');
     restoreSavedScrollPositionOnce();
     const currentHtmlScriptsReady = htmlScriptsReady;
     currentHtmlScriptsReady.then(() => {
@@ -1677,12 +1768,12 @@
   }
 
   function setCssText(css) {
-    const scrollPosition = captureScrollPosition();
+    const scrollPosition = captureScrollPosition('css-before-update');
     const styleEl = ensureStyleElement();
     if (styleEl) {
       styleEl.textContent = css || '';
     }
-    restoreScrollPosition(scrollPosition);
+    restoreScrollPosition(scrollPosition, 'css-after-update');
   }
 
   function reply(type, payload) {

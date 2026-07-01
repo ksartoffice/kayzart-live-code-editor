@@ -327,6 +327,7 @@ describe('preview lazy media reveal', () => {
       '</picture>',
       '<iframe data-kayzart-id="frame-1" data-src="frame.html"></iframe>',
       '<div data-kayzart-id="bg-1" data-bg="background.jpg"></div>',
+      '<div data-kayzart-id="bg-2" style="background-image: url();" data-background-image="section.jpg"></div>',
     ].join(''));
     await flushAsync();
 
@@ -344,6 +345,9 @@ describe('preview lazy media reveal', () => {
     );
     expect((document.querySelector('[data-kayzart-id="bg-1"]') as HTMLElement)?.style.backgroundImage).toBe(
       'url("background.jpg")'
+    );
+    expect((document.querySelector('[data-kayzart-id="bg-2"]') as HTMLElement)?.style.backgroundImage).toBe(
+      'url("section.jpg")'
     );
   });
 

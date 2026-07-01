@@ -1186,9 +1186,17 @@
     return 'url("' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")';
   }
 
+  function hasPreviewBackgroundImage(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized || normalized === 'none') {
+      return false;
+    }
+    return !/^url\(\s*(?:""|''|)\s*\)$/.test(normalized);
+  }
+
   function revealLazyBackgrounds(root) {
     queryLazyMedia(root, '[data-bg], [data-background], [data-background-image]').forEach((node) => {
-      if (!node || !node.getAttribute || !node.style || node.style.backgroundImage) {
+      if (!node || !node.getAttribute || !node.style || hasPreviewBackgroundImage(node.style.backgroundImage)) {
         return;
       }
       const value =

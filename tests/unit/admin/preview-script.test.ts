@@ -514,6 +514,27 @@ describe('preview scroll restoration', () => {
     expect(window.scrollTo).toHaveBeenCalledWith(0, 1010);
   });
 
+  it('prefers a smaller visible child over a large page wrapper as the scroll anchor', () => {
+    setScrollValues(0, 900);
+    setElementRectSequence('root-1', [
+      { top: -700, left: 0, width: 800, height: 3000 },
+      { top: -500, left: 0, width: 800, height: 3000 },
+    ]);
+    setElementRectSequence('child-1', [
+      { top: 150, left: 0, width: 500, height: 80 },
+      { top: 260, left: 0, width: 500, height: 80 },
+    ]);
+    setupPreview(
+      '<main data-kayzart-id="root-1"><section data-kayzart-id="child-1">Old</section></main>'
+    );
+
+    dispatchRender(
+      '<main data-kayzart-id="root-1"><section data-kayzart-id="child-1">Content</section></main>'
+    );
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 1010);
+  });
+
   it('falls back to the clamped scroll position when the anchor is removed', () => {
     setScrollValues(0, 1200);
     setScrollBounds(1000, 600);
@@ -533,6 +554,17 @@ describe('preview scroll restoration', () => {
     dispatchRender();
 
     expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
+  });
+
+  it('restores to the same anchor even when the anchor is currently outside the viewport', () => {
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    setElementRect('main-1', { top: 900, left: 0, width: 800, height: 1200 }, 'Content');
+
+    dispatchRender();
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 1650);
   });
 
   it('re-applies anchor restoration after layout shifts', () => {
@@ -587,5 +619,23 @@ describe('preview scroll restoration', () => {
     vi.advanceTimersByTime(500);
 
     expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores later captured restore requests after user scroll intent', () => {
+    vi.useFakeTimers();
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    dispatchPreviewMessage({ type: 'KAYZART_CAPTURE_SCROLL_SNAPSHOT' });
+    setElementRect('main-1', { top: 260, left: 0, width: 800, height: 1200 }, 'Old');
+
+    dispatchPreviewMessage({ type: 'KAYZART_RESTORE_CAPTURED_SCROLL' });
+    expect(window.scrollTo).toHaveBeenCalled();
+    vi.mocked(window.scrollTo).mockClear();
+
+    window.dispatchEvent(new WheelEvent('wheel'));
+    dispatchPreviewMessage({ type: 'KAYZART_RESTORE_CAPTURED_SCROLL' });
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
   });
 });

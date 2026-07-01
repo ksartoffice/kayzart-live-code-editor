@@ -51,6 +51,8 @@
   let applyingScrollRestoreToken = 0;
   let scrollSaveTimer = 0;
   let initialSavedScrollRestorePending = true;
+  let capturedScrollSnapshot = null;
+  let capturedScrollRestoreBlockedUntil = 0;
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
   const scrollStorageKey = postId ? 'kayzart:preview-scroll:' + String(postId) : '';
@@ -1297,6 +1299,10 @@
     );
   }
 
+  function hasRenderableRect(rect) {
+    return Boolean(rect && rect.width > 0 && rect.height > 0);
+  }
+
   function getScrollAnchorLine() {
     const viewportHeight = window.innerHeight || 0;
     if (viewportHeight <= 1) {
@@ -1341,10 +1347,18 @@
       const distance = overlapsLine
         ? 0
         : Math.min(Math.abs(rect.top - anchorLine), Math.abs(rect.bottom - anchorLine));
+      const height = Math.max(1, rect.height);
+      const center = rect.top + rect.height / 2;
+      const centerDistance = Math.abs(center - anchorLine);
+      const score =
+        (overlapsLine ? 0 : 100000) +
+        distance * 10 +
+        Math.min(height, (window.innerHeight || 0) * 4 || height) +
+        centerDistance * 0.05;
       if (
         !best ||
         (overlapsLine && !best.overlapsLine) ||
-        (overlapsLine === best.overlapsLine && distance < best.distance)
+        (overlapsLine === best.overlapsLine && score < best.score)
       ) {
         best = {
           lcId: lcId,
@@ -1352,6 +1366,7 @@
           left: rect.left,
           distance: distance,
           overlapsLine: overlapsLine,
+          score: score,
         };
       }
     });
@@ -1427,6 +1442,18 @@
     }
   }
 
+  function captureScrollSnapshot() {
+    capturedScrollSnapshot = captureScrollPosition();
+    capturedScrollRestoreBlockedUntil = 0;
+  }
+
+  function blockCapturedScrollRestore() {
+    if (!capturedScrollSnapshot) {
+      return;
+    }
+    capturedScrollRestoreBlockedUntil = Date.now() + 1200;
+  }
+
   function queueScrollPositionSave() {
     if (initialSavedScrollRestorePending) {
       return;
@@ -1445,9 +1472,22 @@
       return;
     }
     initialSavedScrollRestorePending = false;
+    restoreSavedScrollPosition();
+  }
+
+  function restoreSavedScrollPosition() {
     const saved = readSavedScrollPosition();
     if (saved) {
       restoreScrollPosition(saved);
+    }
+  }
+
+  function restoreCapturedScrollPosition() {
+    if (capturedScrollRestoreBlockedUntil && Date.now() < capturedScrollRestoreBlockedUntil) {
+      return;
+    }
+    if (capturedScrollSnapshot) {
+      restoreScrollPosition(capturedScrollSnapshot);
     }
   }
 
@@ -1462,7 +1502,7 @@
       return null;
     }
     const rect = node.getBoundingClientRect();
-    if (!isVisibleRect(rect)) {
+    if (!hasRenderableRect(rect)) {
       return null;
     }
     return rect;
@@ -1508,6 +1548,7 @@
     };
 
     const cancelFromUserIntent = () => {
+      blockCapturedScrollRestore();
       cancelled = true;
       cleanup();
     };
@@ -1516,6 +1557,7 @@
       if (applyingScrollRestoreToken === token) {
         return;
       }
+      blockCapturedScrollRestore();
       cancelled = true;
       cleanup();
     };
@@ -1668,6 +1710,18 @@
     const data = event.data || {};
     if (data.type === 'KAYZART_SAVE_SCROLL') {
       saveScrollPosition();
+      return;
+    }
+    if (data.type === 'KAYZART_RESTORE_SAVED_SCROLL') {
+      restoreSavedScrollPosition();
+      return;
+    }
+    if (data.type === 'KAYZART_CAPTURE_SCROLL_SNAPSHOT') {
+      captureScrollSnapshot();
+      return;
+    }
+    if (data.type === 'KAYZART_RESTORE_CAPTURED_SCROLL') {
+      restoreCapturedScrollPosition();
       return;
     }
     if (data.type === 'KAYZART_INIT') {

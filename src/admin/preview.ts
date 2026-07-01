@@ -29,6 +29,9 @@ export type PreviewController = {
   sendElementsTabState: (open: boolean) => void;
   requestReloadPreview: () => void;
   saveScrollPosition: () => void;
+  restoreSavedScrollPosition: () => void;
+  captureScrollSnapshot: () => void;
+  restoreCapturedScrollPosition: () => void;
   requestDisableJs: () => void;
   queueInitialJsRun: () => void;
   flushPendingJsAction: () => void;
@@ -318,6 +321,18 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
 
   const saveScrollPosition = () => {
     postToPreview({ type: 'KAYZART_SAVE_SCROLL' });
+  };
+
+  const restoreSavedScrollPosition = () => {
+    postToPreview({ type: 'KAYZART_RESTORE_SAVED_SCROLL' });
+  };
+
+  const captureScrollSnapshot = () => {
+    postToPreview({ type: 'KAYZART_CAPTURE_SCROLL_SNAPSHOT' });
+  };
+
+  const restoreCapturedScrollPosition = () => {
+    postToPreview({ type: 'KAYZART_RESTORE_CAPTURED_SCROLL' });
   };
 
   const sendInit = () => {
@@ -660,6 +675,9 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     sendElementsTabState,
     requestReloadPreview,
     saveScrollPosition,
+    restoreSavedScrollPosition,
+    captureScrollSnapshot,
+    restoreCapturedScrollPosition,
     requestDisableJs,
     queueInitialJsRun,
     flushPendingJsAction,

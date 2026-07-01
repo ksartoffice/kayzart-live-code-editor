@@ -20,6 +20,9 @@ type ViewportControllerDeps = {
   getCompactEditorMode: () => boolean;
   onViewportModeChange?: (mode: ViewportMode) => void;
   onEditorCollapsedChange?: (collapsed: boolean) => void;
+  onPreviewResizeStart?: () => void;
+  onPreviewResizeChange?: () => void;
+  onPreviewResizeEnd?: () => void;
 };
 
 export function createViewportController(deps: ViewportControllerDeps) {
@@ -295,6 +298,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     if (viewportMode !== 'desktop') {
       applyViewportLayout();
     }
+    deps.onPreviewResizeChange?.();
     schedulePreviewBadge();
   };
 
@@ -309,6 +313,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
         // Ignore if pointer capture isn't active.
       }
     }
+    deps.onPreviewResizeEnd?.();
   };
 
   const onEditorPointerMove = (event: PointerEvent) => {
@@ -324,6 +329,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     if (viewportMode !== 'desktop') {
       applyViewportLayout();
     }
+    deps.onPreviewResizeChange?.();
     schedulePreviewBadge();
   };
 
@@ -352,6 +358,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
         // Ignore if pointer capture isn't active.
       }
     }
+    deps.onPreviewResizeEnd?.();
   };
 
   deps.ui.resizer.addEventListener('pointerdown', (event) => {
@@ -363,6 +370,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     startWidth = deps.ui.left.getBoundingClientRect().width;
     deps.ui.app.classList.add('is-resizing');
     deps.ui.resizer.setPointerCapture(event.pointerId);
+    deps.onPreviewResizeStart?.();
     showPreviewBadge();
   });
 
@@ -399,6 +407,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     startSettingsWidth = deps.ui.settings.getBoundingClientRect().width;
     deps.ui.app.classList.add('is-resizing');
     deps.ui.settingsResizer.setPointerCapture(event.pointerId);
+    deps.onPreviewResizeStart?.();
     showPreviewBadge();
   });
 

@@ -5,7 +5,7 @@ import {
   type SettingsApi,
   type SettingsData,
 } from './settings';
-import { mountToolbar, type ToolbarApi } from './toolbar';
+import { mountToolbar, type ToolbarApi, type ViewportMode } from './toolbar';
 import { buildEditorShell } from './editor-shell';
 import {
   initCodeMirrorEditors,
@@ -170,6 +170,14 @@ async function main() {
 
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
+  let preview: PreviewController | null = null;
+  const restoreCapturedPreviewScroll = () => {
+    preview?.restoreCapturedScrollPosition();
+    window.requestAnimationFrame(() => preview?.restoreCapturedScrollPosition());
+    [80, 220, 420, 700, 1000].forEach((delay) => {
+      window.setTimeout(() => preview?.restoreCapturedScrollPosition(), delay);
+    });
+  };
   const initialSettingsPanelWidth = readSettingsPanelWidth();
   const viewportController = createViewportController({
     ui,
@@ -190,6 +198,9 @@ async function main() {
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),
+    onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
+    onPreviewResizeChange: restoreCapturedPreviewScroll,
+    onPreviewResizeEnd: restoreCapturedPreviewScroll,
   });
   // REST nonce middleware
   if (wp?.apiFetch?.createNonceMiddleware) {
@@ -251,7 +262,6 @@ async function main() {
   const syncDocumentTitle = createDocumentTitleSync(document.title, cfg.adminTitleSeparators);
   syncDocumentTitle(postTitle);
 
-  let preview: PreviewController | null = null;
   let settingsApi: SettingsApi | null = null;
   let modalController: ReturnType<typeof createModalController> | null = null;
   let tailwindCompiler: TailwindCompiler | null = null;
@@ -653,6 +663,13 @@ async function main() {
     preview?.saveScrollPosition();
     ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
   };
+  const changeViewportPreservingScroll = (mode: ViewportMode) => {
+    preview?.captureScrollSnapshot();
+    window.setTimeout(() => {
+      viewportController.setViewportMode(mode);
+      restoreCapturedPreviewScroll();
+    }, 32);
+  };
   const targetOrigin = new URL(getPreviewUrl()).origin;
   let pendingIframeLoad = false;
 
@@ -731,7 +748,7 @@ async function main() {
         return handleDownloadFullHtmlExport();
       },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
-      onViewportChange: (mode) => viewportController.setViewportMode(mode),
+      onViewportChange: changeViewportPreservingScroll,
       onUpdatePostIdentity: async ({ title, slug }) => {
         if (!cfg.settingsRestUrl || !wp?.apiFetch) {
           return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };

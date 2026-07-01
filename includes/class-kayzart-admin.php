@@ -273,6 +273,7 @@ class Admin {
 	public static function action_convert_existing_post(): void {
 		self::verify_action_nonce( self::CONVERT_POST_NONCE_ACTION );
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
 		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
 		if ( ! $post_id ) {
 			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );

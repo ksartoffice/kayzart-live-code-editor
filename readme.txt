@@ -4,7 +4,7 @@ Tags: landing page, ai, custom html, html editor, tailwind
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0.7
+Stable tag: 2.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -75,6 +75,12 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 7. Select preview text and refine the matching element from the Elements panel.
 
 == Changelog ==
+= 2.1.0 =
+* Add: Convert existing posts into landing pages.
+* Add: Format HTML, CSS, and JavaScript from the editor.
+* Add: Replace preview images from the media library.
+* Improve: Reduce preview flicker and preserve scroll position.
+
 = 2.0.7 =
 * Fix: Resolve front page preview returning a 404.
 

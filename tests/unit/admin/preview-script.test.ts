@@ -536,6 +536,7 @@ describe('preview scroll restoration', () => {
   });
 
   it('falls back to the clamped scroll position when the anchor is removed', () => {
+    vi.useFakeTimers();
     setScrollValues(0, 1200);
     setScrollBounds(1000, 600);
     setElementRect('old-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
@@ -543,15 +544,24 @@ describe('preview scroll restoration', () => {
 
     dispatchRender();
 
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1420);
+
     expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
   });
 
   it('falls back to the clamped scroll position when no visible anchor exists', () => {
+    vi.useFakeTimers();
     setScrollValues(0, 1200);
     setScrollBounds(1000, 600);
     setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
 
     dispatchRender();
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1420);
 
     expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
   });
@@ -604,7 +614,7 @@ describe('preview scroll restoration', () => {
     expect(window.scrollTo).toHaveBeenCalledWith(0, 980);
   });
 
-  it('stops pending restoration when the user scrolls', () => {
+  it('stops pending restoration when the user indicates scroll intent', () => {
     vi.useFakeTimers();
     setScrollValues(0, 900);
     setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
@@ -615,7 +625,7 @@ describe('preview scroll restoration', () => {
     expect(window.scrollTo).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(0);
-    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new WheelEvent('wheel'));
     vi.advanceTimersByTime(500);
 
     expect(window.scrollTo).toHaveBeenCalledTimes(1);

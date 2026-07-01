@@ -32,6 +32,8 @@ ChatGPT, Claude, Gemini, v0, or any tool that hands you HTML/CSS/JS. Kayzart doe
 
 Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
+The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sources in src/ with Vite. To reproduce the build from the repository: install dependencies with `npm install` and `composer install`, then run `npm run build` to generate the bundled assets. `npm run plugin-zip` produces the distributable package.
+
 == Installation ==
 1. Install and activate Kayzart from Plugins.
 2. Go to Pages > Add landing page to create a new landing page, or open Pages and choose Convert to landing page for an existing page.
@@ -158,3 +160,7 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 This plugin bundles third-party libraries:
 * CodeMirror - MIT License - https://github.com/codemirror
 * Emmet CodeMirror 6 Plugin - MIT License - https://github.com/emmetio/codemirror6-plugin
+* js-beautify - MIT License - https://github.com/beautify-web/js-beautify
+* Lucide - ISC License - https://github.com/lucide-icons/lucide
+* parse5 - MIT License - https://github.com/inikulin/parse5
+* TailwindPHP - MIT License - https://github.com/ksartoffice/tailwindphp

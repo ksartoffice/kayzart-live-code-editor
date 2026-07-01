@@ -108,7 +108,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 	}
 
-	public function test_enqueue_block_assets_runs_for_convertible_unmarked_page(): void {
+	public function test_enqueue_block_assets_skips_convertible_unmarked_page(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 		$page_id = (int) self::factory()->post->create(
@@ -124,15 +124,8 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$screen->post_type = Post_Type::PAGE_TYPE;
 
 		Editor_Bridge::enqueue_block_assets();
-		$this->assertTrue( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
-		$this->assertTrue( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
-
-		$data = $this->get_inline_bridge_data();
-		$this->assertSame( $page_id, (int) ( $data['postId'] ?? 0 ) );
-		$this->assertFalse( (bool) ( $data['isManaged'] ?? true ) );
-		$this->assertFalse( (bool) ( $data['enabled'] ?? true ) );
-		$this->assertTrue( (bool) ( $data['canConvert'] ?? false ) );
-		$this->assertIsString( $data['convertUrl'] ?? null );
+		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
+		$this->assertFalse( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
 	}
 
 	public function test_enqueue_assets_sets_nonce_protected_action_url(): void {
@@ -172,6 +165,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 		$this->assertTrue( (bool) ( $data['isManaged'] ?? false ) );
 		$this->assertFalse( (bool) ( $data['canConvert'] ?? true ) );
+		$this->assertArrayNotHasKey( 'convertUrl', $data );
 	}
 
 	private function create_post( string $post_type ): int {

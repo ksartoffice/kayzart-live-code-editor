@@ -96,10 +96,9 @@ class Editor_Bridge {
 			'postId'     => $post_id,
 			'postType'   => $post_type,
 			'actionUrl'  => Admin::get_action_redirect_url(),
-			'convertUrl' => Admin::get_convert_post_action_url(),
 			'enabled'    => $is_managed,
 			'isManaged'  => $is_managed,
-			'canConvert' => $post_id > 0 && ! $is_managed,
+			'canConvert' => false,
 		);
 		$json = wp_json_encode( $data );
 		if ( false === $json ) {
@@ -127,7 +126,7 @@ class Editor_Bridge {
 	private static function resolve_post_id(): int {
 		$post = get_post();
 
-		if ( ! $post || ! Post_Type::is_editor_enabled_post( $post ) ) {
+		if ( ! $post || ! Post_Type::is_editor_enabled_post( $post ) || ! self::is_managed_post( $post ) ) {
 			return 0;
 		}
 
@@ -154,6 +153,17 @@ class Editor_Bridge {
 		return $post instanceof \WP_Post
 			&& $screen->post_type === $post->post_type
 			&& Post_Type::is_editor_enabled_post( $post )
+			&& self::is_managed_post( $post )
 			&& current_user_can( 'edit_post', $post->ID );
+	}
+
+	/**
+	 * Check whether a post is already managed by KayzArt.
+	 *
+	 * @param \WP_Post $post Post object.
+	 * @return bool
+	 */
+	private static function is_managed_post( \WP_Post $post ): bool {
+		return Post_Type::POST_TYPE === $post->post_type || Post_Type::is_kayzart_enabled_post( (int) $post->ID );
 	}
 }

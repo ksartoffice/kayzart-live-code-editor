@@ -15,10 +15,7 @@
 
   var data = window.KAYZART_EDITOR || {};
   var actionUrl = data.actionUrl || '';
-  var convertUrl = data.convertUrl || '';
-  var buttonLabel = data.canConvert
-    ? __( 'Convert to landing page', 'kayzart-live-code-editor')
-    : __( 'Edit landing page', 'kayzart-live-code-editor');
+  var buttonLabel = __( 'Edit landing page', 'kayzart-live-code-editor');
 
   var getPostIdFromBlock = function () {
     if (!wpRef.data || !wpRef.data.select) {
@@ -47,8 +44,7 @@
   };
 
   var redirectToKayzArt = function (postId) {
-    var baseUrl = data.canConvert ? convertUrl : actionUrl;
-    var url = buildActionUrl(baseUrl, postId);
+    var url = buildActionUrl(actionUrl, postId);
     if (!url) {
       return;
     }
@@ -182,7 +178,7 @@
   };
 
   domReady(function () {
-    if (!data.enabled && !data.canConvert && !document.body.classList.contains('post-type-kayzart')) {
+    if (!data.enabled && !document.body.classList.contains('post-type-kayzart')) {
       return;
     }
 

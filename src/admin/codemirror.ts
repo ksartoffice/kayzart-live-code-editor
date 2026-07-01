@@ -193,6 +193,7 @@ type CodeMirrorInitOptions = {
   cssContainer: HTMLElement;
   jsContainer: HTMLElement;
   onHtmlPaste?: (text: string) => boolean;
+  onBeforeHtmlUserInteraction?: () => void;
 };
 
 type DecorationSpec = {
@@ -726,6 +727,16 @@ const htmlIntellisenseExtensions = (): Extension[] => [
   }),
 ];
 
+const isUserInteractionTransaction = (transaction: {
+  docChanged: boolean;
+  isUserEvent: (event: string) => boolean;
+}) =>
+  transaction.isUserEvent('select') ||
+  (transaction.docChanged &&
+    (transaction.isUserEvent('input') ||
+      transaction.isUserEvent('delete') ||
+      transaction.isUserEvent('move.drop')));
+
 const createEditorWrapper = (options: {
   parent: HTMLElement;
   initialValue: string;
@@ -733,6 +744,7 @@ const createEditorWrapper = (options: {
   emmet?: EmmetKnownSyntax;
   htmlIntellisense?: boolean;
   onPaste?: (text: string) => boolean;
+  onBeforeUserInteraction?: () => void;
   readOnly?: boolean;
   wordWrap?: WordWrapMode;
 }): EditorWrapper => {
@@ -758,6 +770,22 @@ const createEditorWrapper = (options: {
       effects: DECORATION_EFFECT.of(Array.from(activeDecorations.values())),
     });
   };
+
+  const clearDecorationsOnUserInteraction = EditorState.transactionExtender.of((transaction) => {
+    if (!activeDecorations.size || !isUserInteractionTransaction(transaction)) {
+      return null;
+    }
+
+    activeDecorations.clear();
+    options.onBeforeUserInteraction?.();
+
+    return {
+      effects: [
+        DECORATION_EFFECT.of([]),
+        SCROLL_RULER_MARKERS_EFFECT.of([]),
+      ],
+    };
+  });
 
   const setScrollRulerMarkerSpecs = (markers: EditorScrollRulerMarker[]) => {
     const specs = markers.map((marker) => {
@@ -816,6 +844,7 @@ const createEditorWrapper = (options: {
     actionKeymapCompartment.of(keymap.of(actionKeymaps)),
     options.language,
     decorationField,
+    clearDecorationsOnUserInteraction,
     updateListener,
   ];
 
@@ -1047,6 +1076,7 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
     emmet: EmmetKnownSyntax.html,
     htmlIntellisense: true,
     onPaste: options.onHtmlPaste,
+    onBeforeUserInteraction: options.onBeforeHtmlUserInteraction,
     wordWrap: options.htmlWordWrap,
   });
 

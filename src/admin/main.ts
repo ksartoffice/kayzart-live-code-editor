@@ -922,6 +922,12 @@ async function main() {
     cssContainer: ui.cssEditorDiv,
     jsContainer: ui.jsEditorDiv,
     onHtmlPaste: handleFullHtmlPaste,
+    onBeforeHtmlUserInteraction: () => {
+      if (selectedLcId) {
+        selectedLcId = null;
+        notifySelection();
+      }
+    },
   });
 
   ({ codemirror, htmlModel, customHeadModel, cssModel, jsModel, htmlEditor, customHeadEditor, cssEditor, jsEditor } = codeMirrorSetup);

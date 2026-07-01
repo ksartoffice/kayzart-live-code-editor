@@ -49,8 +49,11 @@
   let appliedBodyAttrNames = [];
   let scrollRestoreToken = 0;
   let applyingScrollRestoreToken = 0;
+  let scrollSaveTimer = 0;
+  let initialSavedScrollRestorePending = true;
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
+  const scrollStorageKey = postId ? 'kayzart:preview-scroll:' + String(postId) : '';
   const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
   let domSelectorEnabled =
     config.liveHighlightEnabled === undefined ? true : Boolean(config.liveHighlightEnabled);
@@ -1370,6 +1373,84 @@
     };
   }
 
+  function normalizeSavedScrollPosition(value) {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    const x = Number(value.x);
+    const y = Number(value.y);
+    const anchor = value.anchor && typeof value.anchor === 'object' ? value.anchor : null;
+    return {
+      x: Number.isFinite(x) ? x : 0,
+      y: Number.isFinite(y) ? y : 0,
+      anchor:
+        anchor && typeof anchor.lcId === 'string'
+          ? {
+              lcId: anchor.lcId,
+              top: Number.isFinite(Number(anchor.top)) ? Number(anchor.top) : 0,
+              left: Number.isFinite(Number(anchor.left)) ? Number(anchor.left) : 0,
+            }
+          : null,
+    };
+  }
+
+  function readSavedScrollPosition() {
+    if (!scrollStorageKey) {
+      return null;
+    }
+    try {
+      if (!window.sessionStorage) {
+        return null;
+      }
+      return normalizeSavedScrollPosition(
+        JSON.parse(window.sessionStorage.getItem(scrollStorageKey) || 'null')
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveScrollPosition() {
+    if (!scrollStorageKey) {
+      return;
+    }
+    try {
+      if (!window.sessionStorage) {
+        return;
+      }
+      window.sessionStorage.setItem(
+        scrollStorageKey,
+        JSON.stringify(captureScrollPosition())
+      );
+    } catch (e) {
+      // Ignore storage errors and keep the preview usable.
+    }
+  }
+
+  function queueScrollPositionSave() {
+    if (initialSavedScrollRestorePending) {
+      return;
+    }
+    if (scrollSaveTimer) {
+      window.clearTimeout(scrollSaveTimer);
+    }
+    scrollSaveTimer = window.setTimeout(() => {
+      scrollSaveTimer = 0;
+      saveScrollPosition();
+    }, 120);
+  }
+
+  function restoreSavedScrollPositionOnce() {
+    if (!initialSavedScrollRestorePending) {
+      return;
+    }
+    initialSavedScrollRestorePending = false;
+    const saved = readSavedScrollPosition();
+    if (saved) {
+      restoreScrollPosition(saved);
+    }
+  }
+
   function findCurrentScrollAnchor(anchor) {
     if (!anchor || !anchor.lcId) {
       return null;
@@ -1544,6 +1625,7 @@
       styleEl.textContent = css || '';
     }
     restoreScrollPosition(scrollPosition);
+    restoreSavedScrollPositionOnce();
     const currentHtmlScriptsReady = htmlScriptsReady;
     currentHtmlScriptsReady.then(() => {
       if (currentHtmlScriptsReady === htmlScriptsReady) {
@@ -1584,6 +1666,10 @@
     if (event.origin !== allowedOrigin) return;
     if (event.source !== window.parent) return;
     const data = event.data || {};
+    if (data.type === 'KAYZART_SAVE_SCROLL') {
+      saveScrollPosition();
+      return;
+    }
     if (data.type === 'KAYZART_INIT') {
       isReady = true;
       reply('KAYZART_READY', { post_id: postId });
@@ -1627,8 +1713,15 @@
     }
   });
 
-  window.addEventListener('beforeunload', stopJsRuntime);
-  window.addEventListener('pagehide', stopJsRuntime);
+  window.addEventListener('scroll', queueScrollPositionSave, { passive: true });
+  window.addEventListener('beforeunload', () => {
+    saveScrollPosition();
+    stopJsRuntime();
+  });
+  window.addEventListener('pagehide', () => {
+    saveScrollPosition();
+    stopJsRuntime();
+  });
   attachDomSelector();
 })();
 

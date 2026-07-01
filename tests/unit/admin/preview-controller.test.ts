@@ -361,11 +361,16 @@ describe('preview shortcode handling', () => {
 
     controller.handleIframeLoad();
     await flushAsync();
+    postMessage.mockClear();
     controller.requestReloadPreview();
 
     const html = await objectUrls.getLastBlob()?.text();
     expect(html).toContain('<base href="https://example.com/">');
     expect(html).toContain('<meta name="draft" content="head">');
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'KAYZART_SAVE_SCROLL' },
+      'https://example.com'
+    );
     expect(iframe.setSrc).toHaveBeenCalledWith('blob:preview');
     vi.unstubAllGlobals();
   });

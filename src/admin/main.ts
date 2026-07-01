@@ -378,7 +378,7 @@ async function main() {
     const nextResolved =
       nextTemplateMode === 'default' ? nextDefaultTemplateMode : nextTemplateMode;
     if ((refreshPreview || nextResolved !== currentResolved) && basePreviewUrl) {
-      ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+      reloadPreviewPreservingScroll();
     }
   };
 
@@ -646,6 +646,13 @@ async function main() {
       return url.slice(0, hashIndex) + suffix + url.slice(hashIndex);
     }
   };
+  const reloadPreviewPreservingScroll = () => {
+    if (!basePreviewUrl) {
+      return;
+    }
+    preview?.saveScrollPosition();
+    ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+  };
   const targetOrigin = new URL(getPreviewUrl()).origin;
   let pendingIframeLoad = false;
 
@@ -677,9 +684,7 @@ async function main() {
     },
     applySettingsToSidebar: (settings) => settingsApi?.applySettings(settings),
     refreshPreview: () => {
-      if (basePreviewUrl) {
-        ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
-      }
+      reloadPreviewPreservingScroll();
     },
     createSnackbar,
     noticeIds: {
@@ -763,9 +768,7 @@ async function main() {
           window.dispatchEvent(
             new CustomEvent('kayzart-title-updated', { detail: { title: postTitle, slug: postSlug } })
           );
-          if (basePreviewUrl) {
-            ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
-          }
+          reloadPreviewPreservingScroll();
           return { ok: true };
         } catch (error: any) {
           return {
@@ -1768,7 +1771,7 @@ async function main() {
       templateMode = resolveTemplateMode(nextTemplateMode);
       const nextResolved = getResolvedTemplateMode();
       if (nextResolved !== currentResolved && basePreviewUrl) {
-        ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+        reloadPreviewPreservingScroll();
       }
     },
     onLiveHighlightToggle: setLiveHighlightEnabled,

@@ -28,6 +28,7 @@ export type PreviewController = {
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
   requestReloadPreview: () => void;
+  saveScrollPosition: () => void;
   requestDisableJs: () => void;
   queueInitialJsRun: () => void;
   flushPendingJsAction: () => void;
@@ -315,6 +316,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     targetWindow.postMessage(payload, deps.targetOrigin);
   };
 
+  const saveScrollPosition = () => {
+    postToPreview({ type: 'KAYZART_SAVE_SCROLL' });
+  };
+
   const sendInit = () => {
     postToPreview({
       type: 'KAYZART_INIT',
@@ -384,6 +389,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     const currentCustomHead =
       typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '';
     renderedCustomHead = currentCustomHead;
+    saveScrollPosition();
     pendingRender = true;
     pendingReloadAppliedNotice = true;
     if (deps.getJsEnabled() && deps.jsModel?.getValue().trim()) {
@@ -653,6 +659,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     sendLiveHighlightUpdate,
     sendElementsTabState,
     requestReloadPreview,
+    saveScrollPosition,
     requestDisableJs,
     queueInitialJsRun,
     flushPendingJsAction,

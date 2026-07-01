@@ -165,3 +165,17 @@ export function buildMediaHtml(
   const href = escapeHtmlAttribute(linkUrl);
   return `<a href="${href}">${escapeHtmlText(label)}</a>`;
 }
+
+export function buildMediaUrl(
+  attachment: Record<string, unknown>,
+  display?: Record<string, unknown>,
+  propsResolver?: MediaPropsResolver
+): string {
+  const mediaProps = resolveMediaProps(attachment, display, propsResolver);
+  const mediaKind = resolveMediaKind(attachment);
+  const mediaUrl =
+    mediaKind === 'image'
+      ? resolveImageUrl(attachment, mediaProps)
+      : readMediaString(attachment.url);
+  return mediaUrl ? escapeHtmlAttribute(mediaUrl) : '';
+}

@@ -152,7 +152,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertStringContainsString( esc_html__( 'Edit landing page', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
 	}
 
-	public function test_row_action_ignores_unmarked_pages(): void {
+	public function test_row_action_offers_conversion_for_unmarked_pages(): void {
 		$user_id = (int) self::factory()->user->create(
 			array(
 				'role' => 'administrator',
@@ -171,6 +171,29 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$actions = Post_Type::add_kayzart_row_action( array(), $page );
 
 		$this->assertArrayNotHasKey( 'kayzart_edit', $actions );
+		$this->assertArrayHasKey( 'kayzart_convert', $actions );
+		$this->assertStringContainsString( esc_html__( 'Convert to landing page', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
+		$this->assertStringContainsString( 'action=' . \KayzArt\Admin::CONVERT_POST_ACTION, $actions['kayzart_convert'] );
+	}
+
+	public function test_row_action_ignores_unmarked_pages_without_edit_permission(): void {
+		$author_id     = (int) self::factory()->user->create( array( 'role' => 'author' ) );
+		$subscriber_id = (int) self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $subscriber_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $author_id,
+			)
+		);
+		$page    = get_post( $page_id );
+		$this->assertInstanceOf( WP_Post::class, $page );
+
+		$actions = Post_Type::add_kayzart_row_action( array(), $page );
+
+		$this->assertArrayNotHasKey( 'kayzart_edit', $actions );
+		$this->assertArrayNotHasKey( 'kayzart_convert', $actions );
 	}
 }
 

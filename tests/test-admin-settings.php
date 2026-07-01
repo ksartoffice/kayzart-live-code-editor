@@ -294,6 +294,19 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
+	public function test_render_enabled_post_types_field_mentions_convert_action_for_existing_posts(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		ob_start();
+		Admin::render_enabled_post_types_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'Convert to landing page', $output );
+		$this->assertStringContainsString( 'Add landing page', $output );
+		$this->assertStringNotContainsString( 'opened in the Kayzart editor', $output );
+	}
+
 	public function test_handle_post_slug_update_sets_flush_flag_only_when_value_changes(): void {
 		update_option( Admin::OPTION_FLUSH_REWRITE, '0' );
 
@@ -379,6 +392,40 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$payload = json_decode( $matches[1], true );
 		$this->assertIsArray( $payload );
 		$this->assertArrayNotHasKey( 'legacyVsPath', $payload );
+	}
+
+	public function test_enqueue_assets_inline_config_includes_document_html_attributes(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+
+		$_GET = $original_get;
+
+		$registered = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART = (.+);/', $inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$this->assertNotEmpty( $matches[1] ?? '' );
+
+		$payload = json_decode( $matches[1], true );
+		$this->assertIsArray( $payload );
+		$this->assertArrayHasKey( 'documentHtmlAttributes', $payload );
+		$this->assertIsString( $payload['documentHtmlAttributes'] );
+		$this->assertStringContainsString( 'lang=', $payload['documentHtmlAttributes'] );
 	}
 
 	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {

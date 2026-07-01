@@ -158,10 +158,12 @@ export type CodeMirrorType = {
   KeyMod: {
     CtrlCmd: number;
     Alt: number;
+    Shift: number;
   };
   KeyCode: {
     KeyS: number;
     KeyZ: number;
+    KeyF: number;
   };
 };
 
@@ -191,6 +193,7 @@ type CodeMirrorInitOptions = {
   cssContainer: HTMLElement;
   jsContainer: HTMLElement;
   onHtmlPaste?: (text: string) => boolean;
+  onBeforeHtmlUserInteraction?: () => void;
 };
 
 type DecorationSpec = {
@@ -610,8 +613,10 @@ const baseEditorSetup: Extension = [
 
 const KEY_MOD_CTRL_CMD = 1 << 11;
 const KEY_MOD_ALT = 1 << 9;
+const KEY_MOD_SHIFT = 1 << 10;
 const KEY_CODE_S = 1;
 const KEY_CODE_Z = 2;
+const KEY_CODE_F = 3;
 
 const lineWrappingExtension = (mode: WordWrapMode): Extension =>
   mode === 'on' ? EditorView.lineWrapping : [];
@@ -664,12 +669,20 @@ const offsetsToRange = (state: EditorState, from: number, to: number): EditorRan
   return new EditorRange(start.lineNumber, start.column, end.lineNumber, end.column);
 };
 
-const decodeKeybinding = (binding: number): string | null => {
+export const decodeKeybinding = (binding: number): string | null => {
   const hasCtrlCmd = (binding & KEY_MOD_CTRL_CMD) !== 0;
   const hasAlt = (binding & KEY_MOD_ALT) !== 0;
+  const hasShift = (binding & KEY_MOD_SHIFT) !== 0;
   const code = binding & 0xff;
 
-  const key = code === KEY_CODE_S ? 's' : code === KEY_CODE_Z ? 'z' : null;
+  const key =
+    code === KEY_CODE_S
+      ? 's'
+      : code === KEY_CODE_Z
+        ? 'z'
+        : code === KEY_CODE_F
+          ? 'f'
+          : null;
   if (!key) {
     return null;
   }
@@ -677,6 +690,9 @@ const decodeKeybinding = (binding: number): string | null => {
   const segments: string[] = [];
   if (hasCtrlCmd) {
     segments.push('Mod');
+  }
+  if (hasShift) {
+    segments.push('Shift');
   }
   if (hasAlt) {
     segments.push('Alt');
@@ -711,6 +727,16 @@ const htmlIntellisenseExtensions = (): Extension[] => [
   }),
 ];
 
+const isUserInteractionTransaction = (transaction: {
+  docChanged: boolean;
+  isUserEvent: (event: string) => boolean;
+}) =>
+  transaction.isUserEvent('select') ||
+  (transaction.docChanged &&
+    (transaction.isUserEvent('input') ||
+      transaction.isUserEvent('delete') ||
+      transaction.isUserEvent('move.drop')));
+
 const createEditorWrapper = (options: {
   parent: HTMLElement;
   initialValue: string;
@@ -718,6 +744,7 @@ const createEditorWrapper = (options: {
   emmet?: EmmetKnownSyntax;
   htmlIntellisense?: boolean;
   onPaste?: (text: string) => boolean;
+  onBeforeUserInteraction?: () => void;
   readOnly?: boolean;
   wordWrap?: WordWrapMode;
 }): EditorWrapper => {
@@ -743,6 +770,22 @@ const createEditorWrapper = (options: {
       effects: DECORATION_EFFECT.of(Array.from(activeDecorations.values())),
     });
   };
+
+  const clearDecorationsOnUserInteraction = EditorState.transactionExtender.of((transaction) => {
+    if (!activeDecorations.size || !isUserInteractionTransaction(transaction)) {
+      return null;
+    }
+
+    activeDecorations.clear();
+    options.onBeforeUserInteraction?.();
+
+    return {
+      effects: [
+        DECORATION_EFFECT.of([]),
+        SCROLL_RULER_MARKERS_EFFECT.of([]),
+      ],
+    };
+  });
 
   const setScrollRulerMarkerSpecs = (markers: EditorScrollRulerMarker[]) => {
     const specs = markers.map((marker) => {
@@ -801,6 +844,7 @@ const createEditorWrapper = (options: {
     actionKeymapCompartment.of(keymap.of(actionKeymaps)),
     options.language,
     decorationField,
+    clearDecorationsOnUserInteraction,
     updateListener,
   ];
 
@@ -1032,6 +1076,7 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
     emmet: EmmetKnownSyntax.html,
     htmlIntellisense: true,
     onPaste: options.onHtmlPaste,
+    onBeforeUserInteraction: options.onBeforeHtmlUserInteraction,
     wordWrap: options.htmlWordWrap,
   });
 
@@ -1064,10 +1109,12 @@ export async function initCodeMirrorEditors(options: CodeMirrorInitOptions): Pro
       KeyMod: {
         CtrlCmd: KEY_MOD_CTRL_CMD,
         Alt: KEY_MOD_ALT,
+        Shift: KEY_MOD_SHIFT,
       },
       KeyCode: {
         KeyS: KEY_CODE_S,
         KeyZ: KEY_CODE_Z,
+        KeyF: KEY_CODE_F,
       },
     },
     htmlModel: htmlWrapper.model,

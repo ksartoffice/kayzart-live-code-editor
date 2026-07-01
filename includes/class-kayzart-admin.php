@@ -23,6 +23,8 @@ class Admin {
 	const NEW_POST_NONCE_ACTION        = 'kayzart_new_post';
 	const NEW_PAGE_ACTION              = 'kayzart_new_page';
 	const NEW_PAGE_NONCE_ACTION        = 'kayzart_new_page';
+	const CONVERT_POST_ACTION          = 'kayzart_convert';
+	const CONVERT_POST_NONCE_ACTION    = 'kayzart_convert_post';
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
 	const EDITOR_PAGE_NONCE_ACTION     = 'kayzart_editor_page';
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
@@ -47,6 +49,7 @@ class Admin {
 		add_action( 'admin_action_kayzart', array( __CLASS__, 'action_redirect' ) ); // admin.php?action=kayzart.
 		add_action( 'admin_action_' . self::NEW_POST_ACTION, array( __CLASS__, 'action_create_new_post' ) );
 		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
+		add_action( 'admin_action_' . self::CONVERT_POST_ACTION, array( __CLASS__, 'action_convert_existing_post' ) );
 		add_action( 'update_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_update' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_add' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrite_rules' ), 20 );
@@ -265,6 +268,35 @@ class Admin {
 	}
 
 	/**
+	 * Convert an existing post into a KayzArt-managed landing page.
+	 */
+	public static function action_convert_existing_post(): void {
+		self::verify_action_nonce( self::CONVERT_POST_NONCE_ACTION );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		if ( ! $post_id ) {
+			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
+		}
+
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
+			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+
+		if ( ! Post_Type::is_kayzart_enabled_post( $post_id ) ) {
+			Post_Type::enable_for_post( $post_id );
+			update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		}
+
+		wp_safe_redirect( Post_Type::get_editor_url( $post_id ) );
+		exit;
+	}
+
+	/**
 	 * Verify an admin action nonce.
 	 *
 	 * @param string $nonce_action Nonce action.
@@ -323,6 +355,24 @@ class Admin {
 			),
 			admin_url( 'admin.php' )
 		);
+	}
+
+	/**
+	 * Build nonce-protected admin action URL for converting an existing post.
+	 *
+	 * @param int $post_id Optional post ID.
+	 * @return string
+	 */
+	public static function get_convert_post_action_url( int $post_id = 0 ): string {
+		$args = array(
+			'action'   => self::CONVERT_POST_ACTION,
+			'_wpnonce' => wp_create_nonce( self::CONVERT_POST_NONCE_ACTION ),
+		);
+		if ( $post_id > 0 ) {
+			$args['post_id'] = $post_id;
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
 	}
 
 	/**
@@ -698,7 +748,7 @@ class Admin {
 			echo '</label>';
 		}
 
-		echo '<p class="description">' . esc_html__( 'Existing posts are not converted until they are opened in the Kayzart editor or created with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Existing posts are converted only when you choose Convert to landing page or create one with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -900,27 +950,28 @@ class Admin {
 			: $preview_url;
 
 		$data = array(
-			'post_id'              => $post_id,
-			'initialHtml'          => $html,
-			'initialCustomHead'    => $custom_head,
-			'initialCss'           => $css,
-			'initialJs'            => $js,
-			'initialJsMode'        => $js_mode,
-			'canEditJs'            => current_user_can( 'unfiltered_html' ),
-			'previewUrl'           => $preview_url,
-			'iframePreviewUrl'     => $iframe_preview_url,
-			'restUrl'              => rest_url( 'kayzart/v1/save' ),
-			'restCompileUrl'       => rest_url( 'kayzart/v1/compile-tailwind' ),
-			'setupRestUrl'         => rest_url( 'kayzart/v1/setup' ),
-			'backUrl'              => $back_url,
-			'listUrl'              => $list_url,
-			'listLabel'            => $list_label,
-			'settingsRestUrl'      => rest_url( 'kayzart/v1/settings' ),
-			'settingsData'         => Rest::build_settings_payload( $post_id ),
-			'tailwindEnabled'      => (bool) get_post_meta( $post_id, '_kayzart_tailwind', true ),
-			'setupRequired'        => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
-			'restNonce'            => wp_create_nonce( 'wp_rest' ),
-			'adminTitleSeparators' => array_values( self::ADMIN_TITLE_SEPARATORS ),
+			'post_id'                => $post_id,
+			'initialHtml'            => $html,
+			'initialCustomHead'      => $custom_head,
+			'initialCss'             => $css,
+			'initialJs'              => $js,
+			'initialJsMode'          => $js_mode,
+			'canEditJs'              => current_user_can( 'unfiltered_html' ),
+			'documentHtmlAttributes' => get_language_attributes(),
+			'previewUrl'             => $preview_url,
+			'iframePreviewUrl'       => $iframe_preview_url,
+			'restUrl'                => rest_url( 'kayzart/v1/save' ),
+			'restCompileUrl'         => rest_url( 'kayzart/v1/compile-tailwind' ),
+			'setupRestUrl'           => rest_url( 'kayzart/v1/setup' ),
+			'backUrl'                => $back_url,
+			'listUrl'                => $list_url,
+			'listLabel'              => $list_label,
+			'settingsRestUrl'        => rest_url( 'kayzart/v1/settings' ),
+			'settingsData'           => Rest::build_settings_payload( $post_id ),
+			'tailwindEnabled'        => (bool) get_post_meta( $post_id, '_kayzart_tailwind', true ),
+			'setupRequired'          => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
+			'restNonce'              => wp_create_nonce( 'wp_rest' ),
+			'adminTitleSeparators'   => array_values( self::ADMIN_TITLE_SEPARATORS ),
 		);
 		$json = wp_json_encode( $data );
 		if ( false === $json ) {

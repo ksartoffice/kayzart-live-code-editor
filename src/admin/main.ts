@@ -5,7 +5,7 @@ import {
   type SettingsApi,
   type SettingsData,
 } from './settings';
-import { mountToolbar, type ToolbarApi } from './toolbar';
+import { mountToolbar, type ToolbarApi, type ViewportMode } from './toolbar';
 import { buildEditorShell } from './editor-shell';
 import {
   initCodeMirrorEditors,
@@ -18,10 +18,12 @@ import {
   getEditableElementAttributes,
   getEditableElementText,
   getElementContext,
+  getImageSourceEditInfo,
 } from './element-text';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
-import { buildMediaHtml } from './logic/media-html';
+import { buildMediaHtml, buildMediaUrl } from './logic/media-html';
+import { resolveQuotedValueReplacementRange, type TextRange } from './logic/media-insertion';
 import { buildStatusUpdates } from './logic/status-updates';
 import {
   buildImportedHtml,
@@ -30,6 +32,11 @@ import {
   type FullHtmlImportResult,
 } from './logic/full-html-import';
 import { buildFullHtmlExport } from './logic/full-html-export';
+import {
+  formatCssCode,
+  formatHtmlCode,
+  formatJavaScriptCode,
+} from './logic/format-code';
 import { createSaveCopyController } from './controllers/save-copy-controller';
 import { runSetupWizard } from './setup-wizard';
 import { createModalController } from './controllers/modal-controller';
@@ -41,7 +48,7 @@ import {
   NOTICE_IDS,
   NOTICE_SUCCESS_DURATION_MS,
 } from './ui/notices';
-import { debounce } from './utils/debounce';
+import { createPreviewRenderScheduler, debounce, type PreviewRenderScheduler } from './utils/debounce';
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
@@ -163,6 +170,14 @@ async function main() {
 
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
+  let preview: PreviewController | null = null;
+  const restoreCapturedPreviewScroll = () => {
+    preview?.restoreCapturedScrollPosition();
+    window.requestAnimationFrame(() => preview?.restoreCapturedScrollPosition());
+    [80, 220, 420, 700, 1000].forEach((delay) => {
+      window.setTimeout(() => preview?.restoreCapturedScrollPosition(), delay);
+    });
+  };
   const initialSettingsPanelWidth = readSettingsPanelWidth();
   const viewportController = createViewportController({
     ui,
@@ -183,6 +198,9 @@ async function main() {
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),
+    onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
+    onPreviewResizeChange: restoreCapturedPreviewScroll,
+    onPreviewResizeEnd: restoreCapturedPreviewScroll,
   });
   // REST nonce middleware
   if (wp?.apiFetch?.createNonceMiddleware) {
@@ -233,6 +251,7 @@ async function main() {
   let pendingSettingsUpdates: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
   let hasSettingsValidationErrors = false;
+  let importFullHtmlHandler = () => {};
   let hasPendingPreviewReloadChanges = false;
   let viewPostUrl = initialState.settingsData?.viewUrl || '';
   let postStatus = initialState.settingsData?.status || 'draft';
@@ -243,11 +262,11 @@ async function main() {
   const syncDocumentTitle = createDocumentTitleSync(document.title, cfg.adminTitleSeparators);
   syncDocumentTitle(postTitle);
 
-  let preview: PreviewController | null = null;
   let settingsApi: SettingsApi | null = null;
   let modalController: ReturnType<typeof createModalController> | null = null;
   let tailwindCompiler: TailwindCompiler | null = null;
-  let sendRenderDebounced: (() => void) | null = null;
+  let previewRenderScheduler: PreviewRenderScheduler | null = null;
+  let sendCssUpdateDebounced: (() => void) | null = null;
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let extensionEditorLock = false;
@@ -369,7 +388,7 @@ async function main() {
     const nextResolved =
       nextTemplateMode === 'default' ? nextDefaultTemplateMode : nextTemplateMode;
     if ((refreshPreview || nextResolved !== currentResolved) && basePreviewUrl) {
-      ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+      reloadPreviewPreservingScroll();
     }
   };
 
@@ -457,6 +476,126 @@ async function main() {
     });
   };
 
+  const replaceModelForFormatting = (
+    editorInstance: CodeEditorInstance,
+    model: EditorModel,
+    nextText: string
+  ) => {
+    const current = model.getValue();
+    if (current === nextText) {
+      return false;
+    }
+    const end = model.getPositionAt(current.length);
+    editorInstance.pushUndoStop();
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new codemirror.Range(1, 1, end.lineNumber, end.column),
+          text: nextText,
+        },
+      ],
+      () => null
+    );
+    editorInstance.pushUndoStop();
+    return true;
+  };
+
+  const formatEditorContent = (
+    editorInstance: CodeEditorInstance,
+    model: EditorModel,
+    formatCode: (source: string) => string,
+    successMessage: string,
+    errorMessage: string
+  ) => {
+    try {
+      const formatted = formatCode(model.getValue());
+      const changed = replaceModelForFormatting(editorInstance, model, formatted);
+      if (changed) {
+        createSnackbar(
+          'success',
+          successMessage,
+          undefined,
+          NOTICE_SUCCESS_DURATION_MS
+        );
+      }
+    } catch (error) {
+      createSnackbar(
+        'error',
+        errorMessage,
+        undefined,
+        NOTICE_ERROR_DURATION_MS
+      );
+    }
+  };
+
+  const formatHtmlEditorContent = (
+    editorInstance: CodeEditorInstance,
+    model: EditorModel
+  ) => {
+    formatEditorContent(
+      editorInstance,
+      model,
+      formatHtmlCode,
+      __( 'Formatted HTML.', 'kayzart-live-code-editor'),
+      __( 'Could not format HTML.', 'kayzart-live-code-editor')
+    );
+  };
+
+  const formatCssEditorContent = () => {
+    formatEditorContent(
+      cssEditor,
+      cssModel,
+      formatCssCode,
+      __( 'Formatted CSS.', 'kayzart-live-code-editor'),
+      __( 'Could not format CSS.', 'kayzart-live-code-editor')
+    );
+  };
+
+  const formatJavaScriptEditorContent = () => {
+    formatEditorContent(
+      jsEditor,
+      jsModel,
+      formatJavaScriptCode,
+      __( 'Formatted JavaScript.', 'kayzart-live-code-editor'),
+      __( 'Could not format JavaScript.', 'kayzart-live-code-editor')
+    );
+  };
+
+  const formatActiveCodeContent = () => {
+    const activeEditor = editorUiController?.getActiveEditor();
+    if (activeEditor === cssEditor) {
+      formatCssEditorContent();
+      return;
+    }
+    if (activeEditor === jsEditor) {
+      formatJavaScriptEditorContent();
+      return;
+    }
+    const activeHtmlTab = editorUiController?.getActiveHtmlTab() ?? 'html';
+    if (activeHtmlTab === 'customHead') {
+      formatHtmlEditorContent(customHeadEditor, customHeadModel);
+      return;
+    }
+    formatHtmlEditorContent(htmlEditor, htmlModel);
+  };
+
+  const registerFormatAction = (
+    editorInstance: CodeEditorInstance,
+    actionId: string,
+    label: string,
+    run: () => void
+  ) => {
+    editorInstance.addAction({
+      id: actionId,
+      label,
+      keybindings: [
+        codemirror.KeyMod.Shift | codemirror.KeyMod.Alt | codemirror.KeyCode.KeyF,
+      ],
+      run,
+    });
+  };
+
   const getHtmlWordWrapToggleLabel = (mode: HtmlWordWrapMode) =>
     mode === 'on'
       ? __( 'Wrap: On', 'kayzart-live-code-editor')
@@ -517,6 +656,20 @@ async function main() {
       return url.slice(0, hashIndex) + suffix + url.slice(hashIndex);
     }
   };
+  const reloadPreviewPreservingScroll = () => {
+    if (!basePreviewUrl) {
+      return;
+    }
+    preview?.saveScrollPosition();
+    ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+  };
+  const changeViewportPreservingScroll = (mode: ViewportMode) => {
+    preview?.captureScrollSnapshot();
+    window.setTimeout(() => {
+      viewportController.setViewportMode(mode);
+      restoreCapturedPreviewScroll();
+    }, 32);
+  };
   const targetOrigin = new URL(getPreviewUrl()).origin;
   let pendingIframeLoad = false;
 
@@ -548,9 +701,7 @@ async function main() {
     },
     applySettingsToSidebar: (settings) => settingsApi?.applySettings(settings),
     refreshPreview: () => {
-      if (basePreviewUrl) {
-        ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
-      }
+      reloadPreviewPreservingScroll();
     },
     createSnackbar,
     noticeIds: {
@@ -587,6 +738,9 @@ async function main() {
         requestPreviewReload();
       },
       onSave: handleSave,
+      onImportFullHtml: () => {
+        importFullHtmlHandler();
+      },
       onCopyFullHtml: async () => {
         await handleCopyFullHtmlExport();
       },
@@ -594,7 +748,7 @@ async function main() {
         return handleDownloadFullHtmlExport();
       },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
-      onViewportChange: (mode) => viewportController.setViewportMode(mode),
+      onViewportChange: changeViewportPreservingScroll,
       onUpdatePostIdentity: async ({ title, slug }) => {
         if (!cfg.settingsRestUrl || !wp?.apiFetch) {
           return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };
@@ -631,9 +785,7 @@ async function main() {
           window.dispatchEvent(
             new CustomEvent('kayzart-title-updated', { detail: { title: postTitle, slug: postSlug } })
           );
-          if (basePreviewUrl) {
-            ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
-          }
+          reloadPreviewPreservingScroll();
           return { ok: true };
         } catch (error: any) {
           return {
@@ -790,17 +942,46 @@ async function main() {
     cssContainer: ui.cssEditorDiv,
     jsContainer: ui.jsEditorDiv,
     onHtmlPaste: handleFullHtmlPaste,
+    onBeforeHtmlUserInteraction: () => {
+      if (selectedLcId) {
+        selectedLcId = null;
+        notifySelection();
+      }
+    },
   });
 
   ({ codemirror, htmlModel, customHeadModel, cssModel, jsModel, htmlEditor, customHeadEditor, cssEditor, jsEditor } = codeMirrorSetup);
 
-  ui.fullHtmlImportButton.addEventListener('click', openFullHtmlImport);
-  ui.compactFullHtmlImportButton.addEventListener('click', openFullHtmlImport);
+  importFullHtmlHandler = openFullHtmlImport;
   registerSaveShortcut(htmlEditor);
   registerSaveShortcut(customHeadEditor);
   registerSaveShortcut(cssEditor);
   registerSaveShortcut(jsEditor);
   registerHtmlWordWrapAction(htmlEditor);
+  registerFormatAction(
+    htmlEditor,
+    'kayzart.formatHtml',
+    __( 'Format HTML', 'kayzart-live-code-editor'),
+    () => formatHtmlEditorContent(htmlEditor, htmlModel)
+  );
+  registerFormatAction(
+    customHeadEditor,
+    'kayzart.formatHtml',
+    __( 'Format HTML', 'kayzart-live-code-editor'),
+    () => formatHtmlEditorContent(customHeadEditor, customHeadModel)
+  );
+  registerFormatAction(
+    cssEditor,
+    'kayzart.formatCss',
+    __( 'Format CSS', 'kayzart-live-code-editor'),
+    formatCssEditorContent
+  );
+  registerFormatAction(
+    jsEditor,
+    'kayzart.formatJavaScript',
+    __( 'Format JavaScript', 'kayzart-live-code-editor'),
+    formatJavaScriptEditorContent
+  );
 
   removeNotice(NOTICE_IDS.editor);
   markSavedState();
@@ -904,6 +1085,7 @@ async function main() {
 
     return buildFullHtmlExport({
       html: htmlModel.getValue(),
+      documentHtmlAttributes: cfg.documentHtmlAttributes,
       customHead: customHeadModel.getValue(),
       css: exportCss,
       cssMode,
@@ -1032,17 +1214,120 @@ async function main() {
     );
   };
 
-  function insertHtmlAtSelection(text: string) {
+  const openReplaceImageMediaModal = (lcId: string) => {
+    if (typeof wp?.media !== 'function') {
+      createSnackbar(
+        'error',
+        __( 'Media library is unavailable.', 'kayzart-live-code-editor'),
+        NOTICE_IDS.media,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const imageEdit = getImageSourceEditInfo(htmlModel.getValue(), lcId);
+    if (!imageEdit) {
+      createSnackbar(
+        'error',
+        __( 'Could not find the selected image source.', 'kayzart-live-code-editor'),
+        NOTICE_IDS.media,
+        NOTICE_ERROR_DURATION_MS
+      );
+      return;
+    }
+
+    const frame = wp.media({
+      frame: 'post',
+      state: 'insert',
+      title: __( 'Select replacement image.', 'kayzart-live-code-editor'),
+      button: {
+        text: __( 'Replace image', 'kayzart-live-code-editor'),
+      },
+      library: {
+        type: 'image',
+      },
+      multiple: false,
+    });
+
+    frame.on('insert', (selectionArg: any) => {
+      const state = frame.state?.();
+      const selection = selectionArg || state?.get?.('selection');
+      const selectedModel = selection?.first?.();
+      const attachment = selectedModel?.toJSON?.();
+      if (!attachment || typeof attachment !== 'object') {
+        return;
+      }
+      const display =
+        typeof state?.display === 'function'
+          ? state.display(selectedModel)?.toJSON?.()
+          : undefined;
+      const mediaDisplay =
+        display && typeof display === 'object' ? (display as Record<string, unknown>) : undefined;
+      const url = buildMediaUrl(
+        attachment as Record<string, unknown>,
+        mediaDisplay,
+        wp?.media?.string?.props
+      );
+      if (!url) {
+        createSnackbar(
+          'warning',
+          __( 'The selected media has no URL and was not inserted.', 'kayzart-live-code-editor'),
+          NOTICE_IDS.media,
+          NOTICE_ERROR_DURATION_MS
+        );
+        return;
+      }
+      const latestImageEdit = getImageSourceEditInfo(htmlModel.getValue(), lcId);
+      if (!latestImageEdit) {
+        createSnackbar(
+          'error',
+          __( 'Could not find the selected image source.', 'kayzart-live-code-editor'),
+          NOTICE_IDS.media,
+          NOTICE_ERROR_DURATION_MS
+        );
+        return;
+      }
+
+      htmlEditor.pushUndoStop();
+      applyHtmlEdit(
+        latestImageEdit.startOffset,
+        latestImageEdit.endOffset,
+        `${latestImageEdit.insertPrefix}${url}${latestImageEdit.insertSuffix}`
+      );
+      htmlEditor.pushUndoStop();
+      createSnackbar(
+        'success',
+        __( 'Image replaced.', 'kayzart-live-code-editor'),
+        NOTICE_IDS.media,
+        NOTICE_SUCCESS_DURATION_MS
+      );
+    });
+
+    frame.open();
+  };
+
+  function insertHtmlAtSelection(text: string, replacementRange?: TextRange) {
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
+    const replacementStart = replacementRange
+      ? htmlModel.getPositionAt(replacementRange.from)
+      : null;
+    const replacementEnd = replacementRange ? htmlModel.getPositionAt(replacementRange.to) : null;
     const range =
-      selection ||
-      new codemirror.Range(
-        cursor?.lineNumber || 1,
-        cursor?.column || 1,
-        cursor?.lineNumber || 1,
-        cursor?.column || 1
-      );
+      replacementStart && replacementEnd
+        ? new codemirror.Range(
+            replacementStart.lineNumber,
+            replacementStart.column,
+            replacementEnd.lineNumber,
+            replacementEnd.column
+          )
+        : selection ||
+          new codemirror.Range(
+            cursor?.lineNumber || 1,
+            cursor?.column || 1,
+            cursor?.lineNumber || 1,
+            cursor?.column || 1
+          );
     htmlEditor.pushUndoStop();
     htmlModel.pushEditOperations(
       [],
@@ -1092,11 +1377,32 @@ async function main() {
         typeof state?.display === 'function'
           ? state.display(selectedModel)?.toJSON?.()
           : undefined;
-      const html = buildMediaHtml(
-        attachment as Record<string, unknown>,
-        display && typeof display === 'object' ? (display as Record<string, unknown>) : undefined,
-        wp?.media?.string?.props
-      );
+      const mediaDisplay =
+        display && typeof display === 'object' ? (display as Record<string, unknown>) : undefined;
+      const mediaPropsResolver = wp?.media?.string?.props;
+      const currentSelection = htmlEditor.getSelection();
+      const selectedRange = currentSelection
+        ? {
+            from: htmlModel.getOffsetAt({
+              lineNumber: currentSelection.startLineNumber,
+              column: currentSelection.startColumn,
+            }),
+            to: htmlModel.getOffsetAt({
+              lineNumber: currentSelection.endLineNumber,
+              column: currentSelection.endColumn,
+            }),
+          }
+        : null;
+      const urlReplacementRange = selectedRange
+        ? resolveQuotedValueReplacementRange(htmlModel.getValue(), selectedRange)
+        : null;
+      const html = urlReplacementRange
+        ? buildMediaUrl(attachment as Record<string, unknown>, mediaDisplay, mediaPropsResolver)
+        : buildMediaHtml(
+            attachment as Record<string, unknown>,
+            mediaDisplay,
+            mediaPropsResolver
+          );
       if (!html) {
         createSnackbar(
           'warning',
@@ -1111,7 +1417,7 @@ async function main() {
       } else {
         htmlEditor.focus();
       }
-      insertHtmlAtSelection(html);
+      insertHtmlAtSelection(html, urlReplacementRange || undefined);
     });
 
     frame.open();
@@ -1216,6 +1522,7 @@ async function main() {
       syncPendingPreviewReloadNotice();
     },
     onOpenMedia: openMediaModal,
+    onFormatCode: formatActiveCodeContent,
   });
   editorUiController.initialize();
 
@@ -1244,6 +1551,7 @@ async function main() {
     isTailwindEnabled: () => tailwindEnabled,
     getResolvedTemplateMode,
     onReloadApplied: () => setPendingPreviewReloadChanges(false),
+    onRenderComplete: () => previewRenderScheduler?.markComplete(),
     onSelect: (lcId) => {
       selectedLcId = lcId;
       notifySelection();
@@ -1261,6 +1569,9 @@ async function main() {
     },
     onDeleteElement: (lcId) => {
       handleDeleteElement(lcId);
+    },
+    onReplaceImage: (lcId) => {
+      openReplaceImageMediaModal(lcId);
     },
     onOverlayAction: (actionId) => {
       window.dispatchEvent(
@@ -1296,7 +1607,8 @@ async function main() {
     onStatusClear: () => removeNotice(NOTICE_IDS.tailwind),
   });
 
-  sendRenderDebounced = debounce(() => preview?.sendRender(), 120);
+  previewRenderScheduler = createPreviewRenderScheduler(() => preview?.sendRender(), 350);
+  sendCssUpdateDebounced = debounce(() => preview?.sendCssUpdate(getPreviewCss()), 120);
   compileTailwindDebounced = debounce(() => tailwindCompiler?.compile(), 300);
 
   const setJsEnabled = (enabled: boolean) => {
@@ -1476,7 +1788,7 @@ async function main() {
       templateMode = resolveTemplateMode(nextTemplateMode);
       const nextResolved = getResolvedTemplateMode();
       if (nextResolved !== currentResolved && basePreviewUrl) {
-        ui.iframe.src = buildPreviewRefreshUrl(getPreviewUrl());
+        reloadPreviewPreservingScroll();
       }
     },
     onLiveHighlightToggle: setLiveHighlightEnabled,
@@ -1511,7 +1823,7 @@ async function main() {
   htmlModel.onDidChangeContent(() => {
     preview?.resetCanonicalCache();
     preview?.clearSelectionHighlight();
-    sendRenderDebounced?.();
+    previewRenderScheduler?.schedule();
     if (tailwindEnabled) {
       compileTailwindDebounced?.();
     }
@@ -1530,7 +1842,7 @@ async function main() {
   });
   cssModel.onDidChangeContent(() => {
     if (!tailwindEnabled) {
-      sendRenderDebounced?.();
+      sendCssUpdateDebounced?.();
     }
     if (tailwindEnabled) {
       compileTailwindDebounced?.();

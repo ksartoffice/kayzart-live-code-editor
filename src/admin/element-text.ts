@@ -36,6 +36,13 @@ export type ElementContextInfo = {
   };
 };
 
+export type ImageSourceEditInfo = {
+  startOffset: number;
+  endOffset: number;
+  insertPrefix: string;
+  insertSuffix: string;
+};
+
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
 const VOID_TAGS = new Set([
@@ -117,6 +124,53 @@ function isEditableChild(node: DefaultTreeAdapterTypes.Node) {
 function getExistingLcId(el: DefaultTreeAdapterTypes.Element): string | null {
   const attr = el.attrs.find((item) => item.name === KAYZART_ATTR_NAME);
   return attr ? attr.value : null;
+}
+
+function findAttributeValueRange(
+  html: string,
+  startTagStartOffset: number,
+  startTagEndOffset: number,
+  attrName: string
+): { startOffset: number; endOffset: number } | null {
+  const startTagText = html.slice(startTagStartOffset, startTagEndOffset);
+  const escapedAttrName = attrName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const attrPattern = new RegExp(
+    '(^|\\s)(' +
+      escapedAttrName +
+      ')(\\s*=\\s*)(?:"([^"]*)"|\'([^\']*)\'|([^\\s"\'=<>`]+))',
+    'i'
+  );
+  const match = attrPattern.exec(startTagText);
+  if (!match || typeof match.index !== 'number') {
+    return null;
+  }
+
+  const leading = match[1] ?? '';
+  const name = match[2] ?? '';
+  const assignment = match[3] ?? '';
+  const quoteOffset = match[4] !== undefined || match[5] !== undefined ? 1 : 0;
+  const value = match[4] ?? match[5] ?? match[6] ?? '';
+  const startOffset =
+    startTagStartOffset +
+    match.index +
+    leading.length +
+    name.length +
+    assignment.length +
+    quoteOffset;
+  return {
+    startOffset,
+    endOffset: startOffset + value.length,
+  };
+}
+
+function getStartTagInsertionOffset(html: string, startOffset: number, endOffset: number): number {
+  const startTagText = html.slice(startOffset, endOffset);
+  const selfClosingIndex = startTagText.search(/\/\s*>$/);
+  if (selfClosingIndex >= 0) {
+    return startOffset + selfClosingIndex;
+  }
+  const closeIndex = startTagText.lastIndexOf('>');
+  return closeIndex >= 0 ? startOffset + closeIndex : endOffset;
 }
 
 function findClosingTagOffset(html: string, tagName: string, fromOffset: number) {
@@ -273,6 +327,71 @@ export function getEditableElementAttributes(html: string, lcId: string): Elemen
             tagName: child.tagName,
             isVoid: VOID_TAGS.has(child.tagName),
             selfClosing,
+          };
+          return;
+        }
+        walk(child);
+        if (result) return;
+        if (isTemplateElement(child)) {
+          walk(child.content);
+          if (result) return;
+        }
+      } else if (isParentNode(child)) {
+        walk(child);
+        if (result) return;
+      }
+    }
+  };
+
+  walk(fragment);
+  return result;
+}
+
+export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceEditInfo | null {
+  const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+  let seq = 0;
+  let result: ImageSourceEditInfo | null = null;
+
+  const walk = (node: DefaultTreeAdapterTypes.ParentNode) => {
+    for (const child of node.childNodes || []) {
+      if (isElement(child)) {
+        const existingId = getExistingLcId(child);
+        const id = existingId ?? `kayzart-${++seq}`;
+
+        if (id === lcId) {
+          if (child.tagName.toLowerCase() !== 'img') {
+            result = null;
+            return;
+          }
+          const startTag = child.sourceCodeLocation?.startTag;
+          if (
+            !startTag ||
+            typeof startTag.startOffset !== 'number' ||
+            typeof startTag.endOffset !== 'number'
+          ) {
+            result = null;
+            return;
+          }
+          const srcRange = findAttributeValueRange(
+            html,
+            startTag.startOffset,
+            startTag.endOffset,
+            'src'
+          );
+          if (srcRange) {
+            result = { ...srcRange, insertPrefix: '', insertSuffix: '' };
+            return;
+          }
+          const insertOffset = getStartTagInsertionOffset(
+            html,
+            startTag.startOffset,
+            startTag.endOffset
+          );
+          result = {
+            startOffset: insertOffset,
+            endOffset: insertOffset,
+            insertPrefix: ' src="',
+            insertSuffix: '"',
           };
           return;
         }

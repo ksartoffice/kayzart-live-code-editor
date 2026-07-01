@@ -28,6 +28,10 @@ export type PreviewController = {
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
   requestReloadPreview: () => void;
+  saveScrollPosition: () => void;
+  restoreSavedScrollPosition: () => void;
+  captureScrollSnapshot: () => void;
+  restoreCapturedScrollPosition: () => void;
   requestDisableJs: () => void;
   queueInitialJsRun: () => void;
   flushPendingJsAction: () => void;
@@ -60,9 +64,11 @@ type PreviewControllerDeps = {
   onOpenElementsTab?: () => void;
   onCopyElementHtml?: (lcId: string) => void;
   onDeleteElement?: (lcId: string) => void;
+  onReplaceImage?: (lcId: string) => void;
   onOverlayAction?: (actionId: string) => void;
   onMissingMarkers?: () => void;
   onReloadApplied?: () => void;
+  onRenderComplete?: () => void;
 };
 
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
@@ -313,6 +319,22 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     targetWindow.postMessage(payload, deps.targetOrigin);
   };
 
+  const saveScrollPosition = () => {
+    postToPreview({ type: 'KAYZART_SAVE_SCROLL' });
+  };
+
+  const restoreSavedScrollPosition = () => {
+    postToPreview({ type: 'KAYZART_RESTORE_SAVED_SCROLL' });
+  };
+
+  const captureScrollSnapshot = () => {
+    postToPreview({ type: 'KAYZART_CAPTURE_SCROLL_SNAPSHOT' });
+  };
+
+  const restoreCapturedScrollPosition = () => {
+    postToPreview({ type: 'KAYZART_RESTORE_CAPTURED_SCROLL' });
+  };
+
   const sendInit = () => {
     postToPreview({
       type: 'KAYZART_INIT',
@@ -382,6 +404,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     const currentCustomHead =
       typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '';
     renderedCustomHead = currentCustomHead;
+    saveScrollPosition();
     pendingRender = true;
     pendingReloadAppliedNotice = true;
     if (deps.getJsEnabled() && deps.jsModel?.getValue().trim()) {
@@ -518,18 +541,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         title: `CSS match ${index + 1}`,
       }))
     );
-    const first = matched[0];
-    if (first) {
-      const startPos = deps.cssModel.getPositionAt(first.startOffset);
-      const endPos = deps.cssModel.getPositionAt(first.endOffset);
-      const range = new EditorRange(
-        startPos.lineNumber,
-        startPos.column,
-        endPos.lineNumber,
-        endPos.column
-      );
-      deps.cssEditor.revealRangeInCenter(range);
-    }
   };
 
   const highlightByLcId = (lcId: string) => {
@@ -615,6 +626,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     }
 
     if (data?.type === 'KAYZART_RENDERED') {
+      deps.onRenderComplete?.();
       if (pendingJsAction === 'run') {
         pendingJsAction = null;
         sendRunJs();
@@ -642,6 +654,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       deps.onDeleteElement?.(data.lcId);
     }
 
+    if (data?.type === 'KAYZART_REPLACE_IMAGE' && typeof data.lcId === 'string') {
+      deps.onReplaceImage?.(data.lcId);
+    }
+
     if (data?.type === 'KAYZART_OVERLAY_ACTION' && typeof data.actionId === 'string') {
       deps.onOverlayAction?.(data.actionId);
     }
@@ -658,6 +674,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     sendLiveHighlightUpdate,
     sendElementsTabState,
     requestReloadPreview,
+    saveScrollPosition,
+    restoreSavedScrollPosition,
+    captureScrollSnapshot,
+    restoreCapturedScrollPosition,
     requestDisableJs,
     queueInitialJsRun,
     flushPendingJsAction,

@@ -35,25 +35,41 @@ describe('editor shell iframe security attributes', () => {
 
     expect(ui.jsModeSelect.parentElement).toBe(ui.jsControls);
     expect(Array.from(ui.jsControls.children)).toEqual([
+      ui.cssFormatButton,
       ui.jsPendingNotice,
       ui.jsModeSelect,
     ]);
     expect(Array.from(ui.compactEditorActions.children)).toEqual([
-      ui.compactFullHtmlImportButton,
       ui.compactAddMediaButton,
+      ui.compactFormatButton,
       ui.compactJsModeSelect,
       ui.compactReloadPendingNotice,
     ]);
   });
 
-  it('places full HTML import buttons next to media buttons', () => {
+  it('keeps full HTML import out of editor actions', () => {
     const root = document.createElement('div');
     const ui = buildEditorShell(root);
 
-    expect(ui.fullHtmlImportButton.textContent).toBe('Import full HTML');
-    expect(ui.compactFullHtmlImportButton.textContent).toBe('Import full HTML');
-    expect(ui.fullHtmlImportButton.nextElementSibling).toBe(ui.addMediaButton);
-    expect(ui.compactFullHtmlImportButton.nextElementSibling).toBe(ui.compactAddMediaButton);
+    expect(ui.htmlHeader.textContent).not.toContain('Import full HTML');
+    expect(ui.compactEditorActions.textContent).not.toContain('Import full HTML');
+    expect(ui.addMediaButton.previousElementSibling).toBeNull();
+    expect(ui.compactAddMediaButton.previousElementSibling).toBeNull();
+  });
+
+  it('renders format buttons for regular and compact editor controls', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.htmlFormatButton.textContent).toBe('Format');
+    expect(ui.htmlFormatButton.previousElementSibling).toBe(ui.addMediaButton);
+    expect(ui.htmlFormatButton.nextElementSibling).toBe(ui.htmlWordWrapButton);
+    expect(ui.cssFormatButton.textContent).toBe('Format');
+    expect(ui.cssFormatButton.previousElementSibling).toBeNull();
+    expect(ui.cssFormatButton.nextElementSibling).toBe(ui.jsPendingNotice);
+    expect(ui.compactFormatButton.textContent).toContain('Format HTML');
+    expect(ui.compactFormatButton.previousElementSibling).toBe(ui.compactAddMediaButton);
+    expect(ui.compactFormatButton.nextElementSibling).toBe(ui.compactJsModeSelect);
   });
 
   it('renders custom head tabs and help text', () => {

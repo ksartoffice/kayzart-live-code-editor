@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const previewScript = readFileSync('includes/preview.js', 'utf8');
@@ -16,6 +16,61 @@ const dispatchPreviewMessage = (data: Record<string, unknown>) => {
 const flushAsync = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
+
+let activeWindowTimers = new Set<number>();
+let nativeWindowSetTimeout: typeof window.setTimeout;
+let nativeWindowClearTimeout: typeof window.clearTimeout;
+
+beforeEach(() => {
+  activeWindowTimers = new Set();
+  nativeWindowSetTimeout = window.setTimeout.bind(window);
+  nativeWindowClearTimeout = window.clearTimeout.bind(window);
+  Object.defineProperty(window, 'setTimeout', {
+    configurable: true,
+    value: ((handler: TimerHandler, timeout?: number, ...args: any[]) => {
+      const timer = nativeWindowSetTimeout(() => {
+        activeWindowTimers.delete(timer);
+        if (typeof handler === 'function') {
+          handler(...args);
+          return;
+        }
+        window.eval(String(handler));
+      }, timeout);
+      activeWindowTimers.add(timer);
+      return timer;
+    }) as typeof window.setTimeout,
+  });
+  Object.defineProperty(window, 'clearTimeout', {
+    configurable: true,
+    value: ((timer?: number) => {
+      if (typeof timer === 'number') {
+        activeWindowTimers.delete(timer);
+      }
+      nativeWindowClearTimeout(timer);
+    }) as typeof window.clearTimeout,
+  });
+  Object.defineProperty(window, 'scrollTo', {
+    configurable: true,
+    value: vi.fn(),
+  });
+});
+
+afterEach(() => {
+  activeWindowTimers.forEach((timer) => nativeWindowClearTimeout(timer));
+  activeWindowTimers.clear();
+  if (nativeWindowSetTimeout) {
+    Object.defineProperty(window, 'setTimeout', {
+      configurable: true,
+      value: nativeWindowSetTimeout,
+    });
+  }
+  if (nativeWindowClearTimeout) {
+    Object.defineProperty(window, 'clearTimeout', {
+      configurable: true,
+      value: nativeWindowClearTimeout,
+    });
+  }
+});
 
 describe('preview selector overlay', () => {
   afterEach(() => {
@@ -154,5 +209,443 @@ describe('preview selector overlay', () => {
     postMessage.mockClear();
     parentMenuItem?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it('shows replace image only for image selections and posts the selected id', async () => {
+    document.body.innerHTML = [
+      '<span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>',
+      '<span data-kayzart-marker="end" data-kayzart-post-id="1" hidden></span>',
+    ].join('');
+    (window as any).KAYZART_PREVIEW = {
+      allowedOrigin: window.location.origin,
+      post_id: 1,
+      liveHighlightEnabled: true,
+      labels: {
+        replaceImage: 'Replace image',
+      },
+      markers: {
+        attr: 'data-kayzart-marker',
+        postAttr: 'data-kayzart-post-id',
+        start: 'start',
+        end: 'end',
+      },
+    };
+    const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML:
+        '<section data-kayzart-id="section-1">Text</section><img data-kayzart-id="image-1" src="old.jpg">',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const section = document.querySelector('[data-kayzart-id="section-1"]');
+    section?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    const menuButton = document.getElementById('kayzart-select-menu-action');
+    menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const replaceImageMenuItem = document.getElementById('kayzart-select-replace-image-menu-item');
+    expect(replaceImageMenuItem).toBeTruthy();
+    expect(replaceImageMenuItem?.textContent).toBe('Replace image');
+    expect(replaceImageMenuItem?.style.display).toBe('none');
+
+    menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    const image = document.querySelector('[data-kayzart-id="image-1"]');
+    image?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(replaceImageMenuItem?.style.display).toBe('block');
+
+    postMessage.mockClear();
+    replaceImageMenuItem?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'KAYZART_REPLACE_IMAGE', lcId: 'image-1' }),
+      window.location.origin
+    );
+  });
+});
+
+describe('preview lazy media reveal', () => {
+  let nextPostId = 50;
+  let currentPostId = 50;
+
+  const setupPreview = () => {
+    currentPostId = nextPostId;
+    nextPostId += 1;
+    document.body.innerHTML = [
+      `<span data-kayzart-marker="start" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+      `<span data-kayzart-marker="end" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+    ].join('');
+    (window as any).KAYZART_PREVIEW = {
+      allowedOrigin: window.location.origin,
+      post_id: currentPostId,
+      liveHighlightEnabled: true,
+      markers: {
+        attr: 'data-kayzart-marker',
+        postAttr: 'data-kayzart-post-id',
+        start: 'start',
+        end: 'end',
+      },
+    };
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+  };
+
+  const dispatchRender = (canonicalHTML: string) => {
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML,
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('copies lazy media attributes into preview display attributes', async () => {
+    setupPreview();
+
+    dispatchRender([
+      '<img data-kayzart-id="lozad-image" class="lozad" data-src="image.webp" alt="">',
+      '<picture data-kayzart-id="picture-1">',
+      '<source data-kayzart-id="source-1" data-srcset="wide.webp 1200w, narrow.webp 600w">',
+      '<img data-kayzart-id="srcset-image" data-srcset="fallback.webp 800w" alt="">',
+      '</picture>',
+      '<iframe data-kayzart-id="frame-1" data-src="frame.html"></iframe>',
+      '<div data-kayzart-id="bg-1" data-bg="background.jpg"></div>',
+      '<div data-kayzart-id="bg-2" style="background-image: url();" data-background-image="section.jpg"></div>',
+    ].join(''));
+    await flushAsync();
+
+    expect(document.querySelector('[data-kayzart-id="lozad-image"]')?.getAttribute('src')).toBe(
+      'image.webp'
+    );
+    expect(document.querySelector('[data-kayzart-id="source-1"]')?.getAttribute('srcset')).toBe(
+      'wide.webp 1200w, narrow.webp 600w'
+    );
+    expect(document.querySelector('[data-kayzart-id="srcset-image"]')?.getAttribute('srcset')).toBe(
+      'fallback.webp 800w'
+    );
+    expect(document.querySelector('[data-kayzart-id="frame-1"]')?.getAttribute('src')).toBe(
+      'frame.html'
+    );
+    expect((document.querySelector('[data-kayzart-id="bg-1"]') as HTMLElement)?.style.backgroundImage).toBe(
+      'url("background.jpg")'
+    );
+    expect((document.querySelector('[data-kayzart-id="bg-2"]') as HTMLElement)?.style.backgroundImage).toBe(
+      'url("section.jpg")'
+    );
+  });
+
+  it('does not overwrite existing preview display attributes', async () => {
+    setupPreview();
+
+    dispatchRender([
+      '<img data-kayzart-id="image-1" src="existing.jpg" data-src="lazy.jpg" alt="">',
+      '<source data-kayzart-id="source-1" srcset="existing.webp 1x" data-srcset="lazy.webp 1x">',
+      '<div data-kayzart-id="bg-1" style="background-image: url(existing.jpg)" data-bg="lazy.jpg"></div>',
+    ].join(''));
+    await flushAsync();
+
+    expect(document.querySelector('[data-kayzart-id="image-1"]')?.getAttribute('src')).toBe(
+      'existing.jpg'
+    );
+    expect(document.querySelector('[data-kayzart-id="source-1"]')?.getAttribute('srcset')).toBe(
+      'existing.webp 1x'
+    );
+    expect((document.querySelector('[data-kayzart-id="bg-1"]') as HTMLElement)?.style.backgroundImage).toBe(
+      'url("existing.jpg")'
+    );
+  });
+});
+
+describe('preview scroll restoration', () => {
+  let nextPostId = 100;
+  let currentPostId = 100;
+  const rects = new Map<string, Partial<DOMRect>>();
+  const rectSequences = new Map<string, Partial<DOMRect>[]>();
+
+  const makeRect = (rect: Partial<DOMRect>): DOMRect => {
+    const top = rect.top ?? 0;
+    const left = rect.left ?? 0;
+    const width = rect.width ?? 0;
+    const height = rect.height ?? 0;
+    return {
+      x: left,
+      y: top,
+      top,
+      left,
+      width,
+      height,
+      right: rect.right ?? left + width,
+      bottom: rect.bottom ?? top + height,
+      toJSON: () => ({}),
+    } as DOMRect;
+  };
+
+  const setElementRect = (lcId: string, rect: Partial<DOMRect>, textContent = '') => {
+    rects.set(textContent ? `${lcId}:${textContent}` : lcId, rect);
+  };
+
+  const setElementRectSequence = (
+    lcId: string,
+    sequence: Partial<DOMRect>[],
+    textContent = ''
+  ) => {
+    rectSequences.set(textContent ? `${lcId}:${textContent}` : lcId, sequence);
+  };
+
+  const setScrollValues = (x: number, y: number) => {
+    Object.defineProperty(window, 'scrollX', { configurable: true, value: x });
+    Object.defineProperty(window, 'pageXOffset', { configurable: true, value: x });
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: y });
+    Object.defineProperty(window, 'pageYOffset', { configurable: true, value: y });
+  };
+
+  const setScrollBounds = (scrollHeight: number, viewportHeight: number) => {
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: viewportHeight });
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+      configurable: true,
+      value: scrollHeight,
+    });
+    Object.defineProperty(document.body, 'scrollHeight', {
+      configurable: true,
+      value: scrollHeight,
+    });
+    Object.defineProperty(document.documentElement, 'scrollWidth', {
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(document.body, 'scrollWidth', {
+      configurable: true,
+      value: 1024,
+    });
+  };
+
+  const setupPreview = (initialHtml = '') => {
+    currentPostId = nextPostId;
+    nextPostId += 1;
+    document.body.innerHTML = [
+      `<span data-kayzart-marker="start" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+      initialHtml,
+      `<span data-kayzart-marker="end" data-kayzart-post-id="${currentPostId}" hidden></span>`,
+    ].join('');
+    (window as any).KAYZART_PREVIEW = {
+      allowedOrigin: window.location.origin,
+      post_id: currentPostId,
+      liveHighlightEnabled: true,
+      markers: {
+        attr: 'data-kayzart-marker',
+        postAttr: 'data-kayzart-post-id',
+        start: 'start',
+        end: 'end',
+      },
+    };
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+  };
+
+  const dispatchRender = (
+    canonicalHTML = '<main data-kayzart-id="main-1" style="height: 2400px">Content</main>'
+  ) => {
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML,
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+  };
+
+  beforeEach(() => {
+    rects.clear();
+    rectSequences.clear();
+    setScrollValues(0, 0);
+    setScrollBounds(3000, 600);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const lcId = this.getAttribute('data-kayzart-id');
+      const textKey = lcId ? `${lcId}:${this.textContent || ''}` : '';
+      const sequence = (textKey && rectSequences.get(textKey)) || (lcId && rectSequences.get(lcId));
+      if (sequence && sequence.length) {
+        return makeRect(sequence.length > 1 ? sequence.shift() || {} : sequence[0]);
+      }
+      return makeRect((textKey && rects.get(textKey)) || (lcId && rects.get(lcId)) || {});
+    });
+    Object.defineProperty(window, 'scrollTo', {
+      configurable: true,
+      value: vi.fn((x: number, y: number) => {
+        setScrollValues(Number(x), Number(y));
+      }),
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('restores the previous anchor offset after rendering', () => {
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    setElementRect('main-1', { top: 260, left: 0, width: 800, height: 1200 }, 'Content');
+
+    dispatchRender();
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 1010);
+  });
+
+  it('prefers a smaller visible child over a large page wrapper as the scroll anchor', () => {
+    setScrollValues(0, 900);
+    setElementRectSequence('root-1', [
+      { top: -700, left: 0, width: 800, height: 3000 },
+      { top: -500, left: 0, width: 800, height: 3000 },
+    ]);
+    setElementRectSequence('child-1', [
+      { top: 150, left: 0, width: 500, height: 80 },
+      { top: 260, left: 0, width: 500, height: 80 },
+    ]);
+    setupPreview(
+      '<main data-kayzart-id="root-1"><section data-kayzart-id="child-1">Old</section></main>'
+    );
+
+    dispatchRender(
+      '<main data-kayzart-id="root-1"><section data-kayzart-id="child-1">Content</section></main>'
+    );
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 1010);
+  });
+
+  it('falls back to the clamped scroll position when the anchor is removed', () => {
+    vi.useFakeTimers();
+    setScrollValues(0, 1200);
+    setScrollBounds(1000, 600);
+    setElementRect('old-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="old-1" style="height: 2400px">Old</main>');
+
+    dispatchRender();
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1420);
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
+  });
+
+  it('falls back to the clamped scroll position when no visible anchor exists', () => {
+    vi.useFakeTimers();
+    setScrollValues(0, 1200);
+    setScrollBounds(1000, 600);
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+
+    dispatchRender();
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1420);
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 400);
+  });
+
+  it('restores to the same anchor even when the anchor is currently outside the viewport', () => {
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    setElementRect('main-1', { top: 900, left: 0, width: 800, height: 1200 }, 'Content');
+
+    dispatchRender();
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 1650);
+  });
+
+  it('re-applies anchor restoration after layout shifts', () => {
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      value: undefined,
+    });
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    setElementRect('main-1', { top: 250, left: 0, width: 800, height: 1200 }, 'Content');
+
+    dispatchRender();
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1000);
+
+    vi.advanceTimersByTime(0);
+    setElementRect('main-1', { top: 190, left: 0, width: 800, height: 1200 }, 'Content');
+    vi.advanceTimersByTime(60);
+
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 1040);
+  });
+
+  it('restores the anchor offset after CSS-only updates', () => {
+    setScrollValues(0, 900);
+    setElementRectSequence('main-1', [
+      { top: 150, left: 0, width: 800, height: 1200 },
+      { top: 230, left: 0, width: 800, height: 1200 },
+    ], 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+
+    dispatchPreviewMessage({
+      type: 'KAYZART_SET_CSS',
+      cssText: '.example { color: red; }',
+    });
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 980);
+  });
+
+  it('stops pending restoration when the user indicates scroll intent', () => {
+    vi.useFakeTimers();
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Content');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+
+    dispatchRender();
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(0);
+    window.dispatchEvent(new WheelEvent('wheel'));
+    vi.advanceTimersByTime(500);
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores later captured restore requests after user scroll intent', () => {
+    vi.useFakeTimers();
+    setScrollValues(0, 900);
+    setElementRect('main-1', { top: 150, left: 0, width: 800, height: 1200 }, 'Old');
+    setupPreview('<main data-kayzart-id="main-1" style="height: 2400px">Old</main>');
+    dispatchPreviewMessage({ type: 'KAYZART_CAPTURE_SCROLL_SNAPSHOT' });
+    setElementRect('main-1', { top: 260, left: 0, width: 800, height: 1200 }, 'Old');
+
+    dispatchPreviewMessage({ type: 'KAYZART_RESTORE_CAPTURED_SCROLL' });
+    expect(window.scrollTo).toHaveBeenCalled();
+    vi.mocked(window.scrollTo).mockClear();
+
+    window.dispatchEvent(new WheelEvent('wheel'));
+    dispatchPreviewMessage({ type: 'KAYZART_RESTORE_CAPTURED_SCROLL' });
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
   });
 });

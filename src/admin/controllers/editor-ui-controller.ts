@@ -1,5 +1,6 @@
 import type { EditorShellRefs } from '../editor-shell';
 import type { CodeEditorInstance } from '../codemirror';
+import { __ } from '@wordpress/i18n';
 
 type EditorInstance = CodeEditorInstance;
 type HtmlTab = 'html' | 'customHead';
@@ -20,6 +21,7 @@ type EditorUiControllerDeps = {
   onEditorViewChange?: () => void;
   onCompactEditorModeChange?: (isCompact: boolean) => void;
   onOpenMedia: () => void;
+  onFormatCode: () => void;
 };
 
 export function createEditorUiController(deps: EditorUiControllerDeps) {
@@ -31,6 +33,44 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
   let editorsReady = false;
 
   const canEditCustomHead = () => deps.canEditJs;
+
+  const syncFormatButtonLabel = (button: HTMLButtonElement, label: string) => {
+    button.setAttribute('aria-label', label);
+    button.setAttribute('title', label);
+    const compactLabel = button.querySelector('.kayzart-compactEditorActionLabel');
+    if (compactLabel) {
+      compactLabel.textContent = label;
+    }
+  };
+
+  const getActiveFormatLabel = () => {
+    if (compactEditorMode) {
+      if (compactEditorTab === 'css') {
+        return __( 'Format CSS', 'kayzart-live-code-editor');
+      }
+      if (compactEditorTab === 'js') {
+        return __( 'Format JavaScript', 'kayzart-live-code-editor');
+      }
+      return __( 'Format HTML', 'kayzart-live-code-editor');
+    }
+    if (
+      activeEditor === deps.jsEditor ||
+      (deps.ui.cssPane.classList.contains('is-active') && activeCssTab === 'js')
+    ) {
+      return __( 'Format JavaScript', 'kayzart-live-code-editor');
+    }
+    if (activeEditor === deps.cssEditor || deps.ui.cssPane.classList.contains('is-active')) {
+      return __( 'Format CSS', 'kayzart-live-code-editor');
+    }
+    return __( 'Format HTML', 'kayzart-live-code-editor');
+  };
+
+  const syncFormatControls = () => {
+    const label = getActiveFormatLabel();
+    syncFormatButtonLabel(deps.ui.htmlFormatButton, label);
+    syncFormatButtonLabel(deps.ui.cssFormatButton, label);
+    syncFormatButtonLabel(deps.ui.compactFormatButton, label);
+  };
 
   const syncCompactEditorUi = () => {
     if (!canEditCustomHead() && compactEditorTab === 'customHead') {
@@ -51,7 +91,9 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
       compactEditorTab !== 'html' && compactEditorTab !== 'customHead'
     );
     deps.ui.compactAddMediaButton.style.display = isHtmlTab ? '' : 'none';
+    deps.ui.compactFormatButton.style.display = '';
     deps.ui.compactJsModeSelect.style.display = isJsTab && deps.canEditJs ? '' : 'none';
+    syncFormatControls();
     deps.onEditorViewChange?.();
   };
 
@@ -77,8 +119,11 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactJsTab.disabled = !deps.canEditJs;
     deps.ui.compactJsModeSelect.style.display = isCompactJsTab && deps.canEditJs ? '' : 'none';
     deps.ui.compactJsModeSelect.disabled = !deps.canEditJs;
-    deps.ui.jsControls.style.display = deps.canEditJs && isJsTab ? '' : 'none';
+    deps.ui.jsControls.style.display = '';
+    deps.ui.cssFormatButton.style.display = '';
     deps.ui.compactAddMediaButton.style.display = isCompactHtmlTab ? '' : 'none';
+    deps.ui.compactFormatButton.style.display = '';
+    syncFormatControls();
     deps.onEditorViewChange?.();
   };
 
@@ -86,6 +131,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     activeEditor = editorInstance;
     deps.ui.htmlPane.classList.toggle('is-active', pane === deps.ui.htmlPane);
     deps.ui.cssPane.classList.toggle('is-active', pane === deps.ui.cssPane);
+    syncFormatControls();
     if (compactEditorMode) {
       compactEditorTab = pane === deps.ui.htmlPane ? activeHtmlTab : activeCssTab === 'js' ? 'js' : 'css';
       syncCompactEditorUi();
@@ -104,7 +150,9 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.htmlEditorDiv.classList.toggle('is-active', nextTab === 'html');
     deps.ui.customHeadEditorDiv.parentElement?.classList.toggle('is-active', nextTab === 'customHead');
     deps.ui.addMediaButton.style.display = nextTab === 'html' ? '' : 'none';
+    deps.ui.htmlFormatButton.style.display = '';
     deps.ui.htmlWordWrapButton.style.display = nextTab === 'html' ? '' : 'none';
+    syncFormatControls();
     if (compactEditorMode && options.syncCompactTab !== false) {
       compactEditorTab = nextTab;
       syncCompactEditorUi();
@@ -135,6 +183,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.jsTab.classList.toggle('is-active', nextTab === 'js');
     deps.ui.cssEditorDiv.classList.toggle('is-active', nextTab === 'css');
     deps.ui.jsEditorDiv.classList.toggle('is-active', nextTab === 'js');
+    syncFormatControls();
     if (compactEditorMode && options.syncCompactTab !== false) {
       compactEditorTab = nextTab;
       syncCompactEditorUi();
@@ -309,6 +358,9 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.jsEditor.onDidFocusEditorText(() => setCssTab('js', { focus: false }));
     deps.ui.addMediaButton.addEventListener('click', deps.onOpenMedia);
     deps.ui.compactAddMediaButton.addEventListener('click', deps.onOpenMedia);
+    deps.ui.htmlFormatButton.addEventListener('click', deps.onFormatCode);
+    deps.ui.cssFormatButton.addEventListener('click', deps.onFormatCode);
+    deps.ui.compactFormatButton.addEventListener('click', deps.onFormatCode);
     deps.ui.htmlTab.addEventListener('click', () => setHtmlTab('html', { focus: true }));
     deps.ui.customHeadTab.addEventListener('click', () => setHtmlTab('customHead', { focus: true }));
     deps.ui.cssTab.addEventListener('click', () => setCssTab('css', { focus: true }));

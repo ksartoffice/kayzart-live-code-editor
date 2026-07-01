@@ -15,6 +15,7 @@
 
   var data = window.KAYZART_EDITOR || {};
   var actionUrl = data.actionUrl || '';
+  var buttonLabel = __( 'Edit landing page', 'kayzart-live-code-editor');
 
   var getPostIdFromBlock = function () {
     if (!wpRef.data || !wpRef.data.select) {
@@ -35,11 +36,19 @@
     return Number(input.value) || 0;
   };
 
+  var buildActionUrl = function (baseUrl, postId) {
+    if (!baseUrl || !postId) {
+      return '';
+    }
+    return baseUrl + '&post_id=' + postId;
+  };
+
   var redirectToKayzArt = function (postId) {
-    if (!actionUrl || !postId) {
+    var url = buildActionUrl(actionUrl, postId);
+    if (!url) {
       return;
     }
-    window.location.href = actionUrl + '&post_id=' + postId;
+    window.location.href = url;
   };
 
   var waitForPostAndRedirect = function (button, getPostId) {
@@ -104,7 +113,7 @@
     var button = document.createElement('a');
     button.className = 'components-button is-primary kayzart-editor-toolbar__button';
     button.href = '#';
-    button.textContent = __( 'Edit landing page', 'kayzart-live-code-editor');
+    button.textContent = buttonLabel;
 
     button.addEventListener('click', function (event) {
       event.preventDefault();
@@ -146,7 +155,7 @@
 
     var button = document.createElement('a');
     button.className = 'button button-primary kayzart-editor-bridge__button';
-    button.textContent = __( 'Edit landing page', 'kayzart-live-code-editor');
+    button.textContent = buttonLabel;
     button.href = '#';
 
     container.appendChild(button);

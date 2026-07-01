@@ -342,19 +342,24 @@ class Post_Type {
 			return $actions;
 		}
 
-		if ( self::POST_TYPE !== $post->post_type && ! self::is_kayzart_enabled_post( (int) $post->ID ) ) {
-			return $actions;
-		}
-
 		if ( ! current_user_can( 'edit_post', $post->ID ) ) {
 			return $actions;
 		}
 
-		$actions['kayzart_edit'] = sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( self::get_editor_url( $post->ID ) ),
-			esc_html__( 'Edit landing page', 'kayzart-live-code-editor' )
-		);
+		$is_managed = self::POST_TYPE === $post->post_type || self::is_kayzart_enabled_post( (int) $post->ID );
+		if ( $is_managed ) {
+			$actions['kayzart_edit'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( self::get_editor_url( $post->ID ) ),
+				esc_html__( 'Edit landing page', 'kayzart-live-code-editor' )
+			);
+		} else {
+			$actions['kayzart_convert'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( Admin::get_convert_post_action_url( (int) $post->ID ) ),
+				esc_html__( 'Convert to landing page', 'kayzart-live-code-editor' )
+			);
+		}
 
 		return $actions;
 	}

@@ -29,6 +29,7 @@
   let selectActionMenuButton = null;
   let selectActionMenu = null;
   let selectActionParentMenuItem = null;
+  let selectActionReplaceImageMenuItem = null;
   let selectActionCopyMenuItem = null;
   let selectActionDeleteMenuItem = null;
   let elementsTabOpen = false;
@@ -46,8 +47,17 @@
   let markerRetryStartedAt = 0;
   let initialBodyAttrs = null;
   let appliedBodyAttrNames = [];
+  let scrollRestoreToken = 0;
+  let applyingScrollRestoreToken = 0;
+  let scrollSaveTimer = 0;
+  let initialSavedScrollRestorePending = true;
+  let capturedScrollSnapshot = null;
+  let capturedScrollRestoreBlockedUntil = 0;
+  let scrollSaveSuppressedUntil = 0;
+  let pendingScrollRestoreSnapshot = null;
   const markerRetryDelayMs = 50;
   const markerRetryMaxWaitMs = 10000;
+  const scrollStorageKey = postId ? 'kayzart:preview-scroll:' + String(postId) : '';
   const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
   let domSelectorEnabled =
     config.liveHighlightEnabled === undefined ? true : Boolean(config.liveHighlightEnabled);
@@ -279,6 +289,25 @@
     });
     menu.appendChild(selectActionParentMenuItem);
 
+    selectActionReplaceImageMenuItem = createSelectMenuItem(
+      'kayzart-select-replace-image-menu-item',
+      labels.replaceImage
+    );
+    selectActionReplaceImageMenuItem.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isSelectedImage()) {
+        return;
+      }
+      const lcId = getSelectedLcId();
+      if (!lcId) {
+        return;
+      }
+      reply('KAYZART_REPLACE_IMAGE', { lcId: lcId });
+      closeSelectContextMenu();
+    });
+    menu.appendChild(selectActionReplaceImageMenuItem);
+
     selectActionCopyMenuItem = createSelectMenuItem(
       'kayzart-select-copy-html-menu-item',
       labels.copyHtml
@@ -321,6 +350,7 @@
     const source = rawLabels && typeof rawLabels === 'object' ? rawLabels : {};
     return {
       moveToParent: source.moveToParent ? String(source.moveToParent) : 'Move to parent element',
+      replaceImage: source.replaceImage ? String(source.replaceImage) : 'Replace image',
       copyHtml: source.copyHtml ? String(source.copyHtml) : 'Copy HTML',
       delete: source.delete ? String(source.delete) : 'Delete',
     };
@@ -353,6 +383,10 @@
     return selectTarget && selectTarget.getAttribute
       ? selectTarget.getAttribute(KAYZART_ATTR_NAME)
       : '';
+  }
+
+  function isSelectedImage() {
+    return Boolean(selectTarget && selectTarget.tagName === 'IMG');
   }
 
   function getSelectableParent(el) {
@@ -397,6 +431,9 @@
     selectActionParentMenuItem.setAttribute('aria-disabled', hasParent ? 'false' : 'true');
     selectActionParentMenuItem.style.color = hasParent ? '#111827' : '#9ca3af';
     selectActionParentMenuItem.style.cursor = hasParent ? 'pointer' : 'default';
+    if (selectActionReplaceImageMenuItem) {
+      selectActionReplaceImageMenuItem.style.display = isSelectedImage() ? 'block' : 'none';
+    }
   }
 
   function positionSelectContextMenu() {
@@ -1116,6 +1153,79 @@
     return pending.length ? Promise.all(pending).then(() => undefined) : Promise.resolve();
   }
 
+  function queryLazyMedia(root, selector) {
+    const matches = [];
+    if (!root || !selector) {
+      return matches;
+    }
+    if (root.nodeType === Node.ELEMENT_NODE && root.matches && root.matches(selector)) {
+      matches.push(root);
+    }
+    if (root.querySelectorAll) {
+      return matches.concat(Array.prototype.slice.call(root.querySelectorAll(selector)));
+    }
+    return matches;
+  }
+
+  function copyAttrIfMissing(root, selector, sourceAttr, targetAttr) {
+    queryLazyMedia(root, selector).forEach((node) => {
+      if (!node || !node.getAttribute || !node.setAttribute) {
+        return;
+      }
+      if (node.getAttribute(targetAttr)) {
+        return;
+      }
+      const value = node.getAttribute(sourceAttr);
+      if (value) {
+        node.setAttribute(targetAttr, value);
+      }
+    });
+  }
+
+  function formatBackgroundImage(value) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (/^url\(/i.test(trimmed)) {
+      return trimmed;
+    }
+    return 'url("' + trimmed.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")';
+  }
+
+  function hasPreviewBackgroundImage(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized || normalized === 'none') {
+      return false;
+    }
+    return !/^url\(\s*(?:""|''|)\s*\)$/.test(normalized);
+  }
+
+  function revealLazyBackgrounds(root) {
+    queryLazyMedia(root, '[data-bg], [data-background], [data-background-image]').forEach((node) => {
+      if (!node || !node.getAttribute || !node.style || hasPreviewBackgroundImage(node.style.backgroundImage)) {
+        return;
+      }
+      const value =
+        node.getAttribute('data-bg') ||
+        node.getAttribute('data-background') ||
+        node.getAttribute('data-background-image');
+      const backgroundImage = formatBackgroundImage(value);
+      if (backgroundImage) {
+        node.style.backgroundImage = backgroundImage;
+      }
+    });
+  }
+
+  function revealLazyMedia(root) {
+    copyAttrIfMissing(root, 'img[data-src], iframe[data-src], video[data-src], audio[data-src]', 'data-src', 'src');
+    copyAttrIfMissing(root, 'img[data-srcset], source[data-srcset]', 'data-srcset', 'srcset');
+    copyAttrIfMissing(root, 'img[data-lazy-src], iframe[data-lazy-src]', 'data-lazy-src', 'src');
+    copyAttrIfMissing(root, 'img[data-lazy-srcset], source[data-lazy-srcset]', 'data-lazy-srcset', 'srcset');
+    copyAttrIfMissing(root, 'img[data-original], iframe[data-original]', 'data-original', 'src');
+    revealLazyBackgrounds(root);
+  }
+
   function replaceEditableContent(html) {
     const markers = findMarkers();
     if (!markers) return Promise.resolve();
@@ -1128,6 +1238,7 @@
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
     const scriptsReady = reviveScripts(wrapper);
+    revealLazyMedia(wrapper);
     const frag = document.createDocumentFragment();
     while (wrapper.firstChild) {
       frag.appendChild(wrapper.firstChild);
@@ -1135,6 +1246,454 @@
     range.insertNode(frag);
     range.detach();
     return scriptsReady;
+  }
+
+  function getMaxScrollLeft() {
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollWidth = Math.max(
+      doc ? doc.scrollWidth : 0,
+      body ? body.scrollWidth : 0
+    );
+    const viewportWidth = window.innerWidth || (doc ? doc.clientWidth : 0) || 0;
+    return Math.max(0, scrollWidth - viewportWidth);
+  }
+
+  function getMaxScrollTop() {
+    const doc = document.documentElement;
+    const body = document.body;
+    const scrollHeight = Math.max(
+      doc ? doc.scrollHeight : 0,
+      body ? body.scrollHeight : 0
+    );
+    const viewportHeight = window.innerHeight || (doc ? doc.clientHeight : 0) || 0;
+    return Math.max(0, scrollHeight - viewportHeight);
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  function getScrollX() {
+    return window.scrollX || window.pageXOffset || 0;
+  }
+
+  function getScrollY() {
+    return window.scrollY || window.pageYOffset || 0;
+  }
+
+  function escapeAttrValue(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value);
+    }
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function isVisibleRect(rect) {
+    return Boolean(
+      rect &&
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < (window.innerHeight || 0) &&
+      rect.left < (window.innerWidth || 0)
+    );
+  }
+
+  function hasRenderableRect(rect) {
+    return Boolean(rect && rect.width > 0 && rect.height > 0);
+  }
+
+  function getScrollAnchorLine() {
+    const viewportHeight = window.innerHeight || 0;
+    if (viewportHeight <= 1) {
+      return 0;
+    }
+    return Math.min(Math.max(24, viewportHeight * 0.25), viewportHeight - 1);
+  }
+
+  function findScrollAnchor() {
+    const markers = findMarkers();
+    if (!markers) {
+      return null;
+    }
+    const candidates = document.querySelectorAll
+      ? Array.prototype.slice.call(document.querySelectorAll('[' + KAYZART_ATTR_NAME + ']'))
+      : [];
+    const anchorLine = getScrollAnchorLine();
+    let best = null;
+
+    candidates.forEach((node) => {
+      if (!(node instanceof Element)) {
+        return;
+      }
+      const lcId = node.getAttribute(KAYZART_ATTR_NAME);
+      if (!lcId) {
+        return;
+      }
+      const beforeStart = Boolean(
+        markers.start.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING
+      );
+      const afterEnd = Boolean(
+        markers.end.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+      if (beforeStart || afterEnd) {
+        return;
+      }
+      const rect = node.getBoundingClientRect();
+      if (!isVisibleRect(rect)) {
+        return;
+      }
+      const overlapsLine = rect.top <= anchorLine && rect.bottom >= anchorLine;
+      const distance = overlapsLine
+        ? 0
+        : Math.min(Math.abs(rect.top - anchorLine), Math.abs(rect.bottom - anchorLine));
+      const height = Math.max(1, rect.height);
+      const center = rect.top + rect.height / 2;
+      const centerDistance = Math.abs(center - anchorLine);
+      const score =
+        (overlapsLine ? 0 : 100000) +
+        distance * 10 +
+        Math.min(height, (window.innerHeight || 0) * 4 || height) +
+        centerDistance * 0.05;
+      if (
+        !best ||
+        (overlapsLine && !best.overlapsLine) ||
+        (overlapsLine === best.overlapsLine && score < best.score)
+      ) {
+        best = {
+          lcId: lcId,
+          top: rect.top,
+          left: rect.left,
+          distance: distance,
+          overlapsLine: overlapsLine,
+          score: score,
+        };
+      }
+    });
+
+    if (!best) {
+      return null;
+    }
+
+    const anchor = {
+      lcId: best.lcId,
+      top: best.top,
+      left: best.left,
+      distance: best.distance,
+      overlapsLine: best.overlapsLine,
+      score: best.score,
+    };
+    return anchor;
+  }
+
+  function captureScrollPosition(reason) {
+    if (
+      reason === 'render-before-dom-replace' &&
+      pendingScrollRestoreSnapshot &&
+      scrollSaveSuppressedUntil &&
+      Date.now() < scrollSaveSuppressedUntil
+    ) {
+      return {
+        x: pendingScrollRestoreSnapshot.x,
+        y: pendingScrollRestoreSnapshot.y,
+        anchor: pendingScrollRestoreSnapshot.anchor,
+      };
+    }
+    const anchor = findScrollAnchor();
+    return {
+      x: getScrollX(),
+      y: getScrollY(),
+      anchor: anchor,
+    };
+  }
+
+  function normalizeSavedScrollPosition(value) {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+    const x = Number(value.x);
+    const y = Number(value.y);
+    const anchor = value.anchor && typeof value.anchor === 'object' ? value.anchor : null;
+    return {
+      x: Number.isFinite(x) ? x : 0,
+      y: Number.isFinite(y) ? y : 0,
+      anchor:
+        anchor && typeof anchor.lcId === 'string'
+          ? {
+              lcId: anchor.lcId,
+              top: Number.isFinite(Number(anchor.top)) ? Number(anchor.top) : 0,
+              left: Number.isFinite(Number(anchor.left)) ? Number(anchor.left) : 0,
+            }
+          : null,
+    };
+  }
+
+  function readSavedScrollPosition() {
+    if (!scrollStorageKey) {
+      return null;
+    }
+    try {
+      if (!window.sessionStorage) {
+        return null;
+      }
+      return normalizeSavedScrollPosition(
+        JSON.parse(window.sessionStorage.getItem(scrollStorageKey) || 'null')
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveScrollPosition() {
+    if (!scrollStorageKey) {
+      return;
+    }
+    try {
+      if (!window.sessionStorage) {
+        return;
+      }
+      window.sessionStorage.setItem(
+        scrollStorageKey,
+        JSON.stringify(captureScrollPosition('session-save'))
+      );
+    } catch (e) {
+      // Ignore storage errors and keep the preview usable.
+    }
+  }
+
+  function captureScrollSnapshot() {
+    capturedScrollSnapshot = captureScrollPosition('captured-snapshot');
+    capturedScrollRestoreBlockedUntil = 0;
+  }
+
+  function blockCapturedScrollRestore() {
+    if (!capturedScrollSnapshot) {
+      return;
+    }
+    capturedScrollRestoreBlockedUntil = Date.now() + 1200;
+  }
+
+  function queueScrollPositionSave() {
+    if (initialSavedScrollRestorePending) {
+      return;
+    }
+    if (scrollSaveSuppressedUntil && Date.now() < scrollSaveSuppressedUntil) {
+      return;
+    }
+    if (scrollSaveTimer) {
+      window.clearTimeout(scrollSaveTimer);
+    }
+    scrollSaveTimer = window.setTimeout(() => {
+      scrollSaveTimer = 0;
+      saveScrollPosition();
+    }, 120);
+  }
+
+  function restoreSavedScrollPositionOnce() {
+    if (!initialSavedScrollRestorePending) {
+      return;
+    }
+    initialSavedScrollRestorePending = false;
+    restoreSavedScrollPosition();
+  }
+
+  function restoreSavedScrollPosition() {
+    const saved = readSavedScrollPosition();
+    if (saved) {
+      restoreScrollPosition(saved, 'saved-scroll');
+    }
+  }
+
+  function restoreCapturedScrollPosition() {
+    if (capturedScrollRestoreBlockedUntil && Date.now() < capturedScrollRestoreBlockedUntil) {
+      return;
+    }
+    if (capturedScrollSnapshot) {
+      restoreScrollPosition(capturedScrollSnapshot, 'captured-scroll');
+    }
+  }
+
+  function findCurrentScrollAnchor(anchor) {
+    if (!anchor || !anchor.lcId) {
+      return null;
+    }
+    const selector = '[' + KAYZART_ATTR_NAME + '="' + escapeAttrValue(anchor.lcId) + '"]';
+    const nodes = document.querySelectorAll
+      ? Array.prototype.slice.call(document.querySelectorAll(selector))
+      : [];
+    if (!nodes.length) {
+      return null;
+    }
+
+    const markers = findMarkers();
+    let best = null;
+
+    nodes.forEach((node) => {
+      if (!(node instanceof Element)) {
+        return;
+      }
+      const outsideMarkers = Boolean(
+        markers &&
+          ((markers.start.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING) ||
+            (markers.end.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING))
+      );
+      const rect = node.getBoundingClientRect();
+      if (outsideMarkers || !hasRenderableRect(rect)) {
+        return;
+      }
+      const distance = Math.abs(rect.top - anchor.top);
+      if (!best || distance < best.distance) {
+        best = {
+          rect: rect,
+          distance: distance,
+        };
+      }
+    });
+
+    if (!best) {
+      return null;
+    }
+
+    return best.rect;
+  }
+
+  function resolveRestoredScrollY(snapshot) {
+    const rect = findCurrentScrollAnchor(snapshot.anchor);
+    if (rect) {
+      const delta = rect.top - snapshot.anchor.top;
+      return {
+        y: clamp(getScrollY() + delta, 0, getMaxScrollTop()),
+        mode: 'anchor',
+      };
+    }
+    return {
+      y: clamp(snapshot.y, 0, getMaxScrollTop()),
+      mode: 'absolute-fallback',
+      currentAnchor: null,
+    };
+  }
+
+  function restoreScrollPosition(snapshot, reason) {
+    if (!snapshot || (!snapshot.x && !snapshot.y && !snapshot.anchor)) {
+      return;
+    }
+    const token = ++scrollRestoreToken;
+    const startedAt = Date.now();
+    const maxDeferredWait = reason === 'render-after-dom-replace' ? 1400 : 600;
+    let cancelled = false;
+    let listening = false;
+    let releaseApplyingTimer = 0;
+    const timers = [];
+    pendingScrollRestoreSnapshot = snapshot;
+    scrollSaveSuppressedUntil = Math.max(scrollSaveSuppressedUntil, Date.now() + maxDeferredWait + 250);
+
+    const cleanup = () => {
+      if (releaseApplyingTimer) {
+        window.clearTimeout(releaseApplyingTimer);
+        releaseApplyingTimer = 0;
+      }
+      while (timers.length) {
+        window.clearTimeout(timers.pop());
+      }
+      if (applyingScrollRestoreToken === token) {
+        applyingScrollRestoreToken = 0;
+      }
+      if (scrollRestoreToken === token) {
+        pendingScrollRestoreSnapshot = null;
+      }
+      if (!listening) {
+        return;
+      }
+      listening = false;
+      window.removeEventListener('scroll', cancelFromUserScroll, true);
+      window.removeEventListener('wheel', cancelFromUserIntent, true);
+      window.removeEventListener('touchmove', cancelFromUserIntent, true);
+      window.removeEventListener('keydown', cancelFromUserIntent, true);
+    };
+
+    const cancelFromUserIntent = () => {
+      blockCapturedScrollRestore();
+      pendingScrollRestoreSnapshot = null;
+      cancelled = true;
+      cleanup();
+    };
+
+    const cancelFromUserScroll = () => {
+      if (applyingScrollRestoreToken === token) {
+        return;
+      }
+      if (scrollSaveSuppressedUntil && Date.now() < scrollSaveSuppressedUntil) {
+        return;
+      }
+      blockCapturedScrollRestore();
+      pendingScrollRestoreSnapshot = null;
+      cancelled = true;
+      cleanup();
+    };
+
+    const apply = () => {
+      if (cancelled || token !== scrollRestoreToken) {
+        cleanup();
+        return;
+      }
+      const maxY = getMaxScrollTop();
+      const x = clamp(snapshot.x, 0, getMaxScrollLeft());
+      const resolved = resolveRestoredScrollY(snapshot);
+      const y = resolved.y;
+      const targetWasClampedByHeight = snapshot.y > maxY && y >= maxY;
+      const anchorMissingDuringRender =
+        reason === 'render-after-dom-replace' && snapshot.anchor && resolved.mode !== 'anchor';
+      const heightStillCollapsed =
+        reason === 'render-after-dom-replace' &&
+        snapshot.y > maxY &&
+        maxY < snapshot.y * 0.85;
+      const canDefer =
+        Date.now() - startedAt < maxDeferredWait &&
+        (anchorMissingDuringRender || heightStillCollapsed || targetWasClampedByHeight);
+      if (canDefer) {
+        return;
+      }
+      applyingScrollRestoreToken = token;
+      window.scrollTo(x, y);
+      if (releaseApplyingTimer) {
+        window.clearTimeout(releaseApplyingTimer);
+      }
+      releaseApplyingTimer = window.setTimeout(() => {
+        if (applyingScrollRestoreToken === token) {
+          applyingScrollRestoreToken = 0;
+        }
+      }, 0);
+    };
+
+    const scheduleApply = (delay) => {
+      timers.push(
+        window.setTimeout(() => {
+          apply();
+        }, delay)
+      );
+    };
+
+    apply();
+    listening = true;
+    window.addEventListener('scroll', cancelFromUserScroll, true);
+    window.addEventListener('wheel', cancelFromUserIntent, true);
+    window.addEventListener('touchmove', cancelFromUserIntent, true);
+    window.addEventListener('keydown', cancelFromUserIntent, true);
+
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(apply);
+    }
+    scheduleApply(60);
+    scheduleApply(180);
+    scheduleApply(360);
+    if (reason === 'render-after-dom-replace') {
+      scheduleApply(720);
+      scheduleApply(1200);
+    }
+    scheduleApply(maxDeferredWait + 20);
+    timers.push(window.setTimeout(cleanup, maxDeferredWait + 320));
   }
 
   function clearMarkerRetryTimer() {
@@ -1186,6 +1745,7 @@
     pendingRenderPayload = null;
     clearMarkerRetryTimer();
 
+    const scrollPosition = captureScrollPosition('render-before-dom-replace');
     const contentScriptsReady = replaceEditableContent(html);
     applyBodyAttrs(bodyAttrs, hasBody, templateMode);
     const customHeadScriptsReady =
@@ -1197,6 +1757,8 @@
     if (styleEl) {
       styleEl.textContent = css || '';
     }
+    restoreScrollPosition(scrollPosition, 'render-after-dom-replace');
+    restoreSavedScrollPositionOnce();
     const currentHtmlScriptsReady = htmlScriptsReady;
     currentHtmlScriptsReady.then(() => {
       if (currentHtmlScriptsReady === htmlScriptsReady) {
@@ -1206,10 +1768,12 @@
   }
 
   function setCssText(css) {
+    const scrollPosition = captureScrollPosition('css-before-update');
     const styleEl = ensureStyleElement();
     if (styleEl) {
       styleEl.textContent = css || '';
     }
+    restoreScrollPosition(scrollPosition, 'css-after-update');
   }
 
   function reply(type, payload) {
@@ -1235,6 +1799,22 @@
     if (event.origin !== allowedOrigin) return;
     if (event.source !== window.parent) return;
     const data = event.data || {};
+    if (data.type === 'KAYZART_SAVE_SCROLL') {
+      saveScrollPosition();
+      return;
+    }
+    if (data.type === 'KAYZART_RESTORE_SAVED_SCROLL') {
+      restoreSavedScrollPosition();
+      return;
+    }
+    if (data.type === 'KAYZART_CAPTURE_SCROLL_SNAPSHOT') {
+      captureScrollSnapshot();
+      return;
+    }
+    if (data.type === 'KAYZART_RESTORE_CAPTURED_SCROLL') {
+      restoreCapturedScrollPosition();
+      return;
+    }
     if (data.type === 'KAYZART_INIT') {
       isReady = true;
       reply('KAYZART_READY', { post_id: postId });
@@ -1278,8 +1858,15 @@
     }
   });
 
-  window.addEventListener('beforeunload', stopJsRuntime);
-  window.addEventListener('pagehide', stopJsRuntime);
+  window.addEventListener('scroll', queueScrollPositionSave, { passive: true });
+  window.addEventListener('beforeunload', () => {
+    saveScrollPosition();
+    stopJsRuntime();
+  });
+  window.addEventListener('pagehide', () => {
+    saveScrollPosition();
+    stopJsRuntime();
+  });
   attachDomSelector();
 })();
 

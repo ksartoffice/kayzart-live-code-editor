@@ -8,6 +8,7 @@ type Node = DefaultTreeAdapterTypes.Node;
 
 export type FullHtmlExportInput = {
   html: string;
+  documentHtmlAttributes: string;
   customHead: string;
   css: string;
   cssMode?: 'standard' | 'tailwind-source';
@@ -99,10 +100,13 @@ export function buildFullHtmlExport(input: FullHtmlExportInput): string {
   }
 
   const bodyOpen = bodyAttrs ? `<body ${bodyAttrs}>` : '<body>';
+  const htmlOpen = input.documentHtmlAttributes.trim()
+    ? `<html ${input.documentHtmlAttributes.trim()}>`
+    : '<html>';
 
   return [
     '<!doctype html>',
-    '<html lang="ja">',
+    htmlOpen,
     '<head>',
     headParts.join('\n'),
     '</head>',

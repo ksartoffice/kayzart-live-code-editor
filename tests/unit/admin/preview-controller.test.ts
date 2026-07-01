@@ -240,6 +240,42 @@ describe('preview shortcode handling', () => {
     expect(onOverlayAction).toHaveBeenCalledWith('test-action');
   });
 
+  it('forwards replace image events from preview iframe', () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const htmlModel = createModel('<img data-kayzart-id="image-1" src="old.jpg">');
+    const cssModel = createModel('');
+    const jsModel = createModel('');
+    const onReplaceImage = vi.fn();
+
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: htmlModel as any,
+      cssModel: cssModel as any,
+      jsModel: jsModel as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getResolvedTemplateMode: () => 'standalone',
+      onReplaceImage,
+    });
+
+    controller.handleMessage({
+      origin: 'https://example.com',
+      source: contentWindow,
+      data: { type: 'KAYZART_REPLACE_IMAGE', lcId: 'image-1' },
+    } as MessageEvent);
+
+    expect(onReplaceImage).toHaveBeenCalledTimes(1);
+    expect(onReplaceImage).toHaveBeenCalledWith('image-1');
+  });
+
   it('does not reload the iframe when only custom head changes before sendRender', async () => {
     const objectUrls = mockObjectUrls();
     const postMessage = vi.fn();
@@ -325,11 +361,16 @@ describe('preview shortcode handling', () => {
 
     controller.handleIframeLoad();
     await flushAsync();
+    postMessage.mockClear();
     controller.requestReloadPreview();
 
     const html = await objectUrls.getLastBlob()?.text();
     expect(html).toContain('<base href="https://example.com/">');
     expect(html).toContain('<meta name="draft" content="head">');
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'KAYZART_SAVE_SCROLL' },
+      'https://example.com'
+    );
     expect(iframe.setSrc).toHaveBeenCalledWith('blob:preview');
     vi.unstubAllGlobals();
   });
@@ -389,6 +430,71 @@ describe('preview shortcode handling', () => {
       jsMode: 'module',
     });
     vi.unstubAllGlobals();
+  });
+
+  it('requests saved scroll restoration in the preview iframe', () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: createModel('<div>hello</div>') as any,
+      customHeadModel: createModel('') as any,
+      cssModel: createModel('') as any,
+      jsModel: createModel('') as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getCustomHead: () => '',
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getResolvedTemplateMode: () => 'standalone',
+    });
+
+    controller.restoreSavedScrollPosition();
+
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'KAYZART_RESTORE_SAVED_SCROLL' },
+      'https://example.com'
+    );
+  });
+
+  it('requests captured scroll restoration in the preview iframe', () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: createModel('<div>hello</div>') as any,
+      customHeadModel: createModel('') as any,
+      cssModel: createModel('') as any,
+      jsModel: createModel('') as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getCustomHead: () => '',
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getResolvedTemplateMode: () => 'standalone',
+    });
+
+    controller.captureScrollSnapshot();
+    controller.restoreCapturedScrollPosition();
+
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'KAYZART_CAPTURE_SCROLL_SNAPSHOT' },
+      'https://example.com'
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'KAYZART_RESTORE_CAPTURED_SCROLL' },
+      'https://example.com'
+    );
   });
 });
 

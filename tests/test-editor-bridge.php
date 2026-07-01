@@ -108,6 +108,26 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 	}
 
+	public function test_enqueue_block_assets_skips_convertible_unmarked_page(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+			)
+		);
+		$GLOBALS['post'] = get_post( $page_id );
+
+		set_current_screen( 'post' );
+		$screen            = get_current_screen();
+		$screen->post_type = Post_Type::PAGE_TYPE;
+
+		Editor_Bridge::enqueue_block_assets();
+		$this->assertFalse( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
+		$this->assertFalse( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
+	}
+
 	public function test_enqueue_assets_sets_nonce_protected_action_url(): void {
 		$post_id         = $this->create_enabled_post( Post_Type::POST_TYPE );
 		$GLOBALS['post'] = get_post( $post_id );
@@ -143,10 +163,14 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 
 		$this->assertSame( 'kayzart', $query['action'] ?? '' );
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
+		$this->assertTrue( (bool) ( $data['isManaged'] ?? false ) );
+		$this->assertFalse( (bool) ( $data['canConvert'] ?? true ) );
+		$this->assertArrayNotHasKey( 'convertUrl', $data );
 	}
 
 	private function create_post( string $post_type ): int {
 		$author_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $author_id );
 		return (int) self::factory()->post->create(
 			array(
 				'post_type'   => $post_type,
@@ -167,6 +191,22 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$method = new ReflectionMethod( Editor_Bridge::class, $method_name );
 		$method->setAccessible( true );
 		return (int) $method->invoke( null );
+	}
+
+	private function get_inline_bridge_data(): array {
+		$scripts    = wp_scripts();
+		$registered = $scripts->registered[ Editor_Bridge::SCRIPT_HANDLE ] ?? null;
+		$this->assertNotNull( $registered, 'Bridge script should be registered.' );
+
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART_EDITOR = (.+);/', $inline );
+		preg_match( '/window\\.KAYZART_EDITOR = (.+);/', $inline, $matches );
+		$this->assertNotEmpty( $matches[1] ?? '' );
+
+		$data = json_decode( $matches[1], true );
+		$this->assertIsArray( $data );
+		return $data;
 	}
 
 	private function reset_assets(): void {

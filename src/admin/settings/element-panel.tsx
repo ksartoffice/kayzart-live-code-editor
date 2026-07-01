@@ -1,5 +1,6 @@
-import { createElement, useCallback, useEffect, useState } from '@wordpress/element';
+import { createElement, useCallback, useEffect, useRef, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
+import { isSafeEditableElementHtml } from '../element-text';
 
 export type ElementPanelAttribute = {
   name: string;
@@ -19,20 +20,37 @@ type ElementPanelProps = {
   api?: ElementPanelApi;
 };
 
+const LIVE_TEXT_COMMIT_DELAY_MS = 250;
+
 export function ElementPanel({ api }: ElementPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [value, setValue] = useState('');
   const [attributes, setAttributes] = useState<ElementPanelAttribute[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [hasText, setHasText] = useState(false);
+  const [hasUnsafeDraft, setHasUnsafeDraft] = useState(false);
+  const valueRef = useRef('');
+  const committedValueRef = useRef('');
+  const isFocusedRef = useRef(false);
   const fieldId = 'kayzart-elements-text';
+
+  const setDraftValue = useCallback((nextValue: string) => {
+    valueRef.current = nextValue;
+    setValue(nextValue);
+  }, []);
+
+  const setCommittedValue = useCallback((nextValue: string) => {
+    committedValueRef.current = nextValue;
+  }, []);
 
   const refreshElement = useCallback(() => {
     if (!selectedId) {
-      setValue('');
+      setDraftValue('');
+      setCommittedValue('');
       setAttributes([]);
       setIsVisible(false);
       setHasText(false);
+      setHasUnsafeDraft(false);
       return;
     }
     const nextText = api?.getElementText ? api.getElementText(selectedId) : null;
@@ -44,18 +62,28 @@ export function ElementPanel({ api }: ElementPanelProps) {
     setIsVisible(hasNextText || hasNextAttributes);
     setHasText(hasNextText);
     if (hasNextText) {
-      setValue((prev) => (prev === nextText ? prev : nextText));
+      const isDirtyFocusedDraft =
+        isFocusedRef.current && valueRef.current !== committedValueRef.current;
+      setCommittedValue(nextText);
+      if (!isDirtyFocusedDraft) {
+        setDraftValue(nextText);
+        setHasUnsafeDraft(false);
+      }
     } else {
-      setValue('');
+      setDraftValue('');
+      setCommittedValue('');
+      setHasUnsafeDraft(false);
     }
     setAttributes(hasNextAttributes ? nextAttributes : []);
-  }, [api, selectedId]);
+  }, [api, selectedId, setCommittedValue, setDraftValue]);
 
   useEffect(() => {
     if (!api?.subscribeSelection) {
       return;
     }
     return api.subscribeSelection((lcId) => {
+      isFocusedRef.current = false;
+      setHasUnsafeDraft(false);
       setSelectedId(lcId);
     });
   }, [api]);
@@ -73,12 +101,62 @@ export function ElementPanel({ api }: ElementPanelProps) {
     });
   }, [api, refreshElement]);
 
+  const commitText = useCallback(
+    (nextValue: string) => {
+      if (!selectedId || !api?.updateElementText) {
+        return false;
+      }
+      if (!isSafeEditableElementHtml(nextValue)) {
+        setHasUnsafeDraft(nextValue !== committedValueRef.current);
+        return false;
+      }
+      if (nextValue === committedValueRef.current) {
+        setHasUnsafeDraft(false);
+        return true;
+      }
+      const didUpdate = api.updateElementText(selectedId, nextValue);
+      if (didUpdate) {
+        setCommittedValue(nextValue);
+        setHasUnsafeDraft(false);
+      }
+      return didUpdate;
+    },
+    [api, selectedId, setCommittedValue]
+  );
+
+  useEffect(() => {
+    if (!hasText || !selectedId || value === committedValueRef.current) {
+      setHasUnsafeDraft(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      commitText(valueRef.current);
+    }, LIVE_TEXT_COMMIT_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [commitText, hasText, selectedId, value]);
+
   const handleChange = (event: { target: HTMLTextAreaElement }) => {
     const nextValue = event.target.value;
-    setValue(nextValue);
-    if (selectedId && api?.updateElementText) {
-      api.updateElementText(selectedId, nextValue);
+    setDraftValue(nextValue);
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    commitText(valueRef.current);
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+  };
+
+  const handleKeyDown = (event: { key: string; ctrlKey: boolean; metaKey: boolean; preventDefault: () => void }) => {
+    if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)) {
+      return;
     }
+    event.preventDefault();
+    commitText(valueRef.current);
   };
 
   const commitAttributes = useCallback(
@@ -136,7 +214,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
       {hasText ? (
         <div className="kayzart-formGroup">
           <label className="kayzart-formLabel" htmlFor={fieldId}>
-            {__( 'Text', 'kayzart-live-code-editor')}
+            {__( 'Inner HTML', 'kayzart-live-code-editor')}
           </label>
           <textarea
             id={fieldId}
@@ -144,7 +222,15 @@ export function ElementPanel({ api }: ElementPanelProps) {
             rows={4}
             value={value}
             onChange={handleChange}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            onKeyDown={handleKeyDown}
           />
+          {hasUnsafeDraft ? (
+            <div className="kayzart-settingsHelp">
+              {__( 'Preview will update when the HTML is complete.', 'kayzart-live-code-editor')}
+            </div>
+          ) : null}
         </div>
       ) : null}
       <div className="kayzart-formGroup">

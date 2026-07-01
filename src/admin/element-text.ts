@@ -121,6 +121,49 @@ function isEditableChild(node: DefaultTreeAdapterTypes.Node) {
   return false;
 }
 
+function isUnsafeFragmentParseError(code: string) {
+  return code.startsWith('eof-');
+}
+
+function isSafeEditableFragmentNode(node: DefaultTreeAdapterTypes.Node): boolean {
+  if (isTextNode(node) || isCommentNode(node)) {
+    return true;
+  }
+  if (!isElement(node)) {
+    return false;
+  }
+  if (!ALLOWED_INLINE_TAGS.has(node.tagName)) {
+    return false;
+  }
+  if (node.tagName === 'br') {
+    return true;
+  }
+  if (node.tagName !== 'span') {
+    return false;
+  }
+  if (!node.sourceCodeLocation?.startTag || !node.sourceCodeLocation.endTag) {
+    return false;
+  }
+  return (node.childNodes || []).every((child) => isSafeEditableFragmentNode(child));
+}
+
+export function isSafeEditableElementHtml(html: string): boolean {
+  const errors: string[] = [];
+  const fragment = parse5.parseFragment(html, {
+    sourceCodeLocationInfo: true,
+    onParseError: (error) => {
+      errors.push(error.code);
+    },
+  });
+  if (errors.some((code) => isUnsafeFragmentParseError(code))) {
+    return false;
+  }
+  if (html.trim() !== '' && (fragment.childNodes || []).length === 0) {
+    return false;
+  }
+  return (fragment.childNodes || []).every((node) => isSafeEditableFragmentNode(node));
+}
+
 function getExistingLcId(el: DefaultTreeAdapterTypes.Element): string | null {
   const attr = el.attrs.find((item) => item.name === KAYZART_ATTR_NAME);
   return attr ? attr.value : null;

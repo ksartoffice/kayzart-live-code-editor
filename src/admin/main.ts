@@ -19,6 +19,7 @@ import {
   getEditableElementText,
   getElementContext,
   getImageSourceEditInfo,
+  isSafeEditableElementHtml,
 } from './element-text';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
 import { createDocumentTitleSync } from './logic/document-title';
@@ -1454,6 +1455,9 @@ async function main() {
       return info ? info.text : null;
     },
     updateElementText: (lcId: string, text: string) => {
+      if (!isSafeEditableElementHtml(text)) {
+        return false;
+      }
       const html = htmlModel.getValue();
       const info = getEditableElementText(html, lcId);
       if (!info) {

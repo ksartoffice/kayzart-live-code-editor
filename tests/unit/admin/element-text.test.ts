@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { getElementContext, getImageSourceEditInfo } from '../../../src/admin/element-text';
+import {
+  getElementContext,
+  getImageSourceEditInfo,
+  isSafeEditableElementHtml,
+} from '../../../src/admin/element-text';
+
+describe('isSafeEditableElementHtml', () => {
+  it('allows plain text and completed inline HTML', () => {
+    expect(isSafeEditableElementHtml('Keep your AI-made landing pages')).toBe(true);
+    expect(isSafeEditableElementHtml('2 < 3')).toBe(true);
+    expect(
+      isSafeEditableElementHtml(
+        'Keep your AI-made landing pages <span class="text-gradient">inside WordPress.</span>'
+      )
+    ).toBe(true);
+    expect(isSafeEditableElementHtml('Line one<br>Line two')).toBe(true);
+    expect(isSafeEditableElementHtml('Text <!-- note --> more text')).toBe(true);
+  });
+
+  it('rejects incomplete or unsupported element HTML', () => {
+    expect(isSafeEditableElementHtml('<span class="')).toBe(false);
+    expect(isSafeEditableElementHtml('<span class="text-gradient">')).toBe(false);
+    expect(isSafeEditableElementHtml('<span>inside')).toBe(false);
+    expect(isSafeEditableElementHtml('<script>alert(1)</script>')).toBe(false);
+    expect(isSafeEditableElementHtml('<strong>inside</strong>')).toBe(false);
+    expect(isSafeEditableElementHtml('<div>inside</div>')).toBe(false);
+  });
+});
 
 describe('getElementContext', () => {
   it('uses descendant text for selected element context', () => {

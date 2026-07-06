@@ -1775,6 +1775,7 @@ async function main() {
       openSettingsTab,
       getEditorSnapshot,
       replaceEditorSnapshot,
+      reloadPreview: reloadPreviewPreservingScroll,
       getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
       getSelectedContext,
       setEditorLock,

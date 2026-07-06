@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import type { ElementPanelApi } from '../../../../src/admin/settings/element-panel';
+import type {
+  ElementPanelActionInfo,
+  ElementPanelApi,
+} from '../../../../src/admin/settings/element-panel';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -39,7 +42,8 @@ describe('ElementPanel', () => {
   });
 
   const mountPanel = async (
-    initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }]
+    initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }],
+    initialActionInfo: ElementPanelActionInfo | null = null
   ) => {
     const { createRoot } = await import('react-dom/client');
     const React = await import('react');
@@ -48,6 +52,7 @@ describe('ElementPanel', () => {
     let selectionListener: ((lcId: string | null) => void) | null = null;
     let contentListener: (() => void) | null = null;
     let segments = initialSegments;
+    let actionInfo = initialActionInfo;
     const api: ElementPanelApi = {
       subscribeSelection: (listener) => {
         selectionListener = listener;
@@ -58,6 +63,14 @@ describe('ElementPanel', () => {
         return () => {};
       },
       getTextSegments: vi.fn(() => segments),
+      getElementActionInfo: vi.fn(() => actionInfo),
+      updateElementActionInfo: vi.fn((_lcId, action) => {
+        if (!actionInfo) {
+          return false;
+        }
+        actionInfo = { ...actionInfo, ...action };
+        return true;
+      }),
       updateTextSegment: vi.fn((_lcId, segmentId, nextText) => {
         segments = segments.map((segment) =>
           segment.id === segmentId ? { ...segment, text: nextText } : segment
@@ -85,6 +98,9 @@ describe('ElementPanel', () => {
       setSegments: (nextSegments: typeof segments) => {
         segments = nextSegments;
       },
+      setActionInfo: (nextActionInfo: typeof actionInfo) => {
+        actionInfo = nextActionInfo;
+      },
       textareas: () => Array.from(container.querySelectorAll('textarea')) as HTMLTextAreaElement[],
     };
   };
@@ -97,6 +113,23 @@ describe('ElementPanel', () => {
       )?.set;
       valueSetter?.call(textarea, value);
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+
+  const inputValue = async (input: HTMLInputElement, value: string) => {
+    await act(async () => {
+      const valueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value'
+      )?.set;
+      valueSetter?.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+
+  const toggleCheckbox = async (input: HTMLInputElement) => {
+    await act(async () => {
+      input.click();
     });
   };
 
@@ -146,5 +179,89 @@ describe('ElementPanel', () => {
     expect(container.textContent).toContain('Advanced settings');
     expect(container.textContent).not.toContain('Attributes');
     expect(container.querySelector('details')).not.toBeNull();
+  });
+
+  it('shows link controls and updates the destination', async () => {
+    const { api, container } = await mountPanel(
+      [{ id: 'text-1', text: 'Contact', labelHint: 'Link text' }],
+      {
+        kind: 'link',
+        tagName: 'a',
+        href: '/contact',
+        targetBlank: false,
+        rel: '',
+        disabled: false,
+      }
+    );
+
+    expect(container.textContent).toContain('Link destination');
+    expect(container.textContent).toContain('Open in new tab');
+    const input = container.querySelector('#kayzart-elements-link-destination') as HTMLInputElement;
+    expect(input.value).toBe('/contact');
+
+    await inputValue(input, '/booking');
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementActionInfo).toHaveBeenCalledWith('heading-1', {
+      href: '/booking',
+    });
+  });
+
+  it('shows button link controls for cta links and toggles target blank', async () => {
+    const { api, container } = await mountPanel(
+      [{ id: 'text-1', text: 'Download', labelHint: 'Button text' }],
+      {
+        kind: 'button',
+        tagName: 'a',
+        href: '/download',
+        targetBlank: false,
+        rel: '',
+        disabled: false,
+      }
+    );
+
+    expect(container.textContent).toContain('Button');
+    expect(container.textContent).toContain('Link destination');
+    const checkbox = Array.from(container.querySelectorAll('input')).find(
+      (input) => input.type === 'checkbox'
+    ) as HTMLInputElement;
+
+    await toggleCheckbox(checkbox);
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementActionInfo).toHaveBeenCalledWith('heading-1', {
+      targetBlank: true,
+    });
+  });
+
+  it('shows disabled control for button elements without link destination', async () => {
+    const { api, container } = await mountPanel(
+      [{ id: 'text-1', text: 'Submit', labelHint: 'Button text' }],
+      {
+        kind: 'button',
+        tagName: 'button',
+        href: '',
+        targetBlank: false,
+        rel: '',
+        disabled: false,
+      }
+    );
+
+    expect(container.textContent).toContain('Disabled');
+    expect(container.textContent).not.toContain('Link destination');
+    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    await toggleCheckbox(checkbox);
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementActionInfo).toHaveBeenCalledWith('heading-1', {
+      disabled: true,
+    });
   });
 });

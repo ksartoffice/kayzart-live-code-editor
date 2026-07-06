@@ -49,6 +49,15 @@ export type ImageSourceEditInfo = {
   insertSuffix: string;
 };
 
+export type ElementActionInfo = {
+  kind: 'link' | 'button';
+  tagName: string;
+  href: string;
+  targetBlank: boolean;
+  rel: string;
+  disabled: boolean;
+};
+
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
 const TEXT_SEGMENT_SKIP_TAGS = new Set(['script', 'style', 'svg', 'noscript', 'template']);
 const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
@@ -251,6 +260,18 @@ export function isSafeEditableElementHtml(html: string): boolean {
 function getExistingLcId(el: DefaultTreeAdapterTypes.Element): string | null {
   const attr = el.attrs.find((item) => item.name === KAYZART_ATTR_NAME);
   return attr ? attr.value : null;
+}
+
+function getElementAttributeValue(el: DefaultTreeAdapterTypes.Element, name: string): string {
+  return el.attrs.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? '';
+}
+
+function hasElementAttribute(el: DefaultTreeAdapterTypes.Element, name: string): boolean {
+  return el.attrs.some((item) => item.name.toLowerCase() === name.toLowerCase());
+}
+
+function isButtonLikeClassName(className: string): boolean {
+  return /(^|[\s_-])(button|btn|cta)([\s_-]|$)/i.test(className);
 }
 
 function findAttributeValueRange(
@@ -559,6 +580,53 @@ export function getEditableElementAttributes(html: string, lcId: string): Elemen
             tagName: child.tagName,
             isVoid: VOID_TAGS.has(child.tagName),
             selfClosing,
+          };
+          return;
+        }
+        walk(child);
+        if (result) return;
+        if (isTemplateElement(child)) {
+          walk(child.content);
+          if (result) return;
+        }
+      } else if (isParentNode(child)) {
+        walk(child);
+        if (result) return;
+      }
+    }
+  };
+
+  walk(root);
+  return result;
+}
+
+export function getElementActionInfo(html: string, lcId: string): ElementActionInfo | null {
+  const root = parseElementLookupRoot(html);
+  let seq = 0;
+  let result: ElementActionInfo | null = null;
+
+  const walk = (node: DefaultTreeAdapterTypes.ParentNode) => {
+    for (const child of node.childNodes || []) {
+      if (isElement(child)) {
+        const existingId = getExistingLcId(child);
+        const id = existingId ?? `kayzart-${++seq}`;
+
+        if (id === lcId) {
+          const tagName = child.tagName.toLowerCase();
+          const className = getElementAttributeValue(child, 'class');
+          const isLink = tagName === 'a';
+          const isButton = tagName === 'button' || (isLink && isButtonLikeClassName(className));
+          if (!isLink && !isButton) {
+            result = null;
+            return;
+          }
+          result = {
+            kind: isButton ? 'button' : 'link',
+            tagName,
+            href: isLink ? getElementAttributeValue(child, 'href') : '',
+            targetBlank: getElementAttributeValue(child, 'target').toLowerCase() === '_blank',
+            rel: getElementAttributeValue(child, 'rel'),
+            disabled: hasElementAttribute(child, 'disabled'),
           };
           return;
         }

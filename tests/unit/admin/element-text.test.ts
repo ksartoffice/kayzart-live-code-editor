@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   escapeTextForHtml,
   getEditableTextSegments,
+  getElementActionInfo,
   getElementContext,
   getImageSourceEditInfo,
   isSafeEditableElementHtml,
@@ -186,6 +187,50 @@ describe('escapeTextForHtml', () => {
     expect(escapeTextForHtml('<strong>A&B</strong>')).toBe(
       '&lt;strong&gt;A&amp;B&lt;/strong&gt;'
     );
+  });
+});
+
+describe('getElementActionInfo', () => {
+  it('detects regular links', () => {
+    const html = '<a data-kayzart-id="link-1" href="/contact">Contact</a>';
+
+    expect(getElementActionInfo(html, 'link-1')).toEqual({
+      kind: 'link',
+      tagName: 'a',
+      href: '/contact',
+      targetBlank: false,
+      rel: '',
+      disabled: false,
+    });
+  });
+
+  it('detects button-like links', () => {
+    const html = '<a data-kayzart-id="button-1" class="cta-button" href="/contact">Contact</a>';
+
+    expect(getElementActionInfo(html, 'button-1')).toEqual(
+      expect.objectContaining({
+        kind: 'button',
+        tagName: 'a',
+        href: '/contact',
+      })
+    );
+  });
+
+  it('detects disabled buttons', () => {
+    const html = '<button data-kayzart-id="button-1" disabled>Send</button>';
+
+    expect(getElementActionInfo(html, 'button-1')).toEqual(
+      expect.objectContaining({
+        kind: 'button',
+        tagName: 'button',
+        disabled: true,
+      })
+    );
+  });
+
+  it('ignores regular text elements', () => {
+    expect(getElementActionInfo('<p data-kayzart-id="text-1">Hello</p>', 'text-1')).toBeNull();
+    expect(getElementActionInfo('<div data-kayzart-id="block-1">Hello</div>', 'block-1')).toBeNull();
   });
 });
 

@@ -199,6 +199,51 @@ describe('getEditableTextSegments', () => {
     ]);
   });
 
+  it('keeps later segment ids stable after an earlier segment is cleared', () => {
+    const before = '<h1 data-kayzart-id="heading-1">Foo <span>Bar</span></h1>';
+    const after = '<h1 data-kayzart-id="heading-1"> <span>Bar</span></h1>';
+
+    expect(
+      getEditableTextSegments(before, 'heading-1').map((segment) => ({
+        id: segment.id,
+        text: segment.text,
+      }))
+    ).toEqual([
+      { id: 'text-1', text: 'Foo' },
+      { id: 'text-2', text: 'Bar' },
+    ]);
+    expect(
+      getEditableTextSegments(after, 'heading-1').map((segment) => ({
+        id: segment.id,
+        text: segment.text,
+      }))
+    ).toEqual([
+      { id: 'text-1', text: '' },
+      { id: 'text-2', text: 'Bar' },
+    ]);
+  });
+
+  it('keeps following segment ids stable after a middle segment is cleared', () => {
+    const html = [
+      '<p data-kayzart-id="paragraph-1">',
+      'Foo ',
+      '<span> </span>',
+      '<em>Baz</em>',
+      '</p>',
+    ].join('');
+
+    expect(
+      getEditableTextSegments(html, 'paragraph-1').map((segment) => ({
+        id: segment.id,
+        text: segment.text,
+      }))
+    ).toEqual([
+      { id: 'text-1', text: 'Foo' },
+      { id: 'text-2', text: '' },
+      { id: 'text-3', text: 'Baz' },
+    ]);
+  });
+
   it('keeps a whitespace-only selected text element editable', () => {
     const html = '<span data-kayzart-id="span-1">   </span>';
 

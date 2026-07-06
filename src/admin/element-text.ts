@@ -275,6 +275,30 @@ function isButtonLikeClassName(className: string): boolean {
   return /(^|[\s_-])(button|btn|cta)([\s_-]|$)/i.test(className);
 }
 
+function isTextualContainerTag(tagName: string): boolean {
+  return (
+    HEADING_TAGS.has(tagName) ||
+    INLINE_TEXT_WRAPPER_TAGS.has(tagName) ||
+    tagName === 'a' ||
+    tagName === 'button' ||
+    tagName === 'p' ||
+    tagName === 'li'
+  );
+}
+
+function shouldExposeEmptyTextSegment(
+  rawText: string,
+  ancestors: DefaultTreeAdapterTypes.Element[]
+): boolean {
+  const parentTagName = getElementTagName(ancestors[ancestors.length - 1]);
+  return (
+    rawText.length > 0 &&
+    !/[\r\n]/.test(rawText) &&
+    rawText.trim().length === 0 &&
+    isTextualContainerTag(parentTagName)
+  );
+}
+
 type ElementLookupEntry = {
   element: DefaultTreeAdapterTypes.Element;
   lcId: string;
@@ -538,6 +562,7 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
 
   const collectSegments = (root: DefaultTreeAdapterTypes.Element): EditableTextSegment[] => {
     const segments: EditableTextSegment[] = [];
+    let textSlotCount = 0;
     const collect = (
       node: DefaultTreeAdapterTypes.Node,
       ancestors: DefaultTreeAdapterTypes.Element[]
@@ -557,14 +582,17 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
         const leading = rawText.match(/^\s*/)?.[0].length ?? 0;
         const trailing = rawText.match(/\s*$/)?.[0].length ?? 0;
         const text = rawText.slice(leading, rawText.length - trailing);
-        if (text.trim().length === 0) {
+        const hasVisibleText = text.trim().length > 0;
+        const keepEmptyText = shouldExposeEmptyTextSegment(rawText, ancestors);
+        if (!hasVisibleText && !keepEmptyText) {
           return;
         }
+        textSlotCount += 1;
         segments.push({
-          id: `text-${segments.length + 1}`,
-          text,
-          startOffset: loc.startOffset + leading,
-          endOffset: loc.endOffset - trailing,
+          id: `text-${textSlotCount}`,
+          text: hasVisibleText ? text : '',
+          startOffset: hasVisibleText ? loc.startOffset + leading : loc.startOffset,
+          endOffset: hasVisibleText ? loc.endOffset - trailing : loc.endOffset,
           labelHint: getTextSegmentLabelHint(ancestors),
         });
         return;

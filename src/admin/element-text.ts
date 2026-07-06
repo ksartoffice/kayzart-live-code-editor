@@ -595,12 +595,20 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
         if (!hasVisibleText && !keepEmptyText) {
           return;
         }
+        // node.value は parse5 によってエンティティがデコードされ（例: &nbsp; ->  ）、
+        // CRLF も正規化された文字列。そのためデコード後の文字数で数えた leading/trailing を
+        // 生ソースを指す loc.startOffset/endOffset に足し引きすると範囲がエンティティの内側に
+        // 食い込み、不正な HTML を生む可能性がある。トリム量はソーススライス側で計測して、
+        // 範囲の境界が必ずソースの文字境界（＝エンティティの外側）に着地するようにする。
+        const sourceSlice = html.slice(loc.startOffset, loc.endOffset);
+        const sourceLeading = sourceSlice.match(/^\s*/)?.[0].length ?? 0;
+        const sourceTrailing = sourceSlice.match(/\s*$/)?.[0].length ?? 0;
         textSlotCount += 1;
         segments.push({
           id: `text-${textSlotCount}`,
           text: hasVisibleText ? text : '',
-          startOffset: hasVisibleText ? loc.startOffset + leading : loc.startOffset,
-          endOffset: hasVisibleText ? loc.endOffset - trailing : loc.endOffset,
+          startOffset: hasVisibleText ? loc.startOffset + sourceLeading : loc.startOffset,
+          endOffset: hasVisibleText ? loc.endOffset - sourceTrailing : loc.endOffset,
           labelHint: getTextSegmentLabelHint(ancestors),
         });
         return;

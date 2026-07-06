@@ -307,6 +307,31 @@ describe('getEditableTextSegments', () => {
 
     expect(segments).toEqual([]);
   });
+
+  it('derives trimmed offsets from the source so entity padding is not split', () => {
+    const html = '<p data-kayzart-id="p-1">&nbsp;Hello&nbsp;</p>';
+
+    const [segment] = getEditableTextSegments(html, 'p-1');
+
+    expect(segment.text).toBe('Hello');
+    // The offsets must land on source (entity) boundaries, never inside &nbsp;.
+    expect(html.slice(segment.startOffset, segment.endOffset)).toBe('&nbsp;Hello&nbsp;');
+    const edited =
+      html.slice(0, segment.startOffset) +
+      escapeTextForHtml('Hi') +
+      html.slice(segment.endOffset);
+    // Replacement stays valid HTML instead of the corrupt "<p ...>&Hi;</p>".
+    expect(edited).toBe('<p data-kayzart-id="p-1">Hi</p>');
+  });
+
+  it('measures leading and trailing whitespace against the CRLF source', () => {
+    const html = '<p data-kayzart-id="p-1">\r\n  Hello\r\n</p>';
+
+    const [segment] = getEditableTextSegments(html, 'p-1');
+
+    expect(segment.text).toBe('Hello');
+    expect(html.slice(segment.startOffset, segment.endOffset)).toBe('Hello');
+  });
 });
 
 describe('escapeTextForHtml', () => {

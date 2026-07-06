@@ -58,14 +58,15 @@ export type EditorSnapshot = {
   baseHash: string;
 };
 
-export type EditorMode = 'normal';
+export type EditorMode = 'normal' | 'tailwind';
 
 export type KayzArtExtensionApi = {
-  registerSettingsTab: RegisterSettingsTab;
+  registerSettingsTab?: RegisterSettingsTab;
   registerToolbarAction?: RegisterToolbarAction;
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
+  reloadPreview?: () => void;
   getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;

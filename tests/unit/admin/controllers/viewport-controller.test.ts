@@ -164,4 +164,54 @@ describe('viewport controller settings width persistence hooks', () => {
     expect(onSettingsWidthCommit).toHaveBeenCalledTimes(1);
     expect(Number.parseFloat(ui.app.style.getPropertyValue('--kayzart-settings-width'))).toBeGreaterThan(300);
   });
+
+  it('can start with the editor collapsed', () => {
+    const ui = createUi();
+
+    const controller = createViewportController({
+      ui,
+      compactDesktopViewportWidth: 1280,
+      viewportPresetWidths: { mobile: 375, tablet: 768 },
+      previewBadgeHideMs: 2200,
+      previewBadgeTransitionMs: 320,
+      minLeftWidth: 320,
+      minRightWidth: 360,
+      desktopMinPreviewWidth: 1024,
+      minEditorPaneHeight: 160,
+      minSettingsWidth: 260,
+      initialEditorCollapsed: true,
+      getCompactEditorMode: () => false,
+    });
+
+    expect(controller.isEditorCollapsed()).toBe(true);
+    expect(ui.app.classList.contains('is-editor-collapsed')).toBe(true);
+    expect(ui.left.style.width).toBe('0px');
+    expect(ui.left.style.flex).toBe('0 0 0px');
+
+    controller.setEditorCollapsed(false);
+
+    expect(controller.isEditorCollapsed()).toBe(false);
+    expect(ui.app.classList.contains('is-editor-collapsed')).toBe(false);
+  });
+
+  it('keeps the editor visible by default', () => {
+    const ui = createUi();
+
+    const controller = createViewportController({
+      ui,
+      compactDesktopViewportWidth: 1280,
+      viewportPresetWidths: { mobile: 375, tablet: 768 },
+      previewBadgeHideMs: 2200,
+      previewBadgeTransitionMs: 320,
+      minLeftWidth: 320,
+      minRightWidth: 360,
+      desktopMinPreviewWidth: 1024,
+      minEditorPaneHeight: 160,
+      minSettingsWidth: 260,
+      getCompactEditorMode: () => false,
+    });
+
+    expect(controller.isEditorCollapsed()).toBe(false);
+    expect(ui.app.classList.contains('is-editor-collapsed')).toBe(false);
+  });
 });

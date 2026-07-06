@@ -1266,6 +1266,30 @@ body.admin_page_kayzart #wpbody-content {
   min-width: 0;
 }
 
+.kayzart-elementsTextInput {
+  min-height: 76px;
+  overflow: hidden;
+  resize: vertical;
+}
+
+.kayzart-elementsActionGroup {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #252c38;
+}
+
+.kayzart-elementsToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9cdd6;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.kayzart-elementsToggle input {
+  margin: 0;
+}
+
 .kayzart-elementsAttrRow {
   align-items: stretch;
 }

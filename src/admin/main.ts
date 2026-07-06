@@ -17,8 +17,11 @@ import { createPreviewController, type PreviewController } from './preview';
 import {
   getEditableElementAttributes,
   getEditableElementText,
+  getEditableTextSegments,
+  getElementActionInfo,
   getElementContext,
   getImageSourceEditInfo,
+  escapeTextForHtml,
   isSafeEditableElementHtml,
 } from './element-text';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
@@ -195,6 +198,7 @@ async function main() {
     minEditorPaneHeight: 160,
     minSettingsWidth: 260,
     initialSettingsWidth: initialSettingsPanelWidth,
+    initialEditorCollapsed: cfg.defaultEditorLayout === 'code_hidden',
     onSettingsWidthCommit: saveSettingsPanelWidth,
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
@@ -1447,9 +1451,81 @@ async function main() {
     return normalized.reverse();
   };
 
+  const applyElementAttributes = (
+    lcId: string,
+    attributes: { name: string; value: string }[]
+  ) => {
+    const html = htmlModel.getValue();
+    const info = getEditableElementAttributes(html, lcId);
+    if (!info) {
+      return false;
+    }
+    const normalized = normalizeAttributes(attributes);
+    const attrText = normalized.length
+      ? ` ${normalized
+          .map((attr) => `${attr.name}="${escapeAttributeValue(attr.value)}"`)
+          .join(' ')}`
+      : '';
+    const closing = info.selfClosing ? ' />' : '>';
+    const nextStartTag = `<${info.tagName}${attrText}${closing}`;
+    const currentStartTag = html.slice(info.startOffset, info.endOffset);
+    if (currentStartTag === nextStartTag) {
+      return true;
+    }
+    applyHtmlEdit(info.startOffset, info.endOffset, nextStartTag);
+    return true;
+  };
+
+  const setAttributeValue = (
+    attrs: { name: string; value: string }[],
+    name: string,
+    value: string | null
+  ) => {
+    const next = attrs.filter((attr) => attr.name.toLowerCase() !== name.toLowerCase());
+    if (value !== null) {
+      next.push({ name, value });
+    }
+    return next;
+  };
+
+  const setBooleanAttribute = (
+    attrs: { name: string; value: string }[],
+    name: string,
+    enabled: boolean
+  ) => setAttributeValue(attrs, name, enabled ? '' : null);
+
+  const mergeRelForTargetBlank = (currentRel: string, targetBlank: boolean) => {
+    const tokens = currentRel
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+    const filtered = tokens.filter((token) => !/^noopener$/i.test(token) && !/^noreferrer$/i.test(token));
+    if (targetBlank) {
+      filtered.push('noopener', 'noreferrer');
+    }
+    return Array.from(new Set(filtered)).join(' ');
+  };
+
   const elementsApi = {
     subscribeSelection,
     subscribeContentChange,
+    getTextSegments: (lcId: string) => {
+      const html = htmlModel.getValue();
+      return getEditableTextSegments(html, lcId);
+    },
+    updateTextSegment: (lcId: string, segmentId: string, text: string) => {
+      const segment = getEditableTextSegments(htmlModel.getValue(), lcId).find(
+        (entry) => entry.id === segmentId
+      );
+      if (!segment) {
+        return false;
+      }
+      if (segment.text === text) {
+        return true;
+      }
+      applyHtmlEdit(segment.startOffset, segment.endOffset, escapeTextForHtml(text));
+      return true;
+    },
     getElementText: (lcId: string) => {
       const info = getEditableElementText(htmlModel.getValue(), lcId);
       return info ? info.text : null;
@@ -1469,30 +1545,48 @@ async function main() {
       applyHtmlEdit(info.startOffset, info.endOffset, text);
       return true;
     },
+    getElementActionInfo: (lcId: string) => getElementActionInfo(htmlModel.getValue(), lcId),
+    updateElementActionInfo: (
+      lcId: string,
+      action: { href?: string; targetBlank?: boolean; disabled?: boolean }
+    ) => {
+      const info = getElementActionInfo(htmlModel.getValue(), lcId);
+      const attrsInfo = info
+        ? getEditableElementAttributes(htmlModel.getValue(), info.actionLcId)
+        : null;
+      if (!info || !attrsInfo) {
+        return false;
+      }
+      let nextAttributes = attrsInfo.attributes;
+
+      if (info.tagName === 'a' && action.href !== undefined) {
+        nextAttributes = setAttributeValue(nextAttributes, 'href', action.href);
+      }
+
+      if (info.tagName === 'a' && action.targetBlank !== undefined) {
+        nextAttributes = setAttributeValue(
+          nextAttributes,
+          'target',
+          action.targetBlank ? '_blank' : null
+        );
+        const currentRel =
+          nextAttributes.find((attr) => attr.name.toLowerCase() === 'rel')?.value ?? '';
+        const nextRel = mergeRelForTargetBlank(currentRel, action.targetBlank);
+        nextAttributes = setAttributeValue(nextAttributes, 'rel', nextRel || null);
+      }
+
+      if (info.tagName === 'button' && action.disabled !== undefined) {
+        nextAttributes = setBooleanAttribute(nextAttributes, 'disabled', action.disabled);
+      }
+
+      return applyElementAttributes(info.actionLcId, nextAttributes);
+    },
     getElementAttributes: (lcId: string) => {
       const info = getEditableElementAttributes(htmlModel.getValue(), lcId);
       return info ? info.attributes : null;
     },
     updateElementAttributes: (lcId: string, attributes: { name: string; value: string }[]) => {
-      const html = htmlModel.getValue();
-      const info = getEditableElementAttributes(html, lcId);
-      if (!info) {
-        return false;
-      }
-      const normalized = normalizeAttributes(attributes);
-      const attrText = normalized.length
-        ? ` ${normalized
-            .map((attr) => `${attr.name}="${escapeAttributeValue(attr.value)}"`)
-            .join(' ')}`
-        : '';
-      const closing = info.selfClosing ? ' />' : '>';
-      const nextStartTag = `<${info.tagName}${attrText}${closing}`;
-      const currentStartTag = html.slice(info.startOffset, info.endOffset);
-      if (currentStartTag === nextStartTag) {
-        return true;
-      }
-      applyHtmlEdit(info.startOffset, info.endOffset, nextStartTag);
-      return true;
+      return applyElementAttributes(lcId, attributes);
     },
   };
 
@@ -1775,6 +1869,7 @@ async function main() {
       openSettingsTab,
       getEditorSnapshot,
       replaceEditorSnapshot,
+      reloadPreview: reloadPreviewPreservingScroll,
       getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
       getSelectedContext,
       setEditorLock,

@@ -30,6 +30,7 @@ class Admin {
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
 	const OPTION_ENABLED_POST_TYPES    = 'kayzart_enabled_post_types';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
+	const OPTION_DEFAULT_EDITOR_LAYOUT = 'kayzart_default_editor_layout';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
@@ -543,6 +544,16 @@ class Admin {
 
 		register_setting(
 			self::SETTINGS_GROUP,
+			self::OPTION_DEFAULT_EDITOR_LAYOUT,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_default_editor_layout' ),
+				'default'           => 'code_visible',
+			)
+		);
+
+		register_setting(
+			self::SETTINGS_GROUP,
 			self::OPTION_ENABLED_POST_TYPES,
 			array(
 				'type'              => 'array',
@@ -583,6 +594,21 @@ class Admin {
 			array( __CLASS__, 'render_default_template_mode_field' ),
 			self::SETTINGS_SLUG,
 			'kayzart_template_mode'
+		);
+
+		add_settings_section(
+			'kayzart_editor_display',
+			__( 'Editor display', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_editor_display_section' ),
+			self::SETTINGS_SLUG
+		);
+
+		add_settings_field(
+			self::OPTION_DEFAULT_EDITOR_LAYOUT,
+			__( 'Default editor layout', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_default_editor_layout_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_editor_display'
 		);
 
 		add_settings_section(
@@ -633,6 +659,19 @@ class Admin {
 		$template_mode = is_string( $value ) ? sanitize_key( $value ) : '';
 		$valid         = array( 'standalone', 'theme' );
 		return in_array( $template_mode, $valid, true ) ? $template_mode : 'standalone';
+	}
+
+	/**
+	 * Sanitize default editor layout value.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	public static function sanitize_default_editor_layout( $value ): string {
+
+		$layout = is_string( $value ) ? sanitize_key( $value ) : '';
+		$valid  = array( 'code_visible', 'code_hidden' );
+		return in_array( $layout, $valid, true ) ? $layout : 'code_visible';
 	}
 
 	/**
@@ -698,6 +737,13 @@ class Admin {
 	}
 
 	/**
+	 * Render editor display section description.
+	 */
+	public static function render_editor_display_section(): void {
+		echo '<p>' . esc_html__( 'Choose how the Kayzart editor opens by default.', 'kayzart-live-code-editor' ) . '</p>';
+	}
+
+	/**
 	 * Render post type section description.
 	 */
 	public static function render_post_types_section(): void {
@@ -730,6 +776,25 @@ class Admin {
 		}
 		echo '</select>';
 		echo '<p class="description">' . esc_html__( 'Applies when template mode is set to Use admin default.', 'kayzart-live-code-editor' ) . '</p>';
+	}
+
+	/**
+	 * Render default editor layout select field.
+	 */
+	public static function render_default_editor_layout_field(): void {
+
+		$value   = get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' );
+		$value   = self::sanitize_default_editor_layout( $value );
+		$layouts = array(
+			'code_visible' => __( 'Show code', 'kayzart-live-code-editor' ),
+			'code_hidden'  => __( 'Hide code', 'kayzart-live-code-editor' ),
+		);
+		echo '<select name="' . esc_attr( self::OPTION_DEFAULT_EDITOR_LAYOUT ) . '">';
+		foreach ( $layouts as $key => $label ) {
+			echo '<option value="' . esc_attr( $key ) . '" ' . selected( $value, $key, false ) . '>' . esc_html( $label ) . '</option>';
+		}
+		echo '</select>';
+		echo '<p class="description">' . esc_html__( 'When code is hidden, the editor opens with the preview area expanded. The toolbar can still show code for the current session.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -968,6 +1033,9 @@ class Admin {
 			'listLabel'              => $list_label,
 			'settingsRestUrl'        => rest_url( 'kayzart/v1/settings' ),
 			'settingsData'           => Rest::build_settings_payload( $post_id ),
+			'defaultEditorLayout'    => self::sanitize_default_editor_layout(
+				get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' )
+			),
 			'tailwindEnabled'        => (bool) get_post_meta( $post_id, '_kayzart_tailwind', true ),
 			'setupRequired'          => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
 			'restNonce'              => wp_create_nonce( 'wp_rest' ),

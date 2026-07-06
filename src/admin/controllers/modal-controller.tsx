@@ -38,6 +38,12 @@ type ModalControllerDeps = {
   noticeErrorMs: number;
 };
 
+type SettingsUpdateResponse = {
+  ok?: boolean;
+  error?: string;
+  settings?: Partial<SettingsData>;
+};
+
 type MissingMarkersModalProps = {
   title: string;
   body: string;
@@ -510,7 +516,7 @@ export function createModalController(deps: ModalControllerDeps) {
     missingMarkersInFlight = true;
     renderModals();
     try {
-      const response = await deps.apiFetch({
+      const response = await deps.apiFetch<SettingsUpdateResponse>({
         url: deps.settingsRestUrl,
         method: 'POST',
         data: {

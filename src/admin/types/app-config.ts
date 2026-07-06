@@ -17,6 +17,7 @@ export type AppConfig = {
   setupRestUrl: string;
   settingsRestUrl: string;
   settingsData: SettingsData;
+  defaultEditorLayout?: 'code_visible' | 'code_hidden';
   backUrl?: string;
   listUrl?: string;
   listLabel?: string;

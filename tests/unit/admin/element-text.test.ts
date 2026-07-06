@@ -244,6 +244,48 @@ describe('getEditableTextSegments', () => {
     ]);
   });
 
+  it('keeps child wrapper segment ids stable after the wrapper text is cleared', () => {
+    const before =
+      '<p data-kayzart-id="paragraph-1"><span>Foo</span><em>Bar</em></p>';
+    const after =
+      '<p data-kayzart-id="paragraph-1"><span></span><em>Bar</em></p>';
+
+    expect(
+      getEditableTextSegments(before, 'paragraph-1').map((segment) => ({
+        id: segment.id,
+        text: segment.text,
+      }))
+    ).toEqual([
+      { id: 'text-1', text: 'Foo' },
+      { id: 'text-2', text: 'Bar' },
+    ]);
+    expect(
+      getEditableTextSegments(after, 'paragraph-1').map((segment) => ({
+        id: segment.id,
+        text: segment.text,
+      }))
+    ).toEqual([
+      { id: 'text-1', text: '' },
+      { id: 'text-2', text: 'Bar' },
+    ]);
+  });
+
+  it('keeps following ids stable after an empty middle wrapper loses its text node', () => {
+    const html =
+      '<p data-kayzart-id="paragraph-1">Foo <span></span><em>Baz</em></p>';
+
+    expect(
+      getEditableTextSegments(html, 'paragraph-1').map((segment) => ({
+        id: segment.id,
+        text: segment.text,
+      }))
+    ).toEqual([
+      { id: 'text-1', text: 'Foo' },
+      { id: 'text-2', text: '' },
+      { id: 'text-3', text: 'Baz' },
+    ]);
+  });
+
   it('keeps a whitespace-only selected text element editable', () => {
     const html = '<span data-kayzart-id="span-1">   </span>';
 

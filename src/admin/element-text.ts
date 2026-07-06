@@ -299,6 +299,14 @@ function shouldExposeEmptyTextSegment(
   );
 }
 
+function isEmptyTextualElement(node: DefaultTreeAdapterTypes.Element): boolean {
+  if (!isTextualContainerTag(getElementTagName(node))) {
+    return false;
+  }
+  const childNodes = node.childNodes || [];
+  return childNodes.length === 0 || childNodes.every((child) => isCommentNode(child));
+}
+
 type ElementLookupEntry = {
   element: DefaultTreeAdapterTypes.Element;
   lcId: string;
@@ -605,6 +613,20 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
         return;
       }
       const nextAncestors = isElement(node) ? [...ancestors, node] : ancestors;
+      if (isElement(node) && isEmptyTextualElement(node)) {
+        const range = getInnerRange('', node.tagName, node.sourceCodeLocation);
+        if (range) {
+          textSlotCount += 1;
+          segments.push({
+            id: `text-${textSlotCount}`,
+            text: '',
+            startOffset: range.startOffset,
+            endOffset: range.endOffset,
+            labelHint: getTextSegmentLabelHint(nextAncestors),
+          });
+        }
+        return;
+      }
       for (const child of node.childNodes || []) {
         collect(child, nextAncestors);
       }

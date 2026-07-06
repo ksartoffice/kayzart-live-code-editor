@@ -1551,7 +1551,9 @@ async function main() {
       action: { href?: string; targetBlank?: boolean; disabled?: boolean }
     ) => {
       const info = getElementActionInfo(htmlModel.getValue(), lcId);
-      const attrsInfo = getEditableElementAttributes(htmlModel.getValue(), lcId);
+      const attrsInfo = info
+        ? getEditableElementAttributes(htmlModel.getValue(), info.actionLcId)
+        : null;
       if (!info || !attrsInfo) {
         return false;
       }
@@ -1577,7 +1579,7 @@ async function main() {
         nextAttributes = setBooleanAttribute(nextAttributes, 'disabled', action.disabled);
       }
 
-      return applyElementAttributes(lcId, nextAttributes);
+      return applyElementAttributes(info.actionLcId, nextAttributes);
     },
     getElementAttributes: (lcId: string) => {
       const info = getEditableElementAttributes(htmlModel.getValue(), lcId);

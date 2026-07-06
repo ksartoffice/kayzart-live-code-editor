@@ -50,6 +50,7 @@ export type ImageSourceEditInfo = {
 };
 
 export type ElementActionInfo = {
+  actionLcId: string;
   kind: 'link' | 'button';
   tagName: string;
   href: string;
@@ -272,6 +273,68 @@ function hasElementAttribute(el: DefaultTreeAdapterTypes.Element, name: string):
 
 function isButtonLikeClassName(className: string): boolean {
   return /(^|[\s_-])(button|btn|cta)([\s_-]|$)/i.test(className);
+}
+
+type ElementLookupEntry = {
+  element: DefaultTreeAdapterTypes.Element;
+  lcId: string;
+};
+
+function findElementLookupEntry(html: string, lcId: string): (ElementLookupEntry & {
+  ancestors: ElementLookupEntry[];
+}) | null {
+  const root = parseElementLookupRoot(html);
+  let seq = 0;
+  let result: (ElementLookupEntry & { ancestors: ElementLookupEntry[] }) | null = null;
+
+  const walk = (
+    node: DefaultTreeAdapterTypes.ParentNode,
+    ancestors: ElementLookupEntry[] = []
+  ) => {
+    for (const child of node.childNodes || []) {
+      if (isElement(child)) {
+        const existingId = getExistingLcId(child);
+        const id = existingId ?? `kayzart-${++seq}`;
+        const entry = { element: child, lcId: id };
+
+        if (id === lcId) {
+          result = { ...entry, ancestors };
+          return;
+        }
+        walk(child, [...ancestors, entry]);
+        if (result) return;
+        if (isTemplateElement(child)) {
+          walk(child.content, [...ancestors, entry]);
+          if (result) return;
+        }
+      } else if (isParentNode(child)) {
+        walk(child, ancestors);
+        if (result) return;
+      }
+    }
+  };
+
+  walk(root);
+  return result;
+}
+
+function getActionInfoFromEntry(entry: ElementLookupEntry): ElementActionInfo | null {
+  const tagName = entry.element.tagName.toLowerCase();
+  const className = getElementAttributeValue(entry.element, 'class');
+  const isLink = tagName === 'a';
+  const isButton = tagName === 'button' || (isLink && isButtonLikeClassName(className));
+  if (!isLink && !isButton) {
+    return null;
+  }
+  return {
+    actionLcId: entry.lcId,
+    kind: isButton ? 'button' : 'link',
+    tagName,
+    href: isLink ? getElementAttributeValue(entry.element, 'href') : '',
+    targetBlank: getElementAttributeValue(entry.element, 'target').toLowerCase() === '_blank',
+    rel: getElementAttributeValue(entry.element, 'rel'),
+    disabled: hasElementAttribute(entry.element, 'disabled'),
+  };
 }
 
 function findAttributeValueRange(
@@ -523,9 +586,34 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
     return segments;
   };
 
+  const createEmptySegment = (
+    root: DefaultTreeAdapterTypes.Element
+  ): EditableTextSegment | null => {
+    const childNodes = root.childNodes || [];
+    const canEditEmptyBody =
+      childNodes.length === 0 ||
+      childNodes.every((child) => isTextNode(child) || isCommentNode(child));
+    if (!canEditEmptyBody) {
+      return null;
+    }
+    const range = getInnerRange('', root.tagName, root.sourceCodeLocation);
+    if (!range) {
+      return null;
+    }
+    return {
+      id: 'text-1',
+      text: '',
+      startOffset: range.startOffset,
+      endOffset: range.endOffset,
+      labelHint: getTextSegmentLabelHint([root]),
+    };
+  };
+
   const selectedSegments = collectSegments(selected);
   const selectedTagName = getElementTagName(selected);
   const parent = selectedAncestors[selectedAncestors.length - 1];
+  const selectedSegmentsWithFallback =
+    selectedSegments.length > 0 ? selectedSegments : [createEmptySegment(selected)].filter(Boolean);
   if (
     parent &&
     INLINE_TEXT_WRAPPER_TAGS.has(selectedTagName) &&
@@ -533,12 +621,12 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
     !VOID_TAGS.has(parent.tagName)
   ) {
     const parentSegments = collectSegments(parent);
-    if (parentSegments.length > selectedSegments.length) {
+    if (parentSegments.length > selectedSegmentsWithFallback.length) {
       return parentSegments;
     }
   }
 
-  return selectedSegments;
+  return selectedSegmentsWithFallback;
 }
 
 export function getEditableElementAttributes(html: string, lcId: string): ElementAttributesInfo | null {
@@ -601,50 +689,18 @@ export function getEditableElementAttributes(html: string, lcId: string): Elemen
 }
 
 export function getElementActionInfo(html: string, lcId: string): ElementActionInfo | null {
-  const root = parseElementLookupRoot(html);
-  let seq = 0;
-  let result: ElementActionInfo | null = null;
-
-  const walk = (node: DefaultTreeAdapterTypes.ParentNode) => {
-    for (const child of node.childNodes || []) {
-      if (isElement(child)) {
-        const existingId = getExistingLcId(child);
-        const id = existingId ?? `kayzart-${++seq}`;
-
-        if (id === lcId) {
-          const tagName = child.tagName.toLowerCase();
-          const className = getElementAttributeValue(child, 'class');
-          const isLink = tagName === 'a';
-          const isButton = tagName === 'button' || (isLink && isButtonLikeClassName(className));
-          if (!isLink && !isButton) {
-            result = null;
-            return;
-          }
-          result = {
-            kind: isButton ? 'button' : 'link',
-            tagName,
-            href: isLink ? getElementAttributeValue(child, 'href') : '',
-            targetBlank: getElementAttributeValue(child, 'target').toLowerCase() === '_blank',
-            rel: getElementAttributeValue(child, 'rel'),
-            disabled: hasElementAttribute(child, 'disabled'),
-          };
-          return;
-        }
-        walk(child);
-        if (result) return;
-        if (isTemplateElement(child)) {
-          walk(child.content);
-          if (result) return;
-        }
-      } else if (isParentNode(child)) {
-        walk(child);
-        if (result) return;
-      }
+  const selected = findElementLookupEntry(html, lcId);
+  if (!selected) {
+    return null;
+  }
+  const candidates = [selected, ...selected.ancestors.slice().reverse()];
+  for (const entry of candidates) {
+    const info = getActionInfoFromEntry(entry);
+    if (info) {
+      return info;
     }
-  };
-
-  walk(root);
-  return result;
+  }
+  return null;
 }
 
 export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceEditInfo | null {

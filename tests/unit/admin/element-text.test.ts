@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   escapeTextForHtml,
+  getEditableElementAttributes,
   getEditableTextSegments,
   getElementActionInfo,
   getElementContext,
@@ -180,6 +181,45 @@ describe('getEditableTextSegments', () => {
 
     expect(segments.map((segment) => segment.text)).toEqual(['Keep me']);
   });
+
+  it('keeps an empty selected text element editable', () => {
+    const html = '<h2 data-kayzart-id="heading-1"></h2>';
+    const offset = html.indexOf('</h2>');
+
+    const segments = getEditableTextSegments(html, 'heading-1');
+
+    expect(segments).toEqual([
+      expect.objectContaining({
+        id: 'text-1',
+        text: '',
+        startOffset: offset,
+        endOffset: offset,
+        labelHint: 'Heading',
+      }),
+    ]);
+  });
+
+  it('keeps a whitespace-only selected text element editable', () => {
+    const html = '<span data-kayzart-id="span-1">   </span>';
+
+    const segments = getEditableTextSegments(html, 'span-1');
+
+    expect(segments).toEqual([
+      expect.objectContaining({
+        id: 'text-1',
+        text: '',
+        labelHint: 'Text',
+      }),
+    ]);
+  });
+
+  it('does not add an empty text segment for media-only elements', () => {
+    const html = '<div data-kayzart-id="block-1"><img src="example.jpg" alt=""></div>';
+
+    const segments = getEditableTextSegments(html, 'block-1');
+
+    expect(segments).toEqual([]);
+  });
 });
 
 describe('escapeTextForHtml', () => {
@@ -195,6 +235,7 @@ describe('getElementActionInfo', () => {
     const html = '<a data-kayzart-id="link-1" href="/contact">Contact</a>';
 
     expect(getElementActionInfo(html, 'link-1')).toEqual({
+      actionLcId: 'link-1',
       kind: 'link',
       tagName: 'a',
       href: '/contact',
@@ -209,6 +250,7 @@ describe('getElementActionInfo', () => {
 
     expect(getElementActionInfo(html, 'button-1')).toEqual(
       expect.objectContaining({
+        actionLcId: 'button-1',
         kind: 'button',
         tagName: 'a',
         href: '/contact',
@@ -221,6 +263,7 @@ describe('getElementActionInfo', () => {
 
     expect(getElementActionInfo(html, 'button-1')).toEqual(
       expect.objectContaining({
+        actionLcId: 'button-1',
         kind: 'button',
         tagName: 'button',
         disabled: true,
@@ -231,6 +274,62 @@ describe('getElementActionInfo', () => {
   it('ignores regular text elements', () => {
     expect(getElementActionInfo('<p data-kayzart-id="text-1">Hello</p>', 'text-1')).toBeNull();
     expect(getElementActionInfo('<div data-kayzart-id="block-1">Hello</div>', 'block-1')).toBeNull();
+  });
+
+  it('uses the nearest parent link action for nested label elements', () => {
+    const html =
+      '<a data-kayzart-id="link-1" href="/buy" target="_blank" rel="nofollow"><span data-kayzart-id="label-1">Buy</span></a>';
+
+    const info = getElementActionInfo(html, 'label-1');
+    const attrsInfo = info ? getEditableElementAttributes(html, info.actionLcId) : null;
+
+    expect(info).toEqual({
+      actionLcId: 'link-1',
+      kind: 'link',
+      tagName: 'a',
+      href: '/buy',
+      targetBlank: true,
+      rel: 'nofollow',
+      disabled: false,
+    });
+    expect(attrsInfo?.tagName).toBe('a');
+    expect(attrsInfo?.attributes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'href', value: '/buy' })])
+    );
+  });
+
+  it('uses the nearest parent button action for nested label elements', () => {
+    const html =
+      '<button data-kayzart-id="button-1" disabled><span data-kayzart-id="label-1">Send</span></button>';
+
+    const info = getElementActionInfo(html, 'label-1');
+    const attrsInfo = info ? getEditableElementAttributes(html, info.actionLcId) : null;
+
+    expect(info).toEqual(
+      expect.objectContaining({
+        actionLcId: 'button-1',
+        kind: 'button',
+        tagName: 'button',
+        disabled: true,
+      })
+    );
+    expect(attrsInfo?.tagName).toBe('button');
+    expect(attrsInfo?.attributes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'disabled', value: '' })])
+    );
+  });
+
+  it('uses generated parent action ids for nested CTA labels', () => {
+    const html = '<a class="cta-button" href="/buy"><span>Buy</span></a>';
+
+    expect(getElementActionInfo(html, 'kayzart-2')).toEqual(
+      expect.objectContaining({
+        actionLcId: 'kayzart-1',
+        kind: 'button',
+        tagName: 'a',
+        href: '/buy',
+      })
+    );
   });
 });
 

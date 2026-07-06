@@ -564,7 +564,10 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
   };
 
   findSelected(root);
-  if (!selected || VOID_TAGS.has(selected.tagName)) {
+  // selected は findSelected 内（クロージャ）でのみ代入されるため TS の制御フロー解析は
+  // null のまま narrowing してしまう。アサーションで型を戻し、以降の判定を正す。
+  const selectedElement = selected as DefaultTreeAdapterTypes.Element | null;
+  if (!selectedElement || VOID_TAGS.has(selectedElement.tagName)) {
     return [];
   }
 
@@ -667,11 +670,12 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
     };
   };
 
-  const selectedSegments = collectSegments(selected);
-  const selectedTagName = getElementTagName(selected);
+  const selectedSegments = collectSegments(selectedElement);
+  const selectedTagName = getElementTagName(selectedElement);
   const parent = selectedAncestors[selectedAncestors.length - 1];
+  const emptySegment = createEmptySegment(selectedElement);
   const selectedSegmentsWithFallback =
-    selectedSegments.length > 0 ? selectedSegments : [createEmptySegment(selected)].filter(Boolean);
+    selectedSegments.length > 0 ? selectedSegments : emptySegment ? [emptySegment] : [];
   if (
     parent &&
     INLINE_TEXT_WRAPPER_TAGS.has(selectedTagName) &&

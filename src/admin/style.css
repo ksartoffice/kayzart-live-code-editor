@@ -1266,6 +1266,12 @@ body.admin_page_kayzart #wpbody-content {
   min-width: 0;
 }
 
+.kayzart-elementsTextInput {
+  min-height: 44px;
+  overflow: hidden;
+  resize: vertical;
+}
+
 .kayzart-elementsAttrRow {
   align-items: stretch;
 }

@@ -10,6 +10,12 @@ type ElementTextInfo = InnerRange & {
   text: string;
 };
 
+export type EditableTextSegment = InnerRange & {
+  id: string;
+  text: string;
+  labelHint: string;
+};
+
 export type ElementAttribute = {
   name: string;
   value: string;
@@ -44,6 +50,21 @@ export type ImageSourceEditInfo = {
 };
 
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
+const TEXT_SEGMENT_SKIP_TAGS = new Set(['script', 'style', 'svg', 'noscript', 'template']);
+const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+const INLINE_TEXT_WRAPPER_TAGS = new Set([
+  'span',
+  'strong',
+  'em',
+  'b',
+  'i',
+  'mark',
+  'small',
+  'u',
+  's',
+  'sub',
+  'sup',
+]);
 const KAYZART_ATTR_NAME = 'data-kayzart-id';
 const VOID_TAGS = new Set([
   'area',
@@ -80,6 +101,69 @@ function isTextNode(node: DefaultTreeAdapterTypes.Node): node is DefaultTreeAdap
 
 function isCommentNode(node: DefaultTreeAdapterTypes.Node): boolean {
   return node.nodeName === '#comment';
+}
+
+function findElementByTag(
+  node: DefaultTreeAdapterTypes.Node,
+  tagName: string
+): DefaultTreeAdapterTypes.Element | null {
+  if (isElement(node) && node.tagName.toLowerCase() === tagName.toLowerCase()) {
+    return node;
+  }
+  if (!isParentNode(node)) {
+    return null;
+  }
+  for (const child of node.childNodes || []) {
+    const match = findElementByTag(child, tagName);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
+
+function parseElementLookupRoot(html: string): DefaultTreeAdapterTypes.ParentNode {
+  if (html.toLowerCase().includes('<body')) {
+    const document = parse5.parse(html, { sourceCodeLocationInfo: true });
+    const body = findElementByTag(document, 'body');
+    if (body) {
+      return body;
+    }
+  }
+  return parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+}
+
+function getElementTagName(node: DefaultTreeAdapterTypes.Node | null | undefined): string {
+  return node && isElement(node) ? node.tagName.toLowerCase() : '';
+}
+
+function getTextSegmentLabelHint(ancestors: DefaultTreeAdapterTypes.Element[]): string {
+  const tags = ancestors.map((entry) => entry.tagName.toLowerCase()).reverse();
+  const closest = tags[0] || '';
+  if (tags.includes('button')) {
+    return 'Button text';
+  }
+  if (tags.includes('a')) {
+    const className =
+      ancestors
+        .flatMap((entry) => entry.attrs)
+        .find((attr) => attr.name === 'class')?.value || '';
+    return /button|btn|cta/i.test(className) ? 'Button text' : 'Link text';
+  }
+  if (HEADING_TAGS.has(closest)) {
+    return 'Heading';
+  }
+  if (closest === 'p' || closest === 'li') {
+    return 'Text';
+  }
+  return 'Text';
+}
+
+export function escapeTextForHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function collectDescendantText(node: DefaultTreeAdapterTypes.Node): string {
@@ -281,7 +365,7 @@ function getInnerRange(
 }
 
 export function getEditableElementText(html: string, lcId: string): ElementTextInfo | null {
-  const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+  const root = parseElementLookupRoot(html);
   let seq = 0;
   let result: ElementTextInfo | null = null;
 
@@ -327,12 +411,117 @@ export function getEditableElementText(html: string, lcId: string): ElementTextI
     }
   };
 
-  walk(fragment);
+  walk(root);
   return result;
 }
 
+export function getEditableTextSegments(html: string, lcId: string): EditableTextSegment[] {
+  const root = parseElementLookupRoot(html);
+  let seq = 0;
+  let selected: DefaultTreeAdapterTypes.Element | null = null;
+  let selectedAncestors: DefaultTreeAdapterTypes.Element[] = [];
+
+  const findSelected = (
+    node: DefaultTreeAdapterTypes.ParentNode,
+    ancestors: DefaultTreeAdapterTypes.Element[] = []
+  ) => {
+    for (const child of node.childNodes || []) {
+      if (isElement(child)) {
+        const existingId = getExistingLcId(child);
+        const id = existingId ?? `kayzart-${++seq}`;
+        if (id === lcId) {
+          selected = child;
+          selectedAncestors = ancestors;
+          return;
+        }
+        findSelected(child, [...ancestors, child]);
+        if (selected) return;
+        if (isTemplateElement(child)) {
+          findSelected(child.content, [...ancestors, child]);
+          if (selected) return;
+        }
+      } else if (isParentNode(child)) {
+        findSelected(child, ancestors);
+        if (selected) return;
+      }
+    }
+  };
+
+  findSelected(root);
+  if (!selected || VOID_TAGS.has(selected.tagName)) {
+    return [];
+  }
+
+  const collectSegments = (root: DefaultTreeAdapterTypes.Element): EditableTextSegment[] => {
+    const segments: EditableTextSegment[] = [];
+    const collect = (
+      node: DefaultTreeAdapterTypes.Node,
+      ancestors: DefaultTreeAdapterTypes.Element[]
+    ) => {
+      if (isTextNode(node)) {
+        const loc = (node as DefaultTreeAdapterTypes.TextNode & {
+          sourceCodeLocation?: { startOffset?: number; endOffset?: number };
+        }).sourceCodeLocation;
+        if (
+          !loc ||
+          typeof loc.startOffset !== 'number' ||
+          typeof loc.endOffset !== 'number'
+        ) {
+          return;
+        }
+        const rawText = node.value;
+        const leading = rawText.match(/^\s*/)?.[0].length ?? 0;
+        const trailing = rawText.match(/\s*$/)?.[0].length ?? 0;
+        const text = rawText.slice(leading, rawText.length - trailing);
+        if (text.trim().length === 0) {
+          return;
+        }
+        segments.push({
+          id: `text-${segments.length + 1}`,
+          text,
+          startOffset: loc.startOffset + leading,
+          endOffset: loc.endOffset - trailing,
+          labelHint: getTextSegmentLabelHint(ancestors),
+        });
+        return;
+      }
+
+      if (!isParentNode(node) || isCommentNode(node)) {
+        return;
+      }
+      if (isElement(node) && TEXT_SEGMENT_SKIP_TAGS.has(getElementTagName(node))) {
+        return;
+      }
+      const nextAncestors = isElement(node) ? [...ancestors, node] : ancestors;
+      for (const child of node.childNodes || []) {
+        collect(child, nextAncestors);
+      }
+    };
+
+    collect(root, [root]);
+    return segments;
+  };
+
+  const selectedSegments = collectSegments(selected);
+  const selectedTagName = getElementTagName(selected);
+  const parent = selectedAncestors[selectedAncestors.length - 1];
+  if (
+    parent &&
+    INLINE_TEXT_WRAPPER_TAGS.has(selectedTagName) &&
+    !TEXT_SEGMENT_SKIP_TAGS.has(getElementTagName(parent)) &&
+    !VOID_TAGS.has(parent.tagName)
+  ) {
+    const parentSegments = collectSegments(parent);
+    if (parentSegments.length > selectedSegments.length) {
+      return parentSegments;
+    }
+  }
+
+  return selectedSegments;
+}
+
 export function getEditableElementAttributes(html: string, lcId: string): ElementAttributesInfo | null {
-  const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+  const root = parseElementLookupRoot(html);
   let seq = 0;
   let result: ElementAttributesInfo | null = null;
 
@@ -386,12 +575,12 @@ export function getEditableElementAttributes(html: string, lcId: string): Elemen
     }
   };
 
-  walk(fragment);
+  walk(root);
   return result;
 }
 
 export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceEditInfo | null {
-  const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+  const root = parseElementLookupRoot(html);
   let seq = 0;
   let result: ImageSourceEditInfo | null = null;
 
@@ -451,12 +640,12 @@ export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceE
     }
   };
 
-  walk(fragment);
+  walk(root);
   return result;
 }
 
 export function getElementContext(html: string, lcId: string): ElementContextInfo | null {
-  const fragment = parse5.parseFragment(html, { sourceCodeLocationInfo: true });
+  const root = parseElementLookupRoot(html);
   let seq = 0;
   let result: ElementContextInfo | null = null;
 
@@ -511,7 +700,7 @@ export function getElementContext(html: string, lcId: string): ElementContextInf
     }
   };
 
-  walk(fragment);
+  walk(root);
   return result;
 }
 

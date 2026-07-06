@@ -19,6 +19,7 @@ vi.mock('@wordpress/element', async () => {
     Fragment: React.Fragment,
     useCallback: React.useCallback,
     useEffect: React.useEffect,
+    useMemo: React.useMemo,
     useRef: React.useRef,
     useState: React.useState,
     createRoot: ReactDomClient.createRoot,
@@ -37,14 +38,16 @@ describe('ElementPanel', () => {
     vi.resetModules();
   });
 
-  const mountPanel = async (initialText = 'Original') => {
+  const mountPanel = async (
+    initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }]
+  ) => {
     const { createRoot } = await import('react-dom/client');
     const React = await import('react');
     const { ElementPanel } = await import('../../../../src/admin/settings/element-panel');
     const container = document.createElement('div');
     let selectionListener: ((lcId: string | null) => void) | null = null;
     let contentListener: (() => void) | null = null;
-    let text = initialText;
+    let segments = initialSegments;
     const api: ElementPanelApi = {
       subscribeSelection: (listener) => {
         selectionListener = listener;
@@ -54,9 +57,11 @@ describe('ElementPanel', () => {
         contentListener = listener;
         return () => {};
       },
-      getElementText: vi.fn(() => text),
-      updateElementText: vi.fn((_lcId, nextText) => {
-        text = nextText;
+      getTextSegments: vi.fn(() => segments),
+      updateTextSegment: vi.fn((_lcId, segmentId, nextText) => {
+        segments = segments.map((segment) =>
+          segment.id === segmentId ? { ...segment, text: nextText } : segment
+        );
         return true;
       }),
       getElementAttributes: vi.fn(() => []),
@@ -72,16 +77,15 @@ describe('ElementPanel', () => {
       selectionListener?.('heading-1');
     });
 
-    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     return {
       api,
       container,
       contentListener: () => contentListener?.(),
-      getText: () => text,
-      setText: (nextText: string) => {
-        text = nextText;
+      getSegments: () => segments,
+      setSegments: (nextSegments: typeof segments) => {
+        segments = nextSegments;
       },
-      textarea,
+      textareas: () => Array.from(container.querySelectorAll('textarea')) as HTMLTextAreaElement[],
     };
   };
 
@@ -96,37 +100,37 @@ describe('ElementPanel', () => {
     });
   };
 
-  it('keeps unsafe inner HTML local until the draft becomes safe', async () => {
-    const { api, textarea } = await mountPanel();
+  it('renders multiple text segments and updates a changed segment', async () => {
+    const { api, textareas } = await mountPanel([
+      { id: 'text-1', text: 'Keep your AI-made landing pages', labelHint: 'Heading' },
+      { id: 'text-2', text: 'inside WordPress.', labelHint: 'Text' },
+    ]);
 
-    await inputText(textarea, '<span class="');
+    expect(textareas()).toHaveLength(2);
+    expect(textareas()[0].value).toBe('Keep your AI-made landing pages');
+    expect(textareas()[1].value).toBe('inside WordPress.');
+
+    await inputText(textareas()[1], 'inside your WordPress site.');
     await act(async () => {
       vi.advanceTimersByTime(300);
     });
 
-    expect(textarea.value).toBe('<span class="');
-    expect(api.updateElementText).not.toHaveBeenCalled();
-
-    await inputText(textarea, '<span class="text-gradient">inside</span>');
-    await act(async () => {
-      vi.advanceTimersByTime(300);
-    });
-
-    expect(api.updateElementText).toHaveBeenCalledWith(
+    expect(api.updateTextSegment).toHaveBeenCalledWith(
       'heading-1',
-      '<span class="text-gradient">inside</span>'
+      'text-2',
+      'inside your WordPress site.'
     );
   });
 
   it('does not overwrite a focused dirty draft on content refresh', async () => {
-    const { container, contentListener, setText, textarea } = await mountPanel();
+    const { container, contentListener, setSegments, textareas } = await mountPanel();
 
     await act(async () => {
-      textarea.focus();
+      textareas()[0].focus();
     });
-    await inputText(textarea, 'Draft value');
+    await inputText(textareas()[0], 'Draft value');
 
-    setText('External value');
+    setSegments([{ id: 'text-1', text: 'External value', labelHint: 'Heading' }]);
     await act(async () => {
       contentListener();
     });
@@ -134,5 +138,13 @@ describe('ElementPanel', () => {
     expect((container.querySelector('textarea') as HTMLTextAreaElement).value).toBe(
       'Draft value'
     );
+  });
+
+  it('shows advanced settings instead of an Attributes heading', async () => {
+    const { container } = await mountPanel([]);
+
+    expect(container.textContent).toContain('Advanced settings');
+    expect(container.textContent).not.toContain('Attributes');
+    expect(container.querySelector('details')).not.toBeNull();
   });
 });

@@ -1,17 +1,24 @@
-import { createElement, useCallback, useEffect, useRef, useState } from '@wordpress/element';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import { isSafeEditableElementHtml } from '../element-text';
 
 export type ElementPanelAttribute = {
   name: string;
   value: string;
 };
 
+export type ElementPanelTextSegment = {
+  id: string;
+  text: string;
+  labelHint: string;
+};
+
 export type ElementPanelApi = {
   subscribeSelection: (listener: (lcId: string | null) => void) => () => void;
   subscribeContentChange: (listener: () => void) => () => void;
-  getElementText: (lcId: string) => string | null;
-  updateElementText: (lcId: string, text: string) => boolean;
+  getTextSegments?: (lcId: string) => ElementPanelTextSegment[];
+  updateTextSegment?: (lcId: string, segmentId: string, text: string) => boolean;
+  getElementText?: (lcId: string) => string | null;
+  updateElementText?: (lcId: string, text: string) => boolean;
   getElementAttributes?: (lcId: string) => ElementPanelAttribute[] | null;
   updateElementAttributes?: (lcId: string, attributes: ElementPanelAttribute[]) => boolean;
 };
@@ -22,68 +29,106 @@ type ElementPanelProps = {
 
 const LIVE_TEXT_COMMIT_DELAY_MS = 250;
 
+function translateSegmentLabel(label: string) {
+  switch (label) {
+    case 'Button text':
+      return __( 'Button text', 'kayzart-live-code-editor');
+    case 'Link text':
+      return __( 'Link text', 'kayzart-live-code-editor');
+    case 'Heading':
+      return __( 'Heading', 'kayzart-live-code-editor');
+    case 'Text':
+      return __( 'Text', 'kayzart-live-code-editor');
+    default:
+      return label;
+  }
+}
+
+function getSegmentLabel(segment: ElementPanelTextSegment, index: number, total: number) {
+  const fallback = total > 1
+    ? `${__( 'Text', 'kayzart-live-code-editor')} ${index + 1}`
+    : __( 'Text', 'kayzart-live-code-editor');
+  return segment.labelHint ? translateSegmentLabel(segment.labelHint) : fallback;
+}
+
+function adjustTextareaHeight(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) {
+    return;
+  }
+  textarea.style.height = 'auto';
+  textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
 export function ElementPanel({ api }: ElementPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [value, setValue] = useState('');
+  const [segments, setSegments] = useState<ElementPanelTextSegment[]>([]);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [attributes, setAttributes] = useState<ElementPanelAttribute[]>([]);
   const [isVisible, setIsVisible] = useState(false);
-  const [hasText, setHasText] = useState(false);
-  const [hasUnsafeDraft, setHasUnsafeDraft] = useState(false);
-  const valueRef = useRef('');
-  const committedValueRef = useRef('');
-  const isFocusedRef = useRef(false);
-  const fieldId = 'kayzart-elements-text';
+  const committedDraftsRef = useRef<Record<string, string>>({});
+  const draftsRef = useRef<Record<string, string>>({});
+  const focusedSegmentIdRef = useRef<string | null>(null);
+  const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
-  const setDraftValue = useCallback((nextValue: string) => {
-    valueRef.current = nextValue;
-    setValue(nextValue);
-  }, []);
-
-  const setCommittedValue = useCallback((nextValue: string) => {
-    committedValueRef.current = nextValue;
-  }, []);
+  const selectedLabel = useMemo(() => {
+    if (segments.some((segment) => segment.labelHint === 'Button text')) {
+      return __( 'Selected: Button', 'kayzart-live-code-editor');
+    }
+    if (segments.some((segment) => segment.labelHint === 'Link text')) {
+      return __( 'Selected: Link', 'kayzart-live-code-editor');
+    }
+    if (segments.some((segment) => segment.labelHint === 'Heading')) {
+      return __( 'Selected: Heading', 'kayzart-live-code-editor');
+    }
+    if (segments.some((segment) => segment.labelHint === 'Text')) {
+      return __( 'Selected: Text', 'kayzart-live-code-editor');
+    }
+    return __( 'Selected: Element', 'kayzart-live-code-editor');
+  }, [segments]);
 
   const refreshElement = useCallback(() => {
     if (!selectedId) {
-      setDraftValue('');
-      setCommittedValue('');
+      setSegments([]);
+      setDrafts({});
+      draftsRef.current = {};
+      committedDraftsRef.current = {};
       setAttributes([]);
       setIsVisible(false);
-      setHasText(false);
-      setHasUnsafeDraft(false);
       return;
     }
-    const nextText = api?.getElementText ? api.getElementText(selectedId) : null;
+
+    const nextSegments = api?.getTextSegments ? api.getTextSegments(selectedId) : [];
     const nextAttributes = api?.getElementAttributes
       ? api.getElementAttributes(selectedId)
       : null;
-    const hasNextText = typeof nextText === 'string';
     const hasNextAttributes = Array.isArray(nextAttributes);
-    setIsVisible(hasNextText || hasNextAttributes);
-    setHasText(hasNextText);
-    if (hasNextText) {
+    const focusedSegmentId = focusedSegmentIdRef.current;
+    const nextCommitted: Record<string, string> = {};
+    const nextDrafts: Record<string, string> = {};
+
+    nextSegments.forEach((segment) => {
+      const previousCommitted = committedDraftsRef.current[segment.id] ?? '';
+      const previousDraft = draftsRef.current[segment.id] ?? segment.text;
       const isDirtyFocusedDraft =
-        isFocusedRef.current && valueRef.current !== committedValueRef.current;
-      setCommittedValue(nextText);
-      if (!isDirtyFocusedDraft) {
-        setDraftValue(nextText);
-        setHasUnsafeDraft(false);
-      }
-    } else {
-      setDraftValue('');
-      setCommittedValue('');
-      setHasUnsafeDraft(false);
-    }
+        focusedSegmentId === segment.id && previousDraft !== previousCommitted;
+      nextCommitted[segment.id] = segment.text;
+      nextDrafts[segment.id] = isDirtyFocusedDraft ? previousDraft : segment.text;
+    });
+
+    committedDraftsRef.current = nextCommitted;
+    draftsRef.current = nextDrafts;
+    setDrafts(nextDrafts);
+    setSegments(nextSegments);
     setAttributes(hasNextAttributes ? nextAttributes : []);
-  }, [api, selectedId, setCommittedValue, setDraftValue]);
+    setIsVisible(nextSegments.length > 0 || hasNextAttributes);
+  }, [api, selectedId]);
 
   useEffect(() => {
     if (!api?.subscribeSelection) {
       return;
     }
     return api.subscribeSelection((lcId) => {
-      isFocusedRef.current = false;
-      setHasUnsafeDraft(false);
+      focusedSegmentIdRef.current = null;
       setSelectedId(lcId);
     });
   }, [api]);
@@ -91,6 +136,12 @@ export function ElementPanel({ api }: ElementPanelProps) {
   useEffect(() => {
     refreshElement();
   }, [refreshElement]);
+
+  useEffect(() => {
+    segments.forEach((segment) => {
+      adjustTextareaHeight(textareaRefs.current[segment.id] ?? null);
+    });
+  }, [drafts, segments]);
 
   useEffect(() => {
     if (!api?.subscribeContentChange) {
@@ -101,62 +152,67 @@ export function ElementPanel({ api }: ElementPanelProps) {
     });
   }, [api, refreshElement]);
 
-  const commitText = useCallback(
-    (nextValue: string) => {
-      if (!selectedId || !api?.updateElementText) {
+  const commitSegment = useCallback(
+    (segmentId: string, nextValue: string) => {
+      if (!selectedId || !api?.updateTextSegment) {
         return false;
       }
-      if (!isSafeEditableElementHtml(nextValue)) {
-        setHasUnsafeDraft(nextValue !== committedValueRef.current);
-        return false;
-      }
-      if (nextValue === committedValueRef.current) {
-        setHasUnsafeDraft(false);
+      if (nextValue === committedDraftsRef.current[segmentId]) {
         return true;
       }
-      const didUpdate = api.updateElementText(selectedId, nextValue);
+      const didUpdate = api.updateTextSegment(selectedId, segmentId, nextValue);
       if (didUpdate) {
-        setCommittedValue(nextValue);
-        setHasUnsafeDraft(false);
+        committedDraftsRef.current = {
+          ...committedDraftsRef.current,
+          [segmentId]: nextValue,
+        };
       }
       return didUpdate;
     },
-    [api, selectedId, setCommittedValue]
+    [api, selectedId]
   );
 
   useEffect(() => {
-    if (!hasText || !selectedId || value === committedValueRef.current) {
-      setHasUnsafeDraft(false);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      commitText(valueRef.current);
-    }, LIVE_TEXT_COMMIT_DELAY_MS);
+    const timers = segments
+      .filter((segment) => drafts[segment.id] !== committedDraftsRef.current[segment.id])
+      .map((segment) =>
+        window.setTimeout(() => {
+          commitSegment(segment.id, drafts[segment.id] ?? '');
+        }, LIVE_TEXT_COMMIT_DELAY_MS)
+      );
     return () => {
-      window.clearTimeout(timer);
+      timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [commitText, hasText, selectedId, value]);
+  }, [commitSegment, drafts, segments]);
 
-  const handleChange = (event: { target: HTMLTextAreaElement }) => {
-    const nextValue = event.target.value;
-    setDraftValue(nextValue);
+  const handleSegmentChange = (segmentId: string, value: string) => {
+    const nextDrafts = {
+      ...draftsRef.current,
+      [segmentId]: value,
+    };
+    draftsRef.current = nextDrafts;
+    setDrafts(nextDrafts);
+    adjustTextareaHeight(textareaRefs.current[segmentId] ?? null);
   };
 
-  const handleBlur = () => {
-    isFocusedRef.current = false;
-    commitText(valueRef.current);
+  const handleSegmentBlur = (segmentId: string) => {
+    focusedSegmentIdRef.current = null;
+    commitSegment(segmentId, drafts[segmentId] ?? '');
   };
 
-  const handleFocus = () => {
-    isFocusedRef.current = true;
+  const handleSegmentFocus = (segmentId: string) => {
+    focusedSegmentIdRef.current = segmentId;
   };
 
-  const handleKeyDown = (event: { key: string; ctrlKey: boolean; metaKey: boolean; preventDefault: () => void }) => {
+  const handleSegmentKeyDown = (
+    segmentId: string,
+    event: { key: string; ctrlKey: boolean; metaKey: boolean; preventDefault: () => void }
+  ) => {
     if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)) {
       return;
     }
     event.preventDefault();
-    commitText(valueRef.current);
+    commitSegment(segmentId, drafts[segmentId] ?? '');
   };
 
   const commitAttributes = useCallback(
@@ -202,7 +258,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
       <div className="kayzart-settingsSection" data-kayzart-panel="elements">
         <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
         <div className="kayzart-settingsHelp">
-          {__( 'Select an element in the preview to edit its content and attributes.', 'kayzart-live-code-editor')}
+          {__( 'Select an element in the preview to edit its text and settings.', 'kayzart-live-code-editor')}
         </div>
       </div>
     );
@@ -211,30 +267,41 @@ export function ElementPanel({ api }: ElementPanelProps) {
   return (
     <div className="kayzart-settingsSection" data-kayzart-panel="elements">
       <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
-      {hasText ? (
+      <div className="kayzart-settingsHelp">{selectedLabel}</div>
+      {segments.length > 0 ? (
         <div className="kayzart-formGroup">
-          <label className="kayzart-formLabel" htmlFor={fieldId}>
-            {__( 'Inner HTML', 'kayzart-live-code-editor')}
-          </label>
-          <textarea
-            id={fieldId}
-            className="kayzart-formInput"
-            rows={4}
-            value={value}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            onFocus={handleFocus}
-            onKeyDown={handleKeyDown}
-          />
-          {hasUnsafeDraft ? (
-            <div className="kayzart-settingsHelp">
-              {__( 'Preview will update when the HTML is complete.', 'kayzart-live-code-editor')}
-            </div>
-          ) : null}
+          {segments.map((segment, index) => {
+            const fieldId = `kayzart-elements-text-${segment.id}`;
+            return (
+              <div className="kayzart-formGroup" key={segment.id}>
+                <label className="kayzart-formLabel" htmlFor={fieldId}>
+                  {getSegmentLabel(segment, index, segments.length)}
+                </label>
+                <textarea
+                  id={fieldId}
+                  ref={(node) => {
+                    textareaRefs.current[segment.id] = node;
+                    adjustTextareaHeight(node);
+                  }}
+                  className="kayzart-formInput kayzart-elementsTextInput"
+                  rows={2}
+                  value={drafts[segment.id] ?? ''}
+                  onChange={(event) => handleSegmentChange(segment.id, event.target.value)}
+                  onBlur={() => handleSegmentBlur(segment.id)}
+                  onFocus={() => handleSegmentFocus(segment.id)}
+                  onKeyDown={(event) => handleSegmentKeyDown(segment.id, event)}
+                />
+              </div>
+            );
+          })}
+          <div className="kayzart-settingsHelp">
+            {__( 'Only text changes here. Existing HTML, icons, and styles are preserved.', 'kayzart-live-code-editor')}
+          </div>
         </div>
       ) : null}
-      <div className="kayzart-formGroup">
-        <div className="kayzart-formLabel">{__( 'Attributes', 'kayzart-live-code-editor')}</div>
+
+      <details className="kayzart-formGroup">
+        <summary className="kayzart-formLabel">{__( 'Advanced settings', 'kayzart-live-code-editor')}</summary>
         <div className="kayzart-settingsScriptList">
           {attributes.map((attr, index) => (
             <div className="kayzart-settingsScriptRow kayzart-elementsAttrRow" key={`attr-${index}`}>
@@ -270,7 +337,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
             {__( 'Add attribute', 'kayzart-live-code-editor')}
           </button>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

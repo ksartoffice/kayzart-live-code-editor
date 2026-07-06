@@ -17,8 +17,10 @@ import { createPreviewController, type PreviewController } from './preview';
 import {
   getEditableElementAttributes,
   getEditableElementText,
+  getEditableTextSegments,
   getElementContext,
   getImageSourceEditInfo,
+  escapeTextForHtml,
   isSafeEditableElementHtml,
 } from './element-text';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from './logic/template-mode';
@@ -1451,6 +1453,23 @@ async function main() {
   const elementsApi = {
     subscribeSelection,
     subscribeContentChange,
+    getTextSegments: (lcId: string) => {
+      const html = htmlModel.getValue();
+      return getEditableTextSegments(html, lcId);
+    },
+    updateTextSegment: (lcId: string, segmentId: string, text: string) => {
+      const segment = getEditableTextSegments(htmlModel.getValue(), lcId).find(
+        (entry) => entry.id === segmentId
+      );
+      if (!segment) {
+        return false;
+      }
+      if (segment.text === text) {
+        return true;
+      }
+      applyHtmlEdit(segment.startOffset, segment.endOffset, escapeTextForHtml(text));
+      return true;
+    },
     getElementText: (lcId: string) => {
       const info = getEditableElementText(htmlModel.getValue(), lcId);
       return info ? info.text : null;

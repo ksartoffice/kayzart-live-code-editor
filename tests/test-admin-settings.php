@@ -26,6 +26,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_POST_SLUG );
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
+		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -63,6 +64,14 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 'theme', Admin::sanitize_default_template_mode( 'theme' ) );
 		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'frame' ) );
 		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'invalid' ) );
+	}
+
+	public function test_sanitize_default_editor_layout_allows_known_values_only(): void {
+		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'code_visible' ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( 'code_hidden' ) );
+		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'hidden' ) );
+		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( '' ) );
+		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( array() ) );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -294,6 +303,23 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
+	public function test_render_settings_page_shows_default_editor_layout_field(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$this->reset_kayzart_settings_api_state();
+		Admin::register_settings();
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( __( 'Default editor layout', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_DEFAULT_EDITOR_LAYOUT . '"', $output );
+		$this->assertStringContainsString( 'value="code_visible"', $output );
+		$this->assertStringContainsString( 'value="code_hidden"', $output );
+	}
+
 	public function test_render_enabled_post_types_field_mentions_convert_action_for_existing_posts(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
@@ -426,6 +452,42 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'documentHtmlAttributes', $payload );
 		$this->assertIsString( $payload['documentHtmlAttributes'] );
 		$this->assertStringContainsString( 'lang=', $payload['documentHtmlAttributes'] );
+	}
+
+	public function test_enqueue_assets_inline_config_includes_default_editor_layout(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' );
+		wp_dequeue_script( 'kayzart-admin' );
+		wp_deregister_script( 'kayzart-admin' );
+
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+
+		$_GET = $original_get;
+
+		$registered = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+
+		$this->assertMatchesRegularExpression( '/window\\.KAYZART = (.+);/', $inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$this->assertNotEmpty( $matches[1] ?? '' );
+
+		$payload = json_decode( $matches[1], true );
+		$this->assertIsArray( $payload );
+		$this->assertSame( 'code_hidden', $payload['defaultEditorLayout'] ?? '' );
 	}
 
 	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {

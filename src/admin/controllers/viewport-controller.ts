@@ -16,6 +16,7 @@ type ViewportControllerDeps = {
   minEditorPaneHeight: number;
   minSettingsWidth: number;
   initialSettingsWidth?: number;
+  initialEditorCollapsed?: boolean;
   onSettingsWidthCommit?: (width: number) => void;
   getCompactEditorMode: () => boolean;
   onViewportModeChange?: (mode: ViewportMode) => void;
@@ -26,7 +27,7 @@ type ViewportControllerDeps = {
 };
 
 export function createViewportController(deps: ViewportControllerDeps) {
-  let editorCollapsed = false;
+  let editorCollapsed = Boolean(deps.initialEditorCollapsed);
   let viewportMode: ViewportMode = 'desktop';
   let previewBadgeTimer: number | undefined;
   let previewBadgeRaf = 0;
@@ -106,6 +107,11 @@ export function createViewportController(deps: ViewportControllerDeps) {
 
   if (typeof deps.initialSettingsWidth === 'number' && Number.isFinite(deps.initialSettingsWidth)) {
     setSettingsWidth(deps.initialSettingsWidth);
+  }
+  deps.ui.app.classList.toggle('is-editor-collapsed', editorCollapsed);
+  if (editorCollapsed) {
+    deps.ui.left.style.width = '0px';
+    deps.ui.left.style.flex = '0 0 0';
   }
 
   const updatePreviewBadge = () => {

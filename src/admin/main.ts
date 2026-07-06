@@ -195,6 +195,7 @@ async function main() {
     minEditorPaneHeight: 160,
     minSettingsWidth: 260,
     initialSettingsWidth: initialSettingsPanelWidth,
+    initialEditorCollapsed: cfg.defaultEditorLayout === 'code_hidden',
     onSettingsWidthCommit: saveSettingsPanelWidth,
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),

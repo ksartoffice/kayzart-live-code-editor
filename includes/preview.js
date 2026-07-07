@@ -1292,14 +1292,47 @@
         continue;
       }
       if (char === ']') {
+        const openEnd = index + 1;
+        const openingRaw = text.slice(start, openEnd);
+        const isSelfClosing = /\/\s*\]$/.test(openingRaw);
+        if (isSelfClosing) {
+          return {
+            end: openEnd,
+            tagName: tagName,
+            raw: openingRaw,
+          };
+        }
+        const closeMatch = findClosingShortcode(text, openEnd, tagName);
+        if (closeMatch) {
+          return {
+            end: closeMatch.end,
+            tagName: tagName,
+            raw: text.slice(start, closeMatch.end),
+          };
+        }
         return {
-          end: index + 1,
+          end: openEnd,
           tagName: tagName,
-          raw: text.slice(start, index + 1),
+          raw: openingRaw,
         };
       }
     }
     return null;
+  }
+
+  function findClosingShortcode(text, start, tagName) {
+    const closePattern = new RegExp('\\[/\\s*' + escapeRegExp(tagName) + '\\s*\\]', 'i');
+    const match = closePattern.exec(text.slice(start));
+    if (!match) {
+      return null;
+    }
+    return {
+      end: start + match.index + match[0].length,
+    };
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   function createShortcodePlaceholder(match) {

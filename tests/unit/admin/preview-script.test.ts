@@ -129,6 +129,32 @@ describe('preview shortcode placeholders', () => {
     expect(document.querySelector('section p')?.textContent).toContain(' after');
   });
 
+  it('visualizes enclosing shortcode text as one placeholder', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>Before [caption]A caption[/CAPTION] after</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: caption');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[caption]A caption[/CAPTION]');
+    expect(document.querySelector('p')?.textContent).toContain('Before ');
+    expect(document.querySelector('p')?.textContent).toContain(' after');
+    expect(document.querySelector('p')?.textContent).not.toContain('A caption');
+    expect(document.querySelector('p')?.textContent).not.toContain('[/CAPTION]');
+  });
+
   it('does not visualize escaped or code-like shortcode text', async () => {
     setupPreviewDocument();
     vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);

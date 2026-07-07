@@ -79,7 +79,6 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 == Changelog ==
 = 2.2.1 =
 * Add: Edit preview images from the Elements panel.
-* Improve: Update picture and srcset image sources.
 * Fix: Keep nested text edits stable.
 
 = 2.2.0 =

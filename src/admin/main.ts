@@ -220,6 +220,7 @@ async function main() {
         container: ui.app,
         postId,
         restUrl: cfg.setupRestUrl,
+        templateCatalogRestUrl: cfg.templateCatalogRestUrl,
         apiFetch: wp?.apiFetch,
         backUrl: cfg.listUrl || cfg.backUrl,
         initialTailwindEnabled: Boolean(cfg.tailwindEnabled),

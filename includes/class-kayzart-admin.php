@@ -1028,6 +1028,8 @@ class Admin {
 			'restUrl'                => rest_url( 'kayzart/v1/save' ),
 			'restCompileUrl'         => rest_url( 'kayzart/v1/compile-tailwind' ),
 			'setupRestUrl'           => rest_url( 'kayzart/v1/setup' ),
+			'templateCatalogRestUrl' => rest_url( 'kayzart/v1/templates/catalog' ),
+			'importRestUrl'          => rest_url( 'kayzart/v1/create-from-import' ),
 			'backUrl'                => $back_url,
 			'listUrl'                => $list_url,
 			'listLabel'              => $list_label,

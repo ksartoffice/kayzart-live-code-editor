@@ -26,7 +26,7 @@ const setupPreviewDocument = () => {
     allowedOrigin: window.location.origin,
     post_id: 1,
     liveHighlightEnabled: true,
-    shortcodeTags: ['caption', 'contact-form-7', 'ez-toc', 'gallery'],
+    shortcodeTags: ['caption', 'contact-form-7', 'ez-toc', 'foo', 'foo.bar', 'gallery'],
     markers: {
       attr: 'data-kayzart-marker',
       postAttr: 'data-kayzart-post-id',
@@ -130,7 +130,7 @@ describe('preview shortcode placeholders', () => {
     expect(document.querySelector('section p')?.textContent).toContain(' after');
   });
 
-  it('visualizes enclosing shortcode text as one placeholder', async () => {
+  it('keeps mismatched closing shortcode case visible like WordPress', async () => {
     setupPreviewDocument();
     vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
 
@@ -149,11 +149,36 @@ describe('preview shortcode placeholders', () => {
     const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
     expect(placeholders).toHaveLength(1);
     expect(placeholders[0]?.textContent).toContain('Shortcode: caption');
-    expect(placeholders[0]?.getAttribute('title')).toBe('[caption]A caption[/CAPTION]');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[caption]');
+    expect(document.querySelector('p')?.textContent).toContain('Before ');
+    expect(document.querySelector('p')?.textContent).toContain(' after');
+    expect(document.querySelector('p')?.textContent).toContain('A caption[/CAPTION]');
+  });
+
+  it('visualizes enclosing shortcode text as one placeholder', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>Before [caption]A caption[/caption] after</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: caption');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[caption]A caption[/caption]');
     expect(document.querySelector('p')?.textContent).toContain('Before ');
     expect(document.querySelector('p')?.textContent).toContain(' after');
     expect(document.querySelector('p')?.textContent).not.toContain('A caption');
-    expect(document.querySelector('p')?.textContent).not.toContain('[/CAPTION]');
+    expect(document.querySelector('p')?.textContent).not.toContain('[/caption]');
   });
 
   it('visualizes enclosing shortcode markup as one placeholder', async () => {
@@ -272,6 +297,50 @@ describe('preview shortcode placeholders', () => {
     expect(placeholders).toHaveLength(1);
     expect(placeholders[0]?.textContent).toContain('Shortcode: gallery');
     expect(document.querySelector('p')?.textContent).toContain('[GALLERY]');
+  });
+
+  it('matches registered shortcode tags with punctuation and prefers the longest tag', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[foo.bar] [foo]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(2);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: foo.bar');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[foo.bar]');
+    expect(placeholders[1]?.textContent).toContain('Shortcode: foo');
+    expect(placeholders[1]?.getAttribute('title')).toBe('[foo]');
+  });
+
+  it('does not match a registered shortcode prefix followed by a word or hyphen', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[gallery-extra] [galleryExtra]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe('[gallery-extra] [galleryExtra]');
   });
 });
 

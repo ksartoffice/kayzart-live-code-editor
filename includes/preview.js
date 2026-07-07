@@ -342,21 +342,36 @@
   }
 
   function resolveShortcodeTags(rawTags) {
-    const tags = {};
+    const tags = {
+      map: {},
+      names: [],
+    };
     if (!Array.isArray(rawTags)) {
       return tags;
     }
     rawTags.forEach((item) => {
       const tag = String(item || '').trim();
-      if (tag) {
-        tags[tag] = true;
+      if (tag && !tags.map[tag]) {
+        tags.map[tag] = true;
+        tags.names.push(tag);
       }
     });
+    tags.names.sort((a, b) => b.length - a.length);
     return tags;
   }
 
   function isRegisteredShortcodeTag(tagName) {
-    return Boolean(tagName && shortcodeTags[String(tagName)]);
+    return Boolean(tagName && shortcodeTags.map[String(tagName)]);
+  }
+
+  function readRegisteredShortcodeTag(text, start) {
+    for (let index = 0; index < shortcodeTags.names.length; index += 1) {
+      const tagName = shortcodeTags.names[index];
+      if (text.slice(start, start + tagName.length) === tagName) {
+        return tagName;
+      }
+    }
+    return '';
   }
 
   function createSelectMenuItem(id, label) {
@@ -1287,11 +1302,7 @@
     if (text.charAt(index) === '/') {
       return null;
     }
-    const tagMatch = text.slice(index).match(/^([A-Za-z0-9_-]+)/);
-    if (!tagMatch) {
-      return null;
-    }
-    const tagName = tagMatch[1];
+    const tagName = readRegisteredShortcodeTag(text, index);
     if (!isRegisteredShortcodeTag(tagName)) {
       return null;
     }
@@ -1352,7 +1363,7 @@
   }
 
   function findClosingShortcode(text, start, tagName) {
-    const closePattern = new RegExp('\\[/\\s*' + escapeRegExp(tagName) + '\\s*\\]', 'i');
+    const closePattern = new RegExp('\\[/' + escapeRegExp(tagName) + '\\]');
     const match = closePattern.exec(text.slice(start));
     if (!match) {
       return null;

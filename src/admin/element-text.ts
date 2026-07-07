@@ -328,12 +328,14 @@ type ElementLookupEntry = {
   lcId: string;
 };
 
-function findElementLookupEntry(html: string, lcId: string): (ElementLookupEntry & {
+type ElementLookupResult = ElementLookupEntry & {
   ancestors: ElementLookupEntry[];
-}) | null {
+};
+
+function findElementLookupEntry(html: string, lcId: string): ElementLookupResult | null {
   const root = parseElementLookupRoot(html);
   let seq = 0;
-  let result: (ElementLookupEntry & { ancestors: ElementLookupEntry[] }) | null = null;
+  let result: ElementLookupResult | null = null;
 
   const walk = (
     node: DefaultTreeAdapterTypes.ParentNode,
@@ -781,7 +783,7 @@ export function getElementActionInfo(html: string, lcId: string): ElementActionI
   return null;
 }
 
-function findNearestPictureEntry(entry: ElementLookupEntry): ElementLookupEntry | null {
+function findNearestPictureEntry(entry: ElementLookupResult): ElementLookupEntry | null {
   return entry.ancestors
     .slice()
     .reverse()

@@ -1298,22 +1298,31 @@
         if (isSelfClosing) {
           return {
             end: openEnd,
+            openEnd: openEnd,
             tagName: tagName,
             raw: openingRaw,
+            selfClosing: true,
+            hasClosing: false,
           };
         }
         const closeMatch = findClosingShortcode(text, openEnd, tagName);
         if (closeMatch) {
           return {
             end: closeMatch.end,
+            openEnd: openEnd,
             tagName: tagName,
             raw: text.slice(start, closeMatch.end),
+            selfClosing: false,
+            hasClosing: true,
           };
         }
         return {
           end: openEnd,
+          openEnd: openEnd,
           tagName: tagName,
           raw: openingRaw,
+          selfClosing: false,
+          hasClosing: false,
         };
       }
     }
@@ -1327,6 +1336,7 @@
       return null;
     }
     return {
+      start: start + match.index,
       end: start + match.index + match[0].length,
     };
   }
@@ -1385,9 +1395,123 @@
     return changed ? fragment : null;
   }
 
+  function serializeRangeHtml(range) {
+    const container = document.createElement('div');
+    container.appendChild(range.cloneContents());
+    return container.innerHTML;
+  }
+
+  function isActiveShortcodeTextNode(root, node) {
+    return Boolean(
+      node &&
+        node.parentNode &&
+        root &&
+        root.contains(node) &&
+        !isShortcodeTextExcluded(node)
+    );
+  }
+
+  function findClosingShortcodeNode(root, startNode, tagName) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        if (!node.nodeValue || node.nodeValue.indexOf(']') === -1) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return isShortcodeTextExcluded(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    walker.currentNode = startNode;
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!isActiveShortcodeTextNode(root, node)) {
+        continue;
+      }
+      const closeMatch = findClosingShortcode(node.nodeValue || '', 0, tagName);
+      if (closeMatch) {
+        return {
+          node: node,
+          end: closeMatch.end,
+        };
+      }
+    }
+    return null;
+  }
+
+  function replaceFirstCrossNodeShortcode(root, node) {
+    if (!isActiveShortcodeTextNode(root, node)) {
+      return false;
+    }
+    const text = node.nodeValue || '';
+    let index = 0;
+    while (index < text.length) {
+      const openIndex = text.indexOf('[', index);
+      if (openIndex === -1) {
+        return false;
+      }
+      if (text.charAt(openIndex + 1) === '[') {
+        index = openIndex + 2;
+        continue;
+      }
+      const match = readShortcodeAt(text, openIndex);
+      if (!match) {
+        index = openIndex + 1;
+        continue;
+      }
+      if (!match.selfClosing && !match.hasClosing) {
+        const closeMatch = findClosingShortcodeNode(root, node, match.tagName);
+        if (closeMatch) {
+          const range = document.createRange();
+          range.setStart(node, openIndex);
+          range.setEnd(closeMatch.node, closeMatch.end);
+          const raw = serializeRangeHtml(range);
+          const placeholder = createShortcodePlaceholder({
+            tagName: match.tagName,
+            raw: raw,
+          });
+          range.deleteContents();
+          range.insertNode(placeholder);
+          range.detach();
+          return true;
+        }
+      }
+      index = match.end;
+    }
+    return false;
+  }
+
+  function replaceCrossNodeShortcodes(root) {
+    let changed = false;
+    let replaced = true;
+    while (replaced) {
+      replaced = false;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          if (!node.nodeValue || node.nodeValue.indexOf('[') === -1) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return isShortcodeTextExcluded(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      const nodes = [];
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+      for (let index = 0; index < nodes.length; index += 1) {
+        const node = nodes[index];
+        if (replaceFirstCrossNodeShortcode(root, node)) {
+          changed = true;
+          replaced = true;
+          break;
+        }
+      }
+    }
+    return changed;
+  }
+
   function visualizeShortcodes(root) {
     if (!root || !document.createTreeWalker) return;
     ensureShortcodePreviewStyle();
+    replaceCrossNodeShortcodes(root);
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: (node) => {
         if (!node.nodeValue || node.nodeValue.indexOf('[') === -1) {
@@ -1401,6 +1525,9 @@
       nodes.push(walker.currentNode);
     }
     nodes.forEach((node) => {
+      if (!isActiveShortcodeTextNode(root, node)) {
+        return;
+      }
       const fragment = buildShortcodeFragment(node.nodeValue || '');
       if (fragment && node.parentNode) {
         node.parentNode.replaceChild(fragment, node);

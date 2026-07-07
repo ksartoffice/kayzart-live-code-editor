@@ -347,7 +347,7 @@
       return tags;
     }
     rawTags.forEach((item) => {
-      const tag = String(item || '').trim().toLowerCase();
+      const tag = String(item || '').trim();
       if (tag) {
         tags[tag] = true;
       }
@@ -356,7 +356,7 @@
   }
 
   function isRegisteredShortcodeTag(tagName) {
-    return Boolean(tagName && shortcodeTags[String(tagName).toLowerCase()]);
+    return Boolean(tagName && shortcodeTags[String(tagName)]);
   }
 
   function createSelectMenuItem(id, label) {

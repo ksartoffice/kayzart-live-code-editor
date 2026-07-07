@@ -251,6 +251,28 @@ describe('preview shortcode placeholders', () => {
     expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
     expect(document.querySelector('p')?.textContent).toBe('[gallery]');
   });
+
+  it('matches registered shortcode tags case-sensitively', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[gallery] [GALLERY]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: gallery');
+    expect(document.querySelector('p')?.textContent).toContain('[GALLERY]');
+  });
 });
 
 describe('preview selector overlay', () => {

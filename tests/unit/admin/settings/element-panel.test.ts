@@ -315,6 +315,25 @@ describe('ElementPanel', () => {
     });
   });
 
+  it('shows the fallback image source in the url field and preview', async () => {
+    const { container } = await mountPanel(
+      [],
+      null,
+      createImageInfo({
+        src: 'lazy.jpg',
+        hasDataSrc: true,
+      })
+    );
+
+    const input = container.querySelector('#kayzart-elements-image-url') as HTMLInputElement;
+    const preview = container.querySelector(
+      '.kayzart-elementsImagePreview img'
+    ) as HTMLImageElement;
+
+    expect(input.value).toBe('lazy.jpg');
+    expect(preview.getAttribute('src')).toBe('lazy.jpg');
+  });
+
   it('updates image alt text', async () => {
     const { api, container } = await mountPanel([], null, createImageInfo());
 

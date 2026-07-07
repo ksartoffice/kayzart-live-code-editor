@@ -842,6 +842,56 @@ function collectSourceElements(
   }
 }
 
+function getFirstSrcsetUrl(value: string): string {
+  const firstCandidate = value
+    .split(',')
+    .map((candidate) => candidate.trim())
+    .find((candidate) => candidate.length > 0);
+  return firstCandidate?.split(/\s+/)[0] ?? '';
+}
+
+function getFirstPictureSourceUrl(picture: ElementLookupEntry | null): string {
+  if (!picture) {
+    return '';
+  }
+  const sources: DefaultTreeAdapterTypes.Element[] = [];
+  collectSourceElements(picture.element, sources);
+  for (const source of sources) {
+    const srcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(source, 'srcset'));
+    if (srcsetUrl) {
+      return srcsetUrl;
+    }
+    const dataSrcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(source, 'data-srcset'));
+    if (dataSrcsetUrl) {
+      return dataSrcsetUrl;
+    }
+  }
+  return '';
+}
+
+function getImageDisplaySource(
+  selected: ElementLookupEntry,
+  picture: ElementLookupEntry | null
+): string {
+  const src = getElementAttributeValue(selected.element, 'src').trim();
+  if (src) {
+    return src;
+  }
+  const dataSrc = getElementAttributeValue(selected.element, 'data-src').trim();
+  if (dataSrc) {
+    return dataSrc;
+  }
+  const srcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(selected.element, 'srcset'));
+  if (srcsetUrl) {
+    return srcsetUrl;
+  }
+  const dataSrcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(selected.element, 'data-srcset'));
+  if (dataSrcsetUrl) {
+    return dataSrcsetUrl;
+  }
+  return getFirstPictureSourceUrl(picture);
+}
+
 function buildAttributeEditInfo(
   html: string,
   element: DefaultTreeAdapterTypes.Element,
@@ -896,7 +946,7 @@ export function getElementImageInfo(html: string, lcId: string): ElementImageInf
   return {
     imageLcId: selected.lcId,
     tagName: 'img',
-    src: getElementAttributeValue(selected.element, 'src'),
+    src: getImageDisplaySource(selected, picture),
     alt: getElementAttributeValue(selected.element, 'alt'),
     title: getElementAttributeValue(selected.element, 'title'),
     hasSrcset: hasElementAttribute(selected.element, 'srcset'),

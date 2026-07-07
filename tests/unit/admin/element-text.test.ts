@@ -515,6 +515,60 @@ describe('getElementImageInfo', () => {
     );
   });
 
+  it('falls back to data-src for the displayed image source', () => {
+    const html = '<img data-kayzart-id="image-1" data-src="lazy.jpg" alt="Lazy">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'lazy.jpg',
+      })
+    );
+  });
+
+  it('falls back to the first srcset candidate for the displayed image source', () => {
+    const html =
+      '<img data-kayzart-id="image-1" srcset="small.jpg 1x, large.jpg 2x" alt="Responsive">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'small.jpg',
+      })
+    );
+  });
+
+  it('falls back to the first data-srcset candidate for the displayed image source', () => {
+    const html =
+      '<img data-kayzart-id="image-1" data-srcset="lazy-small.webp 480w, lazy-large.webp 960w">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'lazy-small.webp',
+      })
+    );
+  });
+
+  it('falls back to the first picture source candidate for the displayed image source', () => {
+    const html =
+      '<picture><source srcset="wide.jpg"><img data-kayzart-id="image-1" alt="Hero"></picture>';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'wide.jpg',
+      })
+    );
+  });
+
+  it('prefers img src over lazy and responsive source fallbacks', () => {
+    const html =
+      '<picture><source srcset="wide.jpg"><img data-kayzart-id="image-1" src="current.jpg" data-src="lazy.jpg" srcset="small.jpg 1x"></picture>';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'current.jpg',
+      })
+    );
+  });
+
   it('does not expose descendant images from parent selections', () => {
     const html = '<section data-kayzart-id="section-1"><img src="old.jpg" alt="Sample"></section>';
 

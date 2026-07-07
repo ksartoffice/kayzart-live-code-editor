@@ -3,6 +3,7 @@ import { act } from 'react';
 import type {
   ElementPanelActionInfo,
   ElementPanelApi,
+  ElementPanelImageInfo,
 } from '../../../../src/admin/settings/element-panel';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -41,9 +42,25 @@ describe('ElementPanel', () => {
     vi.resetModules();
   });
 
+  const createImageInfo = (
+    overrides: Partial<ElementPanelImageInfo> = {}
+  ): ElementPanelImageInfo => ({
+    imageLcId: 'image-1',
+    tagName: 'img',
+    src: 'old.jpg',
+    alt: 'Sample image',
+    title: '',
+    hasSrcset: false,
+    hasDataSrc: false,
+    hasDataSrcset: false,
+    hasPictureSources: false,
+    ...overrides,
+  });
+
   const mountPanel = async (
     initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }],
-    initialActionInfo: ElementPanelActionInfo | null = null
+    initialActionInfo: ElementPanelActionInfo | null = null,
+    initialImageInfo: ElementPanelImageInfo | null = null
   ) => {
     const { createRoot } = await import('react-dom/client');
     const React = await import('react');
@@ -53,6 +70,7 @@ describe('ElementPanel', () => {
     let contentListener: (() => void) | null = null;
     let segments = initialSegments;
     let actionInfo = initialActionInfo;
+    let imageInfo = initialImageInfo;
     const api: ElementPanelApi = {
       subscribeSelection: (listener) => {
         selectionListener = listener;
@@ -64,6 +82,7 @@ describe('ElementPanel', () => {
       },
       getTextSegments: vi.fn(() => segments),
       getElementActionInfo: vi.fn(() => actionInfo),
+      getElementImageInfo: vi.fn(() => imageInfo),
       updateElementActionInfo: vi.fn((_lcId, action) => {
         if (!actionInfo) {
           return false;
@@ -71,6 +90,14 @@ describe('ElementPanel', () => {
         actionInfo = { ...actionInfo, ...action };
         return true;
       }),
+      updateElementImageInfo: vi.fn((_lcId, image) => {
+        if (!imageInfo) {
+          return false;
+        }
+        imageInfo = { ...imageInfo, ...image };
+        return true;
+      }),
+      replaceElementImage: vi.fn(() => true),
       updateTextSegment: vi.fn((_lcId, segmentId, nextText) => {
         segments = segments.map((segment) =>
           segment.id === segmentId ? { ...segment, text: nextText } : segment
@@ -100,6 +127,9 @@ describe('ElementPanel', () => {
       },
       setActionInfo: (nextActionInfo: typeof actionInfo) => {
         actionInfo = nextActionInfo;
+      },
+      setImageInfo: (nextImageInfo: typeof imageInfo) => {
+        imageInfo = nextImageInfo;
       },
       textareas: () => Array.from(container.querySelectorAll('textarea')) as HTMLTextAreaElement[],
     };
@@ -263,5 +293,110 @@ describe('ElementPanel', () => {
     expect(api.updateElementActionInfo).toHaveBeenCalledWith('heading-1', {
       disabled: true,
     });
+  });
+
+  it('shows image controls and updates the image url', async () => {
+    const { api, container } = await mountPanel([], null, createImageInfo());
+
+    expect(container.textContent).toContain('Image');
+    expect(container.textContent).toContain('Replace image');
+    expect(container.textContent).toContain('Image URL');
+    expect(container.textContent).toContain('Alt text');
+    expect(container.querySelector('.kayzart-elementsImagePreview img')).not.toBeNull();
+
+    const input = container.querySelector('#kayzart-elements-image-url') as HTMLInputElement;
+    await inputValue(input, 'new.jpg');
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementImageInfo).toHaveBeenCalledWith('heading-1', {
+      src: 'new.jpg',
+    });
+  });
+
+  it('shows the fallback image source in the url field and preview', async () => {
+    const { container } = await mountPanel(
+      [],
+      null,
+      createImageInfo({
+        src: 'lazy.jpg',
+        hasDataSrc: true,
+      })
+    );
+
+    const input = container.querySelector('#kayzart-elements-image-url') as HTMLInputElement;
+    const preview = container.querySelector(
+      '.kayzart-elementsImagePreview img'
+    ) as HTMLImageElement;
+
+    expect(input.value).toBe('lazy.jpg');
+    expect(preview.getAttribute('src')).toBe('lazy.jpg');
+  });
+
+  it('updates image alt text', async () => {
+    const { api, container } = await mountPanel([], null, createImageInfo());
+
+    const input = container.querySelector('#kayzart-elements-image-alt') as HTMLInputElement;
+    await inputValue(input, 'Updated description');
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementImageInfo).toHaveBeenCalledWith('heading-1', {
+      alt: 'Updated description',
+    });
+  });
+
+  it('calls replace image from the image section', async () => {
+    const { api, container } = await mountPanel([], null, createImageInfo());
+
+    const button = Array.from(container.querySelectorAll('button')).find(
+      (entry) => entry.textContent === 'Replace image'
+    ) as HTMLButtonElement;
+    await act(async () => {
+      button.click();
+    });
+
+    expect(api.replaceElementImage).toHaveBeenCalledWith('heading-1');
+  });
+
+  it('shows a responsive source notice only when image sources are present', async () => {
+    const notice =
+      'This image has responsive sources. Updating the URL will use the new image for all sources.';
+    const normal = await mountPanel([], null, createImageInfo());
+
+    expect(normal.container.textContent).not.toContain(notice);
+    normal.container.remove();
+
+    const responsive = await mountPanel(
+      [],
+      null,
+      createImageInfo({
+        hasSrcset: true,
+        hasPictureSources: true,
+      })
+    );
+
+    expect(responsive.container.textContent).toContain(notice);
+  });
+
+  it('can show link and image sections together', async () => {
+    const { container } = await mountPanel(
+      [],
+      {
+        kind: 'link',
+        tagName: 'a',
+        href: '/gallery',
+        targetBlank: false,
+        rel: '',
+        disabled: false,
+      },
+      createImageInfo()
+    );
+
+    expect(container.textContent).toContain('Link destination');
+    expect(container.textContent).toContain('Image URL');
+    expect(container.textContent).toContain('Advanced settings');
   });
 });

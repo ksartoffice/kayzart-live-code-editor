@@ -49,6 +49,10 @@ export type ImageSourceEditInfo = {
   insertSuffix: string;
 };
 
+export type ElementImageSourceEditInfo = ImageSourceEditInfo & {
+  attributeName: 'src' | 'srcset' | 'data-src' | 'data-srcset';
+};
+
 export type ElementActionInfo = {
   actionLcId: string;
   kind: 'link' | 'button';
@@ -57,6 +61,18 @@ export type ElementActionInfo = {
   targetBlank: boolean;
   rel: string;
   disabled: boolean;
+};
+
+export type ElementImageInfo = {
+  imageLcId: string;
+  tagName: 'img';
+  src: string;
+  alt: string;
+  title: string;
+  hasSrcset: boolean;
+  hasDataSrc: boolean;
+  hasDataSrcset: boolean;
+  hasPictureSources: boolean;
 };
 
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
@@ -312,12 +328,14 @@ type ElementLookupEntry = {
   lcId: string;
 };
 
-function findElementLookupEntry(html: string, lcId: string): (ElementLookupEntry & {
+type ElementLookupResult = ElementLookupEntry & {
   ancestors: ElementLookupEntry[];
-}) | null {
+};
+
+function findElementLookupEntry(html: string, lcId: string): ElementLookupResult | null {
   const root = parseElementLookupRoot(html);
   let seq = 0;
-  let result: (ElementLookupEntry & { ancestors: ElementLookupEntry[] }) | null = null;
+  let result: ElementLookupResult | null = null;
 
   const walk = (
     node: DefaultTreeAdapterTypes.ParentNode,
@@ -564,7 +582,10 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
   };
 
   findSelected(root);
-  if (!selected || VOID_TAGS.has(selected.tagName)) {
+  // selected は findSelected 内（クロージャ）でのみ代入されるため TS の制御フロー解析は
+  // null のまま narrowing してしまう。アサーションで型を戻し、以降の判定を正す。
+  const selectedElement = selected as DefaultTreeAdapterTypes.Element | null;
+  if (!selectedElement || VOID_TAGS.has(selectedElement.tagName)) {
     return [];
   }
 
@@ -667,11 +688,12 @@ export function getEditableTextSegments(html: string, lcId: string): EditableTex
     };
   };
 
-  const selectedSegments = collectSegments(selected);
-  const selectedTagName = getElementTagName(selected);
+  const selectedSegments = collectSegments(selectedElement);
+  const selectedTagName = getElementTagName(selectedElement);
   const parent = selectedAncestors[selectedAncestors.length - 1];
+  const emptySegment = createEmptySegment(selectedElement);
   const selectedSegmentsWithFallback =
-    selectedSegments.length > 0 ? selectedSegments : [createEmptySegment(selected)].filter(Boolean);
+    selectedSegments.length > 0 ? selectedSegments : emptySegment ? [emptySegment] : [];
   if (
     parent &&
     INLINE_TEXT_WRAPPER_TAGS.has(selectedTagName) &&
@@ -759,6 +781,222 @@ export function getElementActionInfo(html: string, lcId: string): ElementActionI
     }
   }
   return null;
+}
+
+function findNearestPictureEntry(entry: ElementLookupResult): ElementLookupEntry | null {
+  return entry.ancestors
+    .slice()
+    .reverse()
+    .find((ancestor) => ancestor.element.tagName.toLowerCase() === 'picture') ?? null;
+}
+
+function pictureHasResponsiveSources(picture: DefaultTreeAdapterTypes.Element): boolean {
+  let hasSources = false;
+  const walk = (node: DefaultTreeAdapterTypes.Node) => {
+    if (hasSources) {
+      return;
+    }
+    if (isElement(node)) {
+      if (
+        node.tagName.toLowerCase() === 'source' &&
+        (hasElementAttribute(node, 'srcset') || hasElementAttribute(node, 'data-srcset'))
+      ) {
+        hasSources = true;
+        return;
+      }
+      if (isTemplateElement(node)) {
+        walk(node.content);
+        return;
+      }
+    }
+    if (!isParentNode(node)) {
+      return;
+    }
+    for (const child of node.childNodes || []) {
+      walk(child);
+      if (hasSources) {
+        return;
+      }
+    }
+  };
+  walk(picture);
+  return hasSources;
+}
+
+function collectSourceElements(
+  node: DefaultTreeAdapterTypes.Node,
+  sources: DefaultTreeAdapterTypes.Element[]
+) {
+  if (isElement(node)) {
+    if (node.tagName.toLowerCase() === 'source') {
+      sources.push(node);
+    }
+    if (isTemplateElement(node)) {
+      collectSourceElements(node.content, sources);
+      return;
+    }
+  }
+  if (!isParentNode(node)) {
+    return;
+  }
+  for (const child of node.childNodes || []) {
+    collectSourceElements(child, sources);
+  }
+}
+
+function getFirstSrcsetUrl(value: string): string {
+  const firstCandidate = value
+    .split(',')
+    .map((candidate) => candidate.trim())
+    .find((candidate) => candidate.length > 0);
+  return firstCandidate?.split(/\s+/)[0] ?? '';
+}
+
+function getFirstPictureSourceUrl(picture: ElementLookupEntry | null): string {
+  if (!picture) {
+    return '';
+  }
+  const sources: DefaultTreeAdapterTypes.Element[] = [];
+  collectSourceElements(picture.element, sources);
+  for (const source of sources) {
+    const srcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(source, 'srcset'));
+    if (srcsetUrl) {
+      return srcsetUrl;
+    }
+    const dataSrcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(source, 'data-srcset'));
+    if (dataSrcsetUrl) {
+      return dataSrcsetUrl;
+    }
+  }
+  return '';
+}
+
+function getImageDisplaySource(
+  selected: ElementLookupEntry,
+  picture: ElementLookupEntry | null
+): string {
+  const src = getElementAttributeValue(selected.element, 'src').trim();
+  if (src) {
+    return src;
+  }
+  const dataSrc = getElementAttributeValue(selected.element, 'data-src').trim();
+  if (dataSrc) {
+    return dataSrc;
+  }
+  const srcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(selected.element, 'srcset'));
+  if (srcsetUrl) {
+    return srcsetUrl;
+  }
+  const dataSrcsetUrl = getFirstSrcsetUrl(getElementAttributeValue(selected.element, 'data-srcset'));
+  if (dataSrcsetUrl) {
+    return dataSrcsetUrl;
+  }
+  return getFirstPictureSourceUrl(picture);
+}
+
+function buildAttributeEditInfo(
+  html: string,
+  element: DefaultTreeAdapterTypes.Element,
+  attributeName: ElementImageSourceEditInfo['attributeName'],
+  insertMissing: boolean
+): ElementImageSourceEditInfo | null {
+  const startTag = element.sourceCodeLocation?.startTag;
+  if (
+    !startTag ||
+    typeof startTag.startOffset !== 'number' ||
+    typeof startTag.endOffset !== 'number'
+  ) {
+    return null;
+  }
+  const valueRange = findAttributeValueRange(
+    html,
+    startTag.startOffset,
+    startTag.endOffset,
+    attributeName
+  );
+  if (valueRange) {
+    return {
+      ...valueRange,
+      attributeName,
+      insertPrefix: '',
+      insertSuffix: '',
+    };
+  }
+  if (!insertMissing) {
+    return null;
+  }
+  const insertOffset = getStartTagInsertionOffset(
+    html,
+    startTag.startOffset,
+    startTag.endOffset
+  );
+  return {
+    startOffset: insertOffset,
+    endOffset: insertOffset,
+    attributeName,
+    insertPrefix: ` ${attributeName}="`,
+    insertSuffix: '"',
+  };
+}
+
+export function getElementImageInfo(html: string, lcId: string): ElementImageInfo | null {
+  const selected = findElementLookupEntry(html, lcId);
+  if (!selected || selected.element.tagName.toLowerCase() !== 'img') {
+    return null;
+  }
+  const picture = findNearestPictureEntry(selected);
+  return {
+    imageLcId: selected.lcId,
+    tagName: 'img',
+    src: getImageDisplaySource(selected, picture),
+    alt: getElementAttributeValue(selected.element, 'alt'),
+    title: getElementAttributeValue(selected.element, 'title'),
+    hasSrcset: hasElementAttribute(selected.element, 'srcset'),
+    hasDataSrc: hasElementAttribute(selected.element, 'data-src'),
+    hasDataSrcset: hasElementAttribute(selected.element, 'data-srcset'),
+    hasPictureSources: picture ? pictureHasResponsiveSources(picture.element) : false,
+  };
+}
+
+export function getElementImageSourceEditInfos(
+  html: string,
+  lcId: string
+): ElementImageSourceEditInfo[] {
+  const selected = findElementLookupEntry(html, lcId);
+  if (!selected || selected.element.tagName.toLowerCase() !== 'img') {
+    return [];
+  }
+
+  const edits: ElementImageSourceEditInfo[] = [];
+  const imgSourceAttributes: Array<ElementImageSourceEditInfo['attributeName']> = [
+    'src',
+    'srcset',
+    'data-src',
+    'data-srcset',
+  ];
+
+  imgSourceAttributes.forEach((attributeName) => {
+    const edit = buildAttributeEditInfo(html, selected.element, attributeName, attributeName === 'src');
+    if (edit) {
+      edits.push(edit);
+    }
+  });
+
+  const picture = findNearestPictureEntry(selected);
+  if (picture) {
+    const sources: DefaultTreeAdapterTypes.Element[] = [];
+    collectSourceElements(picture.element, sources);
+    sources.forEach((source) => {
+      (['srcset', 'data-srcset'] as const).forEach((attributeName) => {
+        const edit = buildAttributeEditInfo(html, source, attributeName, false);
+        if (edit) {
+          edits.push(edit);
+        }
+      });
+    });
+  }
+
+  return edits;
 }
 
 export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceEditInfo | null {

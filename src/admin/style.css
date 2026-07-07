@@ -1277,6 +1277,33 @@ body.admin_page_kayzart #wpbody-content {
   border-bottom: 1px solid #252c38;
 }
 
+.kayzart-elementsImageGroup {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #252c38;
+}
+
+.kayzart-elementsImagePreview {
+  width: 100%;
+  min-height: 80px;
+  max-height: 160px;
+  overflow: hidden;
+  border: 1px solid #2b3340;
+  border-radius: 6px;
+  background: #0f1218;
+}
+
+.kayzart-elementsImagePreview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 160px;
+  object-fit: contain;
+}
+
+.kayzart-elementsImageReplace {
+  align-self: flex-start;
+}
+
 .kayzart-elementsToggle {
   display: inline-flex;
   align-items: center;

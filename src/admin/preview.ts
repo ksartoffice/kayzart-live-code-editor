@@ -64,7 +64,6 @@ type PreviewControllerDeps = {
   onOpenElementsTab?: () => void;
   onCopyElementHtml?: (lcId: string) => void;
   onDeleteElement?: (lcId: string) => void;
-  onReplaceImage?: (lcId: string) => void;
   onOverlayAction?: (actionId: string) => void;
   onMissingMarkers?: () => void;
   onReloadApplied?: () => void;
@@ -652,10 +651,6 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
 
     if (data?.type === 'KAYZART_DELETE_ELEMENT' && typeof data.lcId === 'string') {
       deps.onDeleteElement?.(data.lcId);
-    }
-
-    if (data?.type === 'KAYZART_REPLACE_IMAGE' && typeof data.lcId === 'string') {
-      deps.onReplaceImage?.(data.lcId);
     }
 
     if (data?.type === 'KAYZART_OVERLAY_ACTION' && typeof data.actionId === 'string') {

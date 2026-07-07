@@ -20,7 +20,8 @@ import {
   getEditableTextSegments,
   getElementActionInfo,
   getElementContext,
-  getImageSourceEditInfo,
+  getElementImageInfo,
+  getElementImageSourceEditInfos,
   escapeTextForHtml,
   isSafeEditableElementHtml,
 } from './element-text';
@@ -1219,6 +1220,28 @@ async function main() {
     );
   };
 
+  const applyImageSourceUpdates = (lcId: string, url: string) => {
+    const edits = getElementImageSourceEditInfos(htmlModel.getValue(), lcId);
+    if (edits.length === 0) {
+      return false;
+    }
+    const escapedUrl = escapeAttributeValue(url);
+
+    htmlEditor.pushUndoStop();
+    edits
+      .slice()
+      .sort((a, b) => b.startOffset - a.startOffset)
+      .forEach((edit) => {
+        applyHtmlEdit(
+          edit.startOffset,
+          edit.endOffset,
+          `${edit.insertPrefix}${escapedUrl}${edit.insertSuffix}`
+        );
+      });
+    htmlEditor.pushUndoStop();
+    return true;
+  };
+
   const openReplaceImageMediaModal = (lcId: string) => {
     if (typeof wp?.media !== 'function') {
       createSnackbar(
@@ -1230,8 +1253,7 @@ async function main() {
       return;
     }
 
-    const imageEdit = getImageSourceEditInfo(htmlModel.getValue(), lcId);
-    if (!imageEdit) {
+    if (getElementImageSourceEditInfos(htmlModel.getValue(), lcId).length === 0) {
       createSnackbar(
         'error',
         __( 'Could not find the selected image source.', 'kayzart-live-code-editor'),
@@ -1282,8 +1304,7 @@ async function main() {
         );
         return;
       }
-      const latestImageEdit = getImageSourceEditInfo(htmlModel.getValue(), lcId);
-      if (!latestImageEdit) {
+      if (!applyImageSourceUpdates(lcId, url)) {
         createSnackbar(
           'error',
           __( 'Could not find the selected image source.', 'kayzart-live-code-editor'),
@@ -1293,13 +1314,6 @@ async function main() {
         return;
       }
 
-      htmlEditor.pushUndoStop();
-      applyHtmlEdit(
-        latestImageEdit.startOffset,
-        latestImageEdit.endOffset,
-        `${latestImageEdit.insertPrefix}${url}${latestImageEdit.insertSuffix}`
-      );
-      htmlEditor.pushUndoStop();
       createSnackbar(
         'success',
         __( 'Image replaced.', 'kayzart-live-code-editor'),
@@ -1581,6 +1595,42 @@ async function main() {
 
       return applyElementAttributes(info.actionLcId, nextAttributes);
     },
+    getElementImageInfo: (lcId: string) => getElementImageInfo(htmlModel.getValue(), lcId),
+    updateElementImageInfo: (lcId: string, image: { src?: string; alt?: string }) => {
+      const info = getElementImageInfo(htmlModel.getValue(), lcId);
+      if (!info) {
+        return false;
+      }
+
+      if (image.src !== undefined) {
+        const didUpdateSources = applyImageSourceUpdates(info.imageLcId, image.src);
+        if (!didUpdateSources) {
+          return false;
+        }
+      }
+
+      if (image.alt === undefined) {
+        return true;
+      }
+
+      const attrsInfo = getEditableElementAttributes(htmlModel.getValue(), info.imageLcId);
+      if (!attrsInfo) {
+        return false;
+      }
+      let nextAttributes = attrsInfo.attributes;
+      if (image.alt !== undefined) {
+        nextAttributes = setAttributeValue(nextAttributes, 'alt', image.alt);
+      }
+      return applyElementAttributes(info.imageLcId, nextAttributes);
+    },
+    replaceElementImage: (lcId: string) => {
+      const info = getElementImageInfo(htmlModel.getValue(), lcId);
+      if (!info) {
+        return false;
+      }
+      openReplaceImageMediaModal(info.imageLcId);
+      return true;
+    },
     getElementAttributes: (lcId: string) => {
       const info = getEditableElementAttributes(htmlModel.getValue(), lcId);
       return info ? info.attributes : null;
@@ -1667,9 +1717,6 @@ async function main() {
     },
     onDeleteElement: (lcId) => {
       handleDeleteElement(lcId);
-    },
-    onReplaceImage: (lcId) => {
-      openReplaceImageMediaModal(lcId);
     },
     onOverlayAction: (actionId) => {
       window.dispatchEvent(

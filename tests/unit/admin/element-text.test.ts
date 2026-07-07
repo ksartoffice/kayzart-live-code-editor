@@ -5,6 +5,8 @@ import {
   getEditableTextSegments,
   getElementActionInfo,
   getElementContext,
+  getElementImageInfo,
+  getElementImageSourceEditInfos,
   getImageSourceEditInfo,
   isSafeEditableElementHtml,
 } from '../../../src/admin/element-text';
@@ -442,6 +444,203 @@ describe('getElementActionInfo', () => {
         href: '/buy',
       })
     );
+  });
+});
+
+describe('getElementImageInfo', () => {
+  it('returns image info for selected img elements', () => {
+    const html = '<img data-kayzart-id="image-1" src="old.jpg" alt="Sample" title="Hero">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual({
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: 'old.jpg',
+      alt: 'Sample',
+      title: 'Hero',
+      hasSrcset: false,
+      hasDataSrc: false,
+      hasDataSrcset: false,
+      hasPictureSources: false,
+    });
+  });
+
+  it('returns empty values when image attributes are missing', () => {
+    const html = '<img data-kayzart-id="image-1">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual({
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: '',
+      alt: '',
+      title: '',
+      hasSrcset: false,
+      hasDataSrc: false,
+      hasDataSrcset: false,
+      hasPictureSources: false,
+    });
+  });
+
+  it('returns image info for picture child images', () => {
+    const html = '<picture><source srcset="wide.jpg"><img data-kayzart-id="image-1" src="small.jpg" alt="Small"></picture>';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        imageLcId: 'image-1',
+        src: 'small.jpg',
+        alt: 'Small',
+        hasPictureSources: true,
+      })
+    );
+  });
+
+  it('reports responsive and lazy image sources', () => {
+    const responsiveHtml =
+      '<img data-kayzart-id="image-1" src="old.jpg" srcset="old-2x.jpg 2x">';
+    const lazyHtml =
+      '<img data-kayzart-id="image-1" data-src="old.jpg" data-srcset="old.webp 1x">';
+
+    expect(getElementImageInfo(responsiveHtml, 'image-1')).toEqual(
+      expect.objectContaining({
+        hasSrcset: true,
+        hasDataSrc: false,
+        hasDataSrcset: false,
+      })
+    );
+    expect(getElementImageInfo(lazyHtml, 'image-1')).toEqual(
+      expect.objectContaining({
+        hasSrcset: false,
+        hasDataSrc: true,
+        hasDataSrcset: true,
+      })
+    );
+  });
+
+  it('falls back to data-src for the displayed image source', () => {
+    const html = '<img data-kayzart-id="image-1" data-src="lazy.jpg" alt="Lazy">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'lazy.jpg',
+      })
+    );
+  });
+
+  it('falls back to the first srcset candidate for the displayed image source', () => {
+    const html =
+      '<img data-kayzart-id="image-1" srcset="small.jpg 1x, large.jpg 2x" alt="Responsive">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'small.jpg',
+      })
+    );
+  });
+
+  it('falls back to the first data-srcset candidate for the displayed image source', () => {
+    const html =
+      '<img data-kayzart-id="image-1" data-srcset="lazy-small.webp 480w, lazy-large.webp 960w">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'lazy-small.webp',
+      })
+    );
+  });
+
+  it('falls back to the first picture source candidate for the displayed image source', () => {
+    const html =
+      '<picture><source srcset="wide.jpg"><img data-kayzart-id="image-1" alt="Hero"></picture>';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'wide.jpg',
+      })
+    );
+  });
+
+  it('prefers img src over lazy and responsive source fallbacks', () => {
+    const html =
+      '<picture><source srcset="wide.jpg"><img data-kayzart-id="image-1" src="current.jpg" data-src="lazy.jpg" srcset="small.jpg 1x"></picture>';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        src: 'current.jpg',
+      })
+    );
+  });
+
+  it('does not expose descendant images from parent selections', () => {
+    const html = '<section data-kayzart-id="section-1"><img src="old.jpg" alt="Sample"></section>';
+
+    expect(getElementImageInfo(html, 'section-1')).toBeNull();
+  });
+
+  it('ignores non-image elements', () => {
+    expect(getElementImageInfo('<p data-kayzart-id="text-1">Hello</p>', 'text-1')).toBeNull();
+    expect(getElementImageInfo('<a data-kayzart-id="link-1" href="#">Hello</a>', 'link-1')).toBeNull();
+  });
+});
+
+describe('getElementImageSourceEditInfos', () => {
+  it('returns img source ranges for existing responsive and lazy attributes', () => {
+    const html =
+      '<img data-kayzart-id="image-1" src="old.jpg" srcset="old-2x.jpg 2x" data-src="lazy.jpg" data-srcset="lazy-2x.jpg 2x">';
+
+    expect(getElementImageSourceEditInfos(html, 'image-1')).toEqual([
+      expect.objectContaining({ attributeName: 'src' }),
+      expect.objectContaining({ attributeName: 'srcset' }),
+      expect.objectContaining({ attributeName: 'data-src' }),
+      expect.objectContaining({ attributeName: 'data-srcset' }),
+    ]);
+  });
+
+  it('returns picture source ranges for the selected image picture', () => {
+    const html =
+      '<picture><source media="(min-width: 800px)" srcset="wide.jpg"><source data-srcset="lazy-wide.jpg"><img data-kayzart-id="image-1" src="small.jpg" srcset="small-2x.jpg 2x"></picture>';
+
+    const edits = getElementImageSourceEditInfos(html, 'image-1');
+
+    expect(edits.map((edit) => edit.attributeName)).toEqual([
+      'src',
+      'srcset',
+      'srcset',
+      'data-srcset',
+    ]);
+    expect(edits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          startOffset: html.indexOf('wide.jpg'),
+          endOffset: html.indexOf('wide.jpg') + 'wide.jpg'.length,
+          attributeName: 'srcset',
+        }),
+        expect.objectContaining({
+          startOffset: html.indexOf('lazy-wide.jpg'),
+          endOffset: html.indexOf('lazy-wide.jpg') + 'lazy-wide.jpg'.length,
+          attributeName: 'data-srcset',
+        }),
+      ])
+    );
+  });
+
+  it('returns a src insertion range when the selected image has no src', () => {
+    const html = '<img data-kayzart-id="image-1" alt="Sample">';
+    const offset = html.indexOf('>');
+
+    expect(getElementImageSourceEditInfos(html, 'image-1')).toEqual([
+      {
+        startOffset: offset,
+        endOffset: offset,
+        attributeName: 'src',
+        insertPrefix: ' src="',
+        insertSuffix: '"',
+      },
+    ]);
+  });
+
+  it('does not expose descendant image source ranges from parent selections', () => {
+    const html = '<section data-kayzart-id="section-1"><img src="old.jpg"></section>';
+
+    expect(getElementImageSourceEditInfos(html, 'section-1')).toEqual([]);
   });
 });
 

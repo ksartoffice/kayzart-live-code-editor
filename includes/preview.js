@@ -18,6 +18,7 @@
   const markerStart = config.markers && config.markers.start ? String(config.markers.start) : 'start';
   const markerEnd = config.markers && config.markers.end ? String(config.markers.end) : 'end';
   const labels = resolveLabels(config.labels);
+  const shortcodeTags = resolveShortcodeTags(config.shortcodeTags);
   const allowedOrigin = getAllowedOrigin();
   let isReady = false;
   let hoverTarget = null;
@@ -338,6 +339,24 @@
         ? String(source.shortcodeUnavailable)
         : 'Not available in preview. It will render on the front end.',
     };
+  }
+
+  function resolveShortcodeTags(rawTags) {
+    const tags = {};
+    if (!Array.isArray(rawTags)) {
+      return tags;
+    }
+    rawTags.forEach((item) => {
+      const tag = String(item || '').trim().toLowerCase();
+      if (tag) {
+        tags[tag] = true;
+      }
+    });
+    return tags;
+  }
+
+  function isRegisteredShortcodeTag(tagName) {
+    return Boolean(tagName && shortcodeTags[String(tagName).toLowerCase()]);
   }
 
   function createSelectMenuItem(id, label) {
@@ -1273,6 +1292,9 @@
       return null;
     }
     const tagName = tagMatch[1];
+    if (!isRegisteredShortcodeTag(tagName)) {
+      return null;
+    }
     index += tagName.length;
     const nextChar = text.charAt(index);
     if (nextChar && !/[\s/\]]/.test(nextChar)) {

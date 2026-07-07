@@ -26,6 +26,7 @@ const setupPreviewDocument = () => {
     allowedOrigin: window.location.origin,
     post_id: 1,
     liveHighlightEnabled: true,
+    shortcodeTags: ['caption', 'contact-form-7', 'ez-toc', 'gallery'],
     markers: {
       attr: 'data-kayzart-marker',
       postAttr: 'data-kayzart-post-id',
@@ -206,6 +207,49 @@ describe('preview shortcode placeholders', () => {
     expect(document.querySelector('pre')?.textContent).toBe('[gallery]');
     expect(document.querySelector('code')?.textContent).toBe('[gallery]');
     expect(document.querySelector('textarea')?.textContent).toBe('[gallery]');
+  });
+
+  it('does not visualize unregistered bracketed text', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>See [1] and choose [A]. [note]普通の注記[/note]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe(
+      'See [1] and choose [A]. [note]普通の注記[/note]'
+    );
+  });
+
+  it('does not visualize shortcode text when no shortcode tags are registered', async () => {
+    setupPreviewDocument();
+    (window as any).KAYZART_PREVIEW.shortcodeTags = [];
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[gallery]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe('[gallery]');
   });
 });
 

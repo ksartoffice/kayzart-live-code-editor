@@ -398,6 +398,7 @@ class Preview {
 			'allowedOrigin'        => $admin_origin,
 			'post_id'              => self::$post_id,
 			'liveHighlightEnabled' => $live_highlight_enabled,
+			'shortcodeTags'        => self::registered_shortcode_tags(),
 			'markers'              => array(
 				'attr'     => self::MARKER_ATTR,
 				'postAttr' => self::MARKER_POST_ATTR,
@@ -432,6 +433,29 @@ class Preview {
 			'window.KAYZART_PREVIEW = ' . $json . ';',
 			'before'
 		);
+	}
+
+	/**
+	 * Resolve shortcode tags registered for the current WordPress request.
+	 *
+	 * @return array<int,string>
+	 */
+	private static function registered_shortcode_tags(): array {
+		global $shortcode_tags;
+
+		if ( ! is_array( $shortcode_tags ) ) {
+			return array();
+		}
+
+		$tags = array();
+		foreach ( array_keys( $shortcode_tags ) as $tag ) {
+			$tag = trim( (string) $tag );
+			if ( '' !== $tag ) {
+				$tags[] = $tag;
+			}
+		}
+
+		return array_values( array_unique( $tags ) );
 	}
 
 	/**

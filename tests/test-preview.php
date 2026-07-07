@@ -150,8 +150,13 @@ class Test_Preview extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
-		$this->start_preview_request( $post_id, $admin_id );
-		Preview::enqueue_assets();
+		add_shortcode( 'kayzart_preview_test', '__return_empty_string' );
+		try {
+			$this->start_preview_request( $post_id, $admin_id );
+			Preview::enqueue_assets();
+		} finally {
+			remove_shortcode( 'kayzart_preview_test' );
+		}
 
 		$scripts    = wp_scripts();
 		$registered = $scripts->registered['kayzart-preview'] ?? null;
@@ -175,6 +180,8 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertTrue( empty( $parts['path'] ), 'allowedOrigin should not include a path.' );
 		$this->assertTrue( empty( $parts['query'] ), 'allowedOrigin should not include a query string.' );
 		$this->assertTrue( empty( $parts['fragment'] ), 'allowedOrigin should not include a fragment.' );
+		$this->assertIsArray( $payload['shortcodeTags'] ?? null );
+		$this->assertContains( 'kayzart_preview_test', $payload['shortcodeTags'] );
 		$this->assertArrayNotHasKey( 'overlayAction', $payload );
 	}
 

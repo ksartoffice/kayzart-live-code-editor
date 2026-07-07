@@ -398,6 +398,7 @@ class Preview {
 			'allowedOrigin'        => $admin_origin,
 			'post_id'              => self::$post_id,
 			'liveHighlightEnabled' => $live_highlight_enabled,
+			'shortcodeTags'        => self::registered_shortcode_tags(),
 			'markers'              => array(
 				'attr'     => self::MARKER_ATTR,
 				'postAttr' => self::MARKER_POST_ATTR,
@@ -405,10 +406,12 @@ class Preview {
 				'end'      => self::MARKER_END,
 			),
 			'labels'               => array(
-				'moveToParent' => __( 'Move to parent element', 'kayzart-live-code-editor' ),
-				'replaceImage' => __( 'Replace image', 'kayzart-live-code-editor' ),
-				'copyHtml'     => __( 'Copy HTML', 'kayzart-live-code-editor' ),
-				'delete'       => __( 'Delete', 'kayzart-live-code-editor' ),
+				'moveToParent'         => __( 'Move to parent element', 'kayzart-live-code-editor' ),
+				'replaceImage'         => __( 'Replace image', 'kayzart-live-code-editor' ),
+				'copyHtml'             => __( 'Copy HTML', 'kayzart-live-code-editor' ),
+				'delete'               => __( 'Delete', 'kayzart-live-code-editor' ),
+				'shortcodeLabel'       => __( 'Shortcode', 'kayzart-live-code-editor' ),
+				'shortcodeUnavailable' => __( 'Not available in preview. It will render on the front end.', 'kayzart-live-code-editor' ),
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
@@ -430,6 +433,29 @@ class Preview {
 			'window.KAYZART_PREVIEW = ' . $json . ';',
 			'before'
 		);
+	}
+
+	/**
+	 * Resolve shortcode tags registered for the current WordPress request.
+	 *
+	 * @return array<int,string>
+	 */
+	private static function registered_shortcode_tags(): array {
+		global $shortcode_tags;
+
+		if ( ! is_array( $shortcode_tags ) ) {
+			return array();
+		}
+
+		$tags = array();
+		foreach ( array_keys( $shortcode_tags ) as $tag ) {
+			$tag = trim( (string) $tag );
+			if ( '' !== $tag ) {
+				$tags[] = $tag;
+			}
+		}
+
+		return array_values( array_unique( $tags ) );
 	}
 
 	/**

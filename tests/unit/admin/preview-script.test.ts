@@ -17,6 +17,29 @@ const flushAsync = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
+const setupPreviewDocument = () => {
+  document.body.innerHTML = [
+    '<span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>',
+    '<span data-kayzart-marker="end" data-kayzart-post-id="1" hidden></span>',
+  ].join('');
+  (window as any).KAYZART_PREVIEW = {
+    allowedOrigin: window.location.origin,
+    post_id: 1,
+    liveHighlightEnabled: true,
+    shortcodeTags: ['caption', 'contact-form-7', 'ez-toc', 'foo', 'foo.bar', 'gallery'],
+    markers: {
+      attr: 'data-kayzart-marker',
+      postAttr: 'data-kayzart-post-id',
+      start: 'start',
+      end: 'end',
+    },
+    labels: {
+      shortcodeLabel: 'Shortcode',
+      shortcodeUnavailable: 'Preview only placeholder.',
+    },
+  };
+};
+
 let activeWindowTimers = new Set<number>();
 let nativeWindowSetTimeout: typeof window.setTimeout;
 let nativeWindowClearTimeout: typeof window.clearTimeout;
@@ -70,6 +93,255 @@ afterEach(() => {
       value: nativeWindowClearTimeout,
     });
   }
+});
+
+describe('preview shortcode placeholders', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('visualizes shortcode text without changing surrounding html', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML:
+        '<section><p>Before [contact-form-7 id="123"] after</p><div>[ez-toc]</div></section>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(2);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: contact-form-7');
+    expect(placeholders[0]?.textContent).toContain('Preview only placeholder.');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[contact-form-7 id="123"]');
+    expect(placeholders[1]?.textContent).toContain('Shortcode: ez-toc');
+    expect(document.querySelector('section p')?.textContent).toContain('Before ');
+    expect(document.querySelector('section p')?.textContent).toContain(' after');
+  });
+
+  it('keeps mismatched closing shortcode case visible like WordPress', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>Before [caption]A caption[/CAPTION] after</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: caption');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[caption]');
+    expect(document.querySelector('p')?.textContent).toContain('Before ');
+    expect(document.querySelector('p')?.textContent).toContain(' after');
+    expect(document.querySelector('p')?.textContent).toContain('A caption[/CAPTION]');
+  });
+
+  it('visualizes enclosing shortcode text as one placeholder', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>Before [caption]A caption[/caption] after</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: caption');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[caption]A caption[/caption]');
+    expect(document.querySelector('p')?.textContent).toContain('Before ');
+    expect(document.querySelector('p')?.textContent).toContain(' after');
+    expect(document.querySelector('p')?.textContent).not.toContain('A caption');
+    expect(document.querySelector('p')?.textContent).not.toContain('[/caption]');
+  });
+
+  it('visualizes enclosing shortcode markup as one placeholder', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>Before [caption]<img src="x.jpg">キャプション[/caption] after</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: caption');
+    expect(placeholders[0]?.getAttribute('title')).toBe(
+      '[caption]<img src="x.jpg">キャプション[/caption]'
+    );
+    expect(document.querySelector('img')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toContain('Before ');
+    expect(document.querySelector('p')?.textContent).toContain(' after');
+    expect(document.querySelector('p')?.textContent).not.toContain('キャプション');
+    expect(document.querySelector('p')?.textContent).not.toContain('[/caption]');
+  });
+
+  it('does not visualize escaped or code-like shortcode text', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML:
+        '<p>[[gallery]]</p><pre>[gallery]</pre><code>[gallery]</code><textarea>[gallery]</textarea>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe('[[gallery]]');
+    expect(document.querySelector('pre')?.textContent).toBe('[gallery]');
+    expect(document.querySelector('code')?.textContent).toBe('[gallery]');
+    expect(document.querySelector('textarea')?.textContent).toBe('[gallery]');
+  });
+
+  it('does not visualize unregistered bracketed text', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>See [1] and choose [A]. [note]普通の注記[/note]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe(
+      'See [1] and choose [A]. [note]普通の注記[/note]'
+    );
+  });
+
+  it('does not visualize shortcode text when no shortcode tags are registered', async () => {
+    setupPreviewDocument();
+    (window as any).KAYZART_PREVIEW.shortcodeTags = [];
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[gallery]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe('[gallery]');
+  });
+
+  it('matches registered shortcode tags case-sensitively', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[gallery] [GALLERY]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(1);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: gallery');
+    expect(document.querySelector('p')?.textContent).toContain('[GALLERY]');
+  });
+
+  it('matches registered shortcode tags with punctuation and prefers the longest tag', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[foo.bar] [foo]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(2);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: foo.bar');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[foo.bar]');
+    expect(placeholders[1]?.textContent).toContain('Shortcode: foo');
+    expect(placeholders[1]?.getAttribute('title')).toBe('[foo]');
+  });
+
+  it('does not match a registered shortcode prefix followed by a word or hyphen', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<p>[gallery-extra] [galleryExtra]</p>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe('[gallery-extra] [galleryExtra]');
+  });
 });
 
 describe('preview selector overlay', () => {

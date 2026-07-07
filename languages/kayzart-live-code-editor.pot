@@ -376,6 +376,14 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+#: includes/class-kayzart-preview.php:412
+msgid "Shortcode"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:413
+msgid "Not available in preview. It will render on the front end."
+msgstr ""
+
 #: assets/dist/main.js:101
 msgid "Settings"
 msgstr ""

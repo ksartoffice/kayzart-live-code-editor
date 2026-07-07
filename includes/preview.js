@@ -1,5 +1,6 @@
 (function () {
   const styleId = 'kayzart-style';
+  const shortcodeStyleId = 'kayzart-shortcode-preview-style';
   const customHeadId = 'kayzart-custom-head';
   const customHeadStartMarker = 'kayzart-custom-head-start';
   const customHeadEndMarker = 'kayzart-custom-head-end';
@@ -17,6 +18,7 @@
   const markerStart = config.markers && config.markers.start ? String(config.markers.start) : 'start';
   const markerEnd = config.markers && config.markers.end ? String(config.markers.end) : 'end';
   const labels = resolveLabels(config.labels);
+  const shortcodeTags = resolveShortcodeTags(config.shortcodeTags);
   const allowedOrigin = getAllowedOrigin();
   let isReady = false;
   let hoverTarget = null;
@@ -332,7 +334,44 @@
       moveToParent: source.moveToParent ? String(source.moveToParent) : 'Move to parent element',
       copyHtml: source.copyHtml ? String(source.copyHtml) : 'Copy HTML',
       delete: source.delete ? String(source.delete) : 'Delete',
+      shortcodeLabel: source.shortcodeLabel ? String(source.shortcodeLabel) : 'Shortcode',
+      shortcodeUnavailable: source.shortcodeUnavailable
+        ? String(source.shortcodeUnavailable)
+        : 'Not available in preview. It will render on the front end.',
     };
+  }
+
+  function resolveShortcodeTags(rawTags) {
+    const tags = {
+      map: {},
+      names: [],
+    };
+    if (!Array.isArray(rawTags)) {
+      return tags;
+    }
+    rawTags.forEach((item) => {
+      const tag = String(item || '').trim();
+      if (tag && !tags.map[tag]) {
+        tags.map[tag] = true;
+        tags.names.push(tag);
+      }
+    });
+    tags.names.sort((a, b) => b.length - a.length);
+    return tags;
+  }
+
+  function isRegisteredShortcodeTag(tagName) {
+    return Boolean(tagName && shortcodeTags.map[String(tagName)]);
+  }
+
+  function readRegisteredShortcodeTag(text, start) {
+    for (let index = 0; index < shortcodeTags.names.length; index += 1) {
+      const tagName = shortcodeTags.names[index];
+      if (text.slice(start, start + tagName.length) === tagName) {
+        return tagName;
+      }
+    }
+    return '';
   }
 
   function createSelectMenuItem(id, label) {
@@ -657,6 +696,41 @@
       root.appendChild(styleEl);
     }
     return styleEl;
+  }
+
+  function ensureShortcodePreviewStyle() {
+    const root = getStyleRoot();
+    if (!root) return;
+    if (root.querySelector('#' + shortcodeStyleId)) return;
+    const styleEl = document.createElement('style');
+    styleEl.id = shortcodeStyleId;
+    styleEl.textContent = [
+      '.kayzart-shortcode-placeholder{',
+      'display:inline-flex;',
+      'align-items:center;',
+      'gap:6px;',
+      'max-width:100%;',
+      'padding:4px 8px;',
+      'margin:0 2px;',
+      'border:1px dashed #94a3b8;',
+      'border-radius:6px;',
+      'background:#f8fafc;',
+      'color:#334155;',
+      'font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+      'vertical-align:baseline;',
+      'box-sizing:border-box;',
+      '}',
+      '.kayzart-shortcode-placeholder__name{',
+      'font-weight:600;',
+      'color:#0f172a;',
+      'white-space:nowrap;',
+      '}',
+      '.kayzart-shortcode-placeholder__message{',
+      'color:#64748b;',
+      'white-space:normal;',
+      '}',
+    ].join('');
+    root.appendChild(styleEl);
   }
 
   function removeScriptElement() {
@@ -1198,6 +1272,302 @@
     revealLazyBackgrounds(root);
   }
 
+  function isShortcodeTextExcluded(node) {
+    let parent = node && node.parentElement ? node.parentElement : node.parentNode;
+    while (parent && parent.nodeType === 1) {
+      const tagName = parent.tagName ? parent.tagName.toLowerCase() : '';
+      if (
+        tagName === 'script' ||
+        tagName === 'style' ||
+        tagName === 'textarea' ||
+        tagName === 'template' ||
+        tagName === 'code' ||
+        tagName === 'pre'
+      ) {
+        return true;
+      }
+      if (parent.classList && parent.classList.contains('kayzart-shortcode-placeholder')) {
+        return true;
+      }
+      parent = parent.parentElement;
+    }
+    return false;
+  }
+
+  function readShortcodeAt(text, start) {
+    if (text.charAt(start) !== '[' || text.charAt(start + 1) === '[') {
+      return null;
+    }
+    let index = start + 1;
+    if (text.charAt(index) === '/') {
+      return null;
+    }
+    const tagName = readRegisteredShortcodeTag(text, index);
+    if (!isRegisteredShortcodeTag(tagName)) {
+      return null;
+    }
+    index += tagName.length;
+    const nextChar = text.charAt(index);
+    if (nextChar && !/[\s/\]]/.test(nextChar)) {
+      return null;
+    }
+    let quote = '';
+    for (; index < text.length; index += 1) {
+      const char = text.charAt(index);
+      if (quote) {
+        if (char === quote) {
+          quote = '';
+        }
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        continue;
+      }
+      if (char === ']') {
+        const openEnd = index + 1;
+        const openingRaw = text.slice(start, openEnd);
+        const isSelfClosing = /\/\s*\]$/.test(openingRaw);
+        if (isSelfClosing) {
+          return {
+            end: openEnd,
+            openEnd: openEnd,
+            tagName: tagName,
+            raw: openingRaw,
+            selfClosing: true,
+            hasClosing: false,
+          };
+        }
+        const closeMatch = findClosingShortcode(text, openEnd, tagName);
+        if (closeMatch) {
+          return {
+            end: closeMatch.end,
+            openEnd: openEnd,
+            tagName: tagName,
+            raw: text.slice(start, closeMatch.end),
+            selfClosing: false,
+            hasClosing: true,
+          };
+        }
+        return {
+          end: openEnd,
+          openEnd: openEnd,
+          tagName: tagName,
+          raw: openingRaw,
+          selfClosing: false,
+          hasClosing: false,
+        };
+      }
+    }
+    return null;
+  }
+
+  function findClosingShortcode(text, start, tagName) {
+    const closePattern = new RegExp('\\[/' + escapeRegExp(tagName) + '\\]');
+    const match = closePattern.exec(text.slice(start));
+    if (!match) {
+      return null;
+    }
+    return {
+      start: start + match.index,
+      end: start + match.index + match[0].length,
+    };
+  }
+
+  function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function createShortcodePlaceholder(match) {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'kayzart-shortcode-placeholder';
+    placeholder.setAttribute('data-kayzart-shortcode', match.tagName);
+    placeholder.setAttribute('title', match.raw);
+
+    const name = document.createElement('span');
+    name.className = 'kayzart-shortcode-placeholder__name';
+    name.textContent = labels.shortcodeLabel + ': ' + match.tagName;
+
+    const message = document.createElement('span');
+    message.className = 'kayzart-shortcode-placeholder__message';
+    message.textContent = labels.shortcodeUnavailable;
+
+    placeholder.appendChild(name);
+    placeholder.appendChild(message);
+    return placeholder;
+  }
+
+  function buildShortcodeFragment(text) {
+    const fragment = document.createDocumentFragment();
+    let index = 0;
+    let changed = false;
+
+    while (index < text.length) {
+      const openIndex = text.indexOf('[', index);
+      if (openIndex === -1) {
+        fragment.appendChild(document.createTextNode(text.slice(index)));
+        break;
+      }
+      if (text.charAt(openIndex + 1) === '[') {
+        fragment.appendChild(document.createTextNode(text.slice(index, openIndex + 2)));
+        index = openIndex + 2;
+        continue;
+      }
+      const match = readShortcodeAt(text, openIndex);
+      if (!match) {
+        fragment.appendChild(document.createTextNode(text.slice(index, openIndex + 1)));
+        index = openIndex + 1;
+        continue;
+      }
+      fragment.appendChild(document.createTextNode(text.slice(index, openIndex)));
+      fragment.appendChild(createShortcodePlaceholder(match));
+      index = match.end;
+      changed = true;
+    }
+
+    return changed ? fragment : null;
+  }
+
+  function serializeRangeHtml(range) {
+    const container = document.createElement('div');
+    container.appendChild(range.cloneContents());
+    return container.innerHTML;
+  }
+
+  function isActiveShortcodeTextNode(root, node) {
+    return Boolean(
+      node &&
+        node.parentNode &&
+        root &&
+        root.contains(node) &&
+        !isShortcodeTextExcluded(node)
+    );
+  }
+
+  function findClosingShortcodeNode(root, startNode, tagName) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        if (!node.nodeValue || node.nodeValue.indexOf(']') === -1) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return isShortcodeTextExcluded(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    walker.currentNode = startNode;
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!isActiveShortcodeTextNode(root, node)) {
+        continue;
+      }
+      const closeMatch = findClosingShortcode(node.nodeValue || '', 0, tagName);
+      if (closeMatch) {
+        return {
+          node: node,
+          end: closeMatch.end,
+        };
+      }
+    }
+    return null;
+  }
+
+  function replaceFirstCrossNodeShortcode(root, node) {
+    if (!isActiveShortcodeTextNode(root, node)) {
+      return false;
+    }
+    const text = node.nodeValue || '';
+    let index = 0;
+    while (index < text.length) {
+      const openIndex = text.indexOf('[', index);
+      if (openIndex === -1) {
+        return false;
+      }
+      if (text.charAt(openIndex + 1) === '[') {
+        index = openIndex + 2;
+        continue;
+      }
+      const match = readShortcodeAt(text, openIndex);
+      if (!match) {
+        index = openIndex + 1;
+        continue;
+      }
+      if (!match.selfClosing && !match.hasClosing) {
+        const closeMatch = findClosingShortcodeNode(root, node, match.tagName);
+        if (closeMatch) {
+          const range = document.createRange();
+          range.setStart(node, openIndex);
+          range.setEnd(closeMatch.node, closeMatch.end);
+          const raw = serializeRangeHtml(range);
+          const placeholder = createShortcodePlaceholder({
+            tagName: match.tagName,
+            raw: raw,
+          });
+          range.deleteContents();
+          range.insertNode(placeholder);
+          range.detach();
+          return true;
+        }
+      }
+      index = match.end;
+    }
+    return false;
+  }
+
+  function replaceCrossNodeShortcodes(root) {
+    let changed = false;
+    let replaced = true;
+    while (replaced) {
+      replaced = false;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          if (!node.nodeValue || node.nodeValue.indexOf('[') === -1) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return isShortcodeTextExcluded(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      const nodes = [];
+      while (walker.nextNode()) {
+        nodes.push(walker.currentNode);
+      }
+      for (let index = 0; index < nodes.length; index += 1) {
+        const node = nodes[index];
+        if (replaceFirstCrossNodeShortcode(root, node)) {
+          changed = true;
+          replaced = true;
+          break;
+        }
+      }
+    }
+    return changed;
+  }
+
+  function visualizeShortcodes(root) {
+    if (!root || !document.createTreeWalker) return;
+    ensureShortcodePreviewStyle();
+    replaceCrossNodeShortcodes(root);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        if (!node.nodeValue || node.nodeValue.indexOf('[') === -1) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return isShortcodeTextExcluded(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) {
+      nodes.push(walker.currentNode);
+    }
+    nodes.forEach((node) => {
+      if (!isActiveShortcodeTextNode(root, node)) {
+        return;
+      }
+      const fragment = buildShortcodeFragment(node.nodeValue || '');
+      if (fragment && node.parentNode) {
+        node.parentNode.replaceChild(fragment, node);
+      }
+    });
+  }
+
   function replaceEditableContent(html) {
     const markers = findMarkers();
     if (!markers) return Promise.resolve();
@@ -1209,6 +1579,7 @@
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
+    visualizeShortcodes(wrapper);
     const scriptsReady = reviveScripts(wrapper);
     revealLazyMedia(wrapper);
     const frag = document.createDocumentFragment();

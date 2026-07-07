@@ -27,6 +27,10 @@ export type ElementPanelImageInfo = {
   src: string;
   alt: string;
   title: string;
+  hasSrcset: boolean;
+  hasDataSrc: boolean;
+  hasDataSrcset: boolean;
+  hasPictureSources: boolean;
 };
 
 type ElementPanelActionDraft = {
@@ -95,6 +99,15 @@ function adjustTextareaHeight(textarea: HTMLTextAreaElement | null) {
   }
   textarea.style.height = 'auto';
   textarea.style.height = `${textarea.scrollHeight}px`;
+}
+
+function hasResponsiveImageSources(imageInfo: ElementPanelImageInfo | null) {
+  return Boolean(
+    imageInfo?.hasSrcset ||
+      imageInfo?.hasDataSrc ||
+      imageInfo?.hasDataSrcset ||
+      imageInfo?.hasPictureSources
+  );
 }
 
 export function ElementPanel({ api }: ElementPanelProps) {
@@ -613,6 +626,14 @@ export function ElementPanel({ api }: ElementPanelProps) {
               }}
               onBlur={handleImageBlur}
             />
+            {hasResponsiveImageSources(imageInfo) ? (
+              <div className="kayzart-settingsHelp">
+                {__(
+                  'This image has responsive sources. Updating the URL will use the new image for all sources.',
+                  'kayzart-live-code-editor'
+                )}
+              </div>
+            ) : null}
           </div>
           <div className="kayzart-formGroup">
             <label className="kayzart-formLabel" htmlFor="kayzart-elements-image-alt">

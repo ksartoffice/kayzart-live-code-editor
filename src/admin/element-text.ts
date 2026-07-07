@@ -49,6 +49,10 @@ export type ImageSourceEditInfo = {
   insertSuffix: string;
 };
 
+export type ElementImageSourceEditInfo = ImageSourceEditInfo & {
+  attributeName: 'src' | 'srcset' | 'data-src' | 'data-srcset';
+};
+
 export type ElementActionInfo = {
   actionLcId: string;
   kind: 'link' | 'button';
@@ -65,6 +69,10 @@ export type ElementImageInfo = {
   src: string;
   alt: string;
   title: string;
+  hasSrcset: boolean;
+  hasDataSrc: boolean;
+  hasDataSrcset: boolean;
+  hasPictureSources: boolean;
 };
 
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
@@ -773,18 +781,170 @@ export function getElementActionInfo(html: string, lcId: string): ElementActionI
   return null;
 }
 
+function findNearestPictureEntry(entry: ElementLookupEntry): ElementLookupEntry | null {
+  return entry.ancestors
+    .slice()
+    .reverse()
+    .find((ancestor) => ancestor.element.tagName.toLowerCase() === 'picture') ?? null;
+}
+
+function pictureHasResponsiveSources(picture: DefaultTreeAdapterTypes.Element): boolean {
+  let hasSources = false;
+  const walk = (node: DefaultTreeAdapterTypes.Node) => {
+    if (hasSources) {
+      return;
+    }
+    if (isElement(node)) {
+      if (
+        node.tagName.toLowerCase() === 'source' &&
+        (hasElementAttribute(node, 'srcset') || hasElementAttribute(node, 'data-srcset'))
+      ) {
+        hasSources = true;
+        return;
+      }
+      if (isTemplateElement(node)) {
+        walk(node.content);
+        return;
+      }
+    }
+    if (!isParentNode(node)) {
+      return;
+    }
+    for (const child of node.childNodes || []) {
+      walk(child);
+      if (hasSources) {
+        return;
+      }
+    }
+  };
+  walk(picture);
+  return hasSources;
+}
+
+function collectSourceElements(
+  node: DefaultTreeAdapterTypes.Node,
+  sources: DefaultTreeAdapterTypes.Element[]
+) {
+  if (isElement(node)) {
+    if (node.tagName.toLowerCase() === 'source') {
+      sources.push(node);
+    }
+    if (isTemplateElement(node)) {
+      collectSourceElements(node.content, sources);
+      return;
+    }
+  }
+  if (!isParentNode(node)) {
+    return;
+  }
+  for (const child of node.childNodes || []) {
+    collectSourceElements(child, sources);
+  }
+}
+
+function buildAttributeEditInfo(
+  html: string,
+  element: DefaultTreeAdapterTypes.Element,
+  attributeName: ElementImageSourceEditInfo['attributeName'],
+  insertMissing: boolean
+): ElementImageSourceEditInfo | null {
+  const startTag = element.sourceCodeLocation?.startTag;
+  if (
+    !startTag ||
+    typeof startTag.startOffset !== 'number' ||
+    typeof startTag.endOffset !== 'number'
+  ) {
+    return null;
+  }
+  const valueRange = findAttributeValueRange(
+    html,
+    startTag.startOffset,
+    startTag.endOffset,
+    attributeName
+  );
+  if (valueRange) {
+    return {
+      ...valueRange,
+      attributeName,
+      insertPrefix: '',
+      insertSuffix: '',
+    };
+  }
+  if (!insertMissing) {
+    return null;
+  }
+  const insertOffset = getStartTagInsertionOffset(
+    html,
+    startTag.startOffset,
+    startTag.endOffset
+  );
+  return {
+    startOffset: insertOffset,
+    endOffset: insertOffset,
+    attributeName,
+    insertPrefix: ` ${attributeName}="`,
+    insertSuffix: '"',
+  };
+}
+
 export function getElementImageInfo(html: string, lcId: string): ElementImageInfo | null {
   const selected = findElementLookupEntry(html, lcId);
   if (!selected || selected.element.tagName.toLowerCase() !== 'img') {
     return null;
   }
+  const picture = findNearestPictureEntry(selected);
   return {
     imageLcId: selected.lcId,
     tagName: 'img',
     src: getElementAttributeValue(selected.element, 'src'),
     alt: getElementAttributeValue(selected.element, 'alt'),
     title: getElementAttributeValue(selected.element, 'title'),
+    hasSrcset: hasElementAttribute(selected.element, 'srcset'),
+    hasDataSrc: hasElementAttribute(selected.element, 'data-src'),
+    hasDataSrcset: hasElementAttribute(selected.element, 'data-srcset'),
+    hasPictureSources: picture ? pictureHasResponsiveSources(picture.element) : false,
   };
+}
+
+export function getElementImageSourceEditInfos(
+  html: string,
+  lcId: string
+): ElementImageSourceEditInfo[] {
+  const selected = findElementLookupEntry(html, lcId);
+  if (!selected || selected.element.tagName.toLowerCase() !== 'img') {
+    return [];
+  }
+
+  const edits: ElementImageSourceEditInfo[] = [];
+  const imgSourceAttributes: Array<ElementImageSourceEditInfo['attributeName']> = [
+    'src',
+    'srcset',
+    'data-src',
+    'data-srcset',
+  ];
+
+  imgSourceAttributes.forEach((attributeName) => {
+    const edit = buildAttributeEditInfo(html, selected.element, attributeName, attributeName === 'src');
+    if (edit) {
+      edits.push(edit);
+    }
+  });
+
+  const picture = findNearestPictureEntry(selected);
+  if (picture) {
+    const sources: DefaultTreeAdapterTypes.Element[] = [];
+    collectSourceElements(picture.element, sources);
+    sources.forEach((source) => {
+      (['srcset', 'data-srcset'] as const).forEach((attributeName) => {
+        const edit = buildAttributeEditInfo(html, source, attributeName, false);
+        if (edit) {
+          edits.push(edit);
+        }
+      });
+    });
+  }
+
+  return edits;
 }
 
 export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceEditInfo | null {

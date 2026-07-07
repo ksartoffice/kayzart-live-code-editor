@@ -42,6 +42,21 @@ describe('ElementPanel', () => {
     vi.resetModules();
   });
 
+  const createImageInfo = (
+    overrides: Partial<ElementPanelImageInfo> = {}
+  ): ElementPanelImageInfo => ({
+    imageLcId: 'image-1',
+    tagName: 'img',
+    src: 'old.jpg',
+    alt: 'Sample image',
+    title: '',
+    hasSrcset: false,
+    hasDataSrc: false,
+    hasDataSrcset: false,
+    hasPictureSources: false,
+    ...overrides,
+  });
+
   const mountPanel = async (
     initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }],
     initialActionInfo: ElementPanelActionInfo | null = null,
@@ -281,13 +296,7 @@ describe('ElementPanel', () => {
   });
 
   it('shows image controls and updates the image url', async () => {
-    const { api, container } = await mountPanel([], null, {
-      imageLcId: 'image-1',
-      tagName: 'img',
-      src: 'old.jpg',
-      alt: 'Sample image',
-      title: '',
-    });
+    const { api, container } = await mountPanel([], null, createImageInfo());
 
     expect(container.textContent).toContain('Image');
     expect(container.textContent).toContain('Replace image');
@@ -307,13 +316,7 @@ describe('ElementPanel', () => {
   });
 
   it('updates image alt text', async () => {
-    const { api, container } = await mountPanel([], null, {
-      imageLcId: 'image-1',
-      tagName: 'img',
-      src: 'old.jpg',
-      alt: 'Sample image',
-      title: '',
-    });
+    const { api, container } = await mountPanel([], null, createImageInfo());
 
     const input = container.querySelector('#kayzart-elements-image-alt') as HTMLInputElement;
     await inputValue(input, 'Updated description');
@@ -327,13 +330,7 @@ describe('ElementPanel', () => {
   });
 
   it('calls replace image from the image section', async () => {
-    const { api, container } = await mountPanel([], null, {
-      imageLcId: 'image-1',
-      tagName: 'img',
-      src: 'old.jpg',
-      alt: 'Sample image',
-      title: '',
-    });
+    const { api, container } = await mountPanel([], null, createImageInfo());
 
     const button = Array.from(container.querySelectorAll('button')).find(
       (entry) => entry.textContent === 'Replace image'
@@ -343,6 +340,26 @@ describe('ElementPanel', () => {
     });
 
     expect(api.replaceElementImage).toHaveBeenCalledWith('heading-1');
+  });
+
+  it('shows a responsive source notice only when image sources are present', async () => {
+    const notice =
+      'This image has responsive sources. Updating the URL will use the new image for all sources.';
+    const normal = await mountPanel([], null, createImageInfo());
+
+    expect(normal.container.textContent).not.toContain(notice);
+    normal.container.remove();
+
+    const responsive = await mountPanel(
+      [],
+      null,
+      createImageInfo({
+        hasSrcset: true,
+        hasPictureSources: true,
+      })
+    );
+
+    expect(responsive.container.textContent).toContain(notice);
   });
 
   it('can show link and image sections together', async () => {
@@ -356,13 +373,7 @@ describe('ElementPanel', () => {
         rel: '',
         disabled: false,
       },
-      {
-        imageLcId: 'image-1',
-        tagName: 'img',
-        src: 'old.jpg',
-        alt: 'Sample image',
-        title: '',
-      }
+      createImageInfo()
     );
 
     expect(container.textContent).toContain('Link destination');

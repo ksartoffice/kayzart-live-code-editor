@@ -6,6 +6,7 @@ import {
   getElementActionInfo,
   getElementContext,
   getElementImageInfo,
+  getElementImageSourceEditInfos,
   getImageSourceEditInfo,
   isSafeEditableElementHtml,
 } from '../../../src/admin/element-text';
@@ -456,6 +457,10 @@ describe('getElementImageInfo', () => {
       src: 'old.jpg',
       alt: 'Sample',
       title: 'Hero',
+      hasSrcset: false,
+      hasDataSrc: false,
+      hasDataSrcset: false,
+      hasPictureSources: false,
     });
   });
 
@@ -468,6 +473,10 @@ describe('getElementImageInfo', () => {
       src: '',
       alt: '',
       title: '',
+      hasSrcset: false,
+      hasDataSrc: false,
+      hasDataSrcset: false,
+      hasPictureSources: false,
     });
   });
 
@@ -479,6 +488,29 @@ describe('getElementImageInfo', () => {
         imageLcId: 'image-1',
         src: 'small.jpg',
         alt: 'Small',
+        hasPictureSources: true,
+      })
+    );
+  });
+
+  it('reports responsive and lazy image sources', () => {
+    const responsiveHtml =
+      '<img data-kayzart-id="image-1" src="old.jpg" srcset="old-2x.jpg 2x">';
+    const lazyHtml =
+      '<img data-kayzart-id="image-1" data-src="old.jpg" data-srcset="old.webp 1x">';
+
+    expect(getElementImageInfo(responsiveHtml, 'image-1')).toEqual(
+      expect.objectContaining({
+        hasSrcset: true,
+        hasDataSrc: false,
+        hasDataSrcset: false,
+      })
+    );
+    expect(getElementImageInfo(lazyHtml, 'image-1')).toEqual(
+      expect.objectContaining({
+        hasSrcset: false,
+        hasDataSrc: true,
+        hasDataSrcset: true,
       })
     );
   });
@@ -492,6 +524,69 @@ describe('getElementImageInfo', () => {
   it('ignores non-image elements', () => {
     expect(getElementImageInfo('<p data-kayzart-id="text-1">Hello</p>', 'text-1')).toBeNull();
     expect(getElementImageInfo('<a data-kayzart-id="link-1" href="#">Hello</a>', 'link-1')).toBeNull();
+  });
+});
+
+describe('getElementImageSourceEditInfos', () => {
+  it('returns img source ranges for existing responsive and lazy attributes', () => {
+    const html =
+      '<img data-kayzart-id="image-1" src="old.jpg" srcset="old-2x.jpg 2x" data-src="lazy.jpg" data-srcset="lazy-2x.jpg 2x">';
+
+    expect(getElementImageSourceEditInfos(html, 'image-1')).toEqual([
+      expect.objectContaining({ attributeName: 'src' }),
+      expect.objectContaining({ attributeName: 'srcset' }),
+      expect.objectContaining({ attributeName: 'data-src' }),
+      expect.objectContaining({ attributeName: 'data-srcset' }),
+    ]);
+  });
+
+  it('returns picture source ranges for the selected image picture', () => {
+    const html =
+      '<picture><source media="(min-width: 800px)" srcset="wide.jpg"><source data-srcset="lazy-wide.jpg"><img data-kayzart-id="image-1" src="small.jpg" srcset="small-2x.jpg 2x"></picture>';
+
+    const edits = getElementImageSourceEditInfos(html, 'image-1');
+
+    expect(edits.map((edit) => edit.attributeName)).toEqual([
+      'src',
+      'srcset',
+      'srcset',
+      'data-srcset',
+    ]);
+    expect(edits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          startOffset: html.indexOf('wide.jpg'),
+          endOffset: html.indexOf('wide.jpg') + 'wide.jpg'.length,
+          attributeName: 'srcset',
+        }),
+        expect.objectContaining({
+          startOffset: html.indexOf('lazy-wide.jpg'),
+          endOffset: html.indexOf('lazy-wide.jpg') + 'lazy-wide.jpg'.length,
+          attributeName: 'data-srcset',
+        }),
+      ])
+    );
+  });
+
+  it('returns a src insertion range when the selected image has no src', () => {
+    const html = '<img data-kayzart-id="image-1" alt="Sample">';
+    const offset = html.indexOf('>');
+
+    expect(getElementImageSourceEditInfos(html, 'image-1')).toEqual([
+      {
+        startOffset: offset,
+        endOffset: offset,
+        attributeName: 'src',
+        insertPrefix: ' src="',
+        insertSuffix: '"',
+      },
+    ]);
+  });
+
+  it('does not expose descendant image source ranges from parent selections', () => {
+    const html = '<section data-kayzart-id="section-1"><img src="old.jpg"></section>';
+
+    expect(getElementImageSourceEditInfos(html, 'section-1')).toEqual([]);
   });
 });
 

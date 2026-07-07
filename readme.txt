@@ -4,7 +4,7 @@ Tags: landing page, ai, custom html, html editor, tailwind
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.2.1
+Stable tag: 2.2.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -77,6 +77,9 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 7. Select preview text and refine the matching element from the Elements panel.
 
 == Changelog ==
+= 2.2.2 =
+* Add: Show placeholders for shortcodes in the live preview.
+
 = 2.2.1 =
 * Add: Edit preview images from the Elements panel.
 * Fix: Keep nested text edits stable.

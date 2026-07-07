@@ -211,7 +211,7 @@ describe('preview selector overlay', () => {
     expect(postMessage).not.toHaveBeenCalled();
   });
 
-  it('shows replace image only for image selections and posts the selected id', async () => {
+  it('does not expose replace image from the preview selection menu', async () => {
     document.body.innerHTML = [
       '<span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>',
       '<span data-kayzart-marker="end" data-kayzart-post-id="1" hidden></span>',
@@ -220,9 +220,6 @@ describe('preview selector overlay', () => {
       allowedOrigin: window.location.origin,
       post_id: 1,
       liveHighlightEnabled: true,
-      labels: {
-        replaceImage: 'Replace image',
-      },
       markers: {
         attr: 'data-kayzart-marker',
         postAttr: 'data-kayzart-post-id',
@@ -251,22 +248,21 @@ describe('preview selector overlay', () => {
     menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
     const replaceImageMenuItem = document.getElementById('kayzart-select-replace-image-menu-item');
-    expect(replaceImageMenuItem).toBeTruthy();
-    expect(replaceImageMenuItem?.textContent).toBe('Replace image');
-    expect(replaceImageMenuItem?.style.display).toBe('none');
+    expect(replaceImageMenuItem).toBeNull();
 
     menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     const image = document.querySelector('[data-kayzart-id="image-1"]');
     image?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     menuButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-    expect(replaceImageMenuItem?.style.display).toBe('block');
+    expect(document.getElementById('kayzart-select-parent-menu-item')).toBeTruthy();
+    expect(document.getElementById('kayzart-select-copy-html-menu-item')).toBeTruthy();
+    expect(document.getElementById('kayzart-select-delete-menu-item')).toBeTruthy();
+    expect(document.getElementById('kayzart-select-replace-image-menu-item')).toBeNull();
 
     postMessage.mockClear();
-    replaceImageMenuItem?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'KAYZART_REPLACE_IMAGE', lcId: 'image-1' }),
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'KAYZART_REPLACE_IMAGE' }),
       window.location.origin
     );
   });

@@ -1695,9 +1695,6 @@ async function main() {
     onDeleteElement: (lcId) => {
       handleDeleteElement(lcId);
     },
-    onReplaceImage: (lcId) => {
-      openReplaceImageMediaModal(lcId);
-    },
     onOverlayAction: (actionId) => {
       window.dispatchEvent(
         new CustomEvent(PREVIEW_OVERLAY_ACTION_EVENT, {

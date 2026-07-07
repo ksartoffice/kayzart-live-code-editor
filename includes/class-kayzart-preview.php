@@ -405,10 +405,12 @@ class Preview {
 				'end'      => self::MARKER_END,
 			),
 			'labels'               => array(
-				'moveToParent' => __( 'Move to parent element', 'kayzart-live-code-editor' ),
-				'replaceImage' => __( 'Replace image', 'kayzart-live-code-editor' ),
-				'copyHtml'     => __( 'Copy HTML', 'kayzart-live-code-editor' ),
-				'delete'       => __( 'Delete', 'kayzart-live-code-editor' ),
+				'moveToParent'         => __( 'Move to parent element', 'kayzart-live-code-editor' ),
+				'replaceImage'         => __( 'Replace image', 'kayzart-live-code-editor' ),
+				'copyHtml'             => __( 'Copy HTML', 'kayzart-live-code-editor' ),
+				'delete'               => __( 'Delete', 'kayzart-live-code-editor' ),
+				'shortcodeLabel'       => __( 'Shortcode', 'kayzart-live-code-editor' ),
+				'shortcodeUnavailable' => __( 'Not available in preview. It will render on the front end.', 'kayzart-live-code-editor' ),
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);

@@ -1,5 +1,6 @@
 (function () {
   const styleId = 'kayzart-style';
+  const shortcodeStyleId = 'kayzart-shortcode-preview-style';
   const customHeadId = 'kayzart-custom-head';
   const customHeadStartMarker = 'kayzart-custom-head-start';
   const customHeadEndMarker = 'kayzart-custom-head-end';
@@ -332,6 +333,10 @@
       moveToParent: source.moveToParent ? String(source.moveToParent) : 'Move to parent element',
       copyHtml: source.copyHtml ? String(source.copyHtml) : 'Copy HTML',
       delete: source.delete ? String(source.delete) : 'Delete',
+      shortcodeLabel: source.shortcodeLabel ? String(source.shortcodeLabel) : 'Shortcode',
+      shortcodeUnavailable: source.shortcodeUnavailable
+        ? String(source.shortcodeUnavailable)
+        : 'Not available in preview. It will render on the front end.',
     };
   }
 
@@ -657,6 +662,41 @@
       root.appendChild(styleEl);
     }
     return styleEl;
+  }
+
+  function ensureShortcodePreviewStyle() {
+    const root = getStyleRoot();
+    if (!root) return;
+    if (root.querySelector('#' + shortcodeStyleId)) return;
+    const styleEl = document.createElement('style');
+    styleEl.id = shortcodeStyleId;
+    styleEl.textContent = [
+      '.kayzart-shortcode-placeholder{',
+      'display:inline-flex;',
+      'align-items:center;',
+      'gap:6px;',
+      'max-width:100%;',
+      'padding:4px 8px;',
+      'margin:0 2px;',
+      'border:1px dashed #94a3b8;',
+      'border-radius:6px;',
+      'background:#f8fafc;',
+      'color:#334155;',
+      'font:12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+      'vertical-align:baseline;',
+      'box-sizing:border-box;',
+      '}',
+      '.kayzart-shortcode-placeholder__name{',
+      'font-weight:600;',
+      'color:#0f172a;',
+      'white-space:nowrap;',
+      '}',
+      '.kayzart-shortcode-placeholder__message{',
+      'color:#64748b;',
+      'white-space:normal;',
+      '}',
+    ].join('');
+    root.appendChild(styleEl);
   }
 
   function removeScriptElement() {
@@ -1198,6 +1238,143 @@
     revealLazyBackgrounds(root);
   }
 
+  function isShortcodeTextExcluded(node) {
+    let parent = node && node.parentElement ? node.parentElement : node.parentNode;
+    while (parent && parent.nodeType === 1) {
+      const tagName = parent.tagName ? parent.tagName.toLowerCase() : '';
+      if (
+        tagName === 'script' ||
+        tagName === 'style' ||
+        tagName === 'textarea' ||
+        tagName === 'template' ||
+        tagName === 'code' ||
+        tagName === 'pre'
+      ) {
+        return true;
+      }
+      if (parent.classList && parent.classList.contains('kayzart-shortcode-placeholder')) {
+        return true;
+      }
+      parent = parent.parentElement;
+    }
+    return false;
+  }
+
+  function readShortcodeAt(text, start) {
+    if (text.charAt(start) !== '[' || text.charAt(start + 1) === '[') {
+      return null;
+    }
+    let index = start + 1;
+    if (text.charAt(index) === '/') {
+      return null;
+    }
+    const tagMatch = text.slice(index).match(/^([A-Za-z0-9_-]+)/);
+    if (!tagMatch) {
+      return null;
+    }
+    const tagName = tagMatch[1];
+    index += tagName.length;
+    const nextChar = text.charAt(index);
+    if (nextChar && !/[\s/\]]/.test(nextChar)) {
+      return null;
+    }
+    let quote = '';
+    for (; index < text.length; index += 1) {
+      const char = text.charAt(index);
+      if (quote) {
+        if (char === quote) {
+          quote = '';
+        }
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        continue;
+      }
+      if (char === ']') {
+        return {
+          end: index + 1,
+          tagName: tagName,
+          raw: text.slice(start, index + 1),
+        };
+      }
+    }
+    return null;
+  }
+
+  function createShortcodePlaceholder(match) {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'kayzart-shortcode-placeholder';
+    placeholder.setAttribute('data-kayzart-shortcode', match.tagName);
+    placeholder.setAttribute('title', match.raw);
+
+    const name = document.createElement('span');
+    name.className = 'kayzart-shortcode-placeholder__name';
+    name.textContent = labels.shortcodeLabel + ': ' + match.tagName;
+
+    const message = document.createElement('span');
+    message.className = 'kayzart-shortcode-placeholder__message';
+    message.textContent = labels.shortcodeUnavailable;
+
+    placeholder.appendChild(name);
+    placeholder.appendChild(message);
+    return placeholder;
+  }
+
+  function buildShortcodeFragment(text) {
+    const fragment = document.createDocumentFragment();
+    let index = 0;
+    let changed = false;
+
+    while (index < text.length) {
+      const openIndex = text.indexOf('[', index);
+      if (openIndex === -1) {
+        fragment.appendChild(document.createTextNode(text.slice(index)));
+        break;
+      }
+      if (text.charAt(openIndex + 1) === '[') {
+        fragment.appendChild(document.createTextNode(text.slice(index, openIndex + 2)));
+        index = openIndex + 2;
+        continue;
+      }
+      const match = readShortcodeAt(text, openIndex);
+      if (!match) {
+        fragment.appendChild(document.createTextNode(text.slice(index, openIndex + 1)));
+        index = openIndex + 1;
+        continue;
+      }
+      fragment.appendChild(document.createTextNode(text.slice(index, openIndex)));
+      fragment.appendChild(createShortcodePlaceholder(match));
+      index = match.end;
+      changed = true;
+    }
+
+    return changed ? fragment : null;
+  }
+
+  function visualizeShortcodes(root) {
+    if (!root || !document.createTreeWalker) return;
+    ensureShortcodePreviewStyle();
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        if (!node.nodeValue || node.nodeValue.indexOf('[') === -1) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return isShortcodeTextExcluded(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) {
+      nodes.push(walker.currentNode);
+    }
+    nodes.forEach((node) => {
+      const fragment = buildShortcodeFragment(node.nodeValue || '');
+      if (fragment && node.parentNode) {
+        node.parentNode.replaceChild(fragment, node);
+      }
+    });
+  }
+
   function replaceEditableContent(html) {
     const markers = findMarkers();
     if (!markers) return Promise.resolve();
@@ -1209,6 +1386,7 @@
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
+    visualizeShortcodes(wrapper);
     const scriptsReady = reviveScripts(wrapper);
     revealLazyMedia(wrapper);
     const frag = document.createDocumentFragment();

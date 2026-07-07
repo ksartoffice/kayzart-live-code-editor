@@ -368,6 +368,14 @@ msgstr "HTMLをコピー"
 msgid "Delete"
 msgstr "削除"
 
+#: includes/class-kayzart-preview.php:412
+msgid "Shortcode"
+msgstr "ショートコード"
+
+#: includes/class-kayzart-preview.php:413
+msgid "Not available in preview. It will render on the front end."
+msgstr "プレビューでは表示されません。公開ページでは表示されます。"
+
 #: assets/dist/main.js:101
 msgid "Settings"
 msgstr "設定"

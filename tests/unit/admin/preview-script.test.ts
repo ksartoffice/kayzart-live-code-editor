@@ -17,6 +17,28 @@ const flushAsync = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
+const setupPreviewDocument = () => {
+  document.body.innerHTML = [
+    '<span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>',
+    '<span data-kayzart-marker="end" data-kayzart-post-id="1" hidden></span>',
+  ].join('');
+  (window as any).KAYZART_PREVIEW = {
+    allowedOrigin: window.location.origin,
+    post_id: 1,
+    liveHighlightEnabled: true,
+    markers: {
+      attr: 'data-kayzart-marker',
+      postAttr: 'data-kayzart-post-id',
+      start: 'start',
+      end: 'end',
+    },
+    labels: {
+      shortcodeLabel: 'Shortcode',
+      shortcodeUnavailable: 'Preview only placeholder.',
+    },
+  };
+};
+
 let activeWindowTimers = new Set<number>();
 let nativeWindowSetTimeout: typeof window.setTimeout;
 let nativeWindowClearTimeout: typeof window.clearTimeout;
@@ -70,6 +92,66 @@ afterEach(() => {
       value: nativeWindowClearTimeout,
     });
   }
+});
+
+describe('preview shortcode placeholders', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('visualizes shortcode text without changing surrounding html', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML:
+        '<section><p>Before [contact-form-7 id="123"] after</p><div>[ez-toc]</div></section>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const placeholders = document.querySelectorAll('.kayzart-shortcode-placeholder');
+    expect(placeholders).toHaveLength(2);
+    expect(placeholders[0]?.textContent).toContain('Shortcode: contact-form-7');
+    expect(placeholders[0]?.textContent).toContain('Preview only placeholder.');
+    expect(placeholders[0]?.getAttribute('title')).toBe('[contact-form-7 id="123"]');
+    expect(placeholders[1]?.textContent).toContain('Shortcode: ez-toc');
+    expect(document.querySelector('section p')?.textContent).toContain('Before ');
+    expect(document.querySelector('section p')?.textContent).toContain(' after');
+  });
+
+  it('does not visualize escaped or code-like shortcode text', async () => {
+    setupPreviewDocument();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML:
+        '<p>[[gallery]]</p><pre>[gallery]</pre><code>[gallery]</code><textarea>[gallery]</textarea>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    expect(document.querySelector('.kayzart-shortcode-placeholder')).toBeNull();
+    expect(document.querySelector('p')?.textContent).toBe('[[gallery]]');
+    expect(document.querySelector('pre')?.textContent).toBe('[gallery]');
+    expect(document.querySelector('code')?.textContent).toBe('[gallery]');
+    expect(document.querySelector('textarea')?.textContent).toBe('[gallery]');
+  });
 });
 
 describe('preview selector overlay', () => {

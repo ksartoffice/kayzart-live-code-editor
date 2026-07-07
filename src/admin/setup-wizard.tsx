@@ -9,6 +9,7 @@ import { __ } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
 import type { SetupResponse } from './types/rest';
 import type {
+  TemplateApplyResponse,
   TemplateCatalogResponse,
   TemplateMarket,
   TemplateSummary,
@@ -19,6 +20,7 @@ type SetupWizardConfig = {
   postId: number;
   restUrl: string;
   templateCatalogRestUrl?: string;
+  templateApplyRestUrl?: string;
   apiFetch?: ApiFetch;
   backUrl?: string;
   initialTailwindEnabled?: boolean;
@@ -26,12 +28,15 @@ type SetupWizardConfig = {
 
 export type SetupWizardResult = {
   tailwindEnabled: boolean;
+  initialHtml?: string;
+  initialCss?: string;
 };
 
 type SetupWizardProps = {
   postId: number;
   restUrl: string;
   templateCatalogRestUrl?: string;
+  templateApplyRestUrl?: string;
   apiFetch: ApiFetch;
   backUrl?: string;
   initialTailwindEnabled?: boolean;
@@ -81,6 +86,7 @@ export function SetupWizard({
   postId,
   restUrl,
   templateCatalogRestUrl,
+  templateApplyRestUrl,
   apiFetch,
   backUrl,
   initialTailwindEnabled,
@@ -95,6 +101,7 @@ export function SetupWizard({
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateError, setTemplateError] = useState('');
+  const [applyingTemplateId, setApplyingTemplateId] = useState('');
   const [marketFilter, setMarketFilter] = useState<TemplateMarketFilter>('all');
 
   const loadTemplates = async () => {
@@ -166,6 +173,46 @@ export function SetupWizard({
     }
   };
 
+  const handleApplyTemplate = async (template: TemplateSummary) => {
+    if (applyingTemplateId || template.tier === 'pro' || !template.available) return;
+
+    if (!templateApplyRestUrl) {
+      setTemplateError(__('Template application is unavailable.', 'kayzart-live-code-editor'));
+      return;
+    }
+
+    setTemplateError('');
+    setApplyingTemplateId(template.id);
+    try {
+      const response = await apiFetch<TemplateApplyResponse>({
+        url: templateApplyRestUrl,
+        method: 'POST',
+        data: {
+          post_id: postId,
+          template_id: template.id,
+        },
+      });
+
+      if (!response?.ok) {
+        throw new Error(response?.error || __('Failed to apply template.', 'kayzart-live-code-editor'));
+      }
+
+      onComplete({
+        tailwindEnabled: Boolean(response.tailwindEnabled),
+        initialHtml: response.html ?? '',
+        initialCss: response.css ?? '',
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setTemplateError(error.message);
+      } else {
+        setTemplateError(String(error));
+      }
+    } finally {
+      setApplyingTemplateId('');
+    }
+  };
+
   const filteredTemplates = templates.filter((template) => (
     marketFilter === 'all' || template.market === marketFilter
   ));
@@ -194,10 +241,11 @@ export function SetupWizard({
               </button>
             ))}
           </div>
+          {templateError ? (
+            <div className="kayzart-templateState is-error">{templateError}</div>
+          ) : null}
           {templateLoading ? (
             <div className="kayzart-templateState">{__('Loading templates...', 'kayzart-live-code-editor')}</div>
-          ) : templateError ? (
-            <div className="kayzart-templateState is-error">{templateError}</div>
           ) : filteredTemplates.length === 0 ? (
             <div className="kayzart-templateState">{__('No templates found.', 'kayzart-live-code-editor')}</div>
           ) : (
@@ -228,6 +276,20 @@ export function SetupWizard({
                       </div>
                       <h3 className="kayzart-templateTitle">{template.title}</h3>
                       <p className="kayzart-templateDescription">{template.description}</p>
+                      {!disabled ? (
+                        <button
+                          className="kayzart-btn kayzart-btn-primary kayzart-templateUseButton"
+                          type="button"
+                          onClick={() => {
+                            void handleApplyTemplate(template);
+                          }}
+                          disabled={Boolean(applyingTemplateId)}
+                        >
+                          {applyingTemplateId === template.id
+                            ? __('Applying...', 'kayzart-live-code-editor')
+                            : __('Use template', 'kayzart-live-code-editor')}
+                        </button>
+                      ) : null}
                     </div>
                   </article>
                 );
@@ -370,6 +432,7 @@ export function runSetupWizard(config: SetupWizardConfig): Promise<SetupWizardRe
         postId={config.postId}
         restUrl={config.restUrl}
         templateCatalogRestUrl={config.templateCatalogRestUrl}
+        templateApplyRestUrl={config.templateApplyRestUrl}
         apiFetch={apiFetch}
         backUrl={config.backUrl}
         initialTailwindEnabled={config.initialTailwindEnabled}

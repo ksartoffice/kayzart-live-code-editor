@@ -99,6 +99,7 @@ describe('setup wizard start options', () => {
         postId: 123,
         restUrl: '/wp-json/kayzart/v1/setup',
         templateCatalogRestUrl: '/wp-json/kayzart/v1/templates/catalog',
+        templateApplyRestUrl: '/wp-json/kayzart/v1/templates/apply',
         apiFetch,
         onComplete: vi.fn(),
       }));
@@ -172,6 +173,7 @@ describe('setup wizard start options', () => {
         postId: 123,
         restUrl: '/wp-json/kayzart/v1/setup',
         templateCatalogRestUrl: '/wp-json/kayzart/v1/templates/catalog',
+        templateApplyRestUrl: '/wp-json/kayzart/v1/templates/apply',
         apiFetch,
         onComplete: vi.fn(),
       }));
@@ -189,6 +191,7 @@ describe('setup wizard start options', () => {
     ));
     expect(proCard?.getAttribute('aria-disabled')).toBe('true');
     expect(container.textContent).toContain('Pro');
+    expect(container.textContent).toContain('Use template');
 
     await act(async () => {
       Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'JP')?.click();
@@ -196,6 +199,134 @@ describe('setup wizard start options', () => {
 
     expect(container.textContent).not.toContain('Hero EN');
     expect(container.textContent).toContain('Pricing JP');
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('applies a free template and completes setup with returned html and css', async () => {
+    const { SetupWizard } = await import('../../../src/admin/setup-wizard');
+    const onComplete = vi.fn();
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        templates: [
+          {
+            id: 'hero-en',
+            title: 'Hero EN',
+            description: 'English hero',
+            category: 'landing',
+            market: 'en',
+            tier: 'free',
+            thumbnailUrl: 'https://templates.kayzart.com/thumbs/hero-en.webp',
+            requiresTailwind: true,
+            available: true,
+            version: '1.0.0',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        tailwindEnabled: true,
+        html: '<section>Hello</section>',
+        css: '@import "tailwindcss";',
+      });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(createElement(SetupWizard, {
+        postId: 123,
+        restUrl: '/wp-json/kayzart/v1/setup',
+        templateCatalogRestUrl: '/wp-json/kayzart/v1/templates/catalog',
+        templateApplyRestUrl: '/wp-json/kayzart/v1/templates/apply',
+        apiFetch,
+        onComplete,
+      }));
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLInputElement>('input[value="template"]')?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Continue')?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Use template')?.click();
+    });
+
+    expect(apiFetch).toHaveBeenLastCalledWith({
+      url: '/wp-json/kayzart/v1/templates/apply',
+      method: 'POST',
+      data: {
+        post_id: 123,
+        template_id: 'hero-en',
+      },
+    });
+    expect(onComplete).toHaveBeenCalledWith({
+      tailwindEnabled: true,
+      initialHtml: '<section>Hello</section>',
+      initialCss: '@import "tailwindcss";',
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('shows apply errors without completing setup', async () => {
+    const { SetupWizard } = await import('../../../src/admin/setup-wizard');
+    const onComplete = vi.fn();
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        templates: [
+          {
+            id: 'hero-en',
+            title: 'Hero EN',
+            description: 'English hero',
+            category: 'landing',
+            market: 'en',
+            tier: 'free',
+            thumbnailUrl: 'https://templates.kayzart.com/thumbs/hero-en.webp',
+            requiresTailwind: true,
+            available: true,
+            version: '1.0.0',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ ok: false, error: 'Apply failed.' });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(createElement(SetupWizard, {
+        postId: 123,
+        restUrl: '/wp-json/kayzart/v1/setup',
+        templateCatalogRestUrl: '/wp-json/kayzart/v1/templates/catalog',
+        templateApplyRestUrl: '/wp-json/kayzart/v1/templates/apply',
+        apiFetch,
+        onComplete,
+      }));
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLInputElement>('input[value="template"]')?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Continue')?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Use template')?.click();
+    });
+
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Apply failed.');
 
     await act(async () => {
       root.unmount();

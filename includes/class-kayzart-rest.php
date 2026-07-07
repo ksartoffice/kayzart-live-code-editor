@@ -100,6 +100,26 @@ class Rest {
 
 		register_rest_route(
 			'kayzart/v1',
+			'/templates/apply',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( Rest_Templates::class, 'apply_template' ),
+				'permission_callback' => array( __CLASS__, 'permission_check' ),
+				'args'                => array(
+					'post_id'     => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'template_id' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'kayzart/v1',
 			'/create-from-import',
 			array(
 				'methods'             => 'POST',

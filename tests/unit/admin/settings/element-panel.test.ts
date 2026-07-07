@@ -3,6 +3,7 @@ import { act } from 'react';
 import type {
   ElementPanelActionInfo,
   ElementPanelApi,
+  ElementPanelImageInfo,
 } from '../../../../src/admin/settings/element-panel';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -43,7 +44,8 @@ describe('ElementPanel', () => {
 
   const mountPanel = async (
     initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }],
-    initialActionInfo: ElementPanelActionInfo | null = null
+    initialActionInfo: ElementPanelActionInfo | null = null,
+    initialImageInfo: ElementPanelImageInfo | null = null
   ) => {
     const { createRoot } = await import('react-dom/client');
     const React = await import('react');
@@ -53,6 +55,7 @@ describe('ElementPanel', () => {
     let contentListener: (() => void) | null = null;
     let segments = initialSegments;
     let actionInfo = initialActionInfo;
+    let imageInfo = initialImageInfo;
     const api: ElementPanelApi = {
       subscribeSelection: (listener) => {
         selectionListener = listener;
@@ -64,6 +67,7 @@ describe('ElementPanel', () => {
       },
       getTextSegments: vi.fn(() => segments),
       getElementActionInfo: vi.fn(() => actionInfo),
+      getElementImageInfo: vi.fn(() => imageInfo),
       updateElementActionInfo: vi.fn((_lcId, action) => {
         if (!actionInfo) {
           return false;
@@ -71,6 +75,14 @@ describe('ElementPanel', () => {
         actionInfo = { ...actionInfo, ...action };
         return true;
       }),
+      updateElementImageInfo: vi.fn((_lcId, image) => {
+        if (!imageInfo) {
+          return false;
+        }
+        imageInfo = { ...imageInfo, ...image };
+        return true;
+      }),
+      replaceElementImage: vi.fn(() => true),
       updateTextSegment: vi.fn((_lcId, segmentId, nextText) => {
         segments = segments.map((segment) =>
           segment.id === segmentId ? { ...segment, text: nextText } : segment
@@ -100,6 +112,9 @@ describe('ElementPanel', () => {
       },
       setActionInfo: (nextActionInfo: typeof actionInfo) => {
         actionInfo = nextActionInfo;
+      },
+      setImageInfo: (nextImageInfo: typeof imageInfo) => {
+        imageInfo = nextImageInfo;
       },
       textareas: () => Array.from(container.querySelectorAll('textarea')) as HTMLTextAreaElement[],
     };
@@ -263,5 +278,95 @@ describe('ElementPanel', () => {
     expect(api.updateElementActionInfo).toHaveBeenCalledWith('heading-1', {
       disabled: true,
     });
+  });
+
+  it('shows image controls and updates the image url', async () => {
+    const { api, container } = await mountPanel([], null, {
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: 'old.jpg',
+      alt: 'Sample image',
+      title: '',
+    });
+
+    expect(container.textContent).toContain('Image');
+    expect(container.textContent).toContain('Replace image');
+    expect(container.textContent).toContain('Image URL');
+    expect(container.textContent).toContain('Alt text');
+    expect(container.querySelector('.kayzart-elementsImagePreview img')).not.toBeNull();
+
+    const input = container.querySelector('#kayzart-elements-image-url') as HTMLInputElement;
+    await inputValue(input, 'new.jpg');
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementImageInfo).toHaveBeenCalledWith('heading-1', {
+      src: 'new.jpg',
+    });
+  });
+
+  it('updates image alt text', async () => {
+    const { api, container } = await mountPanel([], null, {
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: 'old.jpg',
+      alt: 'Sample image',
+      title: '',
+    });
+
+    const input = container.querySelector('#kayzart-elements-image-alt') as HTMLInputElement;
+    await inputValue(input, 'Updated description');
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(api.updateElementImageInfo).toHaveBeenCalledWith('heading-1', {
+      alt: 'Updated description',
+    });
+  });
+
+  it('calls replace image from the image section', async () => {
+    const { api, container } = await mountPanel([], null, {
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: 'old.jpg',
+      alt: 'Sample image',
+      title: '',
+    });
+
+    const button = Array.from(container.querySelectorAll('button')).find(
+      (entry) => entry.textContent === 'Replace image'
+    ) as HTMLButtonElement;
+    await act(async () => {
+      button.click();
+    });
+
+    expect(api.replaceElementImage).toHaveBeenCalledWith('heading-1');
+  });
+
+  it('can show link and image sections together', async () => {
+    const { container } = await mountPanel(
+      [],
+      {
+        kind: 'link',
+        tagName: 'a',
+        href: '/gallery',
+        targetBlank: false,
+        rel: '',
+        disabled: false,
+      },
+      {
+        imageLcId: 'image-1',
+        tagName: 'img',
+        src: 'old.jpg',
+        alt: 'Sample image',
+        title: '',
+      }
+    );
+
+    expect(container.textContent).toContain('Link destination');
+    expect(container.textContent).toContain('Image URL');
+    expect(container.textContent).toContain('Advanced settings');
   });
 });

@@ -59,6 +59,14 @@ export type ElementActionInfo = {
   disabled: boolean;
 };
 
+export type ElementImageInfo = {
+  imageLcId: string;
+  tagName: 'img';
+  src: string;
+  alt: string;
+  title: string;
+};
+
 const ALLOWED_INLINE_TAGS = new Set(['br', 'span']);
 const TEXT_SEGMENT_SKIP_TAGS = new Set(['script', 'style', 'svg', 'noscript', 'template']);
 const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
@@ -763,6 +771,20 @@ export function getElementActionInfo(html: string, lcId: string): ElementActionI
     }
   }
   return null;
+}
+
+export function getElementImageInfo(html: string, lcId: string): ElementImageInfo | null {
+  const selected = findElementLookupEntry(html, lcId);
+  if (!selected || selected.element.tagName.toLowerCase() !== 'img') {
+    return null;
+  }
+  return {
+    imageLcId: selected.lcId,
+    tagName: 'img',
+    src: getElementAttributeValue(selected.element, 'src'),
+    alt: getElementAttributeValue(selected.element, 'alt'),
+    title: getElementAttributeValue(selected.element, 'title'),
+  };
 }
 
 export function getImageSourceEditInfo(html: string, lcId: string): ImageSourceEditInfo | null {

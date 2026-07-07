@@ -5,6 +5,7 @@ import {
   getEditableTextSegments,
   getElementActionInfo,
   getElementContext,
+  getElementImageInfo,
   getImageSourceEditInfo,
   isSafeEditableElementHtml,
 } from '../../../src/admin/element-text';
@@ -442,6 +443,55 @@ describe('getElementActionInfo', () => {
         href: '/buy',
       })
     );
+  });
+});
+
+describe('getElementImageInfo', () => {
+  it('returns image info for selected img elements', () => {
+    const html = '<img data-kayzart-id="image-1" src="old.jpg" alt="Sample" title="Hero">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual({
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: 'old.jpg',
+      alt: 'Sample',
+      title: 'Hero',
+    });
+  });
+
+  it('returns empty values when image attributes are missing', () => {
+    const html = '<img data-kayzart-id="image-1">';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual({
+      imageLcId: 'image-1',
+      tagName: 'img',
+      src: '',
+      alt: '',
+      title: '',
+    });
+  });
+
+  it('returns image info for picture child images', () => {
+    const html = '<picture><source srcset="wide.jpg"><img data-kayzart-id="image-1" src="small.jpg" alt="Small"></picture>';
+
+    expect(getElementImageInfo(html, 'image-1')).toEqual(
+      expect.objectContaining({
+        imageLcId: 'image-1',
+        src: 'small.jpg',
+        alt: 'Small',
+      })
+    );
+  });
+
+  it('does not expose descendant images from parent selections', () => {
+    const html = '<section data-kayzart-id="section-1"><img src="old.jpg" alt="Sample"></section>';
+
+    expect(getElementImageInfo(html, 'section-1')).toBeNull();
+  });
+
+  it('ignores non-image elements', () => {
+    expect(getElementImageInfo('<p data-kayzart-id="text-1">Hello</p>', 'text-1')).toBeNull();
+    expect(getElementImageInfo('<a data-kayzart-id="link-1" href="#">Hello</a>', 'link-1')).toBeNull();
   });
 });
 

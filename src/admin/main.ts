@@ -20,6 +20,7 @@ import {
   getEditableTextSegments,
   getElementActionInfo,
   getElementContext,
+  getElementImageInfo,
   getImageSourceEditInfo,
   escapeTextForHtml,
   isSafeEditableElementHtml,
@@ -1580,6 +1581,32 @@ async function main() {
       }
 
       return applyElementAttributes(info.actionLcId, nextAttributes);
+    },
+    getElementImageInfo: (lcId: string) => getElementImageInfo(htmlModel.getValue(), lcId),
+    updateElementImageInfo: (lcId: string, image: { src?: string; alt?: string }) => {
+      const info = getElementImageInfo(htmlModel.getValue(), lcId);
+      const attrsInfo = info
+        ? getEditableElementAttributes(htmlModel.getValue(), info.imageLcId)
+        : null;
+      if (!info || !attrsInfo) {
+        return false;
+      }
+      let nextAttributes = attrsInfo.attributes;
+      if (image.src !== undefined) {
+        nextAttributes = setAttributeValue(nextAttributes, 'src', image.src);
+      }
+      if (image.alt !== undefined) {
+        nextAttributes = setAttributeValue(nextAttributes, 'alt', image.alt);
+      }
+      return applyElementAttributes(info.imageLcId, nextAttributes);
+    },
+    replaceElementImage: (lcId: string) => {
+      const info = getElementImageInfo(htmlModel.getValue(), lcId);
+      if (!info) {
+        return false;
+      }
+      openReplaceImageMediaModal(info.imageLcId);
+      return true;
     },
     getElementAttributes: (lcId: string) => {
       const info = getEditableElementAttributes(htmlModel.getValue(), lcId);

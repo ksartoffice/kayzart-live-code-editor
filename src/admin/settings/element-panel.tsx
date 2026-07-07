@@ -21,10 +21,23 @@ export type ElementPanelActionInfo = {
   disabled: boolean;
 };
 
+export type ElementPanelImageInfo = {
+  imageLcId: string;
+  tagName: 'img';
+  src: string;
+  alt: string;
+  title: string;
+};
+
 type ElementPanelActionDraft = {
   href: string;
   targetBlank: boolean;
   disabled: boolean;
+};
+
+type ElementPanelImageDraft = {
+  src: string;
+  alt: string;
 };
 
 export type ElementPanelApi = {
@@ -37,6 +50,9 @@ export type ElementPanelApi = {
     lcId: string,
     action: Partial<ElementPanelActionDraft>
   ) => boolean;
+  getElementImageInfo?: (lcId: string) => ElementPanelImageInfo | null;
+  updateElementImageInfo?: (lcId: string, image: Partial<ElementPanelImageDraft>) => boolean;
+  replaceElementImage?: (lcId: string) => boolean;
   getElementText?: (lcId: string) => string | null;
   updateElementText?: (lcId: string, text: string) => boolean;
   getElementAttributes?: (lcId: string) => ElementPanelAttribute[] | null;
@@ -49,6 +65,7 @@ type ElementPanelProps = {
 
 const LIVE_TEXT_COMMIT_DELAY_MS = 250;
 const LIVE_ACTION_COMMIT_DELAY_MS = 250;
+const LIVE_IMAGE_COMMIT_DELAY_MS = 250;
 
 function translateSegmentLabel(label: string) {
   switch (label) {
@@ -90,6 +107,11 @@ export function ElementPanel({ api }: ElementPanelProps) {
     targetBlank: false,
     disabled: false,
   });
+  const [imageInfo, setImageInfo] = useState<ElementPanelImageInfo | null>(null);
+  const [imageDraft, setImageDraft] = useState<ElementPanelImageDraft>({
+    src: '',
+    alt: '',
+  });
   const [attributes, setAttributes] = useState<ElementPanelAttribute[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const committedDraftsRef = useRef<Record<string, string>>({});
@@ -107,8 +129,20 @@ export function ElementPanel({ api }: ElementPanelProps) {
     disabled: false,
   });
   const focusedActionFieldRef = useRef<keyof ElementPanelActionDraft | null>(null);
+  const committedImageDraftRef = useRef<ElementPanelImageDraft>({
+    src: '',
+    alt: '',
+  });
+  const imageDraftRef = useRef<ElementPanelImageDraft>({
+    src: '',
+    alt: '',
+  });
+  const focusedImageFieldRef = useRef<keyof ElementPanelImageDraft | null>(null);
 
   const selectedLabel = useMemo(() => {
+    if (imageInfo) {
+      return __( 'Selected: Image', 'kayzart-live-code-editor');
+    }
     if (actionInfo?.kind === 'button') {
       return __( 'Selected: Button', 'kayzart-live-code-editor');
     }
@@ -128,7 +162,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
       return __( 'Selected: Text', 'kayzart-live-code-editor');
     }
     return __( 'Selected: Element', 'kayzart-live-code-editor');
-  }, [actionInfo, segments]);
+  }, [actionInfo, imageInfo, segments]);
 
   const refreshElement = useCallback(() => {
     if (!selectedId) {
@@ -140,6 +174,10 @@ export function ElementPanel({ api }: ElementPanelProps) {
       setActionDraft({ href: '', targetBlank: false, disabled: false });
       actionDraftRef.current = { href: '', targetBlank: false, disabled: false };
       committedActionDraftRef.current = { href: '', targetBlank: false, disabled: false };
+      setImageInfo(null);
+      setImageDraft({ src: '', alt: '' });
+      imageDraftRef.current = { src: '', alt: '' };
+      committedImageDraftRef.current = { src: '', alt: '' };
       setAttributes([]);
       setIsVisible(false);
       return;
@@ -148,6 +186,9 @@ export function ElementPanel({ api }: ElementPanelProps) {
     const nextSegments = api?.getTextSegments ? api.getTextSegments(selectedId) : [];
     const nextActionInfo = api?.getElementActionInfo
       ? api.getElementActionInfo(selectedId)
+      : null;
+    const nextImageInfo = api?.getElementImageInfo
+      ? api.getElementImageInfo(selectedId)
       : null;
     const nextAttributes = api?.getElementAttributes
       ? api.getElementAttributes(selectedId)
@@ -183,16 +224,38 @@ export function ElementPanel({ api }: ElementPanelProps) {
           }
         : nextCommittedActionDraft;
 
+    const nextCommittedImageDraft = {
+      src: nextImageInfo?.src ?? '',
+      alt: nextImageInfo?.alt ?? '',
+    };
+    const previousImageDraft = imageDraftRef.current;
+    const focusedImageField = focusedImageFieldRef.current;
+    const nextImageDraft =
+      focusedImageField &&
+      previousImageDraft[focusedImageField] !==
+        committedImageDraftRef.current[focusedImageField]
+        ? {
+            ...nextCommittedImageDraft,
+            [focusedImageField]: previousImageDraft[focusedImageField],
+          }
+        : nextCommittedImageDraft;
+
     committedDraftsRef.current = nextCommitted;
     draftsRef.current = nextDrafts;
     committedActionDraftRef.current = nextCommittedActionDraft;
     actionDraftRef.current = nextActionDraft;
+    committedImageDraftRef.current = nextCommittedImageDraft;
+    imageDraftRef.current = nextImageDraft;
     setDrafts(nextDrafts);
     setSegments(nextSegments);
     setActionInfo(nextActionInfo);
     setActionDraft(nextActionDraft);
+    setImageInfo(nextImageInfo);
+    setImageDraft(nextImageDraft);
     setAttributes(hasNextAttributes ? nextAttributes : []);
-    setIsVisible(nextSegments.length > 0 || Boolean(nextActionInfo) || hasNextAttributes);
+    setIsVisible(
+      nextSegments.length > 0 || Boolean(nextActionInfo) || Boolean(nextImageInfo) || hasNextAttributes
+    );
   }, [api, selectedId]);
 
   useEffect(() => {
@@ -202,6 +265,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
     return api.subscribeSelection((lcId) => {
       focusedSegmentIdRef.current = null;
       focusedActionFieldRef.current = null;
+      focusedImageFieldRef.current = null;
       setSelectedId(lcId);
     });
   }, [api]);
@@ -271,6 +335,29 @@ export function ElementPanel({ api }: ElementPanelProps) {
     return didUpdate;
   }, [actionInfo, api, selectedId]);
 
+  const commitImageDraft = useCallback(() => {
+    if (!selectedId || !imageInfo || !api?.updateElementImageInfo) {
+      return false;
+    }
+    const current = imageDraftRef.current;
+    const committed = committedImageDraftRef.current;
+    const changed: Partial<ElementPanelImageDraft> = {};
+    if (current.src !== committed.src) {
+      changed.src = current.src;
+    }
+    if (current.alt !== committed.alt) {
+      changed.alt = current.alt;
+    }
+    if (Object.keys(changed).length === 0) {
+      return true;
+    }
+    const didUpdate = api.updateElementImageInfo(selectedId, changed);
+    if (didUpdate) {
+      committedImageDraftRef.current = current;
+    }
+    return didUpdate;
+  }, [api, imageInfo, selectedId]);
+
   useEffect(() => {
     const timers = segments
       .filter((segment) => drafts[segment.id] !== committedDraftsRef.current[segment.id])
@@ -300,6 +387,22 @@ export function ElementPanel({ api }: ElementPanelProps) {
       window.clearTimeout(timer);
     };
   }, [actionDraft, actionInfo, commitActionDraft]);
+
+  useEffect(() => {
+    if (
+      !imageInfo ||
+      (imageDraft.src === committedImageDraftRef.current.src &&
+        imageDraft.alt === committedImageDraftRef.current.alt)
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      commitImageDraft();
+    }, LIVE_IMAGE_COMMIT_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [commitImageDraft, imageDraft, imageInfo]);
 
   const handleSegmentChange = (segmentId: string, value: string) => {
     const nextDrafts = {
@@ -346,6 +449,30 @@ export function ElementPanel({ api }: ElementPanelProps) {
   const handleActionBlur = () => {
     focusedActionFieldRef.current = null;
     commitActionDraft();
+  };
+
+  const handleImageDraftChange = <Key extends keyof ElementPanelImageDraft>(
+    key: Key,
+    value: ElementPanelImageDraft[Key]
+  ) => {
+    const nextDraft = {
+      ...imageDraftRef.current,
+      [key]: value,
+    };
+    imageDraftRef.current = nextDraft;
+    setImageDraft(nextDraft);
+  };
+
+  const handleImageBlur = () => {
+    focusedImageFieldRef.current = null;
+    commitImageDraft();
+  };
+
+  const handleReplaceImage = () => {
+    if (!selectedId || !api?.replaceElementImage) {
+      return;
+    }
+    api.replaceElementImage(selectedId);
   };
 
   const commitAttributes = useCallback(
@@ -454,6 +581,58 @@ export function ElementPanel({ api }: ElementPanelProps) {
               <span>{__( 'Disabled', 'kayzart-live-code-editor')}</span>
             </label>
           ) : null}
+        </div>
+      ) : null}
+      {imageInfo ? (
+        <div className="kayzart-formGroup kayzart-elementsImageGroup">
+          <div className="kayzart-formLabel">{__( 'Image', 'kayzart-live-code-editor')}</div>
+          {imageDraft.src ? (
+            <div className="kayzart-elementsImagePreview">
+              <img src={imageDraft.src} alt={imageDraft.alt || ''} />
+            </div>
+          ) : null}
+          <button
+            className="kayzart-btn kayzart-btn-secondary kayzart-elementsImageReplace"
+            type="button"
+            onClick={handleReplaceImage}
+          >
+            {__( 'Replace image', 'kayzart-live-code-editor')}
+          </button>
+          <div className="kayzart-formGroup">
+            <label className="kayzart-formLabel" htmlFor="kayzart-elements-image-url">
+              {__( 'Image URL', 'kayzart-live-code-editor')}
+            </label>
+            <input
+              id="kayzart-elements-image-url"
+              type="text"
+              className="kayzart-formInput"
+              value={imageDraft.src}
+              onChange={(event) => handleImageDraftChange('src', event.target.value)}
+              onFocus={() => {
+                focusedImageFieldRef.current = 'src';
+              }}
+              onBlur={handleImageBlur}
+            />
+          </div>
+          <div className="kayzart-formGroup">
+            <label className="kayzart-formLabel" htmlFor="kayzart-elements-image-alt">
+              {__( 'Alt text', 'kayzart-live-code-editor')}
+            </label>
+            <input
+              id="kayzart-elements-image-alt"
+              type="text"
+              className="kayzart-formInput"
+              value={imageDraft.alt}
+              onChange={(event) => handleImageDraftChange('alt', event.target.value)}
+              onFocus={() => {
+                focusedImageFieldRef.current = 'alt';
+              }}
+              onBlur={handleImageBlur}
+            />
+            <div className="kayzart-settingsHelp">
+              {__( 'Alt text describes the image for accessibility and search engines.', 'kayzart-live-code-editor')}
+            </div>
+          </div>
         </div>
       ) : null}
       {segments.length > 0 ? (

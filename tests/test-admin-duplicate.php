@@ -6,6 +6,8 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Custom_Head;
+use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 
 class Test_Admin_Duplicate extends WP_UnitTestCase {
@@ -28,20 +30,35 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
-		$content = '<section><h1>Hero</h1></section>';
+		$content    = '<section><h1>Hero</h1><script>const pattern = "\\\\d+"; const quote = "He said \"hi\"";</script></section>';
+		$excerpt    = 'Excerpt with escaped \"quote\" and slash \\.';
+		$css        = '.hero::before{content:"\\2713";background:url("images\\hero.png");}';
+		$js         = 'const re = /\\d+\\/items/; const text = "He said \"hi\"";';
+		$head       = '<meta name="description" content="Escaped \"copy\""><script type="application/ld+json">{"path":"C:\\\\demo"}</script>';
+		$body_attrs = 'class="lp copy" data-pattern="\\d+" data-quote="He said \"hi\""';
+		$array_meta = array(
+			'regex'  => '\\d+',
+			'nested' => array(
+				'quote' => 'He said \"hi\"',
+			),
+		);
 		$page_id = (int) self::factory()->post->create(
 			array(
 				'post_type'    => Post_Type::PAGE_TYPE,
 				'post_status'  => 'publish',
 				'post_author'  => $admin_id,
-				'post_content' => $content,
+				'post_content' => wp_slash( $content ),
+				'post_excerpt' => wp_slash( $excerpt ),
 			)
 		);
 		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
-		update_post_meta( $page_id, '_kayzart_css', '.hero{color:red}' );
-		update_post_meta( $page_id, '_kayzart_js', 'console.log(1)' );
+		update_post_meta( $page_id, '_kayzart_css', wp_slash( $css ) );
+		update_post_meta( $page_id, '_kayzart_js', wp_slash( $js ) );
 		update_post_meta( $page_id, '_kayzart_js_mode', 'module' );
 		update_post_meta( $page_id, '_kayzart_tailwind', '1' );
+		update_post_meta( $page_id, Custom_Head::META_KEY, wp_slash( $head ) );
+		update_post_meta( $page_id, Html_Document::BODY_ATTRS_META_KEY, wp_slash( $body_attrs ) );
+		update_post_meta( $page_id, '_kayzart_array_slashes', wp_slash( $array_meta ) );
 		update_post_meta( $page_id, '_kayzart_setup_required', '1' );
 
 		$source_title = get_post( $page_id )->post_title;
@@ -70,16 +87,20 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$this->assertInstanceOf( WP_Post::class, $copy );
 		$this->assertSame( 'draft', $copy->post_status );
 		$this->assertSame( $content, $copy->post_content );
+		$this->assertSame( $excerpt, $copy->post_excerpt );
 		$this->assertSame(
 			sprintf( __( '%s (copy)', 'kayzart-live-code-editor' ), $source_title ),
 			$copy->post_title
 		);
 
 		$this->assertSame( '1', get_post_meta( $copy_id, Post_Type::ENABLED_META, true ) );
-		$this->assertSame( '.hero{color:red}', get_post_meta( $copy_id, '_kayzart_css', true ) );
-		$this->assertSame( 'console.log(1)', get_post_meta( $copy_id, '_kayzart_js', true ) );
+		$this->assertSame( $css, get_post_meta( $copy_id, '_kayzart_css', true ) );
+		$this->assertSame( $js, get_post_meta( $copy_id, '_kayzart_js', true ) );
 		$this->assertSame( 'module', get_post_meta( $copy_id, '_kayzart_js_mode', true ) );
 		$this->assertSame( '1', get_post_meta( $copy_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( $head, get_post_meta( $copy_id, Custom_Head::META_KEY, true ) );
+		$this->assertSame( $body_attrs, get_post_meta( $copy_id, Html_Document::BODY_ATTRS_META_KEY, true ) );
+		$this->assertSame( $array_meta, get_post_meta( $copy_id, '_kayzart_array_slashes', true ) );
 
 		$this->assertSame(
 			'',

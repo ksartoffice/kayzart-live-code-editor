@@ -342,9 +342,9 @@ class Admin {
 				'post_type'    => $source->post_type,
 				'post_status'  => 'draft',
 				/* translators: %s: original post title. */
-				'post_title'   => sprintf( __( '%s (copy)', 'kayzart-live-code-editor' ), $source->post_title ),
-				'post_content' => $source->post_content,
-				'post_excerpt' => $source->post_excerpt,
+				'post_title'   => wp_slash( sprintf( __( '%s (copy)', 'kayzart-live-code-editor' ), $source->post_title ) ),
+				'post_content' => wp_slash( $source->post_content ),
+				'post_excerpt' => wp_slash( $source->post_excerpt ),
 			),
 			true
 		);
@@ -380,7 +380,7 @@ class Admin {
 					continue;
 				}
 				foreach ( (array) $values as $value ) {
-					update_post_meta( $new_post_id, $key, maybe_unserialize( $value ) );
+					update_post_meta( $new_post_id, $key, wp_slash( maybe_unserialize( $value ) ) );
 				}
 			}
 		}

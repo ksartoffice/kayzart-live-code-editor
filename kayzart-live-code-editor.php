@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: Kayzart Landing Pages — Paste & Edit AI-Generated HTML
+ * Plugin Name: Kayzart — Live HTML Landing Pages
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
- * Description: The place to paste landing pages your AI wrote. Edit HTML, CSS & JavaScript live and publish — without fighting your theme.
+ * Description: A live HTML/CSS/JavaScript editor for clean, theme-independent landing pages in WordPress. No page builder, no build step.
  * Version: 2.2.2
  * Requires at least: 5.9
  * Tested up to: 7.0

@@ -319,7 +319,6 @@ class Admin {
 	const DUPLICATE_META_UNFILTERED_HTML_KEYS = array(
 		'_kayzart_custom_head',
 		'_kayzart_js',
-		'_kayzart_js_mode',
 	);
 
 	/**

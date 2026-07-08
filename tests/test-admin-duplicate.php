@@ -10,6 +10,22 @@ use KayzArt\Custom_Head;
 use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 
+if ( ! class_exists( 'KayzArt_Admin_Die_Exception' ) ) {
+	class KayzArt_Admin_Die_Exception extends Exception {
+	}
+}
+
+if ( ! class_exists( 'KayzArt_Admin_Redirect_Exception' ) ) {
+	class KayzArt_Admin_Redirect_Exception extends Exception {
+		public string $location;
+
+		public function __construct( string $location ) {
+			$this->location = $location;
+			parent::__construct( $location );
+		}
+	}
+}
+
 class Test_Admin_Duplicate extends WP_UnitTestCase {
 	private string $wp_die_message = '';
 
@@ -151,6 +167,50 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 
 		$this->assertSame( $before_ids, $after_ids, 'Restricted metadata should prevent creating an incomplete duplicate.' );
 		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
+	}
+
+	public function test_action_duplicate_post_allows_js_mode_without_js_for_user_without_unfiltered_html(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		wp_set_current_user( $author_id );
+
+		$content = '<section><h1>Author page</h1></section>';
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::POST_TYPE,
+				'post_status'  => 'publish',
+				'post_author'  => $author_id,
+				'post_content' => $content,
+			)
+		);
+		update_post_meta( $page_id, '_kayzart_js_mode', 'module' );
+		update_post_meta( $page_id, '_kayzart_tailwind', '1' );
+
+		$before_ids   = $this->get_kayzart_post_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_id'  => (string) $page_id,
+			'_wpnonce' => wp_create_nonce( Admin::DUPLICATE_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_duplicate_post();
+			}
+		);
+
+		$_GET      = $original_get;
+		$after_ids = $this->get_kayzart_post_ids();
+		$created   = array_values( array_diff( $after_ids, $before_ids ) );
+
+		$this->assertCount( 1, $created, 'Exactly one duplicate draft should be created.' );
+		$copy_id = (int) $created[0];
+		$copy    = get_post( $copy_id );
+
+		$this->assertInstanceOf( WP_Post::class, $copy );
+		$this->assertSame( $content, $copy->post_content );
+		$this->assertSame( 'module', get_post_meta( $copy_id, '_kayzart_js_mode', true ) );
+		$this->assertSame( '1', get_post_meta( $copy_id, '_kayzart_tailwind', true ) );
+		$this->assertStringContainsString( 'kayzart_duplicated=1', $location );
 	}
 
 	public function test_action_duplicate_post_requires_valid_nonce(): void {

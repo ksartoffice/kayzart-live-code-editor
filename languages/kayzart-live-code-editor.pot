@@ -824,3 +824,17 @@ msgstr ""
 #: assets/dist/main.js:157
 msgid "Element deleted."
 msgstr ""
+
+#. translators: %s: original post title.
+#: includes/class-kayzart-admin.php:345
+#, php-format
+msgid "%s (copy)"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:428
+msgid "Landing page duplicated. The copy was saved as a draft."
+msgstr ""
+
+#: includes/class-kayzart-post-type.php:359
+msgid "Duplicate landing page"
+msgstr ""

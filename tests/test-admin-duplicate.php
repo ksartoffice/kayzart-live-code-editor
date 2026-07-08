@@ -111,6 +111,60 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'kayzart_duplicated=1', $location );
 	}
 
+	public function test_action_duplicate_post_skips_script_meta_without_unfiltered_html(): void {
+		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
+		wp_set_current_user( $author_id );
+
+		$content = '<section><h1>Author page</h1></section>';
+		$css     = '.hero{color:red;}';
+		$js      = 'console.log("restricted");';
+		$head    = '<script type="application/ld+json">{"@type":"Thing"}</script>';
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::POST_TYPE,
+				'post_status'  => 'publish',
+				'post_author'  => $author_id,
+				'post_content' => $content,
+			)
+		);
+		update_post_meta( $page_id, '_kayzart_css', $css );
+		update_post_meta( $page_id, '_kayzart_js', $js );
+		update_post_meta( $page_id, '_kayzart_js_mode', 'module' );
+		update_post_meta( $page_id, Custom_Head::META_KEY, $head );
+		update_post_meta( $page_id, '_kayzart_tailwind', '1' );
+
+		$before_ids   = $this->get_kayzart_post_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_id'  => (string) $page_id,
+			'_wpnonce' => wp_create_nonce( Admin::DUPLICATE_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_duplicate_post();
+			}
+		);
+
+		$_GET      = $original_get;
+		$after_ids = $this->get_kayzart_post_ids();
+		$created   = array_values( array_diff( $after_ids, $before_ids ) );
+
+		$this->assertCount( 1, $created, 'Exactly one duplicate draft should be created.' );
+		$copy_id = (int) $created[0];
+		$copy    = get_post( $copy_id );
+
+		$this->assertInstanceOf( WP_Post::class, $copy );
+		$this->assertSame( 'draft', $copy->post_status );
+		$this->assertSame( $content, $copy->post_content );
+		$this->assertSame( $css, get_post_meta( $copy_id, '_kayzart_css', true ) );
+		$this->assertSame( '1', get_post_meta( $copy_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '', get_post_meta( $copy_id, '_kayzart_js', true ) );
+		$this->assertSame( '', get_post_meta( $copy_id, '_kayzart_js_mode', true ) );
+		$this->assertSame( '', get_post_meta( $copy_id, Custom_Head::META_KEY, true ) );
+		$this->assertStringContainsString( 'kayzart_duplicated=1', $location );
+	}
+
 	public function test_action_duplicate_post_requires_valid_nonce(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
@@ -198,6 +252,23 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		return get_posts(
 			array(
 				'post_type'              => Post_Type::PAGE_TYPE,
+				'post_status'            => 'any',
+				'fields'                 => 'ids',
+				'posts_per_page'         => -1,
+				'orderby'                => 'ID',
+				'order'                  => 'ASC',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
+				'suppress_filters'       => true,
+			)
+		);
+	}
+
+	private function get_kayzart_post_ids(): array {
+		return get_posts(
+			array(
+				'post_type'              => Post_Type::POST_TYPE,
 				'post_status'            => 'any',
 				'fields'                 => 'ids',
 				'posts_per_page'         => -1,

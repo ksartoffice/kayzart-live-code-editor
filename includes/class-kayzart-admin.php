@@ -312,6 +312,17 @@ class Admin {
 	);
 
 	/**
+	 * Meta keys that require unfiltered_html when duplicating a Kayzart post.
+	 *
+	 * @var array<int,string>
+	 */
+	const DUPLICATE_META_UNFILTERED_HTML_KEYS = array(
+		'_kayzart_custom_head',
+		'_kayzart_js',
+		'_kayzart_js_mode',
+	);
+
+	/**
 	 * Duplicate an existing Kayzart post into a new draft.
 	 */
 	public static function action_duplicate_post(): void {
@@ -377,6 +388,9 @@ class Admin {
 					continue;
 				}
 				if ( in_array( $key, self::DUPLICATE_META_DENYLIST, true ) ) {
+					continue;
+				}
+				if ( in_array( $key, self::DUPLICATE_META_UNFILTERED_HTML_KEYS, true ) && ! current_user_can( 'unfiltered_html' ) ) {
 					continue;
 				}
 				foreach ( (array) $values as $value ) {

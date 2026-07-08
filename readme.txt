@@ -25,6 +25,7 @@ People comfortable with HTML/CSS who want full control over the result — freel
 * Use plain CSS or TailwindCSS (auto-compiled) per page
 * Run modern JavaScript (Classic script or ES Module)
 * Bring a full HTML/CSS/JS page from anywhere and run it as-is
+* Duplicate an existing landing page as a draft from the page list
 * Restrict external embeds with an allowlist
 
 **Works great with**
@@ -58,6 +59,9 @@ Basic familiarity with HTML/CSS helps when fine-tuning, and Kayzart gives you fu
 = Can I use shortcodes? =
 Yes. You can place WordPress shortcodes directly in the HTML editor. They are not expanded inside the live preview iframe, but they are processed normally on the published page or front-end view.
 
+= Can I duplicate an existing landing page? =
+Yes. From the Pages list, choose Duplicate landing page for a Kayzart-managed page. Kayzart creates a new draft copy with the page content, Kayzart settings, featured image, and taxonomy terms carried over.
+
 = Can I use TailwindCSS? =
 Yes. Choose TailwindCSS mode when creating or converting a page and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
 
@@ -80,6 +84,9 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 7. Select preview text and refine the matching element from the Elements panel.
 
 == Changelog ==
+= 2.2.3 =
+* Add: Duplicate an existing landing page as a draft from the page list.
+
 = 2.2.2 =
 * Add: Show placeholders for shortcodes in the live preview.
 

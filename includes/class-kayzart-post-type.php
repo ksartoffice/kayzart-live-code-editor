@@ -348,7 +348,7 @@ class Post_Type {
 
 		$is_managed = self::POST_TYPE === $post->post_type || self::is_kayzart_enabled_post( (int) $post->ID );
 		if ( $is_managed ) {
-			$actions['kayzart_edit'] = sprintf(
+			$actions['kayzart_edit']      = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( self::get_editor_url( $post->ID ) ),
 				esc_html__( 'Edit landing page', 'kayzart-live-code-editor' )

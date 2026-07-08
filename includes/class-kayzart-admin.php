@@ -338,6 +338,9 @@ class Admin {
 		if ( ! $source instanceof \WP_Post || ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
 		}
+		if ( Post_Type::POST_TYPE !== $source->post_type && ! Post_Type::is_kayzart_enabled_post( (int) $source->ID ) ) {
+			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
+		}
 
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );

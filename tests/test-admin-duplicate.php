@@ -215,6 +215,37 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
 	}
 
+	public function test_action_duplicate_post_denies_unmanaged_enabled_post_type(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+			)
+		);
+
+		$before_ids   = $this->get_page_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_id'  => (string) $page_id,
+			'_wpnonce' => wp_create_nonce( Admin::DUPLICATE_POST_NONCE_ACTION ),
+		);
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_duplicate_post();
+			}
+		);
+
+		$_GET      = $original_get;
+		$after_ids = $this->get_page_ids();
+
+		$this->assertSame( $before_ids, $after_ids, 'Unmanaged enabled post types must not be duplicated.' );
+		$this->assertStringContainsString( __( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ), $message );
+	}
+
 	public function test_row_action_offers_duplicate_for_managed_pages_only(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );

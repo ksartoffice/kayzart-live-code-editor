@@ -8,15 +8,19 @@
 use KayzArt\Admin;
 use KayzArt\Post_Type;
 
-class KayzArt_Admin_Die_Exception extends Exception {
+if ( ! class_exists( 'KayzArt_Admin_Die_Exception' ) ) {
+	class KayzArt_Admin_Die_Exception extends Exception {
+	}
 }
 
-class KayzArt_Admin_Redirect_Exception extends Exception {
-	public string $location;
+if ( ! class_exists( 'KayzArt_Admin_Redirect_Exception' ) ) {
+	class KayzArt_Admin_Redirect_Exception extends Exception {
+		public string $location;
 
-	public function __construct( string $location ) {
-		$this->location = $location;
-		parent::__construct( $location );
+		public function __construct( string $location ) {
+			$this->location = $location;
+			parent::__construct( $location );
+		}
 	}
 }
 

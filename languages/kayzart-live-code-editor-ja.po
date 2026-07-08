@@ -1,26 +1,17 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Kayzart Landing Page Editor 1.3.6
-Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor
-Last-Translator: FULL NAME <EMAIL@ADDRESS>
-Language-Team: Japanese
-Language: ja
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-PO-Revision-Date: 2026-05-27 00:00+0000
-Plural-Forms: nplurals=1; plural=0;
-X-Generator: WP-CLI 2.12.0
-X-Domain: kayzart-live-code-editor\n"
-"Report-Msgid-Bugs-To: \n"
+"Project-Id-Version: Kayzart Landing Page Editor\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\n"
 "Last-Translator: \n"
-"Language-Team: \n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-17T09:48:51+02:00\n"
-"PO-Revision-Date: 2026-06-17T09:48:51+02:00\n"
-"Language: \n"
+"PO-Revision-Date: 2026-05-27 00:00+0000\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: kayzart-live-code-editor\n"
 
 #. Plugin URI of the plugin
 #: kayzart-live-code-editor.php
@@ -832,3 +823,17 @@ msgstr "※ <title>、<meta charset>、viewport、<base> は使用できませ�
 #: assets/dist/main.js:154
 msgid "head HTML and JavaScript will not be imported because your account cannot edit them."
 msgstr ""
+
+#. translators: %s: original post title.
+#: includes/class-kayzart-admin.php:345
+#, php-format
+msgid "%s (copy)"
+msgstr "%s（コピー）"
+
+#: includes/class-kayzart-admin.php:428
+msgid "Landing page duplicated. The copy was saved as a draft."
+msgstr "ランディングページを複製しました。コピーは下書きとして保存されました。"
+
+#: includes/class-kayzart-post-type.php:359
+msgid "Duplicate landing page"
+msgstr "ランディングページを複製"

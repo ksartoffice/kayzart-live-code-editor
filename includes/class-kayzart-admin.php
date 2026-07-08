@@ -25,6 +25,8 @@ class Admin {
 	const NEW_PAGE_NONCE_ACTION        = 'kayzart_new_page';
 	const CONVERT_POST_ACTION          = 'kayzart_convert';
 	const CONVERT_POST_NONCE_ACTION    = 'kayzart_convert_post';
+	const DUPLICATE_POST_ACTION        = 'kayzart_duplicate';
+	const DUPLICATE_POST_NONCE_ACTION  = 'kayzart_duplicate_post';
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
 	const EDITOR_PAGE_NONCE_ACTION     = 'kayzart_editor_page';
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
@@ -51,6 +53,8 @@ class Admin {
 		add_action( 'admin_action_' . self::NEW_POST_ACTION, array( __CLASS__, 'action_create_new_post' ) );
 		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
 		add_action( 'admin_action_' . self::CONVERT_POST_ACTION, array( __CLASS__, 'action_convert_existing_post' ) );
+		add_action( 'admin_action_' . self::DUPLICATE_POST_ACTION, array( __CLASS__, 'action_duplicate_post' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_duplicated_notice' ) );
 		add_action( 'update_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_update' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_add' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrite_rules' ), 20 );
@@ -298,6 +302,166 @@ class Admin {
 	}
 
 	/**
+	 * Meta keys that must not be carried over when duplicating a Kayzart post.
+	 *
+	 * @var array<int,string>
+	 */
+	const DUPLICATE_META_DENYLIST = array(
+		'_kayzart_setup_required',
+		'_kayzart_screen',
+	);
+
+	/**
+	 * Meta keys that require unfiltered_html when duplicating a Kayzart post.
+	 *
+	 * @var array<int,string>
+	 */
+	const DUPLICATE_META_UNFILTERED_HTML_KEYS = array(
+		'_kayzart_custom_head',
+		'_kayzart_js',
+	);
+
+	/**
+	 * Duplicate an existing Kayzart post into a new draft.
+	 */
+	public static function action_duplicate_post(): void {
+		self::verify_action_nonce( self::DUPLICATE_POST_NONCE_ACTION );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		if ( ! $post_id ) {
+			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
+		}
+
+		$source = get_post( $post_id );
+		if ( ! $source instanceof \WP_Post || ! Post_Type::is_editor_enabled_post( $post_id ) ) {
+			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
+		}
+		if ( Post_Type::POST_TYPE !== $source->post_type && ! Post_Type::is_kayzart_enabled_post( (int) $source->ID ) ) {
+			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+
+		$post_type_object = get_post_type_object( $source->post_type );
+		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+		if ( ! current_user_can( 'unfiltered_html' ) && self::has_restricted_duplicate_meta( (int) $source->ID ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+
+		$new_post_id = wp_insert_post(
+			array(
+				'post_type'    => $source->post_type,
+				'post_status'  => 'draft',
+				/* translators: %s: original post title. */
+				'post_title'   => wp_slash( sprintf( __( '%s (copy)', 'kayzart-live-code-editor' ), $source->post_title ) ),
+				'post_content' => wp_slash( $source->post_content ),
+				'post_excerpt' => wp_slash( $source->post_excerpt ),
+			),
+			true
+		);
+		if ( is_wp_error( $new_post_id ) ) {
+			wp_die( esc_html( $new_post_id->get_error_message() ) );
+		}
+		$new_post_id = (int) $new_post_id;
+
+		self::copy_kayzart_post_data( $source, $new_post_id );
+
+		if ( Post_Type::is_kayzart_enabled_post( $post_id ) ) {
+			Post_Type::enable_for_post( $new_post_id );
+		}
+
+		wp_safe_redirect( self::get_post_list_redirect_url( $source->post_type ) );
+		exit;
+	}
+
+	/**
+	 * Copy Kayzart meta, featured image, and taxonomy terms to a duplicated post.
+	 *
+	 * @param \WP_Post $source      Source post.
+	 * @param int      $new_post_id Destination post ID.
+	 */
+	private static function copy_kayzart_post_data( \WP_Post $source, int $new_post_id ): void {
+		$meta = get_post_meta( (int) $source->ID );
+		if ( is_array( $meta ) ) {
+			foreach ( $meta as $key => $values ) {
+				if ( 0 !== strpos( (string) $key, '_kayzart_' ) ) {
+					continue;
+				}
+				if ( in_array( $key, self::DUPLICATE_META_DENYLIST, true ) ) {
+					continue;
+				}
+				foreach ( (array) $values as $value ) {
+					update_post_meta( $new_post_id, $key, wp_slash( maybe_unserialize( $value ) ) );
+				}
+			}
+		}
+
+		$thumbnail_id = get_post_thumbnail_id( $source );
+		if ( $thumbnail_id ) {
+			update_post_meta( $new_post_id, '_thumbnail_id', $thumbnail_id );
+		}
+
+		foreach ( get_object_taxonomies( $source->post_type ) as $taxonomy ) {
+			$term_ids = wp_get_object_terms( (int) $source->ID, $taxonomy, array( 'fields' => 'ids' ) );
+			if ( ! is_wp_error( $term_ids ) && ! empty( $term_ids ) ) {
+				wp_set_object_terms( $new_post_id, $term_ids, $taxonomy );
+			}
+		}
+	}
+
+	/**
+	 * Check whether duplicating a post would copy metadata that requires unfiltered_html.
+	 *
+	 * @param int $post_id Source post ID.
+	 * @return bool
+	 */
+	private static function has_restricted_duplicate_meta( int $post_id ): bool {
+		foreach ( self::DUPLICATE_META_UNFILTERED_HTML_KEYS as $key ) {
+			$value = get_post_meta( $post_id, $key, true );
+			if ( '' !== $value && array() !== $value ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Build the admin list-screen redirect URL after duplicating a post.
+	 *
+	 * @param string $post_type Source post type.
+	 * @return string
+	 */
+	private static function get_post_list_redirect_url( string $post_type ): string {
+		$referer = wp_get_referer();
+		$base    = $referer ? $referer : add_query_arg(
+			Post_Type::PAGE_TYPE === $post_type ? array( 'post_type' => Post_Type::PAGE_TYPE ) : array( 'post_type' => $post_type ),
+			admin_url( 'edit.php' )
+		);
+
+		return add_query_arg( 'kayzart_duplicated', '1', $base );
+	}
+
+	/**
+	 * Render a success notice after a post has been duplicated.
+	 */
+	public static function maybe_render_duplicated_notice(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only display flag, no state change.
+		if ( ! isset( $_GET['kayzart_duplicated'] ) || '1' !== $_GET['kayzart_duplicated'] ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+			esc_html__( 'Landing page duplicated. The copy was saved as a draft.', 'kayzart-live-code-editor' )
+		);
+	}
+
+	/**
 	 * Verify an admin action nonce.
 	 *
 	 * @param string $nonce_action Nonce action.
@@ -368,6 +532,24 @@ class Admin {
 		$args = array(
 			'action'   => self::CONVERT_POST_ACTION,
 			'_wpnonce' => wp_create_nonce( self::CONVERT_POST_NONCE_ACTION ),
+		);
+		if ( $post_id > 0 ) {
+			$args['post_id'] = $post_id;
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
+	}
+
+	/**
+	 * Build nonce-protected admin action URL for duplicating an existing post.
+	 *
+	 * @param int $post_id Optional post ID.
+	 * @return string
+	 */
+	public static function get_duplicate_post_action_url( int $post_id = 0 ): string {
+		$args = array(
+			'action'   => self::DUPLICATE_POST_ACTION,
+			'_wpnonce' => wp_create_nonce( self::DUPLICATE_POST_NONCE_ACTION ),
 		);
 		if ( $post_id > 0 ) {
 			$args['post_id'] = $post_id;

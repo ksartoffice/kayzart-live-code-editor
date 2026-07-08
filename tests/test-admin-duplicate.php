@@ -111,7 +111,7 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'kayzart_duplicated=1', $location );
 	}
 
-	public function test_action_duplicate_post_skips_script_meta_without_unfiltered_html(): void {
+	public function test_action_duplicate_post_denies_restricted_meta_without_unfiltered_html(): void {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		wp_set_current_user( $author_id );
 
@@ -140,7 +140,7 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 			'_wpnonce' => wp_create_nonce( Admin::DUPLICATE_POST_NONCE_ACTION ),
 		);
 
-		$location = $this->capture_redirect(
+		$message = $this->capture_wp_die(
 			function () {
 				Admin::action_duplicate_post();
 			}
@@ -148,21 +148,9 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 
 		$_GET      = $original_get;
 		$after_ids = $this->get_kayzart_post_ids();
-		$created   = array_values( array_diff( $after_ids, $before_ids ) );
 
-		$this->assertCount( 1, $created, 'Exactly one duplicate draft should be created.' );
-		$copy_id = (int) $created[0];
-		$copy    = get_post( $copy_id );
-
-		$this->assertInstanceOf( WP_Post::class, $copy );
-		$this->assertSame( 'draft', $copy->post_status );
-		$this->assertSame( $content, $copy->post_content );
-		$this->assertSame( $css, get_post_meta( $copy_id, '_kayzart_css', true ) );
-		$this->assertSame( '1', get_post_meta( $copy_id, '_kayzart_tailwind', true ) );
-		$this->assertSame( '', get_post_meta( $copy_id, '_kayzart_js', true ) );
-		$this->assertSame( '', get_post_meta( $copy_id, '_kayzart_js_mode', true ) );
-		$this->assertSame( '', get_post_meta( $copy_id, Custom_Head::META_KEY, true ) );
-		$this->assertStringContainsString( 'kayzart_duplicated=1', $location );
+		$this->assertSame( $before_ids, $after_ids, 'Restricted metadata should prevent creating an incomplete duplicate.' );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
 	}
 
 	public function test_action_duplicate_post_requires_valid_nonce(): void {

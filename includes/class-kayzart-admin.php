@@ -347,6 +347,9 @@ class Admin {
 		if ( ! $post_type_object || ! current_user_can( $post_type_object->cap->create_posts ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
+		if ( ! current_user_can( 'unfiltered_html' ) && self::has_restricted_duplicate_meta( (int) $source->ID ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
 
 		$new_post_id = wp_insert_post(
 			array(
@@ -390,9 +393,6 @@ class Admin {
 				if ( in_array( $key, self::DUPLICATE_META_DENYLIST, true ) ) {
 					continue;
 				}
-				if ( in_array( $key, self::DUPLICATE_META_UNFILTERED_HTML_KEYS, true ) && ! current_user_can( 'unfiltered_html' ) ) {
-					continue;
-				}
 				foreach ( (array) $values as $value ) {
 					update_post_meta( $new_post_id, $key, wp_slash( maybe_unserialize( $value ) ) );
 				}
@@ -410,6 +410,22 @@ class Admin {
 				wp_set_object_terms( $new_post_id, $term_ids, $taxonomy );
 			}
 		}
+	}
+
+	/**
+	 * Check whether duplicating a post would copy metadata that requires unfiltered_html.
+	 *
+	 * @param int $post_id Source post ID.
+	 * @return bool
+	 */
+	private static function has_restricted_duplicate_meta( int $post_id ): bool {
+		foreach ( self::DUPLICATE_META_UNFILTERED_HTML_KEYS as $key ) {
+			$value = get_post_meta( $post_id, $key, true );
+			if ( '' !== $value && array() !== $value ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

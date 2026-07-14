@@ -64,6 +64,9 @@ class Rest_Save {
 				403
 			);
 		}
+		if ( ! current_user_can( 'unfiltered_html' ) ) {
+			$content_html = wp_kses_post( $content_html );
+		}
 
 		$js_mode = self::normalize_js_mode( get_post_meta( $post_id, '_kayzart_js_mode', true ) );
 		if ( $has_js_mode ) {
@@ -125,24 +128,6 @@ class Rest_Save {
 			}
 		}
 
-		$result = wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => wp_slash( $content_html ),
-			),
-			true
-		);
-
-		if ( is_wp_error( $result ) ) {
-			return new \WP_REST_Response(
-				array(
-					'ok'    => false,
-					'error' => $result->get_error_message(),
-				),
-				400
-			);
-		}
-
 		$compiled_css = '';
 		if ( $tailwind_enabled ) {
 			try {
@@ -167,44 +152,108 @@ class Rest_Save {
 			}
 		}
 
-		if ( '' !== $body_attrs ) {
-			update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, wp_slash( $body_attrs ) );
-		} else {
-			delete_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY );
-		}
-		$custom_head_result = Custom_Head::save( $post_id, $custom_head );
-		update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
-		if ( $has_js ) {
-			update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
-		}
-		if ( $has_js || $has_js_mode ) {
-			update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
-		}
-		delete_post_meta( $post_id, '_kayzart_js_enabled' );
-		if ( $tailwind_enabled ) {
-			update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $compiled_css ) );
-		} else {
-			delete_post_meta( $post_id, '_kayzart_generated_css' );
-		}
-		update_post_meta( $post_id, '_kayzart_tailwind', $tailwind_enabled ? '1' : '0' );
-		update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
+		$custom_head_result           = Custom_Head::sanitize( $custom_head );
+		$before_snapshot              = Snapshot::is_supported() ? Snapshot::for_post( $post_id ) : null;
+		$desired_snapshot             = Snapshot::normalize(
+			array(
+				'html'       => Html_Document::build_editor_html( $content_html, $body_attrs ),
+				'customHead' => $custom_head_result['html'],
+				'css'        => $css_input,
+				'js'         => $has_js ? $js_input : (string) get_post_meta( $post_id, '_kayzart_js', true ),
+				'jsMode'     => $js_mode,
+			)
+		);
+		$snapshot_changed             = is_array( $before_snapshot )
+			&& Snapshot::hash( $before_snapshot ) !== Snapshot::hash( $desired_snapshot );
+		$revision_insert_hook_removed = false;
+		$revision_update_hook_removed = false;
 
-		if ( $has_settings && is_array( $prepared_updates ) ) {
-			$applied_updates = Rest_Settings::apply_prepared_updates( $post_id, $prepared_updates );
-			if ( is_wp_error( $applied_updates ) ) {
-				$error_data = $applied_updates->get_error_data();
-				$status     = is_array( $error_data ) && isset( $error_data['status'] )
-					? (int) $error_data['status']
-					: 400;
+		if ( Snapshot::is_supported() && has_action( 'wp_after_insert_post', 'wp_save_post_revision_on_insert' ) ) {
+			remove_action( 'wp_after_insert_post', 'wp_save_post_revision_on_insert', 9 );
+			$revision_insert_hook_removed = true;
+		}
+		if ( Snapshot::is_supported() && has_action( 'post_updated', 'wp_save_post_revision' ) ) {
+			remove_action( 'post_updated', 'wp_save_post_revision', 10 );
+			$revision_update_hook_removed = true;
+		}
+
+		try {
+			$result = wp_update_post(
+				array(
+					'ID'           => $post_id,
+					'post_content' => wp_slash( $content_html ),
+				),
+				true
+			);
+
+			if ( is_wp_error( $result ) ) {
 				return new \WP_REST_Response(
 					array(
 						'ok'    => false,
-						'error' => $applied_updates->get_error_message(),
+						'error' => $result->get_error_message(),
 					),
-					$status
+					400
 				);
 			}
+
+			if ( '' !== $body_attrs ) {
+				update_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, wp_slash( $body_attrs ) );
+			} else {
+				delete_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY );
+			}
+			$custom_head_result = Custom_Head::save( $post_id, $custom_head );
+			update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
+			if ( $has_js ) {
+				update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
+			}
+			if ( $has_js || $has_js_mode ) {
+				update_post_meta( $post_id, '_kayzart_js_mode', $js_mode );
+			}
+			delete_post_meta( $post_id, '_kayzart_js_enabled' );
+			if ( $tailwind_enabled ) {
+				update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $compiled_css ) );
+			} else {
+				delete_post_meta( $post_id, '_kayzart_generated_css' );
+			}
+			update_post_meta( $post_id, '_kayzart_tailwind', $tailwind_enabled ? '1' : '0' );
+			update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
+
+			if ( $has_settings && is_array( $prepared_updates ) ) {
+				$applied_updates = Rest_Settings::apply_prepared_updates( $post_id, $prepared_updates );
+				if ( is_wp_error( $applied_updates ) ) {
+					self::create_revision_for_persisted_snapshot( $post_id, $desired_snapshot, $snapshot_changed );
+					$error_data = $applied_updates->get_error_data();
+					$status     = is_array( $error_data ) && isset( $error_data['status'] ) ? (int) $error_data['status'] : 400;
+					return new \WP_REST_Response(
+						array(
+							'ok'    => false,
+							'error' => $applied_updates->get_error_message(),
+						),
+						$status
+					);
+				}
+			}
+		} finally {
+			if ( $revision_insert_hook_removed ) {
+				add_action( 'wp_after_insert_post', 'wp_save_post_revision_on_insert', 9, 3 );
+			}
+			if ( $revision_update_hook_removed ) {
+				add_action( 'post_updated', 'wp_save_post_revision', 10, 1 );
+			}
 		}
+
+		$revision_result = self::create_revision_for_persisted_snapshot( $post_id, $desired_snapshot, $snapshot_changed );
+		if ( false === $revision_result ) {
+				return new \WP_REST_Response(
+					array(
+						'ok'    => false,
+						'error' => __( 'The saved page did not match the requested snapshot.', 'kayzart-live-code-editor' ),
+					),
+					500
+				);
+		}
+		$revision_id      = is_int( $revision_result ) ? $revision_result : null;
+		$revision_summary = $revision_id ? Rest_Revisions::summary_for_revision( $post_id, $revision_id ) : null;
 
 		return new \WP_REST_Response(
 			array(
@@ -212,10 +261,32 @@ class Rest_Save {
 				'customHead'            => $custom_head_result['html'],
 				'customHeadRemovedTags' => $custom_head_result['removed'],
 				'settings'              => Rest_Settings::build_settings_payload( $post_id ),
+				'revisionsSupported'    => Snapshot::is_supported(),
+				'revisionsEnabled'      => Snapshot::revisions_enabled( $post_id ),
+				'revision'              => $revision_summary,
 			),
 			200
 		);
 	}
+
+	/**
+	 * Create a revision only when the requested snapshot is the state persisted in the database.
+	 *
+	 * @param int                 $post_id          Post ID.
+	 * @param array<string,mixed> $desired_snapshot Requested snapshot.
+	 * @param bool                $snapshot_changed Whether snapshot content changed.
+	 * @return int|false|null Revision ID, false on a persistence mismatch, or null when no revision was created.
+	 */
+	private static function create_revision_for_persisted_snapshot( int $post_id, array $desired_snapshot, bool $snapshot_changed ) {
+		if ( ! $snapshot_changed ) {
+			return null;
+		}
+		if ( Snapshot::hash( Snapshot::for_post( $post_id ) ) !== Snapshot::hash( $desired_snapshot ) ) {
+			return false;
+		}
+		return Snapshot::create_revision( $post_id );
+	}
+
 	/**
 	 * Sanitize CSS input to prevent style tag injection.
 	 *

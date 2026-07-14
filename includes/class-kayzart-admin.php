@@ -1209,6 +1209,7 @@ class Admin {
 			'iframePreviewUrl'       => $iframe_preview_url,
 			'restUrl'                => rest_url( 'kayzart/v1/save' ),
 			'restCompileUrl'         => rest_url( 'kayzart/v1/compile-tailwind' ),
+			'revisionsRestUrl'       => rest_url( 'kayzart/v1/revisions' ),
 			'setupRestUrl'           => rest_url( 'kayzart/v1/setup' ),
 			'backUrl'                => $back_url,
 			'listUrl'                => $list_url,
@@ -1221,6 +1222,10 @@ class Admin {
 			'tailwindEnabled'        => (bool) get_post_meta( $post_id, '_kayzart_tailwind', true ),
 			'setupRequired'          => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
 			'restNonce'              => wp_create_nonce( 'wp_rest' ),
+			'revisionsSupported'     => Snapshot::is_supported(),
+			'wpVersion'              => (string) $GLOBALS['wp_version'],
+			'canUpdateCore'          => current_user_can( 'update_core' ),
+			'updateCoreUrl'          => current_user_can( 'update_core' ) ? admin_url( 'update-core.php' ) : '',
 			'adminTitleSeparators'   => array_values( self::ADMIN_TITLE_SEPARATORS ),
 		);
 		$json = wp_json_encode( $data );

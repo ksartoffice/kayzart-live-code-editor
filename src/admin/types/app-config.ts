@@ -14,6 +14,7 @@ export type AppConfig = {
   iframePreviewUrl?: string;
   restUrl: string;
   restCompileUrl: string;
+  revisionsRestUrl: string;
   setupRestUrl: string;
   settingsRestUrl: string;
   settingsData: SettingsData;
@@ -24,5 +25,9 @@ export type AppConfig = {
   tailwindEnabled?: boolean;
   setupRequired?: boolean;
   restNonce: string;
+  revisionsSupported?: boolean;
+  wpVersion?: string;
+  canUpdateCore?: boolean;
+  updateCoreUrl?: string;
   adminTitleSeparators?: string[];
 };

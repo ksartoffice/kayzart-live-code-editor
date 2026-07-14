@@ -73,7 +73,7 @@ export type KayzArtExtensionApi = {
   isEditorLocked?: () => boolean;
 };
 
-const RESERVED_TAB_IDS = new Set(['settings', 'elements']);
+const RESERVED_TAB_IDS = new Set(['settings', 'elements', 'history']);
 const DEFAULT_ORDER = 100;
 
 const registry = new Map<string, RegistryEntry>();

@@ -838,3 +838,85 @@ msgstr ""
 #: includes/class-kayzart-post-type.php:359
 msgid "Duplicate landing page"
 msgstr ""
+
+#: includes/rest/class-kayzart-rest-revisions.php
+#: assets/dist/main.js
+msgid "Full-page revisions require WordPress 6.4 or later."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-revisions.php
+msgid "Revision not found."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-revisions.php
+msgid "Unknown user"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "History"
+msgstr ""
+
+#: assets/dist/main.js
+#, js-format
+msgid "This site is running WordPress %s."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Update WordPress"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Contact a site administrator to update WordPress."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Revisions are disabled for this site."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Enable WordPress revisions to keep full-page history."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "You can view history, but loading a complete version requires unfiltered HTML permission."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "No full-page revisions yet."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "First snapshot"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Load this version"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Load more"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Loading..."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Loading this version will discard your current unsaved changes. Continue?"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Failed to load history."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Failed to load revision."
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Unknown"
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-save.php
+msgid "The saved page did not match the requested snapshot."
+msgstr ""

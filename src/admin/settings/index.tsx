@@ -14,6 +14,8 @@ import { X } from 'lucide';
 import { renderLucideIcon } from '../lucide-icons';
 import { SettingsPanel } from './settings-panel';
 import { ElementPanel, type ElementPanelApi } from './element-panel';
+import { HistoryPanel } from './history-panel';
+import type { EditorSnapshot } from '../extensions/settings-tab-registry';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from '../logic/template-mode';
 import {
   getExternalSettingsTabs,
@@ -43,6 +45,14 @@ type SettingsConfig = {
   header?: HTMLElement;
   data: SettingsData;
   postId: number;
+  apiFetch: <T>(options: { url: string; method?: string }) => Promise<T>;
+  revisionsRestUrl: string;
+  revisionsSupported: boolean;
+  wpVersion: string;
+  canUpdateCore: boolean;
+  updateCoreUrl: string;
+  hasUnsavedChanges: () => boolean;
+  onLoadSnapshot: (snapshot: EditorSnapshot) => boolean;
   onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
   onLiveHighlightToggle?: (enabled: boolean) => void;
   onTabChange?: (tab: SettingsTab) => void;
@@ -57,6 +67,7 @@ type SettingsTab = string;
 export type SettingsApi = {
   applySettings: (next: Partial<SettingsData>) => void;
   openTab: (tab: SettingsTab) => void;
+  refreshHistory: () => void;
 };
 
 const CLOSE_ICON = renderLucideIcon(X, {
@@ -65,6 +76,7 @@ const CLOSE_ICON = renderLucideIcon(X, {
 
 function SettingsSidebar({
   data,
+  postId,
   header,
   onTemplateModeChange,
   onLiveHighlightToggle,
@@ -73,6 +85,14 @@ function SettingsSidebar({
   onClosePanel,
   elementsApi,
   onApiReady,
+  apiFetch,
+  revisionsRestUrl,
+  revisionsSupported,
+  wpVersion,
+  canUpdateCore,
+  updateCoreUrl,
+  hasUnsavedChanges,
+  onLoadSnapshot,
 }: SettingsConfig) {
   const settingsRef = useRef<SettingsData>({ ...data });
   const [settings, setSettings] = useState<SettingsData>({ ...data });
@@ -80,6 +100,7 @@ function SettingsSidebar({
   const [externalTabs, setExternalTabs] = useState<ResolvedExternalSettingsTab[]>(() =>
     getExternalSettingsTabs()
   );
+  const [historyRefreshToken, setHistoryRefreshToken] = useState(0);
   const externalTabHostRef = useRef<HTMLDivElement | null>(null);
   const externalTabCleanupRef = useRef<(() => void) | null>(null);
   const resolveLiveHighlightEnabled = (value?: boolean) =>
@@ -113,6 +134,7 @@ function SettingsSidebar({
       openTab: (tab: SettingsTab) => {
         setActiveTab(tab);
       },
+      refreshHistory: () => setHistoryRefreshToken((current) => current + 1),
     });
   }, [onApiReady]);
 
@@ -134,6 +156,10 @@ function SettingsSidebar({
       {
         id: 'elements',
         label: __( 'Elements', 'kayzart-live-code-editor'),
+      },
+      {
+        id: 'history',
+        label: __( 'History', 'kayzart-live-code-editor'),
       },
       ...externalTabs.map((tab) => ({
         id: tab.id,
@@ -301,6 +327,21 @@ function SettingsSidebar({
 
       {activeTab === 'elements' ? <ElementPanel api={elementsApi} /> : null}
 
+      {activeTab === 'history' ? (
+        <HistoryPanel
+          postId={postId}
+          restUrl={revisionsRestUrl}
+          apiFetch={apiFetch}
+          supported={revisionsSupported}
+          currentVersion={wpVersion}
+          canUpdateCore={canUpdateCore}
+          updateCoreUrl={updateCoreUrl}
+          refreshToken={historyRefreshToken}
+          hasUnsavedChanges={hasUnsavedChanges}
+          onLoadSnapshot={onLoadSnapshot}
+        />
+      ) : null}
+
       {activeExternalTab ? (
         <div className="kayzart-settingsExternalPanel" ref={externalTabHostRef} />
       ) : null}
@@ -312,12 +353,16 @@ export function initSettings(config: SettingsConfig) {
   const { container } = config;
   let applySettingsImpl: (next: Partial<SettingsData>) => void = () => {};
   let openTabImpl: (tab: SettingsTab) => void = () => {};
+  let refreshHistoryImpl: () => void = () => {};
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
     },
     openTab(tab: SettingsTab) {
       openTabImpl(tab);
+    },
+    refreshHistory() {
+      refreshHistoryImpl();
     },
   };
 
@@ -328,6 +373,7 @@ export function initSettings(config: SettingsConfig) {
       onApiReady={(nextApi) => {
         applySettingsImpl = nextApi.applySettings;
         openTabImpl = nextApi.openTab;
+        refreshHistoryImpl = nextApi.refreshHistory;
       }}
     />
   );

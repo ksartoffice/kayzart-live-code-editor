@@ -205,7 +205,7 @@ async function main() {
     minEditorPaneHeight: 160,
     minSettingsWidth: 260,
     initialSettingsWidth: initialSettingsPanelWidth,
-    initialEditorCollapsed: cfg.defaultEditorLayout === 'code_hidden',
+    initialEditorCollapsed: false,
     onSettingsWidthCommit: saveSettingsPanelWidth,
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
@@ -256,7 +256,7 @@ async function main() {
   let settingsOpen = false;
   let activeSettingsTab = 'settings';
   let creatorLayout = {
-    editorCollapsed: cfg.defaultEditorLayout === 'code_hidden',
+    editorCollapsed: false,
     settingsOpen: false,
     activeSettingsTab: 'settings',
   };

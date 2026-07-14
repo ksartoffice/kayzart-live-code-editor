@@ -101,6 +101,52 @@ class Rest {
 				),
 			)
 		);
+
+		register_rest_route(
+			'kayzart/v1',
+			'/revisions',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( Rest_Revisions::class, 'index' ),
+				'permission_callback' => array( __CLASS__, 'permission_check' ),
+				'args'                => array(
+					'post_id'  => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'page'     => array(
+						'type'     => 'integer',
+						'required' => false,
+						'default'  => 1,
+					),
+					'per_page' => array(
+						'type'     => 'integer',
+						'required' => false,
+						'default'  => 20,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			'kayzart/v1',
+			'/revisions/(?P<revision_id>\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( Rest_Revisions::class, 'show' ),
+				'permission_callback' => array( __CLASS__, 'permission_check' ),
+				'args'                => array(
+					'post_id'     => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+					'revision_id' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
 	}
 
 	/**

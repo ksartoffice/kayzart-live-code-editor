@@ -1144,6 +1144,85 @@ body.admin_page_kayzart #wpbody-content {
   overflow: hidden;
 }
 
+.kayzart-historyPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kayzart-historyMessage,
+.kayzart-historyNotice,
+.kayzart-historyError {
+  padding: 12px;
+  border: 1px solid #303846;
+  border-radius: 8px;
+  background: #1a1f27;
+  color: #c8ced8;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.kayzart-historyMessage p {
+  margin: 6px 0 10px;
+}
+
+.kayzart-historyNotice {
+  border-color: #66572a;
+  background: #292516;
+}
+
+.kayzart-historyError {
+  border-color: #7f3434;
+  background: #2b1919;
+  color: #ffb3b3;
+}
+
+.kayzart-historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kayzart-historyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #303846;
+  border-radius: 8px;
+  background: #171c23;
+}
+
+.kayzart-historyItemHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.kayzart-historyItemHeader span {
+  color: #929aa7;
+}
+
+.kayzart-historyBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.kayzart-historyBadges span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #27354c;
+  color: #b9d1ff;
+  font-size: 10px;
+}
+
+.kayzart-historyLoad,
+.kayzart-historyMore {
+  align-self: flex-start;
+}
+
 .kayzart-settingsSection {
   display: flex;
   flex-direction: column;

@@ -444,6 +444,7 @@ async function main() {
     },
     onSaveSuccess: () => {
       requestPreviewReload();
+      settingsApi?.refreshHistory();
     },
   });
 
@@ -1869,6 +1870,9 @@ async function main() {
 
     setJsMode(snapshot.jsMode ?? 'classic');
     requestPreviewReload();
+    if (tailwindEnabled) {
+      void tailwindCompiler?.compile();
+    }
     return true;
   };
 
@@ -1929,6 +1933,14 @@ async function main() {
     header: ui.settingsHeader,
     data: initialState.settingsData,
     postId,
+    apiFetch: wp.apiFetch,
+    revisionsRestUrl: cfg.revisionsRestUrl,
+    revisionsSupported: Boolean(cfg.revisionsSupported),
+    wpVersion: cfg.wpVersion || '',
+    canUpdateCore: Boolean(cfg.canUpdateCore),
+    updateCoreUrl: cfg.updateCoreUrl || '',
+    hasUnsavedChanges: () => getUnsavedFlags().hasAny,
+    onLoadSnapshot: replaceEditorSnapshot,
     onTemplateModeChange: (nextTemplateMode) => {
       const currentResolved = getResolvedTemplateMode();
       templateMode = resolveTemplateMode(nextTemplateMode);

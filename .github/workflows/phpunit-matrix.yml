@@ -137,6 +137,54 @@ jobs:
       - name: Run PHPUnit
         run: vendor/bin/phpunit --configuration phpunit.xml.dist
 
+  phpunit_revision_boundary:
+    name: PHPUnit revision boundary (WP ${{ matrix.wp }} / PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - wp: "6.3"
+            php: "7.4"
+          - wp: "6.4"
+            php: "7.4"
+          - wp: "6.4"
+            php: "8.2"
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: wordpress_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Prepare WordPress test suite
+        run: bash bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:${{ job.services.mysql.ports['3306'] }} ${{ matrix.wp }} true
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --configuration phpunit.xml.dist
+
   phpunit_gate:
     name: phpunit_gate
     if: ${{ always() }}
@@ -144,11 +192,13 @@ jobs:
     needs:
       - phpunit_core
       - phpunit_php85
+      - phpunit_revision_boundary
     steps:
       - name: Evaluate matrix results
         run: |
           echo "phpunit_core: ${{ needs.phpunit_core.result }}"
           echo "phpunit_php85: ${{ needs.phpunit_php85.result }}"
+          echo "phpunit_revision_boundary: ${{ needs.phpunit_revision_boundary.result }}"
 
           if [ "${{ needs.phpunit_core.result }}" != "success" ]; then
             echo "::error::phpunit_core must succeed."
@@ -157,5 +207,10 @@ jobs:
 
           if [ "${{ needs.phpunit_php85.result }}" != "success" ] && [ "${{ needs.phpunit_php85.result }}" != "skipped" ]; then
             echo "::error::phpunit_php85 must be success or skipped."
+            exit 1
+          fi
+
+          if [ "${{ needs.phpunit_revision_boundary.result }}" != "success" ]; then
+            echo "::error::phpunit_revision_boundary must succeed."
             exit 1
           fi

@@ -165,6 +165,10 @@ function SettingsSidebar({
         label: __( 'Settings', 'kayzart-live-code-editor'),
       },
       {
+        id: 'elements',
+        label: __( 'Elements', 'kayzart-live-code-editor'),
+      },
+      {
         id: 'history',
         label: __( 'History', 'kayzart-live-code-editor'),
       },

@@ -393,7 +393,7 @@ async function main() {
       creatorLayout = {
         editorCollapsed: viewportController.isEditorCollapsed(),
         settingsOpen,
-        activeSettingsTab: activeSettingsTab === 'elements' ? 'settings' : activeSettingsTab,
+        activeSettingsTab,
       };
     }
     workspaceMode = nextMode;
@@ -1779,7 +1779,12 @@ async function main() {
       notifySelection();
     },
     onOpenElementsTab: () => {
-      setWorkspaceMode('client');
+      if (!settingsOpen) {
+        setSettingsOpen(true);
+      }
+      if (activeSettingsTab !== 'elements') {
+        settingsApi?.openTab('elements');
+      }
     },
     onCopyElementHtml: (lcId) => {
       if (workspaceMode === 'client') return;

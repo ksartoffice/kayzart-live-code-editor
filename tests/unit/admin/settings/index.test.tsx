@@ -46,7 +46,7 @@ describe('settings workspace tabs', () => {
     vi.clearAllMocks();
   });
 
-  it('shows creator tabs, then switches to an Elements-only client panel', async () => {
+  it('keeps full Elements controls in creator, then switches to a safe Elements-only client panel', async () => {
     const { initSettings } = await import('../../../../src/admin/settings');
     const container = document.createElement('div');
     const header = document.createElement('div');
@@ -79,7 +79,13 @@ describe('settings workspace tabs', () => {
 
     expect(header.textContent).toContain('Settings');
     expect(header.textContent).toContain('History');
-    expect(header.textContent).not.toContain('Elements');
+    expect(header.textContent).toContain('Elements');
+
+    const elementsTab = Array.from(header.querySelectorAll('[role="tab"]')).find(
+      (tab) => tab.textContent === 'Elements'
+    ) as HTMLButtonElement;
+    await act(async () => elementsTab.click());
+    expect(container.textContent).toContain('Elements content: creator');
 
     await act(async () => api?.setWorkspaceMode('client'));
 
@@ -88,5 +94,10 @@ describe('settings workspace tabs', () => {
     expect(header.querySelector('[aria-label="Close settings panel"]')).toBeNull();
     expect(container.textContent).toContain('Elements content: client');
     expect(container.textContent).not.toContain('Settings content');
+
+    await act(async () => api?.setWorkspaceMode('creator'));
+    expect(header.textContent).toContain('Settings');
+    expect(header.textContent).toContain('Elements');
+    expect(container.textContent).toContain('Elements content: creator');
   });
 });

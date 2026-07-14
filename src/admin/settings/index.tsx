@@ -16,6 +16,7 @@ import { SettingsPanel } from './settings-panel';
 import { ElementPanel, type ElementPanelApi } from './element-panel';
 import { HistoryPanel } from './history-panel';
 import type { EditorSnapshot } from '../extensions/settings-tab-registry';
+import type { WorkspaceMode } from '../workspace-mode';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from '../logic/template-mode';
 import {
   getExternalSettingsTabs,
@@ -59,6 +60,7 @@ type SettingsConfig = {
   onPendingUpdatesChange?: (state: PendingSettingsState) => void;
   onClosePanel?: () => void;
   elementsApi?: ElementPanelApi;
+  workspaceMode: WorkspaceMode;
   onApiReady?: (api: SettingsApi) => void;
 };
 
@@ -68,6 +70,7 @@ export type SettingsApi = {
   applySettings: (next: Partial<SettingsData>) => void;
   openTab: (tab: SettingsTab) => void;
   refreshHistory: () => void;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
 };
 
 const CLOSE_ICON = renderLucideIcon(X, {
@@ -84,6 +87,7 @@ function SettingsSidebar({
   onPendingUpdatesChange,
   onClosePanel,
   elementsApi,
+  workspaceMode: initialWorkspaceMode,
   onApiReady,
   apiFetch,
   revisionsRestUrl,
@@ -97,6 +101,7 @@ function SettingsSidebar({
   const settingsRef = useRef<SettingsData>({ ...data });
   const [settings, setSettings] = useState<SettingsData>({ ...data });
   const [activeTab, setActiveTab] = useState<SettingsTab>('settings');
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(initialWorkspaceMode);
   const [externalTabs, setExternalTabs] = useState<ResolvedExternalSettingsTab[]>(() =>
     getExternalSettingsTabs()
   );
@@ -135,6 +140,7 @@ function SettingsSidebar({
         setActiveTab(tab);
       },
       refreshHistory: () => setHistoryRefreshToken((current) => current + 1),
+      setWorkspaceMode,
     });
   }, [onApiReady]);
 
@@ -148,7 +154,12 @@ function SettingsSidebar({
   }, []);
 
   const tabItems = useMemo(
-    () => [
+    () => workspaceMode === 'client' ? [
+      {
+        id: 'elements',
+        label: __( 'Elements', 'kayzart-live-code-editor'),
+      },
+    ] : [
       {
         id: 'settings',
         label: __( 'Settings', 'kayzart-live-code-editor'),
@@ -166,18 +177,20 @@ function SettingsSidebar({
         label: tab.label,
       })),
     ],
-    [externalTabs]
+    [externalTabs, workspaceMode]
   );
 
   useEffect(() => {
     if (!tabItems.some((tab) => tab.id === activeTab)) {
-      setActiveTab('settings');
+      setActiveTab(workspaceMode === 'client' ? 'elements' : 'settings');
     }
-  }, [activeTab, tabItems]);
+  }, [activeTab, tabItems, workspaceMode]);
 
   const activeExternalTab = useMemo(
-    () => externalTabs.find((tab) => tab.id === activeTab) || null,
-    [activeTab, externalTabs]
+    () => workspaceMode === 'creator'
+      ? externalTabs.find((tab) => tab.id === activeTab) || null
+      : null,
+    [activeTab, externalTabs, workspaceMode]
   );
 
   useEffect(() => {
@@ -273,7 +286,13 @@ function SettingsSidebar({
     onPendingUpdatesChange?.(pendingSettingsState);
   }, [onPendingUpdatesChange, pendingSettingsState]);
 
-  const tabs = (
+  const tabs = workspaceMode === 'client' ? (
+    <div className="kayzart-settingsTabsRow kayzart-settingsTabsRow-client">
+      <div className="kayzart-settingsPanelTitle">
+        {__( 'Elements', 'kayzart-live-code-editor')}
+      </div>
+    </div>
+  ) : (
     <div className="kayzart-settingsTabsRow">
       <div
         className="kayzart-settingsTabs"
@@ -325,7 +344,7 @@ function SettingsSidebar({
         />
       ) : null}
 
-      {activeTab === 'elements' ? <ElementPanel api={elementsApi} /> : null}
+      {activeTab === 'elements' ? <ElementPanel api={elementsApi} mode={workspaceMode} /> : null}
 
       {activeTab === 'history' ? (
         <HistoryPanel
@@ -354,6 +373,7 @@ export function initSettings(config: SettingsConfig) {
   let applySettingsImpl: (next: Partial<SettingsData>) => void = () => {};
   let openTabImpl: (tab: SettingsTab) => void = () => {};
   let refreshHistoryImpl: () => void = () => {};
+  let setWorkspaceModeImpl: (mode: WorkspaceMode) => void = () => {};
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
@@ -363,6 +383,9 @@ export function initSettings(config: SettingsConfig) {
     },
     refreshHistory() {
       refreshHistoryImpl();
+    },
+    setWorkspaceMode(mode: WorkspaceMode) {
+      setWorkspaceModeImpl(mode);
     },
   };
 
@@ -374,6 +397,7 @@ export function initSettings(config: SettingsConfig) {
         applySettingsImpl = nextApi.applySettings;
         openTabImpl = nextApi.openTab;
         refreshHistoryImpl = nextApi.refreshHistory;
+        setWorkspaceModeImpl = nextApi.setWorkspaceMode;
       }}
     />
   );

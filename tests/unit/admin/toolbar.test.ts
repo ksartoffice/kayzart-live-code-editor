@@ -29,7 +29,7 @@ describe('toolbar', () => {
     document.body.replaceChildren();
   });
 
-  const mount = async () => {
+  const mount = async (workspaceMode: 'creator' | 'client' = 'creator') => {
     const { mountToolbar } = await import('../../../src/admin/toolbar');
     const container = document.createElement('div');
     const handlers = {
@@ -45,6 +45,7 @@ describe('toolbar', () => {
       onViewportChange: vi.fn(),
       onUpdatePostIdentity: vi.fn(async () => ({ ok: true })),
       onUpdateStatus: vi.fn(async () => ({ ok: true })),
+      onWorkspaceModeChange: vi.fn(),
     };
     document.body.append(container);
 
@@ -67,6 +68,7 @@ describe('toolbar', () => {
           postStatus: 'draft',
           postTitle: 'Draft page',
           postSlug: 'draft-page',
+          workspaceMode,
         },
         handlers
       );
@@ -79,6 +81,26 @@ describe('toolbar', () => {
     const { container } = await mount();
 
     expect(container.querySelector('[aria-label="Import / Export"]')).not.toBeNull();
+  });
+
+  it('shows the mode switch and keeps only safe client actions', async () => {
+    const { container, handlers } = await mount('client');
+
+    expect(container.textContent).toContain('Creator');
+    expect(container.textContent).toContain('Client');
+    expect(container.querySelector('[aria-label="Import / Export"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Hide code"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Save options"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Save draft"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reload preview"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Desktop"]')).not.toBeNull();
+    expect(container.querySelector('.kayzart-toolbarTitle')?.getAttribute('role')).toBeNull();
+
+    const creator = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Creator'
+    ) as HTMLButtonElement;
+    await act(async () => creator.click());
+    expect(handlers.onWorkspaceModeChange).toHaveBeenCalledWith('creator');
   });
 
   it('shows full HTML import and export actions when opened', async () => {

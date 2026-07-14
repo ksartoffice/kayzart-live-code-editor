@@ -919,3 +919,15 @@ msgstr "不明"
 #: includes/rest/class-kayzart-rest-save.php
 msgid "The saved page did not match the requested snapshot."
 msgstr "保存されたページが要求されたスナップショットと一致しませんでした。"
+
+#: assets/dist/main.js
+msgid "Editing mode"
+msgstr "編集モード"
+
+#: assets/dist/main.js
+msgid "Creator"
+msgstr "制作者"
+
+#: assets/dist/main.js
+msgid "Client"
+msgstr "クライアント"

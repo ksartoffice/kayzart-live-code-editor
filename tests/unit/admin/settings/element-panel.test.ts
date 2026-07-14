@@ -60,7 +60,8 @@ describe('ElementPanel', () => {
   const mountPanel = async (
     initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }],
     initialActionInfo: ElementPanelActionInfo | null = null,
-    initialImageInfo: ElementPanelImageInfo | null = null
+    initialImageInfo: ElementPanelImageInfo | null = null,
+    mode: 'creator' | 'client' = 'creator'
   ) => {
     const { createRoot } = await import('react-dom/client');
     const React = await import('react');
@@ -111,7 +112,7 @@ describe('ElementPanel', () => {
     document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
-      root.render(React.createElement(ElementPanel, { api }));
+      root.render(React.createElement(ElementPanel, { api, mode }));
     });
     await act(async () => {
       selectionListener?.('heading-1');
@@ -398,5 +399,25 @@ describe('ElementPanel', () => {
     expect(container.textContent).toContain('Link destination');
     expect(container.textContent).toContain('Image URL');
     expect(container.textContent).toContain('Advanced settings');
+  });
+
+  it('hides advanced attributes and button state in client mode', async () => {
+    const { container } = await mountPanel(
+      [{ id: 'text-1', text: 'Buy now', labelHint: 'Button text' }],
+      {
+        kind: 'button',
+        tagName: 'button',
+        href: '',
+        targetBlank: false,
+        rel: '',
+        disabled: false,
+      },
+      null,
+      'client'
+    );
+
+    expect(container.textContent).toContain('Button text');
+    expect(container.textContent).not.toContain('Disabled');
+    expect(container.textContent).not.toContain('Advanced settings');
   });
 });

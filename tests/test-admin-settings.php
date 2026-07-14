@@ -26,7 +26,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_POST_SLUG );
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
-		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
+		delete_option( Admin::OPTION_DEFAULT_WORKSPACE_MODE );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -66,12 +66,12 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 'standalone', Admin::sanitize_default_template_mode( 'invalid' ) );
 	}
 
-	public function test_sanitize_default_editor_layout_allows_known_values_only(): void {
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'code_visible' ) );
-		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( 'code_hidden' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'hidden' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( '' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( array() ) );
+	public function test_sanitize_default_workspace_mode_allows_known_values_only(): void {
+		$this->assertSame( 'creator', Admin::sanitize_default_workspace_mode( 'creator' ) );
+		$this->assertSame( 'client', Admin::sanitize_default_workspace_mode( 'client' ) );
+		$this->assertSame( 'creator', Admin::sanitize_default_workspace_mode( 'admin' ) );
+		$this->assertSame( 'creator', Admin::sanitize_default_workspace_mode( '' ) );
+		$this->assertSame( 'creator', Admin::sanitize_default_workspace_mode( array() ) );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -303,7 +303,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
-	public function test_render_settings_page_shows_default_editor_layout_field(): void {
+	public function test_render_settings_page_shows_default_workspace_mode_field(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -314,10 +314,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_settings_page();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( __( 'Default editor layout', 'kayzart-live-code-editor' ), $output );
-		$this->assertStringContainsString( 'name="' . Admin::OPTION_DEFAULT_EDITOR_LAYOUT . '"', $output );
-		$this->assertStringContainsString( 'value="code_visible"', $output );
-		$this->assertStringContainsString( 'value="code_hidden"', $output );
+		$this->assertStringContainsString( __( 'Default editor mode', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_DEFAULT_WORKSPACE_MODE . '"', $output );
+		$this->assertStringContainsString( 'value="creator"', $output );
+		$this->assertStringContainsString( 'value="client"', $output );
 	}
 
 	public function test_render_enabled_post_types_field_mentions_convert_action_for_existing_posts(): void {
@@ -454,7 +454,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'lang=', $payload['documentHtmlAttributes'] );
 	}
 
-	public function test_enqueue_assets_inline_config_includes_default_editor_layout(): void {
+	public function test_enqueue_assets_inline_config_includes_default_workspace_mode(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 		$post_id = (int) self::factory()->post->create(
@@ -464,7 +464,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' );
+		update_option( Admin::OPTION_DEFAULT_WORKSPACE_MODE, 'client' );
 		wp_dequeue_script( 'kayzart-admin' );
 		wp_deregister_script( 'kayzart-admin' );
 
@@ -487,7 +487,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$payload = json_decode( $matches[1], true );
 		$this->assertIsArray( $payload );
-		$this->assertSame( 'code_hidden', $payload['defaultEditorLayout'] ?? '' );
+		$this->assertSame( 'client', $payload['defaultWorkspaceMode'] ?? '' );
 	}
 
 	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {

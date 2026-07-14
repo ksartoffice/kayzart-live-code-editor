@@ -920,3 +920,15 @@ msgstr ""
 #: includes/rest/class-kayzart-rest-save.php
 msgid "The saved page did not match the requested snapshot."
 msgstr ""
+
+#: assets/dist/main.js
+msgid "Editing mode"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Creator"
+msgstr ""
+
+#: assets/dist/main.js
+msgid "Client"
+msgstr ""

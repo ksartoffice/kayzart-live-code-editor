@@ -221,6 +221,7 @@ class Rest_Save {
 			if ( $has_settings && is_array( $prepared_updates ) ) {
 				$applied_updates = Rest_Settings::apply_prepared_updates( $post_id, $prepared_updates );
 				if ( is_wp_error( $applied_updates ) ) {
+					self::create_revision_for_persisted_snapshot( $post_id, $desired_snapshot, $snapshot_changed );
 					$error_data = $applied_updates->get_error_data();
 					$status     = is_array( $error_data ) && isset( $error_data['status'] ) ? (int) $error_data['status'] : 400;
 					return new \WP_REST_Response(
@@ -241,9 +242,8 @@ class Rest_Save {
 			}
 		}
 
-		$revision_id = null;
-		if ( $snapshot_changed ) {
-			if ( Snapshot::hash( Snapshot::for_post( $post_id ) ) !== Snapshot::hash( $desired_snapshot ) ) {
+		$revision_result = self::create_revision_for_persisted_snapshot( $post_id, $desired_snapshot, $snapshot_changed );
+		if ( false === $revision_result ) {
 				return new \WP_REST_Response(
 					array(
 						'ok'    => false,
@@ -251,9 +251,8 @@ class Rest_Save {
 					),
 					500
 				);
-			}
-			$revision_id = Snapshot::create_revision( $post_id );
 		}
+		$revision_id      = is_int( $revision_result ) ? $revision_result : null;
 		$revision_summary = $revision_id ? Rest_Revisions::summary_for_revision( $post_id, $revision_id ) : null;
 
 		return new \WP_REST_Response(
@@ -269,6 +268,25 @@ class Rest_Save {
 			200
 		);
 	}
+
+	/**
+	 * Create a revision only when the requested snapshot is the state persisted in the database.
+	 *
+	 * @param int                 $post_id          Post ID.
+	 * @param array<string,mixed> $desired_snapshot Requested snapshot.
+	 * @param bool                $snapshot_changed Whether snapshot content changed.
+	 * @return int|false|null Revision ID, false on a persistence mismatch, or null when no revision was created.
+	 */
+	private static function create_revision_for_persisted_snapshot( int $post_id, array $desired_snapshot, bool $snapshot_changed ) {
+		if ( ! $snapshot_changed ) {
+			return null;
+		}
+		if ( Snapshot::hash( Snapshot::for_post( $post_id ) ) !== Snapshot::hash( $desired_snapshot ) ) {
+			return false;
+		}
+		return Snapshot::create_revision( $post_id );
+	}
+
 	/**
 	 * Sanitize CSS input to prevent style tag injection.
 	 *

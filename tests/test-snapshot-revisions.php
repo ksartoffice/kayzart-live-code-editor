@@ -51,13 +51,14 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 	/**
 	 * Build a save request.
 	 *
-	 * @param int    $post_id Post ID.
-	 * @param string $html    HTML input.
-	 * @param string $css     CSS input.
-	 * @param string $js      JavaScript input.
-	 * @param string $head    Custom head input.
+	 * @param int        $post_id Post ID.
+	 * @param string     $html    HTML input.
+	 * @param string     $css     CSS input.
+	 * @param string     $js      JavaScript input.
+	 * @param string     $head    Custom head input.
+	 * @param array|null $settings_updates Optional settings updates.
 	 */
-	private function save( int $post_id, string $html, string $css, string $js = '', string $head = '' ): WP_REST_Response {
+	private function save( int $post_id, string $html, string $css, string $js = '', string $head = '', ?array $settings_updates = null ): WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
 		$request->set_param( 'post_id', $post_id );
 		$request->set_param( 'html', $html );
@@ -66,6 +67,9 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 		$request->set_param( 'js', $js );
 		$request->set_param( 'jsMode', 'module' );
 		$request->set_param( 'tailwindEnabled', false );
+		if ( null !== $settings_updates ) {
+			$request->set_param( 'settingsUpdates', $settings_updates );
+		}
 		return Rest_Save::save( $request );
 	}
 
@@ -149,6 +153,59 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 		$data     = $response->get_data();
 		$this->assertNull( $data['revision'] );
 		$this->assertCount( 2, $this->get_complete_revision_ids( $page['post_id'] ) );
+	}
+
+	/**
+	 * Persisted editor changes receive a snapshot when a later settings update fails.
+	 */
+	public function test_settings_failure_keeps_snapshot_for_persisted_editor_changes(): void {
+		$this->require_snapshot_support();
+		$page         = $this->create_page();
+		$update_count = 0;
+		$fail_second  = static function ( $maybe_empty, $postarr ) use ( $page, &$update_count ) {
+			if ( isset( $postarr['ID'] ) && (int) $postarr['ID'] === $page['post_id'] ) {
+				++$update_count;
+				if ( 2 === $update_count ) {
+					return true;
+				}
+			}
+			return $maybe_empty;
+		};
+		add_filter( 'wp_insert_post_empty_content', $fail_second, 10, 2 );
+		try {
+			$response = $this->save(
+				$page['post_id'],
+				'<main>Persisted despite settings error</main>',
+				'.persisted{}',
+				'',
+				'',
+				array( 'title' => 'Settings update fails' )
+			);
+		} finally {
+			remove_filter( 'wp_insert_post_empty_content', $fail_second, 10 );
+		}
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( '<main>Persisted despite settings error</main>', get_post( $page['post_id'] )->post_content );
+		$revision_ids = $this->get_complete_revision_ids( $page['post_id'] );
+		$this->assertCount( 1, $revision_ids );
+		$snapshot = Snapshot::for_revision( $revision_ids[0] );
+		$this->assertIsArray( $snapshot );
+		$this->assertSame( '<main>Persisted despite settings error</main>', $snapshot['html'] );
+		$this->assertSame( '.persisted{}', $snapshot['css'] );
+		$this->assertSame( 9, has_action( 'wp_after_insert_post', 'wp_save_post_revision_on_insert' ) );
+		$this->assertSame( 10, has_action( 'post_updated', 'wp_save_post_revision' ) );
+
+		$retry = $this->save(
+			$page['post_id'],
+			'<main>Persisted despite settings error</main>',
+			'.persisted{}',
+			'',
+			'',
+			array( 'title' => 'Settings retry succeeds' )
+		);
+		$this->assertSame( 200, $retry->get_status() );
+		$this->assertCount( 1, $this->get_complete_revision_ids( $page['post_id'] ) );
 	}
 
 	/**

@@ -125,7 +125,7 @@ export function HistoryPanel(props: HistoryPanelProps) {
     );
   }
 
-  if (!revisionsEnabled) {
+  if (!revisionsEnabled && !loading && items.length === 0) {
     return (
       <div className="kayzart-historyMessage" data-kayzart-history="disabled">
         <strong>{__('Revisions are disabled for this site.', 'kayzart-live-code-editor')}</strong>
@@ -136,6 +136,12 @@ export function HistoryPanel(props: HistoryPanelProps) {
 
   return (
     <div className="kayzart-historyPanel" data-kayzart-history="list">
+      {!revisionsEnabled ? (
+        <div className="kayzart-historyNotice" data-kayzart-history="disabled">
+          <strong>{__('Revisions are disabled for this site.', 'kayzart-live-code-editor')}</strong>
+          <p>{__('Enable WordPress revisions to keep full-page history.', 'kayzart-live-code-editor')}</p>
+        </div>
+      ) : null}
       {!canLoad ? (
         <div className="kayzart-historyNotice">
           {__('You can view history, but loading a complete version requires unfiltered HTML permission.', 'kayzart-live-code-editor')}

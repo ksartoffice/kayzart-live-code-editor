@@ -71,6 +71,51 @@ describe('HistoryPanel', () => {
     expect(container.textContent).toContain('No full-page revisions yet.');
   });
 
+  it('shows existing snapshots alongside the disabled revisions warning', async () => {
+    const apiFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        supported: true,
+        minVersion: '6.4',
+        currentVersion: '6.4',
+        revisionsEnabled: false,
+        canLoad: true,
+        revisions: [{ id: 9, date: '2026-07-14T10:00:00Z', dateGmt: '2026-07-14T10:00:00Z', author: { id: 1, name: 'Admin' }, changedSections: ['css'], isFirst: false }],
+        pagination: { page: 1, perPage: 20, total: 1, totalPages: 1 },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        revision: { id: 9, snapshot: { html: '<main>Saved</main>', customHead: '', css: '.saved{}', js: '', jsMode: 'classic', baseHash: 'saved' } },
+      });
+    const onLoadSnapshot = vi.fn();
+    const { container } = await renderPanel({ apiFetch, onLoadSnapshot });
+
+    expect(container.textContent).toContain('Revisions are disabled for this site.');
+    expect(container.textContent).toContain('Admin');
+    const button = container.querySelector('.kayzart-historyLoad') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    await act(async () => button.click());
+    expect(onLoadSnapshot).toHaveBeenCalledOnce();
+  });
+
+  it('shows only the disabled revisions message when no snapshots exist', async () => {
+    const apiFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      supported: true,
+      minVersion: '6.4',
+      currentVersion: '6.4',
+      revisionsEnabled: false,
+      canLoad: true,
+      revisions: [],
+      pagination: { page: 1, perPage: 20, total: 0, totalPages: 0 },
+    });
+    const { container } = await renderPanel({ apiFetch });
+    expect(container.querySelector('[data-kayzart-history="disabled"]')).not.toBeNull();
+    expect(container.querySelector('[data-kayzart-history="list"]')).toBeNull();
+    expect(container.textContent).not.toContain('No full-page revisions yet.');
+  });
+
   it('loads a selected revision into the editor', async () => {
     const snapshot = { html: '<main>Old</main>', customHead: '', css: '.old{}', js: '', jsMode: 'classic', baseHash: 'x' };
     const apiFetch = vi

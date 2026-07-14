@@ -4,7 +4,7 @@ Tags: landing page, custom html, html editor, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.2.3
+Stable tag: 2.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,10 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 7. Select preview text and refine the matching element from the Elements panel.
 
 == Changelog ==
+= 2.3.0 =
+* Add: Keep full-page revision history for HTML, CSS, JavaScript, and page settings.
+* Add: Load complete saved versions from the editor settings.
+
 = 2.2.3 =
 * Add: Duplicate an existing landing page as a draft from the page list.
 

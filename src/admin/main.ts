@@ -57,11 +57,7 @@ import { createPreviewRenderScheduler, debounce, type PreviewRenderScheduler } f
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
-import {
-  readWorkspaceMode,
-  saveWorkspaceMode,
-  type WorkspaceMode,
-} from './workspace-mode';
+import { resolveWorkspaceMode, type WorkspaceMode } from './workspace-mode';
 import {
   compileTailwindSnapshot,
   createTailwindCompiler,
@@ -181,7 +177,7 @@ async function main() {
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
   let preview: PreviewController | null = null;
-  let workspaceMode: WorkspaceMode = readWorkspaceMode();
+  let workspaceMode: WorkspaceMode = resolveWorkspaceMode(cfg.defaultWorkspaceMode);
   const restoreCapturedPreviewScroll = () => {
     preview?.restoreCapturedScrollPosition();
     window.requestAnimationFrame(() => preview?.restoreCapturedScrollPosition());
@@ -385,9 +381,8 @@ async function main() {
 
   const setWorkspaceMode = (
     nextMode: WorkspaceMode,
-    options: { persist?: boolean; captureCreatorLayout?: boolean } = {}
+    options: { captureCreatorLayout?: boolean } = {}
   ) => {
-    const persist = options.persist !== false;
     const captureCreatorLayout = options.captureCreatorLayout !== false;
     if (nextMode === 'client' && workspaceMode === 'creator' && captureCreatorLayout) {
       creatorLayout = {
@@ -397,9 +392,6 @@ async function main() {
       };
     }
     workspaceMode = nextMode;
-    if (persist) {
-      saveWorkspaceMode(nextMode);
-    }
     ui.app.classList.toggle('is-client-mode', nextMode === 'client');
     toolbarApi?.update({ workspaceMode: nextMode });
     settingsApi?.setWorkspaceMode(nextMode);
@@ -2045,7 +2037,7 @@ async function main() {
     elementsApi,
     workspaceMode,
   });
-  setWorkspaceMode(workspaceMode, { persist: false, captureCreatorLayout: false });
+  setWorkspaceMode(workspaceMode, { captureCreatorLayout: false });
   publishExtensionApi();
 
   const handleViewportResize = debounce(() => {

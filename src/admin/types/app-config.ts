@@ -18,6 +18,7 @@ export type AppConfig = {
   setupRestUrl: string;
   settingsRestUrl: string;
   settingsData: SettingsData;
+  defaultWorkspaceMode?: 'creator' | 'client';
   backUrl?: string;
   listUrl?: string;
   listLabel?: string;

@@ -89,6 +89,48 @@ body.admin_page_kayzart #wpbody-content {
   justify-self: center;
 }
 
+.kayzart-workspaceMode {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid #3c434a;
+  border-radius: 6px;
+  background: #1d2327;
+}
+
+.kayzart-workspaceModeButton {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  color: #a7aaad;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.kayzart-workspaceModeButton:hover,
+.kayzart-workspaceModeButton:focus-visible {
+  color: #fff;
+}
+
+.kayzart-workspaceModeButton.is-active {
+  color: #fff;
+  background: #2271b1;
+}
+
+.kayzart-settingsPanelTitle {
+  padding: 0 12px;
+  color: #f0f0f1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.kayzart-app.is-client-mode .kayzart-settingsResizer {
+  display: none;
+}
+
 .kayzart-toolbarRight {
   display: flex;
   align-items: center;

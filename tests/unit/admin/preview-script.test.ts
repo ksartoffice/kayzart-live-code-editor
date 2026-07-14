@@ -428,6 +428,34 @@ describe('preview selector overlay', () => {
     expect(menu?.style.display).toBe('none');
   });
 
+  it('keeps selection but hides unsafe actions in client mode', async () => {
+    setupPreviewDocument();
+    const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+
+    window.eval(previewScript);
+    dispatchPreviewMessage({ type: 'KAYZART_INIT' });
+    dispatchPreviewMessage({
+      type: 'KAYZART_RENDER',
+      canonicalHTML: '<section data-kayzart-id="section-1">Text</section>',
+      cssText: '',
+      bodyAttrs: {},
+      hasBody: false,
+      templateMode: 'standalone',
+    });
+    await flushAsync();
+
+    const section = document.querySelector('[data-kayzart-id="section-1"]');
+    section?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    dispatchPreviewMessage({ type: 'KAYZART_SET_WORKSPACE_MODE', mode: 'client' });
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'KAYZART_SELECT', lcId: 'section-1' }),
+      window.location.origin
+    );
+    expect(document.getElementById('kayzart-select-box')?.style.display).toBe('block');
+    expect(document.getElementById('kayzart-select-menu-action')?.style.display).toBe('none');
+  });
+
   it('keeps the context menu button visible and disables parent navigation without a parent', async () => {
     document.body.innerHTML = [
       '<span data-kayzart-marker="start" data-kayzart-post-id="1" hidden></span>',

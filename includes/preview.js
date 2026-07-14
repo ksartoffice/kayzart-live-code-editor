@@ -34,6 +34,7 @@
   let selectActionCopyMenuItem = null;
   let selectActionDeleteMenuItem = null;
   let elementsTabOpen = false;
+  let clientMode = false;
   let markerNodes = null;
   let htmlScriptsReady = Promise.resolve();
   let customHeadToken = 0;
@@ -466,6 +467,9 @@
   }
 
   function openSelectContextMenu() {
+    if (clientMode) {
+      return;
+    }
     if (!selectTarget) {
       return;
     }
@@ -512,18 +516,14 @@
     const size = 32;
     const gap = 6;
     const padding = 6;
-    const showAddonButton =
+    const showAddonButton = !clientMode &&
       Boolean(selectActionAddonButton) &&
       (!elementsTabOpen ||
         Boolean(overlayActionConfig && overlayActionConfig.showWhenElementsTabOpen));
-    const showEditButton = !elementsTabOpen && Boolean(selectActionEditButton);
-    const showMenuButton = Boolean(selectActionMenuButton);
+    const showEditButton = !clientMode && !elementsTabOpen && Boolean(selectActionEditButton);
+    const showMenuButton = !clientMode && Boolean(selectActionMenuButton);
     const buttonCount =
       (showAddonButton ? 1 : 0) + (showEditButton ? 1 : 0) + (showMenuButton ? 1 : 0);
-    if (buttonCount === 0) {
-      hideSelectActionButtons();
-      return;
-    }
     if (selectActionAddonButton) {
       selectActionAddonButton.style.display = showAddonButton ? 'flex' : 'none';
     }
@@ -532,6 +532,10 @@
     }
     if (selectActionMenuButton) {
       selectActionMenuButton.style.display = showMenuButton ? 'flex' : 'none';
+    }
+    if (buttonCount === 0) {
+      hideSelectActionButtons();
+      return;
     }
     const groupWidth = size * buttonCount + gap * (buttonCount - 1);
     const maxTop = window.innerHeight - size - padding;
@@ -596,6 +600,14 @@
 
   function setElementsTabOpen(open) {
     elementsTabOpen = Boolean(open);
+    updateSelectActionPosition();
+  }
+
+  function setWorkspaceMode(mode) {
+    clientMode = mode === 'client';
+    if (clientMode) {
+      closeSelectContextMenu();
+    }
     updateSelectActionPosition();
   }
 
@@ -2188,6 +2200,10 @@
     if (data.type === 'KAYZART_SET_ELEMENTS_TAB_OPEN') {
       if (!isReady) return;
       setElementsTabOpen(Boolean(data.open));
+    }
+    if (data.type === 'KAYZART_SET_WORKSPACE_MODE') {
+      if (!isReady) return;
+      setWorkspaceMode(data.mode);
     }
     if (data.type === 'KAYZART_RUN_JS') {
       if (!isReady) return;

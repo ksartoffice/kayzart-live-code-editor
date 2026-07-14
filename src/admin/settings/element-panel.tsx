@@ -65,6 +65,7 @@ export type ElementPanelApi = {
 
 type ElementPanelProps = {
   api?: ElementPanelApi;
+  mode?: 'creator' | 'client';
 };
 
 const LIVE_TEXT_COMMIT_DELAY_MS = 250;
@@ -110,7 +111,7 @@ function hasResponsiveImageSources(imageInfo: ElementPanelImageInfo | null) {
   );
 }
 
-export function ElementPanel({ api }: ElementPanelProps) {
+export function ElementPanel({ api, mode = 'creator' }: ElementPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [segments, setSegments] = useState<ElementPanelTextSegment[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -580,7 +581,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
               </label>
             </div>
           ) : null}
-          {actionInfo.tagName === 'button' ? (
+          {mode !== 'client' && actionInfo.tagName === 'button' ? (
             <label className="kayzart-elementsToggle">
               <input
                 type="checkbox"
@@ -688,7 +689,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
         </div>
       ) : null}
 
-      <details className="kayzart-formGroup">
+      {mode !== 'client' ? <details className="kayzart-formGroup">
         <summary className="kayzart-formLabel">{__( 'Advanced settings', 'kayzart-live-code-editor')}</summary>
         <div className="kayzart-settingsScriptList">
           {attributes.map((attr, index) => (
@@ -725,7 +726,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
             {__( 'Add attribute', 'kayzart-live-code-editor')}
           </button>
         </div>
-      </details>
+      </details> : null}
     </div>
   );
 }

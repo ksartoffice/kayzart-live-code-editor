@@ -58,6 +58,11 @@ import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
 import {
+  readWorkspaceMode,
+  saveWorkspaceMode,
+  type WorkspaceMode,
+} from './workspace-mode';
+import {
   compileTailwindSnapshot,
   createTailwindCompiler,
   type TailwindCompiler,
@@ -176,6 +181,7 @@ async function main() {
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
   let preview: PreviewController | null = null;
+  let workspaceMode: WorkspaceMode = readWorkspaceMode();
   const restoreCapturedPreviewScroll = () => {
     preview?.restoreCapturedScrollPosition();
     window.requestAnimationFrame(() => preview?.restoreCapturedScrollPosition());
@@ -249,6 +255,11 @@ async function main() {
   let tailwindCss = '';
   let settingsOpen = false;
   let activeSettingsTab = 'settings';
+  let creatorLayout = {
+    editorCollapsed: cfg.defaultEditorLayout === 'code_hidden',
+    settingsOpen: false,
+    activeSettingsTab: 'settings',
+  };
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
@@ -361,12 +372,52 @@ async function main() {
   const getResolvedTemplateMode = () => (templateMode === 'default' ? defaultTemplateMode : templateMode);
   const isThemeTemplateModeActive = () => getResolvedTemplateMode() === 'theme';
 
-  const setSettingsOpen = (open: boolean) => {
+  const setSettingsOpen = (open: boolean, force = false) => {
+    if (workspaceMode === 'client' && !open && !force) {
+      return;
+    }
     settingsOpen = open;
     ui.app.classList.toggle('is-settings-open', open);
     toolbarApi?.update({ settingsOpen: open });
     syncElementsTabState();
     viewportController.applyViewportLayout();
+  };
+
+  const setWorkspaceMode = (
+    nextMode: WorkspaceMode,
+    options: { persist?: boolean; captureCreatorLayout?: boolean } = {}
+  ) => {
+    const persist = options.persist !== false;
+    const captureCreatorLayout = options.captureCreatorLayout !== false;
+    if (nextMode === 'client' && workspaceMode === 'creator' && captureCreatorLayout) {
+      creatorLayout = {
+        editorCollapsed: viewportController.isEditorCollapsed(),
+        settingsOpen,
+        activeSettingsTab: activeSettingsTab === 'elements' ? 'settings' : activeSettingsTab,
+      };
+    }
+    workspaceMode = nextMode;
+    if (persist) {
+      saveWorkspaceMode(nextMode);
+    }
+    ui.app.classList.toggle('is-client-mode', nextMode === 'client');
+    toolbarApi?.update({ workspaceMode: nextMode });
+    settingsApi?.setWorkspaceMode(nextMode);
+    preview?.sendWorkspaceMode(nextMode);
+
+    if (nextMode === 'client') {
+      viewportController.setEditorCollapsed(true);
+      setSettingsOpen(true, true);
+      activeSettingsTab = 'elements';
+      settingsApi?.openTab('elements');
+    } else {
+      viewportController.setEditorCollapsed(creatorLayout.editorCollapsed);
+      activeSettingsTab = creatorLayout.activeSettingsTab;
+      settingsApi?.openTab(creatorLayout.activeSettingsTab);
+      setSettingsOpen(creatorLayout.settingsOpen, true);
+    }
+    syncElementsTabState();
+    updateUndoRedoState();
   };
 
   const applySavedSettings = (nextSettings: SettingsData, refreshPreview: boolean) => {
@@ -735,10 +786,15 @@ async function main() {
       postStatus,
       postTitle,
       postSlug,
+      workspaceMode,
     },
     {
-      onUndo: () => editorUiController?.getActiveEditor()?.trigger('toolbar', 'undo', null),
-      onRedo: () => editorUiController?.getActiveEditor()?.trigger('toolbar', 'redo', null),
+      onUndo: () =>
+        (workspaceMode === 'client' ? htmlEditor : editorUiController?.getActiveEditor())
+          ?.trigger('toolbar', 'undo', null),
+      onRedo: () =>
+        (workspaceMode === 'client' ? htmlEditor : editorUiController?.getActiveEditor())
+          ?.trigger('toolbar', 'redo', null),
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
       onRefreshPreview: () => {
@@ -755,6 +811,11 @@ async function main() {
         return handleDownloadFullHtmlExport();
       },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
+      onWorkspaceModeChange: (mode) => {
+        if (mode !== workspaceMode) {
+          setWorkspaceMode(mode);
+        }
+      },
       onViewportChange: changeViewportPreservingScroll,
       onUpdatePostIdentity: async ({ title, slug }) => {
         if (!cfg.settingsRestUrl || !wp?.apiFetch) {
@@ -1566,6 +1627,13 @@ async function main() {
       action: { href?: string; targetBlank?: boolean; disabled?: boolean }
     ) => {
       const info = getElementActionInfo(htmlModel.getValue(), lcId);
+      if (
+        workspaceMode === 'client' &&
+        info?.tagName === 'button' &&
+        action.disabled !== undefined
+      ) {
+        return false;
+      }
       const attrsInfo = info
         ? getEditableElementAttributes(htmlModel.getValue(), info.actionLcId)
         : null;
@@ -1637,12 +1705,17 @@ async function main() {
       return info ? info.attributes : null;
     },
     updateElementAttributes: (lcId: string, attributes: { name: string; value: string }[]) => {
+      if (workspaceMode === 'client') {
+        return false;
+      }
       return applyElementAttributes(lcId, attributes);
     },
   };
 
   const updateUndoRedoState = () => {
-    const model = editorUiController?.getActiveEditor()?.getModel();
+    const model = workspaceMode === 'client'
+      ? htmlModel
+      : editorUiController?.getActiveEditor()?.getModel();
     const canUndo = Boolean(model && model.canUndo());
     const canRedo = Boolean(model && model.canRedo());
     toolbarApi?.update({ canUndo, canRedo });
@@ -1706,20 +1779,18 @@ async function main() {
       notifySelection();
     },
     onOpenElementsTab: () => {
-      if (!settingsOpen) {
-        setSettingsOpen(true);
-      }
-      if (activeSettingsTab !== 'elements') {
-        settingsApi?.openTab('elements');
-      }
+      setWorkspaceMode('client');
     },
     onCopyElementHtml: (lcId) => {
+      if (workspaceMode === 'client') return;
       void handleCopyElementHtml(lcId);
     },
     onDeleteElement: (lcId) => {
+      if (workspaceMode === 'client') return;
       handleDeleteElement(lcId);
     },
     onOverlayAction: (actionId) => {
+      if (workspaceMode === 'client') return;
       window.dispatchEvent(
         new CustomEvent(PREVIEW_OVERLAY_ACTION_EVENT, {
           detail: {
@@ -1903,6 +1974,11 @@ async function main() {
   };
 
   const openSettingsTab = (tabId: string) => {
+    if (workspaceMode === 'client') {
+      setSettingsOpen(true);
+      settingsApi?.openTab('elements');
+      return;
+    }
     if (!settingsOpen) {
       setSettingsOpen(true);
     }
@@ -1962,7 +2038,9 @@ async function main() {
     },
     onClosePanel: () => setSettingsOpen(false),
     elementsApi,
+    workspaceMode,
   });
+  setWorkspaceMode(workspaceMode, { persist: false, captureCreatorLayout: false });
   publishExtensionApi();
 
   const handleViewportResize = debounce(() => {

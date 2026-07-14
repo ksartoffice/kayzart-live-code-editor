@@ -2,6 +2,7 @@ import * as parse5 from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
 import { EditorRange, type CodeEditorInstance, type EditorModel } from './codemirror';
 import type { JsMode } from './types/js-mode';
+import type { WorkspaceMode } from './workspace-mode';
 import {
   mediaQueriesMatch,
   parseCssRules,
@@ -27,6 +28,7 @@ export type PreviewController = {
   sendCssUpdate: (cssText: string) => void;
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
+  sendWorkspaceMode: (mode: WorkspaceMode) => void;
   requestReloadPreview: () => void;
   saveScrollPosition: () => void;
   restoreSavedScrollPosition: () => void;
@@ -230,6 +232,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let pendingReloadAppliedNotice = false;
   let initialJsPending = true;
   let pendingElementsTabOpen: boolean | null = null;
+  let workspaceMode: WorkspaceMode = 'creator';
   let canonicalCache: CanonicalResult | null = null;
   let canonicalCacheHtml = '';
   let canonicalDomCacheHtml = '';
@@ -446,6 +449,17 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     });
   };
 
+  const sendWorkspaceMode = (mode: WorkspaceMode) => {
+    workspaceMode = mode;
+    if (!previewReady) {
+      return;
+    }
+    postToPreview({
+      type: 'KAYZART_SET_WORKSPACE_MODE',
+      mode,
+    });
+  };
+
   const queueInitialJsRun = () => {
     if (!initialJsPending || !deps.getJsEnabled() || !deps.jsModel) {
       return;
@@ -622,6 +636,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       } else {
         sendElementsTabState(elementsTabOpen);
       }
+      sendWorkspaceMode(workspaceMode);
     }
 
     if (data?.type === 'KAYZART_RENDERED') {
@@ -668,6 +683,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     sendCssUpdate,
     sendLiveHighlightUpdate,
     sendElementsTabState,
+    sendWorkspaceMode,
     requestReloadPreview,
     saveScrollPosition,
     restoreSavedScrollPosition,

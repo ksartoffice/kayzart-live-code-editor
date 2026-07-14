@@ -460,5 +460,40 @@ describe('preview shortcode handling', () => {
       'https://example.com'
     );
   });
+
+  it('notifies the preview iframe about client mode after it is ready', () => {
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const controller = createPreviewController({
+      iframe: { contentWindow } as unknown as HTMLIFrameElement,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: createModel('<div>hello</div>') as any,
+      customHeadModel: createModel('') as any,
+      cssModel: createModel('') as any,
+      jsModel: createModel('') as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getCustomHead: () => '',
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getResolvedTemplateMode: () => 'standalone',
+    });
+
+    controller.sendWorkspaceMode('client');
+    controller.handleMessage({
+      origin: 'https://example.com',
+      source: contentWindow,
+      data: { type: 'KAYZART_READY' },
+    } as MessageEvent);
+
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'KAYZART_SET_WORKSPACE_MODE', mode: 'client' },
+      'https://example.com'
+    );
+  });
 });
 

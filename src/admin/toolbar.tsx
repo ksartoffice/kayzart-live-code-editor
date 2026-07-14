@@ -32,6 +32,7 @@ import {
   subscribeExternalToolbarActions,
   type ResolvedToolbarAction,
 } from './extensions/toolbar-action-registry';
+import type { WorkspaceMode } from './workspace-mode';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
@@ -51,6 +52,7 @@ type ToolbarState = {
   postStatus: string;
   postTitle: string;
   postSlug: string;
+  workspaceMode: WorkspaceMode;
 };
 
 type ToolbarHandlers = {
@@ -72,6 +74,7 @@ type ToolbarHandlers = {
     ok: boolean;
     error?: string;
   }>;
+  onWorkspaceModeChange: (mode: WorkspaceMode) => void;
 };
 
 export type ToolbarApi = {
@@ -158,6 +161,7 @@ function Toolbar({
   postStatus,
   postTitle,
   postSlug,
+  workspaceMode,
   viewportMode,
   onUndo,
   onRedo,
@@ -171,6 +175,7 @@ function Toolbar({
   onViewportChange,
   onUpdatePostIdentity,
   onUpdateStatus,
+  onWorkspaceModeChange,
 }: ToolbarState & ToolbarHandlers) {
   const [titleModalOpen, setTitleModalOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -221,6 +226,7 @@ function Toolbar({
   const importFullHtmlLabel = __( 'Import full HTML', 'kayzart-live-code-editor');
   const copyFullHtmlLabel = __( 'Copy full HTML', 'kayzart-live-code-editor');
   const downloadHtmlLabel = __( 'Download full HTML', 'kayzart-live-code-editor');
+  const isClientMode = workspaceMode === 'client';
   const resolvedListLabel = listLabel || __( 'Posts', 'kayzart-live-code-editor');
   const saveLabel =
     normalizedStatus === 'draft'
@@ -316,6 +322,15 @@ function Toolbar({
       document.removeEventListener('click', handleDocClick);
     };
   }, [saveMenuOpen, exportMenuOpen]);
+
+  useEffect(() => {
+    if (!isClientMode) {
+      return;
+    }
+    setTitleModalOpen(false);
+    setSaveMenuOpen(false);
+    setExportMenuOpen(false);
+  }, [isClientMode]);
 
   const toggleSaveMenu = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
@@ -451,15 +466,37 @@ function Toolbar({
           className="kayzart-toolbarTitle"
           data-tooltip={titleTooltip}
           aria-label={titleText}
-          role="button"
-          tabIndex={0}
-          onClick={openTitleModal}
-          onKeyDown={handleTitleKeyDown}
+          role={isClientMode ? undefined : 'button'}
+          tabIndex={isClientMode ? undefined : 0}
+          onClick={isClientMode ? undefined : openTitleModal}
+          onKeyDown={isClientMode ? undefined : handleTitleKeyDown}
         >
           <span className="kayzart-toolbarTitleText">{resolvedTitle}</span>
           {draftSuffix ? (
             <span className="kayzart-toolbarTitleSuffix">{draftSuffix}</span>
           ) : null}
+        </div>
+        <div
+          className="kayzart-workspaceMode"
+          role="group"
+          aria-label={__( 'Editing mode', 'kayzart-live-code-editor')}
+        >
+          <button
+            className={`kayzart-workspaceModeButton${workspaceMode === 'creator' ? ' is-active' : ''}`}
+            type="button"
+            aria-pressed={workspaceMode === 'creator'}
+            onClick={() => onWorkspaceModeChange('creator')}
+          >
+            {__( 'Creator', 'kayzart-live-code-editor')}
+          </button>
+          <button
+            className={`kayzart-workspaceModeButton${workspaceMode === 'client' ? ' is-active' : ''}`}
+            type="button"
+            aria-pressed={workspaceMode === 'client'}
+            onClick={() => onWorkspaceModeChange('client')}
+          >
+            {__( 'Client', 'kayzart-live-code-editor')}
+          </button>
         </div>
         <div className="kayzart-toolbarCluster kayzart-toolbarCluster-viewports">
           <button
@@ -494,7 +531,7 @@ function Toolbar({
           </button>
         </div>
         <div className="kayzart-toolbarCluster kayzart-toolbarCluster-divider">
-          <button
+          {!isClientMode ? <button
             className="kayzart-btn kayzart-btn-icon"
             type="button"
             onClick={onToggleEditor}
@@ -502,7 +539,7 @@ function Toolbar({
             data-tooltip={toggleLabel}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
-          </button>
+          </button> : null}
           <button
             className="kayzart-btn kayzart-btn-icon"
             type="button"
@@ -514,7 +551,7 @@ function Toolbar({
           </button>
         </div>
       </div>
-      {titleModalOpen ? (
+      {titleModalOpen && !isClientMode ? (
         <div className="kayzart-modal">
           <div className="kayzart-modalBackdrop" onClick={closeTitleModal} />
           <div className="kayzart-modalDialog" role="dialog" aria-modal="true">
@@ -593,7 +630,7 @@ function Toolbar({
             >
               <IconLabel label={saveLabel} svg={ICONS.save} />
             </button>
-            <button
+            {!isClientMode ? <button
               className={`kayzart-btn kayzart-btn-save kayzart-btn-icon kayzart-splitButton-toggle${hasUnsavedChanges ? ' is-unsaved' : ''}`}
               type="button"
               aria-haspopup="menu"
@@ -603,8 +640,8 @@ function Toolbar({
               onClick={toggleSaveMenu}
             >
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.chevronDown }} />
-            </button>
-            {saveMenuOpen ? (
+            </button> : null}
+            {saveMenuOpen && !isClientMode ? (
               <div
                 className="kayzart-splitMenu"
                 role="menu"
@@ -668,7 +705,7 @@ function Toolbar({
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.viewPost }} />
             </a>
           ) : null}
-          <div className="kayzart-exportMenu">
+          {!isClientMode ? <div className="kayzart-exportMenu">
             <button
               className="kayzart-btn kayzart-btn-icon kayzart-btn-export"
               type="button"
@@ -714,9 +751,9 @@ function Toolbar({
                 </div>
               </div>
             ) : null}
-          </div>
-          {beforeSettingsActions.map(renderExternalToolbarAction)}
-          <button
+          </div> : null}
+          {!isClientMode ? beforeSettingsActions.map(renderExternalToolbarAction) : null}
+          {!isClientMode ? <button
             className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}`}
             type="button"
             onClick={onToggleSettings}
@@ -726,8 +763,8 @@ function Toolbar({
             data-tooltip={settingsTitle}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
-          </button>
-          {afterSettingsActions.map(renderExternalToolbarAction)}
+          </button> : null}
+          {!isClientMode ? afterSettingsActions.map(renderExternalToolbarAction) : null}
         </div>
       </div>
     </Fragment>

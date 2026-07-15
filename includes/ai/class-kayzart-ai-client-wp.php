@@ -1,17 +1,14 @@
 <?php
 /**
- * WordPress AI Client adapter (reference implementation).
+ * WordPress AI Client adapter.
  *
  * Implements {@see Ai_Client_Interface} on top of the WordPress 7.0 AI Client /
  * PHP AI Client SDK.
  *
- * UNVERIFIED: the SDK method and DTO names used below are taken from the
- * documented API and MUST be verified against the installed SDK version. Live
- * generation is therefore disabled by default and only runs when the
- * `kayzart_ai_wp_client_enabled` filter returns true (used during verification);
- * otherwise {@see generate()} throws. All SDK symbols are referenced only inside
- * the guarded code path, so this file loads safely when the SDK is absent, and
- * the agent loop is exercised with {@see Ai_Client_Fake} until verification.
+ * Uses the WordPress-native prompt builder so provider discovery, credentials,
+ * HTTP transport and WP_Error conversion stay under WordPress control. SDK
+ * symbols are referenced only after the availability guard, so the plugin still
+ * loads safely on WordPress versions without the AI Client.
  *
  * @package KayzArt
  */
@@ -44,20 +41,12 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	 * @param array $options  Generation options.
 	 * @return array Normalized result (toolCalls/text/usage).
 	 *
-	 * @throws Ai_Client_Exception When the SDK is unavailable, disabled, or the
-	 *                             request fails.
+	 * @throws Ai_Client_Exception When the SDK is unavailable or the request fails.
 	 */
 	public function generate( array $messages, array $tools, array $options = array() ): array {
 		if ( ! Ai_Availability::is_sdk_present() ) {
 			throw new Ai_Client_Exception( 'WordPress AI Client SDK is not available.', false );
 		}
-		if ( ! self::live_generation_enabled() ) {
-			throw new Ai_Client_Exception(
-				'Ai_Client_Wp live generation is disabled until the SDK mapping is verified. Enable it via the kayzart_ai_wp_client_enabled filter after verification.',
-				false
-			);
-		}
-
 		try {
 			$sdk_result = $this->run_sdk_turn( $messages, $tools, $options );
 		} catch ( Ai_Client_Exception $error ) {
@@ -66,25 +55,15 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 			throw new Ai_Client_Exception( 'AI Client request failed: ' . $error->getMessage(), true );
 		}
 
-		return array(
-			'toolCalls' => $this->extract_tool_calls( $sdk_result ),
-			'text'      => $this->extract_text( $sdk_result ),
-			'usage'     => $this->extract_usage( $sdk_result ),
-		);
-	}
-
-	/**
-	 * Whether live generation is enabled (opt-in during SDK verification).
-	 *
-	 * @return bool
-	 */
-	private static function live_generation_enabled(): bool {
-		/**
-		 * Enable the (unverified) live WordPress AI Client generation path.
-		 *
-		 * @param bool $enabled Whether live generation is enabled.
-		 */
-		return (bool) apply_filters( 'kayzart_ai_wp_client_enabled', false );
+		try {
+			return array(
+				'toolCalls' => $this->extract_tool_calls( $sdk_result ),
+				'text'      => $this->extract_text( $sdk_result ),
+				'usage'     => $this->extract_usage( $sdk_result ),
+			);
+		} catch ( \Throwable $error ) {
+			throw new Ai_Client_Exception( 'AI Client returned an invalid result: ' . $error->getMessage(), true );
+		}
 	}
 
 	/**
@@ -94,12 +73,13 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	 * @param array $tools    Tool definitions.
 	 * @param array $options  Options (systemInstruction/jsonSchema/modelPreference).
 	 * @return mixed SDK result object.
+	 * @throws Ai_Client_Exception When WordPress returns a generation error.
 	 */
 	private function run_sdk_turn( array $messages, array $tools, array $options ) {
 		$sdk_messages = $this->to_sdk_messages( $messages );
 		$declarations = $this->to_function_declarations( $tools );
 
-		$builder = \WordPress\AI_Client\AI_Client::prompt( $sdk_messages );
+		$builder = wp_ai_client_prompt( $sdk_messages );
 
 		if ( count( $declarations ) > 0 ) {
 			$builder = $builder->using_function_declarations( ...$declarations );
@@ -108,10 +88,31 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 			$builder = $builder->using_system_instruction( (string) $options['systemInstruction'] );
 		}
 		if ( isset( $options['jsonSchema'] ) && is_array( $options['jsonSchema'] ) ) {
-			$builder = $builder->as_json_response( self::schema_to_object( $options['jsonSchema'] ) );
+			$builder = $builder->as_json_response( $options['jsonSchema'] );
+		}
+		if ( isset( $options['modelPreference'] ) && is_array( $options['modelPreference'] ) ) {
+			$preferences = array_values(
+				array_filter(
+					$options['modelPreference'],
+					static function ( $preference ) {
+						return is_string( $preference ) && '' !== $preference;
+					}
+				)
+			);
+			if ( count( $preferences ) > 0 ) {
+				$builder = $builder->using_model_preference( ...$preferences );
+			}
 		}
 
-		return $builder->generate_text_result();
+		$result = $builder->generate_text_result();
+		if ( is_wp_error( $result ) ) {
+			$data      = $result->get_error_data();
+			$status    = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 0;
+			$retryable = 408 === $status || 429 === $status || $status >= 500;
+			throw new Ai_Client_Exception( $result->get_error_message(), $retryable );
+		}
+
+		return $result;
 	}
 
 	/**
@@ -162,11 +163,14 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 				continue;
 			}
 			$function_call = new \WordPress\AiClient\Tools\DTO\FunctionCall(
-				isset( $call['id'] ) ? (string) $call['id'] : '',
-				isset( $call['name'] ) ? (string) $call['name'] : '',
+				isset( $call['id'] ) && '' !== (string) $call['id'] ? (string) $call['id'] : null,
+				isset( $call['name'] ) && '' !== (string) $call['name'] ? (string) $call['name'] : null,
 				isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array()
 			);
-			$parts[]       = new \WordPress\AiClient\Messages\DTO\MessagePart( $function_call );
+			$signature     = isset( $call['thoughtSignature'] ) && is_string( $call['thoughtSignature'] )
+				? $call['thoughtSignature']
+				: null;
+			$parts[]       = new \WordPress\AiClient\Messages\DTO\MessagePart( $function_call, null, $signature );
 		}
 		return $parts;
 	}
@@ -184,8 +188,8 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 				continue;
 			}
 			$function_response = new \WordPress\AiClient\Tools\DTO\FunctionResponse(
-				isset( $response['callId'] ) ? (string) $response['callId'] : '',
-				isset( $response['name'] ) ? (string) $response['name'] : '',
+				isset( $response['callId'] ) && '' !== (string) $response['callId'] ? (string) $response['callId'] : null,
+				isset( $response['name'] ) && '' !== (string) $response['name'] ? (string) $response['name'] : null,
 				isset( $response['output'] ) ? $response['output'] : null
 			);
 			$parts[]           = new \WordPress\AiClient\Messages\DTO\MessagePart( $function_response );
@@ -206,8 +210,8 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 				continue;
 			}
 			$parameters     = isset( $tool['parameters'] ) && is_array( $tool['parameters'] )
-				? self::schema_to_object( $tool['parameters'] )
-				: new \stdClass();
+				? $tool['parameters']
+				: null;
 			$declarations[] = new \WordPress\AiClient\Tools\DTO\FunctionDeclaration(
 				(string) $tool['name'],
 				isset( $tool['description'] ) ? (string) $tool['description'] : '',
@@ -231,11 +235,18 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 				if ( null === $call ) {
 					continue;
 				}
-				$tool_calls[] = array(
+				$normalized = array(
 					'id'   => method_exists( $call, 'getId' ) ? (string) $call->getId() : '',
 					'name' => method_exists( $call, 'getName' ) ? (string) $call->getName() : '',
 					'args' => method_exists( $call, 'getArgs' ) && is_array( $call->getArgs() ) ? $call->getArgs() : array(),
 				);
+				if ( is_object( $part ) && method_exists( $part, 'getThoughtSignature' ) ) {
+					$signature = $part->getThoughtSignature();
+					if ( is_string( $signature ) && '' !== $signature ) {
+						$normalized['thoughtSignature'] = $signature;
+					}
+				}
+				$tool_calls[] = $normalized;
 			}
 		}
 		return $tool_calls;
@@ -248,10 +259,23 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	 * @return string
 	 */
 	private function extract_text( $sdk_result ): string {
-		if ( is_object( $sdk_result ) && method_exists( $sdk_result, 'toText' ) ) {
-			return trim( (string) $sdk_result->toText() );
+		$texts = array();
+		foreach ( $this->result_candidates( $sdk_result ) as $candidate ) {
+			foreach ( $this->candidate_parts( $candidate ) as $part ) {
+				if ( ! is_object( $part ) || ! method_exists( $part, 'getText' ) ) {
+					continue;
+				}
+				$text = $part->getText();
+				if ( ! is_string( $text ) || '' === $text ) {
+					continue;
+				}
+				if ( method_exists( $part, 'getChannel' ) && ! $part->getChannel()->isContent() ) {
+					continue;
+				}
+				$texts[] = $text;
+			}
 		}
-		return '';
+		return trim( implode( "\n", $texts ) );
 	}
 
 	/**
@@ -275,10 +299,10 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 			return $empty;
 		}
 		return array(
-			'inputTokens'           => method_exists( $usage, 'getInputTokens' ) ? (int) $usage->getInputTokens() : 0,
+			'inputTokens'           => method_exists( $usage, 'getPromptTokens' ) ? (int) $usage->getPromptTokens() : 0,
 			'cachedInputTokens'     => method_exists( $usage, 'getCachedInputTokens' ) ? (int) $usage->getCachedInputTokens() : 0,
-			'outputTokens'          => method_exists( $usage, 'getOutputTokens' ) ? (int) $usage->getOutputTokens() : 0,
-			'reasoningOutputTokens' => method_exists( $usage, 'getReasoningTokens' ) ? (int) $usage->getReasoningTokens() : 0,
+			'outputTokens'          => method_exists( $usage, 'getCompletionTokens' ) ? (int) $usage->getCompletionTokens() : 0,
+			'reasoningOutputTokens' => method_exists( $usage, 'getThoughtTokens' ) ? (int) $usage->getThoughtTokens() : 0,
 		);
 	}
 
@@ -312,59 +336,5 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 		}
 		$parts = $message->getParts();
 		return is_array( $parts ) ? $parts : array();
-	}
-
-	/**
-	 * Recursively convert JSON-schema maps into objects for the SDK.
-	 *
-	 * JSON Schema `parameters`, `properties` and `items` must serialize as
-	 * objects. PHP associative arrays already encode as objects, but an EMPTY
-	 * associative array encodes as `[]`; this converts every associative array
-	 * (including empty maps such as `get_selected_context`'s `properties`) into
-	 * an stdClass, while leaving non-empty sequential lists (`enum`, `required`)
-	 * as arrays. Empty arrays are treated as empty objects (`{}`) because the
-	 * tool schemas never place an empty list in a convertible position.
-	 *
-	 * @param mixed $schema Schema fragment.
-	 * @return mixed Object/array tree safe for JSON object encoding.
-	 */
-	public static function schema_to_object( $schema ) {
-		if ( ! is_array( $schema ) ) {
-			return $schema;
-		}
-
-		if ( count( $schema ) === 0 ) {
-			return new \stdClass();
-		}
-
-		if ( self::is_list( $schema ) ) {
-			return array_map( array( __CLASS__, 'schema_to_object' ), $schema );
-		}
-
-		$object = new \stdClass();
-		foreach ( $schema as $key => $value ) {
-			$object->{$key} = self::schema_to_object( $value );
-		}
-		return $object;
-	}
-
-	/**
-	 * Whether an array is a sequential list (0..n integer keys).
-	 *
-	 * @param array $value Array to test.
-	 * @return bool
-	 */
-	private static function is_list( array $value ): bool {
-		if ( function_exists( 'array_is_list' ) ) {
-			return array_is_list( $value );
-		}
-		$expected = 0;
-		foreach ( array_keys( $value ) as $key ) {
-			if ( $key !== $expected ) {
-				return false;
-			}
-			++$expected;
-		}
-		return true;
 	}
 }

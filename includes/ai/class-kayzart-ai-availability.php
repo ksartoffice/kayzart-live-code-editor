@@ -24,15 +24,12 @@ class Ai_Availability {
 	/**
 	 * Whether the AI Client SDK is loaded on this request.
 	 *
-	 * The concrete symbol names are verified against the installed SDK version
-	 * by the adapter; any one of them signals SDK presence.
+	 * The WordPress-native prompt function is the stable public entry point.
 	 *
 	 * @return bool
 	 */
 	public static function is_sdk_present(): bool {
-		$present = function_exists( 'wp_ai_client_prompt' )
-			|| class_exists( 'WordPress\\AI_Client\\AI_Client' )
-			|| class_exists( 'WordPress\\AiClient\\AiClient' );
+		$present = function_exists( 'wp_ai_client_prompt' );
 
 		/**
 		 * Filter AI Client SDK presence detection.
@@ -47,18 +44,21 @@ class Ai_Availability {
 	/**
 	 * Whether a usable AI provider is configured (e.g. via Connectors).
 	 *
-	 * The real Connectors query is wired in a later phase; until then this
-	 * defers to SDK presence and a filter so environments can opt in.
-	 *
 	 * @return bool
 	 */
 	public static function is_provider_configured(): bool {
+		$configured = false;
+		if ( self::is_sdk_present() ) {
+			$builder    = wp_ai_client_prompt( 'Kayzart AI availability check.' );
+			$configured = true === $builder->is_supported_for_text_generation();
+		}
+
 		/**
 		 * Filter whether an AI provider is configured.
 		 *
 		 * @param bool $configured Whether a provider is configured.
 		 */
-		return (bool) apply_filters( 'kayzart_ai_provider_configured', self::is_sdk_present() );
+		return (bool) apply_filters( 'kayzart_ai_provider_configured', $configured );
 	}
 
 	/**

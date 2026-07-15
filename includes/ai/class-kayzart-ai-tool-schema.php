@@ -9,11 +9,8 @@
  * (`type`/`name`/`description`/`parameters`). The AI client wrapper converts
  * them into the concrete `FunctionDeclaration` objects the SDK expects.
  *
- * Note for the conversion layer: JSON Schema maps (`parameters`, `properties`,
- * `items`) must be encoded as JSON objects. Every map here is non-empty except
- * `get_selected_context`'s empty `properties`, which must serialize as `{}`
- * (not `[]`) - cast empty maps with `(object)` or `JSON_FORCE_OBJECT` at the
- * encode boundary.
+ * JSON Schema maps (`parameters`, `properties`, `items`) are represented as PHP
+ * associative arrays, matching the WordPress 7.0 FunctionDeclaration API.
  *
  * @package KayzArt
  */
@@ -163,7 +160,6 @@ class Ai_Tool_Schema {
 				'description' => 'Return selected element context list from the editor if available.',
 				'parameters'  => array(
 					'type'                 => 'object',
-					'properties'           => array(),
 					'additionalProperties' => false,
 				),
 			),

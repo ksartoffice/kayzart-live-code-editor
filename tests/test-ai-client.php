@@ -8,8 +8,6 @@
 use KayzArt\Ai_Message;
 use KayzArt\Ai_Client_Fake;
 use KayzArt\Ai_Client_Exception;
-use KayzArt\Ai_Client_Wp;
-use KayzArt\Ai_Tool_Schema;
 
 require_once dirname( __DIR__ ) . '/includes/ai/class-kayzart-ai-client-fake.php';
 
@@ -95,44 +93,5 @@ class Test_Kayzart_Ai_Client extends WP_UnitTestCase {
 		$this->assertTrue( $fake->is_available() );
 		$fake->set_available( false );
 		$this->assertFalse( $fake->is_available() );
-	}
-
-	/**
-	 * Empty JSON-schema maps encode as objects, lists stay arrays.
-	 */
-	public function test_schema_to_object_empty_map_becomes_object(): void {
-		$tools    = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ) );
-		$selected = null;
-		foreach ( $tools as $tool ) {
-			if ( 'get_selected_context' === $tool['name'] ) {
-				$selected = $tool;
-			}
-		}
-		$object = Ai_Client_Wp::schema_to_object( $selected['parameters'] );
-		$json   = wp_json_encode( $object );
-
-		$this->assertStringContainsString( '"properties":{}', $json );
-		$this->assertStringContainsString( '"additionalProperties":false', $json );
-	}
-
-	/**
-	 * Schema lists (enum/required) remain JSON arrays after conversion.
-	 */
-	public function test_schema_to_object_preserves_lists(): void {
-		$schema = array(
-			'type'       => 'object',
-			'properties' => array(
-				'target' => array(
-					'type' => 'string',
-					'enum' => array( 'html', 'css' ),
-				),
-			),
-			'required'   => array( 'target' ),
-		);
-		$json   = wp_json_encode( Ai_Client_Wp::schema_to_object( $schema ) );
-
-		$this->assertStringContainsString( '"enum":["html","css"]', $json );
-		$this->assertStringContainsString( '"required":["target"]', $json );
-		$this->assertStringContainsString( '"properties":{"target":{', $json );
 	}
 }

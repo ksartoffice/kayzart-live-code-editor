@@ -89,6 +89,8 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 			array( 'search_text', 'read_document', 'get_selected_context', 'replace_string', 'replace_many', 'set_js_mode' ),
 			$this->tool_names( $tools )
 		);
+		$selected = $this->find_tool( $tools, 'get_selected_context' );
+		$this->assertArrayNotHasKey( 'properties', $selected['parameters'] );
 	}
 
 	/**

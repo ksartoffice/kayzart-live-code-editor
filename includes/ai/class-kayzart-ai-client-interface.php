@@ -49,7 +49,7 @@ interface Ai_Client_Interface {
 	 *
 	 * @return array Normalized result:
 	 *   array{
-	 *     toolCalls: array<int, array{id:string, name:string, args:array}>,
+	 *     toolCalls: array<int, array{id:string, name:string, args:array, thoughtSignature?:string}>,
 	 *     text: string,
 	 *     usage: array{
 	 *       inputTokens:int, cachedInputTokens:int,

@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
 class Test_Admin_Settings extends WP_UnitTestCase {
@@ -452,6 +453,57 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'documentHtmlAttributes', $payload );
 		$this->assertIsString( $payload['documentHtmlAttributes'] );
 		$this->assertStringContainsString( 'lang=', $payload['documentHtmlAttributes'] );
+	}
+
+	/**
+	 * Editor configuration includes the complete AI availability status.
+	 */
+	public function test_enqueue_assets_inline_config_includes_ai_availability(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+
+		wp_dequeue_script( 'kayzart-admin' );
+		wp_deregister_script( 'kayzart-admin' );
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+		$_GET = $original_get;
+
+		remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+
+		$registered    = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$payload = json_decode( $matches[1] ?? '', true );
+
+		$this->assertSame(
+			array(
+				'available'          => true,
+				'featureEnabled'     => true,
+				'sdkPresent'         => true,
+				'providerConfigured' => true,
+				'schedulerPresent'   => true,
+				'canEdit'            => true,
+			),
+			$payload['ai'] ?? null
+		);
 	}
 
 	public function test_enqueue_assets_inline_config_includes_default_editor_layout(): void {

@@ -1196,7 +1196,8 @@ class Admin {
 			)
 			: $preview_url;
 
-		$data = array(
+		$ai_status = Ai_Availability::get_status();
+		$data      = array(
 			'post_id'                => $post_id,
 			'initialHtml'            => $html,
 			'initialCustomHead'      => $custom_head,
@@ -1227,8 +1228,16 @@ class Admin {
 			'canUpdateCore'          => current_user_can( 'update_core' ),
 			'updateCoreUrl'          => current_user_can( 'update_core' ) ? admin_url( 'update-core.php' ) : '',
 			'adminTitleSeparators'   => array_values( self::ADMIN_TITLE_SEPARATORS ),
+			'ai'                     => array(
+				'available'          => $ai_status['available'],
+				'featureEnabled'     => $ai_status['feature_enabled'],
+				'sdkPresent'         => $ai_status['sdk_present'],
+				'providerConfigured' => $ai_status['provider_configured'],
+				'schedulerPresent'   => $ai_status['scheduler_present'],
+				'canEdit'            => current_user_can( Ai_Setup::CAPABILITY ),
+			),
 		);
-		$json = wp_json_encode( $data );
+		$json      = wp_json_encode( $data );
 		if ( false === $json ) {
 			$json = '{}';
 		}

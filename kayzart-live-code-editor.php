@@ -3,8 +3,8 @@
  * Plugin Name: Kayzart — Live HTML Landing Pages
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: A live HTML/CSS/JavaScript editor for clean, theme-independent landing pages in WordPress. No page builder, no build step.
- * Version: 2.3.0
- * Requires at least: 5.9
+ * Version: 3.0.0
+ * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 7.4
  * Author: K's Art Office
@@ -22,13 +22,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '2.3.0' );
+define( 'KAYZART_VERSION', '3.0.0' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 
 $kayzart_autoload = KAYZART_PATH . 'vendor/autoload.php';
 if ( file_exists( $kayzart_autoload ) ) {
 	require_once $kayzart_autoload;
+}
+
+$kayzart_action_scheduler = KAYZART_PATH . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
+if ( file_exists( $kayzart_action_scheduler ) ) {
+	require_once $kayzart_action_scheduler;
 }
 
 require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
@@ -45,6 +50,7 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-prompt.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-message.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-exception.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-interface.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-setup.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-availability.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-wp.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-error.php';
@@ -73,6 +79,8 @@ if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 add_action(
 	'plugins_loaded',
 	function () {
+		\KayzArt\Ai_Setup::maybe_upgrade();
+
 		// Custom post type used exclusively by Kayzart.
 		\KayzArt\Post_Type::init();
 
@@ -95,6 +103,7 @@ add_action(
  * Plugin activation hook.
  */
 function kayzart_activate() {
+	\KayzArt\Ai_Setup::activate();
 	\KayzArt\Post_Type::activation();
 }
 register_activation_hook( __FILE__, 'kayzart_activate' );

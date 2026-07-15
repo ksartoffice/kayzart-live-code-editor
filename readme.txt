@@ -1,10 +1,10 @@
 === Kayzart — Live HTML Landing Pages ===
 Contributors: ksartoffice
 Tags: landing page, custom html, html editor, tailwind, live preview
-Requires at least: 5.9
+Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.3.0
+Stable tag: 3.0.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,6 +84,9 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 7. Select preview text and refine the matching element from the Elements panel.
 
 == Changelog ==
+= 3.0.0 =
+* Infrastructure: Require WordPress 7.0 and prepare the WordPress-native AI agent job runtime.
+
 = 2.3.0 =
 * Add: Keep full-page revision history for HTML, CSS, JavaScript, and page settings.
 * Add: Load complete saved versions from the editor settings.
@@ -193,3 +196,4 @@ This plugin bundles third-party libraries:
 * Lucide - ISC License - https://github.com/lucide-icons/lucide
 * parse5 - MIT License - https://github.com/inikulin/parse5
 * TailwindPHP - MIT License - https://github.com/ksartoffice/tailwindphp
+* Action Scheduler - GPL-3.0-or-later - https://actionscheduler.org

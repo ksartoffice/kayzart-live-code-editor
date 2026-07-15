@@ -20,7 +20,7 @@
 
 | 項目 | 決定 |
 |---|---|
-| WordPress要件 | **SDK可用性ゲート方式**。本体プラグインは `Requires at least: 5.9` を維持。AI編集機能のみ「7.0コア or 6.9+Gutenberg 23.0+」で有効化し、SDKが無ければ優雅に無効化＋案内。`php-ai-client` の composer 同梱は当面しない（後から追加可能な設計にする）。 |
+| WordPress要件 | **Kayzart 3.0 から WordPress 7.0 以上を必須**とし、コアの AI Client を利用する。`php-ai-client` は composer 同梱しない。SDK存在確認は破損・無効化を検出する防御として残す。 |
 | 権限モデル | カスタム capability `kayzart_ai_edit` を **ロール単位＋ユーザー個別の許可リスト併用**で制御。多テナント（制作会社がキー登録 → 顧客アカウントを管理者がトグル）を想定。 |
 | コスト保護 | キー保有者（制作会社）の課金を守るため、**ユーザー別・月次の利用カウンタ**（user meta）で上限ガード。 |
 | 実行モデル | **Action Scheduler の単一アクションで完走**（`set_time_limit(0)`）。ジョブ状態をカスタムテーブルに永続化し、既存のポーリングUIを流用。ステップワイズ（1ターン=1アクション）は必要時の後続対応。 |
@@ -66,12 +66,13 @@
 
 ## 5. フェーズ分解とファイル一覧
 
-### Phase 0: 基盤・依存・可用性ゲート（約1日）
+### Phase 0: 基盤・依存・可用性ゲート（完了）
 
-- composer: `woocommerce/action-scheduler`（未導入なら追加）。`php-ai-client` は同梱しない。
+- リリース基準: Kayzart `3.0.0`、WordPress `7.0` 以上、PHP `7.4` 以上。
+- composer: `woocommerce/action-scheduler:4.0.0`。`php-ai-client` は同梱しない。
 - DBマイグレーション: `wp_kayzart_ai_jobs` テーブル（`job_uuid, post_id, user_id, request_id, status, payload_json, snapshot_json, events_json, usage_json, error, created_at, updated_at`）。`register_activation_hook` + `dbDelta`、スキーマバージョン管理。
 - capability `kayzart_ai_edit` の定義（activation で管理者ロールへ付与）。
-- **可用性判定** `Kayzart_Ai::is_available()`: (1) AI Client SDK 関数の存在、(2) Connectors にプロバイダ設定済み、(3) 機能ゲート。結果を editor へ localize。
+- **可用性判定** `Ai_Availability::get_status()`: (1) 機能ゲート、(2) AI Client SDK、(3) Connectors のプロバイダ、(4) Action Scheduler。結果を editor へ localize。
 - 変更: `kayzart-live-code-editor.php`（新規ファイルの require、`plugins_loaded` で条件付き init）。
 
 ### Phase 1: ツール層の移植（約1〜1.5日、テスト重視）
@@ -113,7 +114,7 @@
   - ロール許可リスト＋ユーザー個別許可リスト（オプション保存）を `user_has_cap` フィルタで `kayzart_ai_edit` に写像。
   - 管理者は常時可、顧客アカウントはトグル。
 - 管理設定タブ「AI編集の権限」UI（`kayzart_settings_tabs` フィルタ相乗り、ロールのチェックボックス群＋ユーザー個別追加）。
-- editor側ゲーティング: SDK無し→「WordPress 7.0 で利用可」、プロバイダ未設定→Connectors導線、権限無し→タブ非表示。
+- editor側ゲーティング: プロバイダ未設定→Connectors導線、権限無し→タブ非表示。SDK無しは通常の利用条件ではなく診断エラーとして扱う。
 - レート制限、監査ログ、i18n、`readme.txt` / `overview.md` に拡張ポイント追記。
 - E2E（`/verify`）: 指示→ジョブ→ツール実行→スナップショット適用→保存を実機確認。
 

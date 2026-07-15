@@ -91,7 +91,15 @@ class Ai_Worker {
 				)
 			);
 			$result = $agent->run( $payload );
-			$store->complete( $job_uuid, $result['snapshot'], $result['summary'], $result['usage'] );
+			if ( ! $store->complete( $job_uuid, $result['snapshot'], $result['summary'], $result['usage'] ) ) {
+				// A cancellation raced with completion (the deadline case is already
+				// settled by complete()'s expire_overdue). Settle it now so the post
+				// lock is released instead of waiting for the timeout action.
+				$current = $store->get( $job_uuid );
+				if ( $current && 'running' === $current['status'] && ! empty( $current['cancel_requested'] ) ) {
+					$store->mark_canceled( $job_uuid );
+				}
+			}
 		} catch ( Ai_Agent_Canceled $error ) {
 			$store->mark_canceled( $job_uuid );
 		} catch ( Ai_Client_Exception $error ) {

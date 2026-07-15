@@ -249,11 +249,21 @@ class Rest_Ai {
 	private static function sanitize_context( array $context ): array {
 		$result = array();
 		foreach ( $context as $key => $value ) {
-			$key = sanitize_key( (string) $key );
+			if ( is_int( $key ) ) {
+				$safe_key = $key;
+			} else {
+				// Preserve camelCase keys (lcId, outerHTML, sourceRange, ...) that
+				// the model prompt references; only drop characters outside a safe
+				// identifier set. sanitize_key() is avoided because it lowercases.
+				$safe_key = preg_replace( '/[^A-Za-z0-9_]/', '', (string) $key );
+				if ( '' === $safe_key ) {
+					continue;
+				}
+			}
 			if ( is_array( $value ) ) {
-				$result[ $key ] = self::sanitize_context( $value );
+				$result[ $safe_key ] = self::sanitize_context( $value );
 			} elseif ( is_scalar( $value ) || null === $value ) {
-				$result[ $key ] = is_string( $value ) ? wp_check_invalid_utf8( $value ) : $value;
+				$result[ $safe_key ] = is_string( $value ) ? wp_check_invalid_utf8( $value ) : $value;
 			}
 		}
 		return $result;

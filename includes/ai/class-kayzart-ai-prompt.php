@@ -77,7 +77,9 @@ Rules:
   - Safe alternatives include normal links such as "#", static HTML/CSS, accessible buttons without inline handlers, local form markup without an external action, or harmless explanatory copy.
   - For unsafe iframe or external form requests, add or adjust a safe local section instead, such as an embedded-content placeholder, contact CTA, or non-submitting inquiry form without action.
 - Ensure the result is responsive and looks good on both mobile and desktop screens.
-- Write any human-readable language in the HTML using the same language as the user's instruction.
+- Match the human-readable language of the HTML to the existing document content, not to the language of the user's instruction. If the document already contains copy in a given language (for example English), keep writing in that language even when the instruction is written in a different language.
+- Only switch the output language when the user explicitly asks to translate or to write in a specific language.
+- If the document is empty or has no existing copy to infer a language from, use the same language as the user's instruction.
 - When you are done, output STRICT JSON:
 {"summary":"..."}
 - Make at least one edit operation tool call before finalizing.

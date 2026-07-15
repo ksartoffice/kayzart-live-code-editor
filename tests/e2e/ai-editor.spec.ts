@@ -54,6 +54,27 @@ test('loads one free AI entry point and the Phase 3 REST configuration', async (
   await expect(page.locator('.kayzart-ai-panel')).not.toContainText(/credits|license|model/i);
 });
 
+test('opening the AI panel does not horizontally shift the editor shell', async ({ page }) => {
+  await openEditor(page);
+
+  await page.getByRole('button', { name: 'AI Edit', exact: true }).first().click();
+  await expect(page.locator('.kayzart-ai-composer textarea')).toBeVisible();
+  await page.waitForTimeout(350);
+
+  const layout = await page.evaluate(() => {
+    const app = document.querySelector<HTMLElement>('.kayzart-app');
+    const main = document.querySelector<HTMLElement>('.kayzart-main');
+    if (!app || !main) throw new Error('Editor shell is unavailable.');
+    return {
+      appScrollLeft: app.scrollLeft,
+      appOverflow: app.scrollWidth - app.clientWidth,
+      mainLeft: main.getBoundingClientRect().left,
+    };
+  });
+
+  expect(layout).toEqual({ appScrollLeft: 0, appOverflow: 0, mainLeft: 0 });
+});
+
 test('completes one real AI edit without saving the post automatically', async ({ page }) => {
   test.skip(process.env.KAYZART_RUN_AI_E2E !== '1', 'Set KAYZART_RUN_AI_E2E=1 for the one-call provider check.');
   test.setTimeout(620_000);

@@ -22,6 +22,16 @@
       <property name="strict_class_file_names" value="false"/>
     </properties>
   </rule>
+
+  <!--
+    The pure AI edit tools intentionally have no WordPress dependencies so they
+    stay unit-testable in isolation. Their exception messages are internal
+    diagnostics serialized to JSON for the model, never echoed as HTML output,
+    so the output-escaping sniff does not apply here.
+  -->
+  <rule ref="WordPress.Security.EscapeOutput">
+    <exclude-pattern>includes/ai/class-kayzart-ai-tools.php</exclude-pattern>
+  </rule>
 </ruleset>
 
 

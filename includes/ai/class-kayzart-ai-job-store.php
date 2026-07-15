@@ -121,8 +121,12 @@ class Ai_Job_Store {
 	 */
 	public function claim( string $job_uuid ): bool {
 		global $wpdb;
-		$now = self::now();
-		return 1 === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'running', started_at = %s, updated_at = %s WHERE job_uuid = %s AND status = 'pending' AND cancel_requested = 0 AND deadline_at > %s", $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$now     = self::now();
+		$claimed = 1 === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'running', started_at = %s, updated_at = %s WHERE job_uuid = %s AND status = 'pending' AND cancel_requested = 0 AND deadline_at > %s", $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		if ( $claimed ) {
+			( new Ai_Timeline_Store() )->update_execution( $job_uuid, 'running' );
+		}
+		return $claimed;
 	}
 
 	/**
@@ -177,6 +181,18 @@ class Ai_Job_Store {
 		$now     = self::now();
 		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'completed', snapshot_json = %s, usage_json = %s, error = NULL, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status = 'running' AND cancel_requested = 0 AND deadline_at > %s", wp_json_encode( $snapshot ), wp_json_encode( $usage ), $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( 1 === $changed ) {
+			$job     = $this->get( $job_uuid );
+			$payload = $job ? json_decode( (string) $job['payload_json'], true ) : null;
+			if ( is_array( $payload ) ) {
+				$before = array(
+					'html'       => isset( $payload['html'] ) ? (string) $payload['html'] : '',
+					'customHead' => isset( $payload['customHead'] ) ? (string) $payload['customHead'] : '',
+					'css'        => isset( $payload['css'] ) ? (string) $payload['css'] : '',
+					'js'         => isset( $payload['js'] ) ? (string) $payload['js'] : '',
+					'jsMode'     => isset( $payload['jsMode'] ) && 'module' === $payload['jsMode'] ? 'module' : 'classic',
+				);
+				( new Ai_Timeline_Store() )->complete( $job_uuid, $before, $snapshot, $summary );
+			}
 			$this->append_event(
 				$job_uuid,
 				array(
@@ -206,6 +222,7 @@ class Ai_Job_Store {
 		if ( 'pending' === $job['status'] ) {
 			$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'canceled', cancel_requested = 1, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status = 'pending'", $now, $now, $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			if ( 1 === $changed ) {
+				( new Ai_Timeline_Store() )->update_execution( $job_uuid, 'canceled' );
 				$this->append_event( $job_uuid, array( 'event' => 'canceled' ) );
 			}
 		} else {
@@ -263,6 +280,7 @@ class Ai_Job_Store {
 		);
 		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'timed_out', cancel_requested = 1, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status IN ('pending','running') AND deadline_at <= %s", $error, $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( 1 === $changed ) {
+			( new Ai_Timeline_Store() )->update_execution( $job_uuid, 'timed_out' );
 			$this->append_event( $job_uuid, array( 'event' => 'timed_out' ) );
 			return true;
 		}
@@ -283,6 +301,7 @@ class Ai_Job_Store {
 	/** Cancel every unfinished job during plugin deactivation. */
 	public function cancel_all_active(): int {
 		global $wpdb;
+		$active = $wpdb->get_col( 'SELECT job_uuid FROM ' . Ai_Setup::get_jobs_table_name() . " WHERE status IN ('pending','running')" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$now    = self::now();
 		$error  = wp_json_encode(
 			array(
@@ -291,6 +310,9 @@ class Ai_Job_Store {
 			)
 		);
 		$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'canceled', cancel_requested = 1, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL WHERE status IN ('pending','running')", $error, $now, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		foreach ( $active as $job_uuid ) {
+			( new Ai_Timeline_Store() )->update_execution( (string) $job_uuid, 'canceled' );
+		}
 		return false === $result ? 0 : (int) $result;
 	}
 
@@ -325,7 +347,15 @@ class Ai_Job_Store {
 	 * @param string $payload_json Canonical payload JSON.
 	 */
 	private function resolve_existing( array $job, int $post_id, string $payload_json ) {
-		if ( (int) $job['post_id'] !== $post_id || $job['payload_json'] !== $payload_json ) {
+		$stored_payload = json_decode( (string) $job['payload_json'], true );
+		$next_payload   = json_decode( $payload_json, true );
+		if ( is_array( $stored_payload ) ) {
+			unset( $stored_payload['recentEditContext'] );
+		}
+		if ( is_array( $next_payload ) ) {
+			unset( $next_payload['recentEditContext'] );
+		}
+		if ( (int) $job['post_id'] !== $post_id || $stored_payload !== $next_payload ) {
 			return new \WP_Error( 'kayzart_ai_request_conflict', __( 'This request ID was already used for different input.', 'kayzart-live-code-editor' ), array( 'status' => 409 ) );
 		}
 		return array(
@@ -353,6 +383,7 @@ class Ai_Job_Store {
 		);
 		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = %s, cancel_requested = %d, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status IN ('pending','running')", $status, $request_cancel ? 1 : 0, $error, $now, $now, $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( 1 === $changed ) {
+			( new Ai_Timeline_Store() )->update_execution( $job_uuid, $status );
 			$this->append_event(
 				$job_uuid,
 				array(

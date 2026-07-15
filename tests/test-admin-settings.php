@@ -503,6 +503,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'canEdit'             => true,
 				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
 				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
+				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => true,
 			),

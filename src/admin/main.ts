@@ -445,6 +445,7 @@ async function main() {
     onSaveSuccess: () => {
       requestPreviewReload();
       settingsApi?.refreshHistory();
+      window.dispatchEvent(new CustomEvent('kayzart-editor-saved'));
     },
   });
 

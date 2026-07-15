@@ -39,6 +39,8 @@ export type AppConfig = {
     canEdit: boolean;
     jobsUrl: string;
     jobsBaseUrl: string;
+    timelineUrl: string;
+    timelineBaseUrl: string;
     connectorsUrl: string;
     canManageConnectors: boolean;
   };

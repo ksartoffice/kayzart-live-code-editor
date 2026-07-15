@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AiApiError, createJob, getJob } from '../../../src/editor-ai/api';
+import { AiApiError, createJob, getJob, getTimeline, restoreTimeline } from '../../../src/editor-ai/api';
 
 describe('AI REST client', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -30,5 +30,17 @@ describe('AI REST client', () => {
   it('falls back safely when an error body is not JSON', async () => {
     vi.spyOn(window, 'fetch').mockResolvedValue(new Response('gateway failure', { status: 503 }));
     await expect(getJob('/jobs/id', 'nonce')).rejects.toThrow('REST request failed (503)');
+  });
+
+  it('uses stable timeline cursors and posts restore targets', async () => {
+    const fetchMock = vi.spyOn(window, 'fetch').mockImplementation(() => Promise.resolve(
+      new Response(JSON.stringify({ ok: true, items: [], hasMore: false, nextCursor: null, snapshot: {} }), { status: 200 })
+    ));
+    await getTimeline('/timeline', 'nonce', 7, 51);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('post_id=7');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('before=51');
+    await restoreTimeline('/timeline/', 'nonce', 12, 'before');
+    expect(String(fetchMock.mock.calls[1][0])).toBe('/timeline/12/restore');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ target: 'before' });
   });
 });

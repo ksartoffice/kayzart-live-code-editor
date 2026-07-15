@@ -1,4 +1,12 @@
-import type { AiCreateJobResponse, AiEditRequest, AiJobStatusResponse } from './contract';
+import type {
+  AiCreateJobResponse,
+  AiEditRequest,
+  AiJobStatusResponse,
+  AiTimelineItem,
+  AiTimelineResponse,
+  AiTimelineRestoreResponse,
+  AiTimelineSnapshotResponse,
+} from './contract';
 
 export class AiApiError extends Error {
   status: number;
@@ -45,4 +53,28 @@ export function getJob(url: string, nonce: string, signal?: AbortSignal) {
 
 export function cancelJob(url: string, nonce: string, signal?: AbortSignal) {
   return fetchJson<AiJobStatusResponse>(url, nonce, { method: 'POST', body: '{}', signal });
+}
+
+export function getTimeline(url: string, nonce: string, postId: number, before?: number) {
+  const target = new URL(url, window.location.origin);
+  target.searchParams.set('post_id', String(postId));
+  if (before) target.searchParams.set('before', String(before));
+  return fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
+}
+
+export function getTimelineSnapshot(baseUrl: string, nonce: string, id: number, target: 'before' | 'after') {
+  const url = `${baseUrl}${id}/snapshot?target=${target}`;
+  return fetchJson<AiTimelineSnapshotResponse>(url, nonce, { method: 'GET' });
+}
+
+export function updateTimelineApplication(baseUrl: string, nonce: string, id: number, status: 'applied' | 'reverted') {
+  return fetchJson<{ ok: boolean; item: AiTimelineItem }>(`${baseUrl}${id}/application`, nonce, {
+    method: 'POST', body: JSON.stringify({ status }),
+  });
+}
+
+export function restoreTimeline(baseUrl: string, nonce: string, id: number, target: 'before' | 'after') {
+  return fetchJson<AiTimelineRestoreResponse>(`${baseUrl}${id}/restore`, nonce, {
+    method: 'POST', body: JSON.stringify({ target }),
+  });
 }

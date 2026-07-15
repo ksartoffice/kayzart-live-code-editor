@@ -109,6 +109,16 @@
 - Kayzart 3.0以上では `kayzart-pro` の旧AIタブ、ツールバー、プレビュー操作を抑止し、Proのライセンス設定、REST、バージョン履歴は維持する。
 - DBジョブ一覧、AI編集履歴UI、履歴ツールはPhase 4の対象外とする。
 
+### Phase 4.1: 永続AI編集チャット・保存タイムライン（完了）
+
+- DBスキーマ v3 と `kayzart_ai_timeline` を追加し、AI指示・実行状態・適用状態・変更対象、保存Revision、snapshot復元操作を投稿単位で永続化する。AIジョブと詳細snapshotは従来どおり7日で削除し、表示用メタデータは投稿の完全削除まで保持する。
+- `GET /ai/timeline` は最新50件を返し、安定した連番カーソルで「以前の履歴を読み込む」から50件ずつ追加する。snapshot取得、適用状態更新、復元記録用RESTも追加する。
+- AIパネルをDBを正本とする編集チャットへ変更する。ユーザー指示、AI編集カード、保存Revision、復元操作を時系列表示し、AIのsummary・credits・model・licenseは表示しない。
+- 送信後は入力欄を空にし、実行中も次の指示を下書きできる。投稿ロック中は送信だけを無効化し、Stopは独立操作とする。失敗した指示は再実行または入力欄へ戻せる。
+- 完了snapshotは自動反映するが保存は手動のままとする。保存で新しいRevisionが作られた場合だけ保存バブルを追加し、AI編集とRevisionの対応付けは行わない。
+- 直近10件の成功したAI編集からprompt、内部summary、変更対象、適用状態だけを次のAgentプロンプトへ追加する。失敗ジョブとコードsnapshotは会話文脈に含めない。
+- sessionStorageによる実行中ジョブ復元を維持し、DB上のpending／running行も復元元として利用する。従来のメモリ100件・結果snapshot20組制限は廃止する。
+
 ### Phase 5: ゲーティング・権限UI・仕上げ（約1日）
 
 - 新規 `includes/ai/class-kayzart-ai-access.php`:

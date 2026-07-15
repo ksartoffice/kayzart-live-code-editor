@@ -22,6 +22,8 @@ export type AiAvailability = {
   canEdit: boolean;
   jobsUrl: string;
   jobsBaseUrl: string;
+  timelineUrl: string;
+  timelineBaseUrl: string;
   connectorsUrl: string;
   canManageConnectors: boolean;
 };
@@ -63,7 +65,45 @@ export type AiCreateJobResponse = {
   cancelUrl: string;
   pollIntervalMs: number;
   timeoutMs: number;
+  timelineItem: AiTimelineItem | null;
 };
+
+export type AiTimelineType = 'ai_edit' | 'save' | 'restore';
+
+export type AiTimelineItem = {
+  id: number;
+  activityId: string;
+  type: AiTimelineType;
+  jobId: string | null;
+  requestId: string | null;
+  prompt: string | null;
+  contexts: Array<{ lcId?: string; tagName?: string; text?: string }>;
+  executionStatus: AiJobStatus | null;
+  applicationStatus: 'not_applied' | 'applied' | 'reverted' | null;
+  changedTargets: ChangedTarget[];
+  beforeHash: string | null;
+  afterHash: string | null;
+  revisionId: number | null;
+  sourceActivityId: number | null;
+  sourcePrompt: string | null;
+  restoreTarget: 'before' | 'after' | null;
+  detailsAvailable: boolean;
+  canPoll: boolean;
+  revisionAvailable: boolean;
+  author: { id: number; name: string };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AiTimelineResponse = {
+  ok: boolean;
+  items: AiTimelineItem[];
+  hasMore: boolean;
+  nextCursor: number | null;
+};
+
+export type AiTimelineSnapshotResponse = { ok: boolean; snapshot: EditorSnapshot };
+export type AiTimelineRestoreResponse = AiTimelineSnapshotResponse & { item: AiTimelineItem | null };
 
 export type AiJobStatusResponse = {
   ok: boolean;
@@ -104,6 +144,7 @@ export type ActiveJobRecord = {
   prompt: string;
   contexts: SelectedElementContext[];
   inputSnapshot: EditorSnapshot;
+  activityId?: number;
 };
 
 export function normalizeSnapshot(snapshot: HostEditorSnapshot): EditorSnapshot {

@@ -31,6 +31,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		Ai_Setup::activate();
 		global $wpdb;
 		$wpdb->query( 'TRUNCATE TABLE ' . Ai_Setup::get_jobs_table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'TRUNCATE TABLE ' . Ai_Setup::get_timeline_table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->post_id  = self::factory()->post->create(
 			array(
@@ -61,6 +62,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 202, $first->get_status() );
 		$this->assertSame( 'pending', $first->get_data()['status'] );
 		$this->assertArrayHasKey( 'statusUrl', $first->get_data() );
+		$this->assertSame( 'rest-idempotent', $first->get_data()['timelineItem']['requestId'] );
 
 		$again = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-idempotent' ) );
 		$this->assertSame( 200, $again->get_status() );
@@ -102,6 +104,31 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 'canceled', $first->get_data()['status'] );
 		$this->assertSame( 'canceled', $again->get_data()['status'] );
 		$this->assertNull( ( new Ai_Job_Store() )->get( $uuid )['lock_key'] );
+	}
+
+	/** Timeline is shared at post level and retained snapshots expire with jobs. */
+	public function test_timeline_lists_updates_and_expires_job_snapshot(): void {
+		$created  = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-timeline' ) );
+		$activity = $created->get_data()['timelineItem'];
+		$request  = new WP_REST_Request( 'GET', '/kayzart/v1/ai/timeline' );
+		$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$request->set_param( 'post_id', $this->post_id );
+		$list = rest_do_request( $request );
+		$this->assertSame( 200, $list->get_status() );
+		$this->assertSame( 'rest-timeline', $list->get_data()['items'][0]['requestId'] );
+
+		$other_admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $other_admin );
+		$application = $this->dispatch_json( 'POST', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/application', array( 'status' => 'applied' ) );
+		$this->assertSame( 200, $application->get_status(), 'Editors share the post timeline.' );
+		$this->assertSame( 'applied', $application->get_data()['item']['applicationStatus'] );
+
+		$snapshot = $this->dispatch_json( 'GET', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/snapshot', array( 'target' => 'before' ) );
+		$this->assertSame( 200, $snapshot->get_status() );
+		global $wpdb;
+		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $created->get_data()['jobId'] ) );
+		$expired = $this->dispatch_json( 'GET', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/snapshot', array( 'target' => 'before' ) );
+		$this->assertSame( 410, $expired->get_status() );
 	}
 
 	/** Build a valid REST request body.

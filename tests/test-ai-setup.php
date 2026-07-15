@@ -20,6 +20,7 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 
 		global $wpdb;
 		$wpdb->query( 'DROP TABLE IF EXISTS ' . Ai_Setup::get_jobs_table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . Ai_Setup::get_timeline_table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		delete_option( Ai_Setup::DB_VERSION_OPTION );
 
 		$administrator = get_role( 'administrator' );
@@ -45,7 +46,9 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		Ai_Setup::activate();
 
 		$table_name = Ai_Setup::get_jobs_table_name();
+		$timeline_table = Ai_Setup::get_timeline_table_name();
 		$this->assertSame( $table_name, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) );
+		$this->assertSame( $timeline_table, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $timeline_table ) ) );
 		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
 		wp_cache_delete( 'alloptions', 'options' );
 		$this->assertArrayNotHasKey( Ai_Setup::DB_VERSION_OPTION, wp_load_alloptions() );
@@ -80,6 +83,18 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$this->assertContains( 'active_post', $indexes );
 		$this->assertContains( 'post_status', $indexes );
 		$this->assertContains( 'user_created', $indexes );
+
+		$timeline_columns = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $timeline_table ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$this->assertContains( 'id', $timeline_columns );
+		$this->assertContains( 'activity_uuid', $timeline_columns );
+		$this->assertContains( 'job_uuid', $timeline_columns );
+		$this->assertContains( 'revision_id', $timeline_columns );
+		$this->assertContains( 'source_activity_id', $timeline_columns );
+		$timeline_indexes = $wpdb->get_col( 'SHOW INDEX FROM ' . $timeline_table, 2 ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$this->assertContains( 'PRIMARY', $timeline_indexes );
+		$this->assertContains( 'job_uuid', $timeline_indexes );
+		$this->assertContains( 'revision_id', $timeline_indexes );
+		$this->assertContains( 'post_id_id', $timeline_indexes );
 
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
 		$this->assertFalse( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
@@ -116,9 +131,9 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A Phase 0 v1 table is upgraded in place to the Phase 3 schema.
+	 * A Phase 0 v1 table is upgraded in place to the current schema.
 	 */
-	public function test_v1_schema_is_upgraded_to_v2(): void {
+	public function test_v1_schema_is_upgraded_to_v3(): void {
 		global $wpdb;
 		$table_name      = Ai_Setup::get_jobs_table_name();
 		$charset_collate = $wpdb->get_charset_collate();
@@ -148,6 +163,8 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$this->assertContains( 'cancel_requested', $columns );
 		$this->assertContains( 'deadline_at', $columns );
 		$this->assertContains( 'lock_key', $columns );
-		$this->assertSame( '2', get_option( Ai_Setup::DB_VERSION_OPTION ) );
+		$this->assertSame( '3', get_option( Ai_Setup::DB_VERSION_OPTION ) );
+		$timeline_table = Ai_Setup::get_timeline_table_name();
+		$this->assertSame( $timeline_table, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $timeline_table ) ) );
 	}
 }

@@ -57,9 +57,11 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-error.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-canceled.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-job-store.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-timeline-store.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-worker.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-editor.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-ai.php';
+require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-ai-timeline.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';
@@ -94,6 +96,12 @@ add_action(
 		\KayzArt\Admin::init();
 		\KayzArt\Editor_Bridge::init();
 		\KayzArt\Snapshot::init();
+		add_action(
+			'before_delete_post',
+			static function ( $post_id ) {
+				( new \KayzArt\Ai_Timeline_Store() )->delete_for_post( (int) $post_id );
+			}
+		);
 		// REST endpoints.
 		\KayzArt\Rest::init();
 

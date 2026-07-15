@@ -68,13 +68,21 @@ class Rest_Ai {
 			return $payload;
 		}
 
-		$store  = new Ai_Job_Store();
-		$result = $store->create( get_current_user_id(), $payload['postId'], $payload['requestId'], $payload['agentPayload'] );
+		$store                                        = new Ai_Job_Store();
+		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'] );
+		$result                                       = $store->create( get_current_user_id(), $payload['postId'], $payload['requestId'], $payload['agentPayload'] );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
-		$job = $result['job'];
+		$job            = $result['job'];
+		$timeline       = new Ai_Timeline_Store();
+		$stored_payload = json_decode( (string) $job['payload_json'], true );
+		$activity       = $timeline->create_ai_edit( $job, is_array( $stored_payload ) ? $stored_payload : $payload['agentPayload'] );
+		if ( ! $activity ) {
+			$store->mark_error( $job['job_uuid'], __( 'The AI edit history could not be created.', 'kayzart-live-code-editor' ), true );
+			return new \WP_Error( 'kayzart_ai_timeline_create_failed', __( 'The AI edit history could not be created.', 'kayzart-live-code-editor' ), array( 'status' => 503 ) );
+		}
 		if ( $result['is_new'] && ! Ai_Worker::enqueue( $job['job_uuid'] ) ) {
 			$store->mark_enqueue_failed( $job['job_uuid'] );
 			$job = $store->get( $job['job_uuid'] );
@@ -83,12 +91,12 @@ class Rest_Ai {
 				__( 'The AI edit job could not be scheduled.', 'kayzart-live-code-editor' ),
 				array(
 					'status' => 503,
-					'job'    => self::creation_response( $store, $job ),
+					'job'    => self::creation_response( $store, $job, $activity ),
 				)
 			);
 		}
 
-		$response = new \WP_REST_Response( self::creation_response( $store, $job ), $result['is_new'] ? 202 : 200 );
+		$response = new \WP_REST_Response( self::creation_response( $store, $job, $activity ), $result['is_new'] ? 202 : 200 );
 		return $response;
 	}
 
@@ -272,12 +280,14 @@ class Rest_Ai {
 	/** Add creation-only URLs to the common job representation.
 	 *
 	 * @param Ai_Job_Store $store Job store.
-	 * @param array        $job   Database row.
+	 * @param array        $job      Database row.
+	 * @param array|null   $activity Timeline row.
 	 */
-	private static function creation_response( Ai_Job_Store $store, array $job ): array {
-		$data              = $store->to_response( $job );
-		$data['statusUrl'] = rest_url( 'kayzart/v1/ai/jobs/' . $job['job_uuid'] );
-		$data['cancelUrl'] = rest_url( 'kayzart/v1/ai/jobs/' . $job['job_uuid'] . '/cancel' );
+	private static function creation_response( Ai_Job_Store $store, array $job, ?array $activity = null ): array {
+		$data                 = $store->to_response( $job );
+		$data['statusUrl']    = rest_url( 'kayzart/v1/ai/jobs/' . $job['job_uuid'] );
+		$data['cancelUrl']    = rest_url( 'kayzart/v1/ai/jobs/' . $job['job_uuid'] . '/cancel' );
+		$data['timelineItem'] = $activity ? ( new Ai_Timeline_Store() )->to_response( $activity ) : null;
 		return $data;
 	}
 

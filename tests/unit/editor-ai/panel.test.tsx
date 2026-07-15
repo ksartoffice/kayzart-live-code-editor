@@ -4,90 +4,62 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const beforeSnapshot = {
-  html: '<main>Before</main>', customHead: '', css: '', js: '', jsMode: 'classic' as const, baseHash: 'before',
-};
-const afterSnapshot = {
-  html: '<main>After</main>', customHead: '', css: 'main{}', js: '', jsMode: 'classic' as const, baseHash: 'after',
+const beforeSnapshot = { html: '<main>Before</main>', customHead: '', css: '', js: '', jsMode: 'classic' as const, baseHash: 'before' };
+const afterSnapshot = { html: '<main>After</main>', customHead: '', css: 'main{}', js: '', jsMode: 'classic' as const, baseHash: 'after' };
+const timelineItem = {
+  id: 12, activityId: 'activity-12', type: 'ai_edit', jobId: 'job-1', requestId: 'request-1', prompt: 'Improve the hero', contexts: [],
+  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], beforeHash: 'before', afterHash: 'after',
+  revisionId: null, sourceActivityId: null, sourcePrompt: null, restoreTarget: null, detailsAvailable: true, canPoll: true,
+  revisionAvailable: false, author: { id: 1, name: 'Editor' }, createdAt: '2026-07-15T00:00:00Z', updatedAt: '2026-07-15T00:00:01Z',
 };
 
 describe('AiEditorPanel', () => {
   beforeEach(() => {
-    vi.resetModules();
-    sessionStorage.clear();
-    document.body.innerHTML = '';
-    (window as any).KAYZART = {
-      post_id: 7,
-      restNonce: 'nonce',
-      ai: {
-        available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true,
-        schedulerPresent: true, canEdit: true, jobsUrl: '/jobs', jobsBaseUrl: '/jobs/',
-        connectorsUrl: '/connectors', canManageConnectors: true,
-      },
-    };
+    vi.resetModules(); sessionStorage.clear(); document.body.innerHTML = '';
+    (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
+      available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, canEdit: true,
+      jobsUrl: '/jobs', jobsBaseUrl: '/jobs/', timelineUrl: '/timeline', timelineBaseUrl: '/timeline/', connectorsUrl: '/connectors', canManageConnectors: true,
+    } };
   });
+  afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    sessionStorage.clear();
-    document.body.innerHTML = '';
-  });
-
-  it('sends the unsaved snapshot, applies completion, and supports revert and reapply', async () => {
-    const replaceEditorSnapshot = vi.fn();
-    const setEditorLock = vi.fn();
+  it('persists the prompt timeline, hides summary, and applies the completed snapshot', async () => {
+    const replaceEditorSnapshot = vi.fn(); const setEditorLock = vi.fn();
     (window as any).KAYZART_EXTENSION_API = {
-      registerSettingsTab: vi.fn(() => vi.fn()),
-      registerToolbarAction: vi.fn(() => vi.fn()),
-      getEditorSnapshot: vi.fn(() => beforeSnapshot),
-      getEditorMode: vi.fn(() => 'normal'),
-      replaceEditorSnapshot,
-      setEditorLock,
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot, setEditorLock,
     };
-    const fetchMock = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        ok: true, jobId: 'job-1', requestId: 'request-1', status: 'pending',
-        statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel', pollIntervalMs: 1, timeoutMs: 600000,
-      }), { status: 202, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        ok: true, jobId: 'job-1', requestId: 'request-1', status: 'completed',
-        events: [{ event: 'final', requestId: 'request-1', summary: 'Updated hero', snapshot: afterSnapshot }],
-        snapshot: afterSnapshot, error: null, usage: null, cancelRequested: false,
-        createdAt: '2026-07-15T00:00:00Z', updatedAt: '2026-07-15T00:00:01Z',
-        startedAt: '2026-07-15T00:00:00Z', finishedAt: '2026-07-15T00:00:01Z',
-        pollIntervalMs: 1, timeoutMs: 600000,
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    let created = false;
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: created ? [timelineItem] : [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') { created = true; return json({ ok: true, jobId: 'job-1', requestId: 'request-1', status: 'pending', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem }, 202); }
+      if (url.includes('/jobs/job-1') && !url.includes('/cancel')) return json({
+        ok: true, jobId: 'job-1', requestId: 'request-1', status: 'completed', events: [{ event: 'final', requestId: 'request-1', summary: 'Updated hero' }],
+        snapshot: afterSnapshot, error: null, usage: null, cancelRequested: false, createdAt: timelineItem.createdAt, updatedAt: timelineItem.updatedAt,
+        startedAt: timelineItem.createdAt, finishedAt: timelineItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000,
+      });
+      if (url.includes('/application')) return json({ ok: true, item: timelineItem });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
 
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
-
+    await vi.waitFor(() => expect(container.textContent).toContain('Describe'));
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-      setter?.call(textarea, 'Improve the hero');
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await act(async () => (container.querySelector('.kayzart-ai-composer-footer button') as HTMLButtonElement).click());
+    await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set; setter?.call(textarea, 'Improve the hero'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
 
     await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenCalledWith(afterSnapshot));
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-    expect(requestBody).toMatchObject({
-      post_id: 7, editorMode: 'normal', prompt: 'Improve the hero', html: '<main>Before</main>', baseHash: 'before',
-    });
+    const createCall = fetchMock.mock.calls.find(([url]) => String(url) === '/jobs');
+    expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ post_id: 7, prompt: 'Improve the hero', html: '<main>Before</main>' });
+    await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
+    expect(container.textContent).not.toContain('Updated hero');
+    expect(container.textContent).toContain('Applied');
     expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).toBeNull();
-    expect(setEditorLock).toHaveBeenCalledWith(true);
-    expect(setEditorLock).toHaveBeenLastCalledWith(false);
-    expect(container.textContent).toContain('Updated hero');
-
-    const actions = Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-result-actions button'));
-    await act(async () => actions[0].click());
-    await act(async () => actions[1].click());
-    expect(replaceEditorSnapshot).toHaveBeenNthCalledWith(2, beforeSnapshot);
-    expect(replaceEditorSnapshot).toHaveBeenNthCalledWith(3, afterSnapshot);
-
+    expect(setEditorLock).toHaveBeenCalledWith(true); expect(setEditorLock).toHaveBeenLastCalledWith(false);
     await act(async () => root.unmount());
   });
 });

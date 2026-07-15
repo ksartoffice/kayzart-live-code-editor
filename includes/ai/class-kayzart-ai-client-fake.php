@@ -108,7 +108,14 @@ class Ai_Client_Fake implements Ai_Client_Interface {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Return the next queued result and record the call arguments.
+	 *
+	 * @param array $messages Normalized conversation messages.
+	 * @param array $tools    Tool definitions.
+	 * @param array $options  Generation options.
+	 * @return array Normalized result.
+	 *
+	 * @throws Ai_Client_Exception When the result queue is empty.
 	 */
 	public function generate( array $messages, array $tools, array $options = array() ): array {
 		$this->calls[] = array(

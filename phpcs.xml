@@ -24,13 +24,14 @@
   </rule>
 
   <!--
-    The pure AI edit tools intentionally have no WordPress dependencies so they
-    stay unit-testable in isolation. Their exception messages are internal
-    diagnostics serialized to JSON for the model, never echoed as HTML output,
-    so the output-escaping sniff does not apply here.
+    The AI service layer (includes/ai/) contains logic/service classes, not view
+    output. Their exception messages are internal diagnostics that are serialized
+    to JSON for the model or logged, never echoed as HTML, so the output-escaping
+    sniff does not apply. HTML/REST output lives in includes/rest/ and remains
+    covered by the sniff.
   -->
   <rule ref="WordPress.Security.EscapeOutput">
-    <exclude-pattern>includes/ai/class-kayzart-ai-tools.php</exclude-pattern>
+    <exclude-pattern>includes/ai/*</exclude-pattern>
   </rule>
 </ruleset>
 

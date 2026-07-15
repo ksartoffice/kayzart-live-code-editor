@@ -83,12 +83,13 @@ class Test_Uninstall extends WP_UnitTestCase {
 				'events_json' => '[]',
 				'created_at'  => current_time( 'mysql', true ),
 				'updated_at'  => current_time( 'mysql', true ),
+				'deadline_at' => gmdate( 'Y-m-d H:i:s', time() + 600 ),
 			)
 		);
 
 		$this->run_uninstall_script();
 
-		$this->assertSame( '1', get_option( Ai_Setup::DB_VERSION_OPTION ) );
+		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
 		$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $table_name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
 

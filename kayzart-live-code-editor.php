@@ -56,6 +56,9 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-wp.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-error.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-canceled.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-job-store.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-worker.php';
+require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-ai.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';
@@ -80,6 +83,7 @@ add_action(
 	'plugins_loaded',
 	function () {
 		\KayzArt\Ai_Setup::maybe_upgrade();
+		\KayzArt\Ai_Worker::init();
 
 		// Custom post type used exclusively by Kayzart.
 		\KayzArt\Post_Type::init();
@@ -112,6 +116,7 @@ register_activation_hook( __FILE__, 'kayzart_activate' );
  * Plugin deactivation hook.
  */
 function kayzart_deactivate() {
+	\KayzArt\Ai_Worker::deactivate();
 	\KayzArt\Post_Type::deactivation();
 }
 register_deactivation_hook( __FILE__, 'kayzart_deactivate' );

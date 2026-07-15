@@ -51,13 +51,14 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( Ai_Setup::DB_VERSION_OPTION, wp_load_alloptions() );
 
 		$columns = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table_name ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$this->assertSame(
+		$this->assertEqualsCanonicalizing(
 			array(
 				'job_uuid',
 				'post_id',
 				'user_id',
 				'request_id',
 				'status',
+				'cancel_requested',
 				'payload_json',
 				'snapshot_json',
 				'events_json',
@@ -65,6 +66,10 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 				'error',
 				'created_at',
 				'updated_at',
+				'started_at',
+				'finished_at',
+				'deadline_at',
+				'lock_key',
 			),
 			$columns
 		);
@@ -72,6 +77,7 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$indexes = $wpdb->get_col( 'SHOW INDEX FROM ' . $table_name, 2 ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$this->assertContains( 'PRIMARY', $indexes );
 		$this->assertContains( 'user_request', $indexes );
+		$this->assertContains( 'active_post', $indexes );
 		$this->assertContains( 'post_status', $indexes );
 		$this->assertContains( 'user_created', $indexes );
 
@@ -107,5 +113,41 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 
 		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
+	}
+
+	/**
+	 * A Phase 0 v1 table is upgraded in place to the Phase 3 schema.
+	 */
+	public function test_v1_schema_is_upgraded_to_v2(): void {
+		global $wpdb;
+		$table_name      = Ai_Setup::get_jobs_table_name();
+		$charset_collate = $wpdb->get_charset_collate();
+		$wpdb->query(
+			"CREATE TABLE {$table_name} (
+				job_uuid char(36) NOT NULL,
+				post_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				request_id varchar(64) NOT NULL,
+				status varchar(20) NOT NULL,
+				payload_json longtext NOT NULL,
+				snapshot_json longtext NULL,
+				events_json longtext NOT NULL,
+				usage_json longtext NULL,
+				error longtext NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY (job_uuid),
+				UNIQUE KEY user_request (user_id, request_id)
+			) {$charset_collate}"
+		); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		update_option( Ai_Setup::DB_VERSION_OPTION, '1', false );
+
+		Ai_Setup::maybe_upgrade();
+
+		$columns = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table_name ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$this->assertContains( 'cancel_requested', $columns );
+		$this->assertContains( 'deadline_at', $columns );
+		$this->assertContains( 'lock_key', $columns );
+		$this->assertSame( '2', get_option( Ai_Setup::DB_VERSION_OPTION ) );
 	}
 }

@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ai_Setup {
 	const CAPABILITY        = 'kayzart_ai_edit';
-	const DB_VERSION        = '1';
+	const DB_VERSION        = '2';
 	const DB_VERSION_OPTION = 'kayzart_ai_db_version';
 	const JOBS_TABLE_SUFFIX = 'kayzart_ai_jobs';
 
@@ -65,6 +65,7 @@ class Ai_Setup {
 			user_id bigint(20) unsigned NOT NULL,
 			request_id varchar(64) NOT NULL,
 			status varchar(20) NOT NULL,
+			cancel_requested tinyint(1) unsigned NOT NULL DEFAULT 0,
 			payload_json longtext NOT NULL,
 			snapshot_json longtext NULL,
 			events_json longtext NOT NULL,
@@ -72,8 +73,13 @@ class Ai_Setup {
 			error longtext NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
+			started_at datetime NULL,
+			finished_at datetime NULL,
+			deadline_at datetime NOT NULL,
+			lock_key varchar(64) NULL,
 			PRIMARY KEY  (job_uuid),
 			UNIQUE KEY user_request (user_id, request_id),
+			UNIQUE KEY active_post (lock_key),
 			KEY post_status (post_id, status),
 			KEY user_created (user_id, created_at)
 		) {$charset_collate};";

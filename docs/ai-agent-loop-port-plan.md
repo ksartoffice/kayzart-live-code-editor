@@ -22,7 +22,7 @@
 |---|---|
 | WordPress要件 | **Kayzart 3.0 から WordPress 7.0 以上を必須**とし、コアの AI Client を利用する。`php-ai-client` は composer 同梱しない。SDK存在確認は破損・無効化を検出する防御として残す。 |
 | 権限モデル | カスタム capability `kayzart_ai_edit` を **ロール単位＋ユーザー個別の許可リスト併用**で制御。多テナント（制作会社がキー登録 → 顧客アカウントを管理者がトグル）を想定。 |
-| コスト保護 | キー保有者（制作会社）の課金を守るため、**ユーザー別・月次の利用カウンタ**（user meta）で上限ガード。 |
+| コスト記録 | 無料版では月次回数を制限せず、ジョブ単位のトークン使用量を記録する。利用上限は将来の Pro 機能候補とする。 |
 | 実行モデル | **Action Scheduler の単一アクションで完走**（`set_time_limit(0)`）。ジョブ状態をカスタムテーブルに永続化し、既存のポーリングUIを流用。ステップワイズ（1ターン=1アクション）は必要時の後続対応。 |
 | クライアント抽象化 | `Kayzart_Ai_Client_Interface` を挟む。当面はコア AI Client 版のみ実装。テスト時はフェイクを注入。 |
 
@@ -90,14 +90,13 @@
 - 新規 `includes/ai/class-kayzart-ai-agent.php` — `runAgentLoop` / `runFinalizationTurns` の移植: 15ターン、`$messages` 蓄積、`FunctionCall` 抽出→ツール実行→`FunctionResponse` 追記、反復失敗ガード、最低1編集チェック、仕上げターン。進捗は Job Store 経由で events 書き込み。
 - テスト `tests/test-ai-agent.php` — フェイクAI Client 注入でループ分岐（ツール実行→終了、上限到達、失敗リカバリ）を検証。
 
-### Phase 3: ジョブ基盤＋REST（約1.5日）
+### Phase 3: ジョブ基盤＋REST（完了）
 
-- 新規 `includes/ai/class-kayzart-ai-job-store.php` — ジョブ CRUD、events 追記、投稿ごと単一ジョブロック（transient/DB）、終端後クリーンアップ。
-- 新規 `includes/ai/class-kayzart-ai-worker.php` — Action Scheduler コールバック。`set_time_limit(0)`、`Kayzart_Ai_Agent::run()` 実行、cancel フラグ監視、例外→error 状態。
-- 新規 `includes/rest/class-kayzart-rest-ai.php` — `POST /ai/jobs`（作成 + `as_enqueue_async_action`）、`GET /ai/jobs/{id}`、`POST /ai/jobs/{id}/cancel`。
-  - `permission_callback`: 既存の nonce + `edit_post` に加え **`current_user_can('kayzart_ai_edit')`** を要求。
-  - **ユーザー別・月次の利用カウンタ**で上限ガード（超過は 429 相当）。
-- 変更: `includes/class-kayzart-rest.php`（`Rest_Ai::register_routes` を配線）。
+- DBスキーマ v2: cancel・開始／終了／期限日時と投稿単位の一意ロックを追加。条件付き状態遷移、requestId 冪等性、最大300イベント、7日保持を実装。
+- `includes/ai/class-kayzart-ai-job-store.php`: ジョブ作成、claim、イベントの比較付き更新、キャンセル／タイムアウト／完了、usage・snapshot・error 保存、日次削除を実装。
+- `includes/ai/class-kayzart-ai-worker.php`: Action Scheduler の worker・timeout・cleanup、10分期限、失敗フック、`kayzart_ai_client` フィルター、deactivation 時の未完了キャンセルを実装。
+- `includes/rest/class-kayzart-rest-ai.php`: `POST /ai/jobs`、`GET /ai/jobs/{id}`、`POST /ai/jobs/{id}/cancel` を実装。nonce、`edit_post`、`kayzart_ai_edit`、本人／管理者アクセス、入力サイズ、404秘匿を検証する。
+- 無料版は月次回数を制限せず、各ジョブの `usage` のみを保存・返却する。回数・費用上限は将来の Pro 機能候補へ移した。
 
 ### Phase 4: フロントエンドUI（約2日）
 
@@ -129,7 +128,7 @@
 3. **function calling + strict JSON 同時利用のプロバイダ差**: 通常ターンはツールのみ、最終要約だけ `asJsonResponse()` に分離。
 4. **ホスティングのタイムアウト**: 単一ASアクション完走が厳しい環境向けにステップワイズ化を後続で用意。
 5. **WP AI Client SDK のAPI名は流動的**: 実装前に導入バージョンの実物で確認する。
-6. **無料開放によるコスト**: `edit_post` + `kayzart_ai_edit` + 月次カウンタで多層防御。
+6. **無料開放によるコスト**: 無料版は利用者自身の Connectors API キーを使い、ジョブごとの token usage を記録する。組織単位の上限管理は将来の Pro 機能候補。
 
 ## 8. 次アクション候補
 

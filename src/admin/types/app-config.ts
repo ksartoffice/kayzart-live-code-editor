@@ -37,5 +37,9 @@ export type AppConfig = {
     providerConfigured: boolean;
     schedulerPresent: boolean;
     canEdit: boolean;
+    jobsUrl: string;
+    jobsBaseUrl: string;
+    connectorsUrl: string;
+    canManageConnectors: boolean;
   };
 };

@@ -58,6 +58,7 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-canceled.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-job-store.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-worker.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-editor.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-ai.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
@@ -84,6 +85,7 @@ add_action(
 	function () {
 		\KayzArt\Ai_Setup::maybe_upgrade();
 		\KayzArt\Ai_Worker::init();
+		\KayzArt\Ai_Editor::init();
 
 		// Custom post type used exclusively by Kayzart.
 		\KayzArt\Post_Type::init();

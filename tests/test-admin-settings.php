@@ -372,8 +372,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		$original_get    = $_GET;
-		$_GET['post_id'] = (string) $post_id;
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 		$before          = did_action( 'wp_enqueue_media' );
 
@@ -431,8 +431,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		$original_get     = $_GET;
-		$_GET['post_id']  = (string) $post_id;
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
@@ -476,8 +476,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		wp_dequeue_script( 'kayzart-admin' );
 		wp_deregister_script( 'kayzart-admin' );
-		$original_get     = $_GET;
-		$_GET['post_id']  = (string) $post_id;
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
 		$_GET = $original_get;
@@ -495,12 +495,16 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertSame(
 			array(
-				'available'          => true,
-				'featureEnabled'     => true,
-				'sdkPresent'         => true,
-				'providerConfigured' => true,
-				'schedulerPresent'   => true,
-				'canEdit'            => true,
+				'available'           => true,
+				'featureEnabled'      => true,
+				'sdkPresent'          => true,
+				'providerConfigured'  => true,
+				'schedulerPresent'    => true,
+				'canEdit'             => true,
+				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'canManageConnectors' => true,
 			),
 			$payload['ai'] ?? null
 		);
@@ -595,8 +599,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		};
 		add_action( 'kayzart_editor_enqueue_assets', $listener, 10, 1 );
 
-		$original_get    = $_GET;
-		$_GET['post_id'] = (string) $post_id;
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );

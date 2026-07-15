@@ -1229,12 +1229,16 @@ class Admin {
 			'updateCoreUrl'          => current_user_can( 'update_core' ) ? admin_url( 'update-core.php' ) : '',
 			'adminTitleSeparators'   => array_values( self::ADMIN_TITLE_SEPARATORS ),
 			'ai'                     => array(
-				'available'          => $ai_status['available'],
-				'featureEnabled'     => $ai_status['feature_enabled'],
-				'sdkPresent'         => $ai_status['sdk_present'],
-				'providerConfigured' => $ai_status['provider_configured'],
-				'schedulerPresent'   => $ai_status['scheduler_present'],
-				'canEdit'            => current_user_can( Ai_Setup::CAPABILITY ),
+				'available'           => $ai_status['available'],
+				'featureEnabled'      => $ai_status['feature_enabled'],
+				'sdkPresent'          => $ai_status['sdk_present'],
+				'providerConfigured'  => $ai_status['provider_configured'],
+				'schedulerPresent'    => $ai_status['scheduler_present'],
+				'canEdit'             => current_user_can( Ai_Setup::CAPABILITY ),
+				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'canManageConnectors' => current_user_can( 'manage_options' ),
 			),
 		);
 		$json      = wp_json_encode( $data );

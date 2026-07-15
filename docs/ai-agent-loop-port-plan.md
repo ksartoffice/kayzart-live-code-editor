@@ -98,14 +98,16 @@
 - `includes/rest/class-kayzart-rest-ai.php`: `POST /ai/jobs`、`GET /ai/jobs/{id}`、`POST /ai/jobs/{id}/cancel` を実装。nonce、`edit_post`、`kayzart_ai_edit`、本人／管理者アクセス、入力サイズ、404秘匿を検証する。
 - 無料版は月次回数を制限せず、各ジョブの `usage` のみを保存・返却する。回数・費用上限は将来の Pro 機能候補へ移した。
 
-### Phase 4: フロントエンドUI（約2日）
+### Phase 4: フロントエンドUI（完了）
 
-- 新規 `src/editor-ai/`（pro `src/editor-tab/` の移植・簡素化）:
-  - `main.tsx` — チャットUI、`registerSettingsTab`、`getEditorSnapshot` → 送信、ポーリング、`replaceEditorSnapshot` → 適用。**ライセンス/クレジット/課金メニューを削除**。
-  - `polling.ts` / `ai-edit-contract.ts` — ほぼ流用。
-  - Connectors 未設定時は設定画面への導線。
-- 変更: `vite.config` にエントリ追加 → `assets/dist/` へ出力。
-- 変更: `includes/class-kayzart-admin.php`（AIバンドルを editor 資産と共に enqueue、AI可用性を localize）。
+- `src/editor-ai/`: 無料版専用のREST契約、APIエラー処理、ポーリング、実行中ジョブ復元、AI編集React UIを実装。ライセンス、credits、model、サーバー履歴、バージョンDBへの依存は持たない。
+- `vite.config.ai.ts`: `@wordpress/element` と `@wordpress/i18n` を外部依存にし、`assets/dist/ai-editor.js` と `ai-editor.css` を通常管理画面バンドルの後に生成する。
+- AIタブ、ツールバー、Elementsパネル、プレビュー選択操作を追加。promptは8KB、選択コンテキストは20件、画面内メッセージは100件、戻す／再適用用snapshotは20組を上限とする。
+- 実行中はエディタをロックしてイベントを表示し、キャンセルと全終端状態を処理する。完了snapshotは自動反映するが投稿は自動保存せず、既存の保存操作へ委ねる。
+- 会話履歴と完了結果はページ再読み込みで破棄する。実行中ジョブだけを `sessionStorage` の `kayzart.ai.activeJob.{postId}` に保存し、再読み込みまたはAIタブ再表示時にポーリングを再開する。
+- `window.KAYZART.ai` にジョブREST URL、Connectors URL、管理権限を追加し、機能ゲート、SDK、プロバイダー、Schedulerの原因別案内を実装。`kayzart_ai_edit` 非保有者にはAI資産を出力しない。
+- Kayzart 3.0以上では `kayzart-pro` の旧AIタブ、ツールバー、プレビュー操作を抑止し、Proのライセンス設定、REST、バージョン履歴は維持する。
+- DBジョブ一覧、AI編集履歴UI、履歴ツールはPhase 4の対象外とする。
 
 ### Phase 5: ゲーティング・権限UI・仕上げ（約1日）
 
@@ -132,5 +134,5 @@
 
 ## 8. 次アクション候補
 
-- Phase 1（ツール層）着手、または PoC（最小PHPループでモデル非依存性を検証）。
-- 推奨: 最大リスクを先に潰す PoC から入る。
+- Phase 5: ロール／ユーザー単位のAI編集権限UI、運用案内、i18n、リリース文書、E2Eの仕上げ。
+- 実プロバイダーでの編集成功系はリリース前に最小件数で再確認し、モデル非固定下の `replace_string` 安定性を評価する。

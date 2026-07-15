@@ -57,11 +57,12 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A tool edit followed by a final summary returns the edited snapshot.
+	 * A tool edit followed by a stop turn and final summary returns the edited snapshot.
 	 */
 	public function test_happy_path_edit_then_summary(): void {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+		$fake->queue_final_text( 'Editing complete.' );
 		$fake->queue_final_text( '{"summary":"Changed greeting to World."}' );
 
 		$agent  = new Ai_Agent( $fake );
@@ -75,6 +76,12 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$roles                = array_column( $second_turn_messages, 'role' );
 		$this->assertContains( 'assistant', $roles );
 		$this->assertContains( 'tool', $roles );
+
+		$calls = $fake->calls();
+		$this->assertArrayNotHasKey( 'jsonSchema', $calls[0]['options'] );
+		$this->assertArrayNotHasKey( 'jsonSchema', $calls[1]['options'] );
+		$this->assertSame( Ai_Agent::FINAL_SUMMARY_JSON_SCHEMA, $calls[2]['options']['jsonSchema'] );
+		$this->assertSame( array(), $calls[2]['tools'] );
 	}
 
 	/**
@@ -94,9 +101,10 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	 */
 	public function test_recovers_from_tool_error(): void {
 		$fake = new Ai_Client_Fake();
-		// First a miss (0 occurrences), then a valid edit, then the summary.
+		// First a miss (0 occurrences), then a valid edit, a stop turn, and the summary.
 		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Missing', 'X' ) ) );
 		$fake->queue_tool_calls( array( $this->replace_call( 'c2', 'Hello', 'World' ) ) );
+		$fake->queue_final_text( 'Editing complete.' );
 		$fake->queue_final_text( '{"summary":"Recovered and edited."}' );
 
 		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
@@ -152,6 +160,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	public function test_emits_events(): void {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+		$fake->queue_final_text( 'Editing complete.' );
 		$fake->queue_final_text( '{"summary":"ok"}' );
 
 		$events = array();

@@ -110,7 +110,10 @@ class Ai_Agent {
 		$selected_contexts = $this->resolve_selected_contexts( $payload );
 		$snapshot          = $this->initial_snapshot( $payload );
 
-		$options = array(
+		$turn_options         = array(
+			'systemInstruction' => Ai_Prompt::system_prompt(),
+		);
+		$finalization_options = array(
 			'systemInstruction' => Ai_Prompt::system_prompt(),
 			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
 		);
@@ -130,16 +133,15 @@ class Ai_Agent {
 				)
 			);
 
-			$result = $this->client->generate( $messages, $tools, $options );
+			$result = $this->client->generate( $messages, $tools, $turn_options );
 			$usage  = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
 			$calls  = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
 
 			if ( count( $calls ) === 0 ) {
-				$summary = $this->parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
 				if ( ! $applied_edit_operation ) {
 					throw new Ai_Agent_Error( 'No edit operations were applied. Use edit tools before finalizing.', false );
 				}
-				return $this->build_result( $snapshot, $summary, $usage );
+				return $this->run_finalization_turns( $messages, $snapshot, $usage, $finalization_options );
 			}
 
 			$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
@@ -205,7 +207,7 @@ class Ai_Agent {
 		}
 
 		if ( $applied_edit_operation ) {
-			return $this->run_finalization_turns( $messages, $snapshot, $usage, $options );
+			return $this->run_finalization_turns( $messages, $snapshot, $usage, $finalization_options );
 		}
 
 		throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true );

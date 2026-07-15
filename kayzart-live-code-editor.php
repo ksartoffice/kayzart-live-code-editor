@@ -40,6 +40,7 @@ require_once KAYZART_PATH . 'includes/class-kayzart-custom-head.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-snapshot.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-tool-error.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-tools.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-tool-schema.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-save.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-setup.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-settings.php';

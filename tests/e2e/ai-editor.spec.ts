@@ -113,3 +113,34 @@ test('restores and applies a previously completed active job', async ({ page }) 
   expect(await page.evaluate((targetPostId) => sessionStorage.getItem(`kayzart.ai.activeJob.${targetPostId}`), postId))
     .toBeNull();
 });
+
+test('continues after parallel OpenAI tool calls and applies the result', async ({ page }) => {
+  test.skip(
+    process.env.KAYZART_RUN_AI_PARALLEL_E2E !== '1',
+    'Set KAYZART_RUN_AI_PARALLEL_E2E=1 for the paid parallel tool-call regression check.'
+  );
+  test.setTimeout(620_000);
+  let latestStatus: any = null;
+  page.on('response', async (response) => {
+    if (response.request().method() !== 'GET' || !response.url().includes('/wp-json/kayzart/v1/ai/jobs/')) return;
+    latestStatus = await response.json().catch(() => latestStatus);
+  });
+
+  await openEditor(page);
+  const before = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
+  await page.getByRole('button', { name: 'AI Edit', exact: true }).first().click();
+  await page.locator('.kayzart-ai-panel textarea').fill('お客様の声セクションを追加してください。');
+  await page.locator('.kayzart-ai-composer-footer button').click();
+  await expect(page.locator('.kayzart-ai-result')).toBeVisible({ timeout: 600_000 });
+
+  const after = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
+  expect(after.html).not.toBe(before.html);
+  const events = Array.isArray(latestStatus?.events) ? latestStatus.events : [];
+  const secondTurn = events.findIndex((event: any) => event.event === 'progress' && event.message === 'AI turn 2/15');
+  expect(secondTurn).toBeGreaterThan(0);
+  expect(events.slice(0, secondTurn).filter((event: any) => event.event === 'tool_start').length).toBeGreaterThan(1);
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
+  expect((await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot())).html).toBe(before.html);
+});

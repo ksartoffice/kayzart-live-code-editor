@@ -180,6 +180,65 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Parallel tool calls are all executed and preserved for the next turn.
+	 */
+	public function test_parallel_tool_calls_continue_to_summary(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_result(
+			array(
+				'toolCalls' => array(
+					Ai_Message::tool_call(
+						'search-1',
+						'search_text',
+						array(
+							'query'  => 'Hello',
+							'target' => 'html',
+						)
+					),
+					$this->replace_call( 'replace-1', 'Hello', 'World' ),
+				),
+				'usage'     => array(
+					'inputTokens'  => 10,
+					'outputTokens' => 4,
+				),
+			)
+		);
+		$fake->queue_result(
+			array(
+				'text'  => 'Editing complete.',
+				'usage' => array(
+					'inputTokens'  => 20,
+					'outputTokens' => 3,
+				),
+			)
+		);
+		$fake->queue_result(
+			array(
+				'text'  => '{"summary":"Searched and changed the greeting."}',
+				'usage' => array(
+					'inputTokens'  => 30,
+					'outputTokens' => 2,
+				),
+			)
+		);
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+		$this->assertSame( 'Searched and changed the greeting.', $result['summary'] );
+		$this->assertSame( 60, $result['usage']['inputTokens'] );
+		$this->assertSame( 9, $result['usage']['outputTokens'] );
+
+		$second_turn_messages = $fake->calls()[1]['messages'];
+		$this->assertCount( 2, $second_turn_messages[1]['toolCalls'] );
+		$this->assertSame( 'search-1', $second_turn_messages[1]['toolCalls'][0]['id'] );
+		$this->assertSame( 'replace-1', $second_turn_messages[1]['toolCalls'][1]['id'] );
+		$this->assertCount( 2, $second_turn_messages[2]['toolResponses'] );
+		$this->assertSame( 'search-1', $second_turn_messages[2]['toolResponses'][0]['callId'] );
+		$this->assertSame( 'replace-1', $second_turn_messages[2]['toolResponses'][1]['callId'] );
+	}
+
+	/**
 	 * Reaching the turn limit after an edit runs a finalization turn.
 	 */
 	public function test_finalization_after_turn_limit(): void {

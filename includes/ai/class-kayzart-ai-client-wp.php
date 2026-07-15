@@ -140,7 +140,11 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 					? \WordPress\AiClient\Messages\Enums\MessageRoleEnum::model()
 					: \WordPress\AiClient\Messages\Enums\MessageRoleEnum::user();
 			}
-			$sdk_messages[] = new \WordPress\AiClient\Messages\DTO\Message( $enum, $parts );
+			foreach ( $parts as $part ) {
+				// OpenAI Responses requires calls and responses to be top-level
+				// input items, so every SDK message carries exactly one part.
+				$sdk_messages[] = new \WordPress\AiClient\Messages\DTO\Message( $enum, array( $part ) );
+			}
 		}
 		return $sdk_messages;
 	}

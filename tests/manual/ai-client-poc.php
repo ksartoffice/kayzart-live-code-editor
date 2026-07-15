@@ -11,8 +11,11 @@
  * @package KayzArt
  */
 
+use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
 use WordPress\AiClient\Messages\DTO\UserMessage;
+use WordPress\AiClient\Messages\Enums\MessageRoleEnum;
+use WordPress\AiClient\Tools\DTO\FunctionCall;
 use WordPress\AiClient\Tools\DTO\FunctionDeclaration;
 use WordPress\AiClient\Tools\DTO\FunctionResponse;
 
@@ -67,6 +70,20 @@ function kayzart_ai_poc_function_calls( $result ): array {
 }
 
 /**
+ * Split a generated message into provider-compatible single-part messages.
+ *
+ * @param object $message SDK Message object.
+ * @return array
+ */
+function kayzart_ai_poc_split_message_parts( $message ): array {
+	$messages = array();
+	foreach ( $message->getParts() as $part ) {
+		$messages[] = new Message( $message->getRole(), array( $part ) );
+	}
+	return $messages;
+}
+
+/**
  * Return readable result metadata without credentials.
  *
  * @param object $result GenerativeAiResult.
@@ -87,20 +104,19 @@ if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 	kayzart_ai_poc_fail( 'wp_ai_client_prompt() is unavailable.' );
 }
 
-$initial_html = '<h1>Hello</h1>';
-$instruction  = 'The current HTML is exactly <h1>Hello</h1>. Change Hello to World. You must call replace_string exactly once and must not answer with the edited HTML directly.';
-$system       = 'Use replace_string for the requested edit. After a successful tool response, stop calling tools. When tools are unavailable, return only the requested JSON summary.';
+$initial_html = '<main><h1>Hello</h1><p>World</p></main>';
+$instruction  = 'Inspect the current HTML. In one response, call search_text exactly twice in parallel: once with query "Hello" and once with query "World". Do not answer with text before both tool calls.';
+$system       = 'Use the declared search_text tool exactly as requested. After both successful tool responses, stop calling tools. When tools are unavailable, return only the requested JSON summary.';
 $user_message = new UserMessage( array( new MessagePart( $instruction ) ) );
 $declaration  = new FunctionDeclaration(
-	'replace_string',
-	'Replace one exact string in an HTML document.',
+	'search_text',
+	'Search for an exact string in the HTML document.',
 	array(
 		'type'                 => 'object',
 		'properties'           => array(
-			'from' => array( 'type' => 'string' ),
-			'to'   => array( 'type' => 'string' ),
+			'query' => array( 'type' => 'string' ),
 		),
-		'required'             => array( 'from', 'to' ),
+		'required'             => array( 'query' ),
 		'additionalProperties' => false,
 	)
 );
@@ -115,38 +131,51 @@ if ( ! $support_builder->is_supported_for_text_generation() ) {
 
 $first       = kayzart_ai_poc_result( $support_builder->generate_text_result(), 'function_call' );
 $first_calls = kayzart_ai_poc_function_calls( $first );
-if ( 1 !== count( $first_calls ) ) {
-	kayzart_ai_poc_fail( 'function_call: expected exactly one call, got ' . count( $first_calls ) . '.' );
+if ( 0 === count( $first_calls ) || count( $first_calls ) > 2 ) {
+	kayzart_ai_poc_fail( 'function_call: expected one or two calls, got ' . count( $first_calls ) . '.' );
 }
 
-$call = $first_calls[0];
-$args = $call->getArgs();
-if ( 'replace_string' !== $call->getName() || ! is_array( $args ) ) {
-	kayzart_ai_poc_fail( 'function_call: invalid name or arguments.' );
-}
-if ( ! isset( $args['from'], $args['to'] ) || ! is_string( $args['from'] ) || ! is_string( $args['to'] ) ) {
-	kayzart_ai_poc_fail( 'function_call: from/to string arguments are required.' );
+$call_messages = kayzart_ai_poc_split_message_parts( $first->toMessage() );
+if ( 1 === count( $first_calls ) ) {
+	$generated_args  = $first_calls[0]->getArgs();
+	$generated_query = is_array( $generated_args ) && isset( $generated_args['query'] ) ? (string) $generated_args['query'] : '';
+	$missing_query   = 'Hello' === $generated_query ? 'World' : 'Hello';
+	$synthetic_call  = new FunctionCall( 'kayzart-poc-parallel-2', 'search_text', array( 'query' => $missing_query ) );
+	$first_calls[]   = $synthetic_call;
+	$call_messages[] = new Message(
+		MessageRoleEnum::model(),
+		array( new MessagePart( $synthetic_call ) )
+	);
 }
 
-$match_count = substr_count( $initial_html, $args['from'] );
-if ( 1 !== $match_count ) {
-	kayzart_ai_poc_fail( 'function_call: from matched ' . $match_count . ' occurrences.' );
+$queries        = array();
+$tool_responses = array();
+foreach ( $first_calls as $call ) {
+	$args = $call->getArgs();
+	if ( 'search_text' !== $call->getName() || ! is_array( $args ) || ! isset( $args['query'] ) || ! is_string( $args['query'] ) ) {
+		kayzart_ai_poc_fail( 'function_call: invalid search_text arguments.' );
+	}
+	$queries[]        = $args['query'];
+	$tool_response    = new FunctionResponse(
+		$call->getId(),
+		$call->getName(),
+		array(
+			'ok'    => true,
+			'query' => $args['query'],
+			'count' => substr_count( $initial_html, $args['query'] ),
+		)
+	);
+	$tool_responses[] = new UserMessage( array( new MessagePart( $tool_response ) ) );
 }
-$edited_html = str_replace( $args['from'], $args['to'], $initial_html );
+sort( $queries );
+if ( array( 'Hello', 'World' ) !== $queries ) {
+	kayzart_ai_poc_fail( 'function_call: expected Hello and World queries.' );
+}
 
-$tool_response = new FunctionResponse(
-	$call->getId(),
-	$call->getName(),
-	array(
-		'ok'            => true,
-		'replacedCount' => 1,
-		'html'          => $edited_html,
-	)
-);
-$messages      = array(
-	$user_message,
-	$first->toMessage(),
-	new UserMessage( array( new MessagePart( $tool_response ) ) ),
+$messages = array_merge(
+	array( $user_message ),
+	$call_messages,
+	$tool_responses
 );
 
 $second       = kayzart_ai_poc_result(
@@ -184,12 +213,16 @@ if ( ! is_array( $final_json ) || ! isset( $final_json['summary'] ) || ! is_stri
 
 $output = array(
 	'ok'               => true,
-	'functionCall'     => array(
-		'id'   => $call->getId(),
-		'name' => $call->getName(),
-		'args' => $args,
+	'functionCalls'    => array_map(
+		static function ( $call ) {
+			return array(
+				'id'   => $call->getId(),
+				'name' => $call->getName(),
+				'args' => $call->getArgs(),
+			);
+		},
+		$first_calls
 	),
-	'editedHtml'       => $edited_html,
 	'continuationText' => trim( $second->toText() ),
 	'finalSummary'     => $final_json['summary'],
 	'calls'            => array(

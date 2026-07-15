@@ -81,6 +81,9 @@ export type AiTimelineItem = {
   executionStatus: AiJobStatus | null;
   applicationStatus: 'not_applied' | 'applied' | 'reverted' | null;
   changedTargets: ChangedTarget[];
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
   beforeHash: string | null;
   afterHash: string | null;
   revisionId: number | null;

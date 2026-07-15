@@ -51,6 +51,7 @@
 .kayzart-ai-result-actions button, .kayzart-ai-system button { padding: 5px 8px; border: 1px solid #445268; border-radius: 5px; color: var(--ai-text); background: #202a38; cursor: pointer; }
 .kayzart-ai-events { max-height: 108px; margin: 0; padding-left: 18px; overflow: auto; color: var(--ai-muted); }
 .kayzart-ai-expired { margin: 0; color: var(--ai-muted); font-size: 11px; }
+.kayzart-ai-usage { color: var(--ai-muted); font-size: 11px; }
 .kayzart-ai-system { align-self: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; max-width: 92%; padding: 7px 10px; border: 1px solid var(--ai-border); border-radius: 999px; color: var(--ai-muted); background: #111720; font-size: 11px; text-align: center; }
 .kayzart-ai-system strong { color: var(--ai-text); }
 .kayzart-ai-system small { width: 100%; }

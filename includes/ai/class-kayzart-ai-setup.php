@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ai_Setup {
 	const CAPABILITY            = 'kayzart_ai_edit';
-	const DB_VERSION            = '3';
+	const DB_VERSION            = '4';
 	const DB_VERSION_OPTION     = 'kayzart_ai_db_version';
 	const JOBS_TABLE_SUFFIX     = 'kayzart_ai_jobs';
 	const TIMELINE_TABLE_SUFFIX = 'kayzart_ai_timeline';
@@ -108,6 +108,9 @@ class Ai_Setup {
 			before_hash varchar(128) NULL,
 			after_hash varchar(128) NULL,
 			summary text NULL,
+			model varchar(128) NULL,
+			input_tokens bigint(20) unsigned NULL,
+			output_tokens bigint(20) unsigned NULL,
 			revision_id bigint(20) unsigned NULL,
 			source_activity_id bigint(20) unsigned NULL,
 			restore_target varchar(10) NULL,

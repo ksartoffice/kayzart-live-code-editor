@@ -60,6 +60,7 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 				'toolCalls' => $this->extract_tool_calls( $sdk_result ),
 				'text'      => $this->extract_text( $sdk_result ),
 				'usage'     => $this->extract_usage( $sdk_result ),
+				'model'     => $this->extract_model( $sdk_result ),
 			);
 		} catch ( \Throwable $error ) {
 			throw new Ai_Client_Exception( 'AI Client returned an invalid result: ' . $error->getMessage(), true );
@@ -308,6 +309,23 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 			'outputTokens'          => method_exists( $usage, 'getCompletionTokens' ) ? (int) $usage->getCompletionTokens() : 0,
 			'reasoningOutputTokens' => method_exists( $usage, 'getThoughtTokens' ) ? (int) $usage->getThoughtTokens() : 0,
 		);
+	}
+
+	/**
+	 * SDK-SEAM: extract the model identifier the provider actually used.
+	 *
+	 * @param mixed $sdk_result SDK result object.
+	 * @return string Model ID, or '' when unavailable.
+	 */
+	private function extract_model( $sdk_result ): string {
+		if ( ! is_object( $sdk_result ) || ! method_exists( $sdk_result, 'getModelMetadata' ) ) {
+			return '';
+		}
+		$metadata = $sdk_result->getModelMetadata();
+		if ( ! is_object( $metadata ) || ! method_exists( $metadata, 'getId' ) ) {
+			return '';
+		}
+		return (string) $metadata->getId();
 	}
 
 	/**

@@ -118,6 +118,12 @@ class Ai_Agent {
 			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
 		);
 
+		$model_preference = self::resolve_model_preference( $payload );
+		if ( count( $model_preference ) > 0 ) {
+			$turn_options['modelPreference']         = $model_preference;
+			$finalization_options['modelPreference'] = $model_preference;
+		}
+
 		$messages = array( Ai_Message::user( Ai_Prompt::build_user_prompt( $payload ) ) );
 
 		$applied_edit_operation = false;
@@ -135,6 +141,7 @@ class Ai_Agent {
 
 			$result = $this->client->generate( $messages, $tools, $turn_options );
 			$usage  = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
+			$usage  = self::remember_model( $usage, $result );
 			$calls  = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
 
 			if ( count( $calls ) === 0 ) {
@@ -237,6 +244,7 @@ class Ai_Agent {
 
 			$result = $this->client->generate( $messages, array(), $options );
 			$usage  = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
+			$usage  = self::remember_model( $usage, $result );
 			$calls  = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
 
 			if ( count( $calls ) > 0 ) {
@@ -321,6 +329,33 @@ class Ai_Agent {
 			'js'         => $js,
 			'jsMode'     => $js_mode,
 			'baseHash'   => $base_hash,
+		);
+	}
+
+	/**
+	 * Resolve the ordered model preference from a payload.
+	 *
+	 * Empty means "auto" (let the AI Client pick), preserving current behavior.
+	 *
+	 * @param array $payload Request payload.
+	 * @return array<int,string>
+	 */
+	private static function resolve_model_preference( array $payload ): array {
+		if ( empty( $payload['modelPreference'] ) || ! is_array( $payload['modelPreference'] ) ) {
+			return array();
+		}
+		return array_values(
+			array_filter(
+				array_map(
+					static function ( $preference ) {
+						return is_string( $preference ) ? trim( $preference ) : '';
+					},
+					$payload['modelPreference']
+				),
+				static function ( $preference ) {
+					return '' !== $preference;
+				}
+			)
 		);
 	}
 
@@ -451,7 +486,25 @@ class Ai_Agent {
 			'cachedInputTokens'     => 0,
 			'outputTokens'          => 0,
 			'reasoningOutputTokens' => 0,
+			'model'                 => '',
 		);
+	}
+
+	/**
+	 * Remember the model a turn used, keeping the most recent non-empty value.
+	 *
+	 * Carried on the usage array so it flows through finalization and the result
+	 * without extra signatures. Turns normally use one model per request.
+	 *
+	 * @param array $usage  Running usage total.
+	 * @param mixed $result Normalized turn result.
+	 * @return array
+	 */
+	private static function remember_model( array $usage, $result ): array {
+		if ( is_array( $result ) && isset( $result['model'] ) && '' !== (string) $result['model'] ) {
+			$usage['model'] = (string) $result['model'];
+		}
+		return $usage;
 	}
 
 	/**

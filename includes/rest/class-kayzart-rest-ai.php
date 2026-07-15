@@ -70,6 +70,7 @@ class Rest_Ai {
 
 		$store                                        = new Ai_Job_Store();
 		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'] );
+		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
 		$result                                       = $store->create( get_current_user_id(), $payload['postId'], $payload['requestId'], $payload['agentPayload'] );
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -248,6 +249,18 @@ class Rest_Ai {
 			'postId'       => $post_id,
 			'agentPayload' => $agent,
 		);
+	}
+
+	/** Resolve the configured default model as an ordered preference list.
+	 *
+	 * Baked into the job payload at creation so a later settings change does not
+	 * alter an in-flight job. Empty means "auto" (let the AI Client pick).
+	 *
+	 * @return array<int,string>
+	 */
+	private static function default_model_preference(): array {
+		$model = trim( (string) get_option( Admin::OPTION_AI_DEFAULT_MODEL, '' ) );
+		return '' !== $model ? array( $model ) : array();
 	}
 
 	/** Recursively normalize selection context to JSON-safe scalar data.

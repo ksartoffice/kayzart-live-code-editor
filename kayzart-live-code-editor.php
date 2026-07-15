@@ -52,6 +52,7 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-exception.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-interface.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-setup.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-availability.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-models.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-wp.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-error.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-canceled.php';

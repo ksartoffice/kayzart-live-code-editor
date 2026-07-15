@@ -71,9 +71,12 @@ class Ai_Timeline_Store {
 	}
 
 	/** Store a completed edit's lightweight durable result. */
-	public function complete( string $job_uuid, array $before, array $after, string $summary ): bool {
+	public function complete( string $job_uuid, array $before, array $after, string $summary, array $usage = array() ): bool {
 		global $wpdb;
-		$result = $wpdb->update(
+		$model         = isset( $usage['model'] ) ? self::truncate( (string) $usage['model'], 128 ) : '';
+		$input_tokens  = isset( $usage['inputTokens'] ) ? max( 0, (int) $usage['inputTokens'] ) : 0;
+		$output_tokens = isset( $usage['outputTokens'] ) ? max( 0, (int) $usage['outputTokens'] ) : 0;
+		$result        = $wpdb->update(
 			Ai_Setup::get_timeline_table_name(),
 			array(
 				'execution_status' => 'completed',
@@ -81,10 +84,13 @@ class Ai_Timeline_Store {
 				'before_hash'      => self::editor_hash( $before ),
 				'after_hash'       => self::editor_hash( $after ),
 				'summary'          => self::truncate( $summary, 512 ),
+				'model'            => '' !== $model ? $model : null,
+				'input_tokens'     => $input_tokens,
+				'output_tokens'    => $output_tokens,
 				'updated_at'       => self::now(),
 			),
 			array( 'job_uuid' => $job_uuid ),
-			array( '%s', '%s', '%s', '%s', '%s', '%s' ),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ),
 			array( '%s' )
 		);
 		return false !== $result;
@@ -251,6 +257,9 @@ class Ai_Timeline_Store {
 			'executionStatus'   => $row['execution_status'] ? (string) $row['execution_status'] : null,
 			'applicationStatus' => $row['application_status'] ? (string) $row['application_status'] : null,
 			'changedTargets'    => self::decode_array( $row['changed_targets'] ),
+			'model'             => isset( $row['model'] ) && '' !== (string) $row['model'] ? (string) $row['model'] : null,
+			'inputTokens'       => isset( $row['input_tokens'] ) && null !== $row['input_tokens'] ? (int) $row['input_tokens'] : null,
+			'outputTokens'      => isset( $row['output_tokens'] ) && null !== $row['output_tokens'] ? (int) $row['output_tokens'] : null,
 			'beforeHash'        => $row['before_hash'] ? (string) $row['before_hash'] : null,
 			'afterHash'         => $row['after_hash'] ? (string) $row['after_hash'] : null,
 			'revisionId'        => $row['revision_id'] ? (int) $row['revision_id'] : null,

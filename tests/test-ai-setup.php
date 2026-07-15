@@ -133,7 +133,7 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 	/**
 	 * A Phase 0 v1 table is upgraded in place to the current schema.
 	 */
-	public function test_v1_schema_is_upgraded_to_v3(): void {
+	public function test_v1_schema_is_upgraded_to_current(): void {
 		global $wpdb;
 		$table_name      = Ai_Setup::get_jobs_table_name();
 		$charset_collate = $wpdb->get_charset_collate();
@@ -163,8 +163,12 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$this->assertContains( 'cancel_requested', $columns );
 		$this->assertContains( 'deadline_at', $columns );
 		$this->assertContains( 'lock_key', $columns );
-		$this->assertSame( '3', get_option( Ai_Setup::DB_VERSION_OPTION ) );
+		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
 		$timeline_table = Ai_Setup::get_timeline_table_name();
 		$this->assertSame( $timeline_table, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $timeline_table ) ) );
+		$timeline_columns = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $timeline_table ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$this->assertContains( 'model', $timeline_columns );
+		$this->assertContains( 'input_tokens', $timeline_columns );
+		$this->assertContains( 'output_tokens', $timeline_columns );
 	}
 }

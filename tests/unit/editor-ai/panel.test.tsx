@@ -8,7 +8,7 @@ const beforeSnapshot = { html: '<main>Before</main>', customHead: '', css: '', j
 const afterSnapshot = { html: '<main>After</main>', customHead: '', css: 'main{}', js: '', jsMode: 'classic' as const, baseHash: 'after' };
 const timelineItem = {
   id: 12, activityId: 'activity-12', type: 'ai_edit', jobId: 'job-1', requestId: 'request-1', prompt: 'Improve the hero', contexts: [],
-  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], beforeHash: 'before', afterHash: 'after',
+  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], model: 'gpt-4o', inputTokens: 1234, outputTokens: 567, beforeHash: 'before', afterHash: 'after',
   revisionId: null, sourceActivityId: null, sourcePrompt: null, restoreTarget: null, detailsAvailable: true, canPoll: true,
   revisionAvailable: false, author: { id: 1, name: 'Editor' }, createdAt: '2026-07-15T00:00:00Z', updatedAt: '2026-07-15T00:00:01Z',
 };

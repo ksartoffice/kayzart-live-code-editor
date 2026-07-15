@@ -43,6 +43,43 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertLessThanOrEqual( 512, strlen( $context[0]['summary'] ) );
 	}
 
+	/** Completing an edit persists the model and input/output token counts. */
+	public function test_complete_persists_model_and_token_usage(): void {
+		$job     = $this->job( 'request-usage' );
+		$payload = $this->payload( 'Tighten the copy.' );
+		$first   = $this->store->create_ai_edit( $job, $payload );
+
+		$after         = $payload;
+		$after['html'] = '<h1>Tighter</h1>';
+		$usage         = array(
+			'inputTokens'  => 1234,
+			'outputTokens' => 567,
+			'model'        => 'gpt-4o',
+		);
+		$this->assertTrue( $this->store->complete( $job['job_uuid'], $payload, $after, 'Done.', $usage ) );
+
+		$item = $this->store->to_response( $this->store->get( (int) $first['id'] ) );
+		$this->assertSame( 'gpt-4o', $item['model'] );
+		$this->assertSame( 1234, $item['inputTokens'] );
+		$this->assertSame( 567, $item['outputTokens'] );
+	}
+
+	/** Completing without usage leaves model null and tokens zero. */
+	public function test_complete_without_usage_defaults_model_null(): void {
+		$job     = $this->job( 'request-no-usage' );
+		$payload = $this->payload( 'No usage provided.' );
+		$first   = $this->store->create_ai_edit( $job, $payload );
+
+		$after         = $payload;
+		$after['html'] = '<h1>Changed</h1>';
+		$this->assertTrue( $this->store->complete( $job['job_uuid'], $payload, $after, 'Done.' ) );
+
+		$item = $this->store->to_response( $this->store->get( (int) $first['id'] ) );
+		$this->assertNull( $item['model'] );
+		$this->assertSame( 0, $item['inputTokens'] );
+		$this->assertSame( 0, $item['outputTokens'] );
+	}
+
 	/** Cursor pages contain 50 stable chronological rows without overlap. */
 	public function test_cursor_paging_returns_fifty_rows_at_a_time(): void {
 		for ( $index = 1; $index <= 55; $index++ ) {

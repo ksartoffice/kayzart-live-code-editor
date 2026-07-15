@@ -54,7 +54,8 @@ interface Ai_Client_Interface {
 	 *     usage: array{
 	 *       inputTokens:int, cachedInputTokens:int,
 	 *       outputTokens:int, reasoningOutputTokens:int
-	 *     }
+	 *     },
+	 *     model: string
 	 *   }
 	 *
 	 * @throws Ai_Client_Exception When the model cannot be reached or returns

@@ -92,6 +92,13 @@ function statusLabel(item: AiTimelineItem) {
   return __('Failed', 'kayzart-live-code-editor');
 }
 
+function usageLabel(item: AiTimelineItem): string | null {
+  if (item.executionStatus !== 'completed' || !item.model) return null;
+  const input = typeof item.inputTokens === 'number' ? item.inputTokens.toLocaleString() : '—';
+  const output = typeof item.outputTokens === 'number' ? item.outputTokens.toLocaleString() : '—';
+  return `${item.model} · ${__('Input', 'kayzart-live-code-editor')} ${input} / ${__('Output', 'kayzart-live-code-editor')} ${output} ${__('tokens', 'kayzart-live-code-editor')}`;
+}
+
 function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   if (ai.available) return null;
   let title: string = __('AI editing is unavailable', 'kayzart-live-code-editor');
@@ -291,6 +298,7 @@ export function AiEditorPanel() {
           <button type="button" onClick={() => void restore(item, target)}>{target === 'before' ? __('Revert change', 'kayzart-live-code-editor') : __('Restore this result', 'kayzart-live-code-editor')}</button>
         </div> : null}
         {item.executionStatus === 'completed' && !item.detailsAvailable ? <p className="kayzart-ai-expired">{__('The change data retention period has ended.', 'kayzart-live-code-editor')}</p> : null}
+        {usageLabel(item) ? <small className="kayzart-ai-usage">{usageLabel(item)}</small> : null}
         {failed ? <div className="kayzart-ai-result-actions"><button type="button" disabled={running} onClick={() => void send({ prompt: item.prompt || '', contexts: item.contexts as SelectedElementContext[] })}>{__('Run again', 'kayzart-live-code-editor')}</button><button type="button" onClick={() => { setPrompt(item.prompt || ''); promptRef.current?.focus(); }}>{__('Return to input', 'kayzart-live-code-editor')}</button></div> : null}
       </div>
     </div>;

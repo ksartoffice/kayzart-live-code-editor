@@ -156,6 +156,7 @@ class Ai_Client_Fake implements Ai_Client_Interface {
 			'toolCalls' => $tool_calls,
 			'text'      => isset( $result['text'] ) ? (string) $result['text'] : '',
 			'usage'     => self::normalize_usage( isset( $result['usage'] ) ? $result['usage'] : array() ),
+			'model'     => isset( $result['model'] ) ? (string) $result['model'] : '',
 		);
 	}
 

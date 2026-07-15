@@ -191,7 +191,7 @@ class Ai_Job_Store {
 					'js'         => isset( $payload['js'] ) ? (string) $payload['js'] : '',
 					'jsMode'     => isset( $payload['jsMode'] ) && 'module' === $payload['jsMode'] ? 'module' : 'classic',
 				);
-				( new Ai_Timeline_Store() )->complete( $job_uuid, $before, $snapshot, $summary );
+				( new Ai_Timeline_Store() )->complete( $job_uuid, $before, $snapshot, $summary, $usage );
 			}
 			$this->append_event(
 				$job_uuid,

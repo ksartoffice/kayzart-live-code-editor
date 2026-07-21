@@ -72,6 +72,20 @@ class Ai_Agent {
 	private $history_handler;
 
 	/**
+	 * Identifier included in debug token logs.
+	 *
+	 * @var string
+	 */
+	private $debug_id;
+
+	/**
+	 * Exact named segments of the initial user prompt.
+	 *
+	 * @var array<string,string>
+	 */
+	private $debug_input_parts = array();
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Ai_Client_Interface $client The model client.
@@ -85,6 +99,7 @@ class Ai_Agent {
 		$this->emit            = isset( $hooks['emit'] ) && is_callable( $hooks['emit'] ) ? $hooks['emit'] : null;
 		$this->is_canceled     = isset( $hooks['isCanceled'] ) && is_callable( $hooks['isCanceled'] ) ? $hooks['isCanceled'] : null;
 		$this->history_handler = isset( $hooks['historyTool'] ) && is_callable( $hooks['historyTool'] ) ? $hooks['historyTool'] : null;
+		$this->debug_id        = isset( $hooks['debugId'] ) ? (string) $hooks['debugId'] : '';
 	}
 
 	/**
@@ -107,8 +122,9 @@ class Ai_Agent {
 		$has_history_tool = ! empty( $payload['historyTool'] );
 		$tools            = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool );
 
-		$selected_contexts = $this->resolve_selected_contexts( $payload );
-		$snapshot          = $this->initial_snapshot( $payload );
+		$selected_contexts       = $this->resolve_selected_contexts( $payload );
+		$snapshot                = $this->initial_snapshot( $payload );
+		$this->debug_input_parts = Ai_Prompt::debug_input_parts( $payload );
 
 		$turn_options         = array(
 			'systemInstruction' => Ai_Prompt::system_prompt(),
@@ -140,9 +156,10 @@ class Ai_Agent {
 			);
 
 			$result = $this->client->generate( $messages, $tools, $turn_options );
-			$usage  = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
-			$usage  = self::remember_model( $usage, $result );
-			$calls  = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
+			$this->log_input_token_breakdown( 'agent', $turn + 1, $messages, $tools, $turn_options, $result );
+			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
+			$usage = self::remember_model( $usage, $result );
+			$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
 
 			if ( count( $calls ) === 0 ) {
 				if ( ! $applied_edit_operation ) {
@@ -243,9 +260,10 @@ class Ai_Agent {
 			);
 
 			$result = $this->client->generate( $messages, array(), $options );
-			$usage  = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
-			$usage  = self::remember_model( $usage, $result );
-			$calls  = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
+			$this->log_input_token_breakdown( 'finalization', $index + 1, $messages, array(), $options, $result );
+			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
+			$usage = self::remember_model( $usage, $result );
+			$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
 
 			if ( count( $calls ) > 0 ) {
 				throw new Ai_Agent_Error( 'Model attempted tool calls during finalization after edit turn limit.', true );
@@ -473,6 +491,111 @@ class Ai_Agent {
 	private function preview( $value, int $limit ): string {
 		$text = is_string( $value ) ? $value : '';
 		return strlen( $text ) > $limit ? substr( $text, 0, $limit ) . '...' : $text;
+	}
+
+	/**
+	 * Log a privacy-safe, approximate breakdown of one turn's input tokens.
+	 *
+	 * Providers expose only the exact total. Per-part values use a deliberately
+	 * simple UTF-8 byte/4 estimate and therefore must not be used for billing.
+	 * Prompt text and source code are never written to the log.
+	 *
+	 * @param string $phase    Agent or finalization phase.
+	 * @param int    $turn     One-based turn within the phase.
+	 * @param array  $messages Conversation sent to the provider.
+	 * @param array  $tools    Function declarations sent to the provider.
+	 * @param array  $options  Generation options.
+	 * @param array  $result   Normalized provider result.
+	 * @return void
+	 */
+	private function log_input_token_breakdown( string $phase, int $turn, array $messages, array $tools, array $options, array $result ): void {
+		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG || ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG ) {
+			return;
+		}
+
+		$parts = array();
+		$this->add_debug_part( $parts, 'system_instruction', isset( $options['systemInstruction'] ) ? (string) $options['systemInstruction'] : '' );
+		foreach ( $this->debug_input_parts as $name => $value ) {
+			$this->add_debug_part( $parts, 'initial_' . $name, $value );
+		}
+		$this->add_debug_part( $parts, 'initial_prompt_separators', str_repeat( "\n\n", max( count( $this->debug_input_parts ) - 1, 0 ) ) );
+
+		$assistant_text = '';
+		$tool_calls     = array();
+		$tool_responses = array();
+		foreach ( array_slice( $messages, 1 ) as $message ) {
+			if ( ! is_array( $message ) ) {
+				continue;
+			}
+			if ( isset( $message['text'] ) ) {
+				$assistant_text .= (string) $message['text'];
+			}
+			if ( ! empty( $message['toolCalls'] ) && is_array( $message['toolCalls'] ) ) {
+				$tool_calls = array_merge( $tool_calls, $message['toolCalls'] );
+			}
+			if ( ! empty( $message['toolResponses'] ) && is_array( $message['toolResponses'] ) ) {
+				$tool_responses = array_merge( $tool_responses, $message['toolResponses'] );
+			}
+		}
+		$this->add_debug_part( $parts, 'conversation_assistant_text', $assistant_text );
+		$this->add_debug_part( $parts, 'conversation_tool_calls', $this->debug_json( $tool_calls ) );
+		$this->add_debug_part( $parts, 'conversation_tool_responses', $this->debug_json( $tool_responses ) );
+		$this->add_debug_part( $parts, 'tool_definitions', $this->debug_json( $tools ) );
+		$this->add_debug_part( $parts, 'response_json_schema', isset( $options['jsonSchema'] ) ? $this->debug_json( $options['jsonSchema'] ) : '' );
+
+		$estimated_total = 0;
+		foreach ( $parts as $part ) {
+			$estimated_total += $part['estimatedTokens'];
+		}
+		$usage        = isset( $result['usage'] ) && is_array( $result['usage'] ) ? $result['usage'] : array();
+		$input_tokens = isset( $usage['inputTokens'] ) ? max( 0, (int) $usage['inputTokens'] ) : 0;
+		$log          = array(
+			'jobId'                   => $this->debug_id,
+			'phase'                   => $phase,
+			'turn'                    => $turn,
+			'model'                   => isset( $result['model'] ) ? (string) $result['model'] : '',
+			'actualInputTokens'       => $input_tokens,
+			'actualCachedInputTokens' => isset( $usage['cachedInputTokens'] ) ? max( 0, (int) $usage['cachedInputTokens'] ) : 0,
+			'estimatedPartsTotal'     => $estimated_total,
+			'providerOverheadOrError' => $input_tokens - $estimated_total,
+			'estimateMethod'          => 'ceil(UTF-8 bytes / 4); per-part values are approximate',
+			'parts'                   => $parts,
+		);
+		$encoded      = wp_json_encode( $log, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		if ( is_string( $encoded ) ) {
+			error_log( '[Kayzart AI token breakdown] ' . $encoded ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+	}
+
+	/**
+	 * Add one non-empty diagnostic part without retaining its content.
+	 *
+	 * @param array  $parts Collected diagnostic parts, passed by reference.
+	 * @param string $name  Part name.
+	 * @param string $value Exact input value used only to calculate its size.
+	 * @return void
+	 */
+	private function add_debug_part( array &$parts, string $name, string $value ): void {
+		if ( '' === $value ) {
+			return;
+		}
+		$bytes          = strlen( $value );
+		$parts[ $name ] = array(
+			'characters'      => mb_strlen( $value ),
+			'bytes'           => $bytes,
+			'estimatedTokens' => (int) ceil( $bytes / 4 ),
+		);
+	}
+
+	/**
+	 * JSON-encode a diagnostic structure for size estimation only.
+	 *
+	 * @param mixed $value Value to encode.
+	 * @return string
+	 */
+	private function debug_json( $value ): string {
+		$encoded = wp_json_encode( $value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return is_string( $encoded ) ? $encoded : '';
 	}
 
 	/**

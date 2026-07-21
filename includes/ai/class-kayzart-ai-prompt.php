@@ -95,6 +95,19 @@ PROMPT;
 	 * @return string
 	 */
 	public static function build_user_prompt( array $payload ): string {
+		return implode( "\n\n", array_values( self::debug_input_parts( $payload ) ) );
+	}
+
+	/**
+	 * Return the named user-prompt parts used by token diagnostics.
+	 *
+	 * The returned values are the exact segments joined by build_user_prompt().
+	 * Callers must log sizes only because the values can contain page content.
+	 *
+	 * @param array $payload Request payload.
+	 * @return array<string,string>
+	 */
+	public static function debug_input_parts( array $payload ): array {
 		$editor_mode = isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '';
 		$prompt      = isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '';
 		$edit_policy = Ai_Tool_Schema::resolve_edit_policy( $editor_mode, $prompt );
@@ -154,20 +167,20 @@ PROMPT;
 		}
 
 		$segments = array(
-			'User prompt: ' . $prompt,
-			$mode_text,
-			$editable_targets_text,
-			$tailwind_policy_text,
-			$context_text,
-			$recent_edit_context_text,
-			$history_tool_text,
-			$selected_context_policy_text,
-			'Leading source previews for initial orientation:',
-			self::format_leading_context_section( 'HTML', isset( $payload['html'] ) ? (string) $payload['html'] : '' ),
-			self::format_leading_context_section( 'HEAD', isset( $payload['customHead'] ) ? (string) $payload['customHead'] : '' ),
-			self::format_leading_context_section( 'CSS', isset( $payload['css'] ) ? (string) $payload['css'] : '' ),
-			self::format_leading_context_section( 'JS', isset( $payload['js'] ) ? (string) $payload['js'] : '' ),
-			'Use tools to inspect/edit and return only final summary JSON.',
+			'user_instruction'        => 'User prompt: ' . $prompt,
+			'editor_mode'             => $mode_text,
+			'editable_targets_policy' => $editable_targets_text,
+			'tailwind_policy'         => $tailwind_policy_text,
+			'selected_contexts'       => $context_text,
+			'recent_edit_context'     => $recent_edit_context_text,
+			'history_tool_policy'     => $history_tool_text,
+			'selected_context_policy' => $selected_context_policy_text,
+			'source_preview_heading'  => 'Leading source previews for initial orientation:',
+			'html_preview'            => self::format_leading_context_section( 'HTML', isset( $payload['html'] ) ? (string) $payload['html'] : '' ),
+			'head_preview'            => self::format_leading_context_section( 'HEAD', isset( $payload['customHead'] ) ? (string) $payload['customHead'] : '' ),
+			'css_preview'             => self::format_leading_context_section( 'CSS', isset( $payload['css'] ) ? (string) $payload['css'] : '' ),
+			'js_preview'              => self::format_leading_context_section( 'JS', isset( $payload['js'] ) ? (string) $payload['js'] : '' ),
+			'final_instruction'       => 'Use tools to inspect/edit and return only final summary JSON.',
 		);
 
 		// Null segments join as empty strings, mirroring Array.prototype.join.
@@ -178,7 +191,7 @@ PROMPT;
 			$segments
 		);
 
-		return implode( "\n\n", $segments );
+		return $segments;
 	}
 
 	/**

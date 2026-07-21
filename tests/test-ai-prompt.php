@@ -130,4 +130,20 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 		$this->assertStringContainsString( 'truncated to 1200/1500 chars', $prompt );
 	}
+
+	/**
+	 * Diagnostic parts reassemble to the exact prompt sent to the provider.
+	 */
+	public function test_debug_input_parts_match_user_prompt(): void {
+		$payload = array(
+			'editorMode' => 'normal',
+			'prompt'     => 'make it blue',
+			'html'       => '<h1>Hello</h1>',
+			'css'        => 'h1 { color: red; }',
+		);
+		$this->assertSame(
+			Ai_Prompt::build_user_prompt( $payload ),
+			implode( "\n\n", array_values( Ai_Prompt::debug_input_parts( $payload ) ) )
+		);
+	}
 }

@@ -88,6 +88,7 @@ class Ai_Worker {
 					'isCanceled' => function () use ( $store, $job_uuid ): bool {
 						return $store->is_cancel_requested( $job_uuid );
 					},
+					'debugId'    => $job_uuid,
 				)
 			);
 			$result = $agent->run( $payload );

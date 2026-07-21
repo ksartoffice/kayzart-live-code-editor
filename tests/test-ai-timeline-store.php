@@ -11,7 +11,10 @@ use KayzArt\Ai_Timeline_Store;
 
 /** Exercises durable activities, paging, context, and snapshot expiry. */
 class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
-	/** @var Ai_Timeline_Store */
+	/** Timeline store under test.
+	 *
+	 * @var Ai_Timeline_Store
+	 */
 	private $store;
 
 	/** Prepare empty AI tables. */
@@ -80,6 +83,47 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertSame( 0, $item['outputTokens'] );
 	}
 
+	/** Retained jobs expose exact display stats and worker duration without exposing snapshots. */
+	public function test_retained_job_exposes_change_stats_and_duration_only_while_available(): void {
+		$jobs            = new Ai_Job_Store();
+		$payload         = $this->payload( 'Add a feature list.' );
+		$payload['html'] = "<main>\n<p>Before</p>\n</main>\n";
+		$created         = $jobs->create( 1, 42, 'request-display-stats', $payload );
+		$job             = $created['job'];
+		$this->store->create_ai_edit( $job, $payload );
+		$this->assertTrue( $jobs->claim( (string) $job['job_uuid'] ) );
+		$after         = $payload;
+		$after['html'] = "<main>\n<section>New</section>\n</main>\n";
+		$after['css']  = ".feature {\n color: green;\n}\n";
+		$this->assertTrue( $jobs->complete( (string) $job['job_uuid'], $after, 'Hidden summary.', array() ) );
+
+		$timeline = $this->store->list_for_post( 42 );
+		$item     = $timeline['items'][0];
+		$this->assertSame(
+			array(
+				'added'   => 1,
+				'removed' => 1,
+			),
+			$item['changeStats']['html']
+		);
+		$this->assertSame(
+			array(
+				'added'   => 3,
+				'removed' => 0,
+			),
+			$item['changeStats']['css']
+		);
+		$this->assertIsInt( $item['durationSeconds'] );
+		$this->assertArrayNotHasKey( 'snapshot', $item );
+		$this->assertArrayNotHasKey( 'summary', $item );
+
+		global $wpdb;
+		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $job['job_uuid'] ), array( '%s' ) );
+		$expired = $this->store->list_for_post( 42 )['items'][0];
+		$this->assertNull( $expired['changeStats'] );
+		$this->assertNull( $expired['durationSeconds'] );
+	}
+
 	/** Cursor pages contain 50 stable chronological rows without overlap. */
 	public function test_cursor_paging_returns_fifty_rows_at_a_time(): void {
 		for ( $index = 1; $index <= 55; $index++ ) {
@@ -97,15 +141,23 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 
 	/** Save and restore rows are durable while job cleanup expires snapshots only. */
 	public function test_job_cleanup_keeps_timeline_and_expires_snapshot(): void {
-		$jobs    = new Ai_Job_Store();
-		$payload = $this->payload( 'Edit retained briefly.' );
-		$created = $jobs->create( 1, 42, 'request-retention', $payload );
-		$job     = $created['job'];
+		$jobs     = new Ai_Job_Store();
+		$payload  = $this->payload( 'Edit retained briefly.' );
+		$created  = $jobs->create( 1, 42, 'request-retention', $payload );
+		$job      = $created['job'];
 		$activity = $this->store->create_ai_edit( $job, $payload );
 		$this->assertNotNull( $this->store->get_snapshot( $activity, 'before' ) );
 
 		global $wpdb;
-		$wpdb->update( Ai_Setup::get_jobs_table_name(), array( 'status' => 'error', 'finished_at' => '2000-01-01 00:00:00', 'lock_key' => null ), array( 'job_uuid' => $job['job_uuid'] ) );
+		$wpdb->update(
+			Ai_Setup::get_jobs_table_name(),
+			array(
+				'status'      => 'error',
+				'finished_at' => '2000-01-01 00:00:00',
+				'lock_key'    => null,
+			),
+			array( 'job_uuid' => $job['job_uuid'] )
+		);
 		$this->assertSame( 1, $jobs->cleanup_terminal() );
 		$this->assertNotNull( $this->store->get( (int) $activity['id'] ) );
 		$this->assertNull( $this->store->get_snapshot( $activity, 'before' ) );
@@ -125,13 +177,35 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertNull( $this->store->get( (int) $source['id'] ) );
 	}
 
-	/** Build a unique job-shaped row. */
+	/**
+	 * Build a unique job-shaped row.
+	 *
+	 * @param string $request_id Request correlation id.
+	 */
 	private function job( string $request_id ): array {
-		return array( 'job_uuid' => wp_generate_uuid4(), 'post_id' => 42, 'user_id' => 1, 'request_id' => $request_id, 'status' => 'pending' );
+		return array(
+			'job_uuid'   => wp_generate_uuid4(),
+			'post_id'    => 42,
+			'user_id'    => 1,
+			'request_id' => $request_id,
+			'status'     => 'pending',
+		);
 	}
 
-	/** Build an agent payload. */
+	/**
+	 * Build an agent payload.
+	 *
+	 * @param string $prompt User instruction.
+	 */
 	private function payload( string $prompt ): array {
-		return array( 'prompt' => $prompt, 'html' => '<h1>Hello</h1>', 'customHead' => '', 'css' => '', 'js' => '', 'jsMode' => 'classic', 'selectedContexts' => array() );
+		return array(
+			'prompt'           => $prompt,
+			'html'             => '<h1>Hello</h1>',
+			'customHead'       => '',
+			'css'              => '',
+			'js'               => '',
+			'jsMode'           => 'classic',
+			'selectedContexts' => array(),
+		);
 	}
 }

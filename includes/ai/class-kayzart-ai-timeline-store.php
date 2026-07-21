@@ -188,7 +188,7 @@ class Ai_Timeline_Store {
 		$table = Ai_Setup::get_timeline_table_name();
 		$jobs  = Ai_Setup::get_jobs_table_name();
 		$where = $before > 0 ? $wpdb->prepare( 't.post_id = %d AND t.id < %d', $post_id, $before ) : $wpdb->prepare( 't.post_id = %d', $post_id );
-		$rows  = $wpdb->get_results( "SELECT t.*, j.job_uuid AS retained_job_uuid FROM {$table} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE {$where} ORDER BY t.id DESC LIMIT 51", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		$rows  = $wpdb->get_results( "SELECT t.*, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json, j.started_at AS retained_started_at, j.finished_at AS retained_finished_at FROM {$table} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE {$where} ORDER BY t.id DESC LIMIT 51", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$more  = count( $rows ) > self::PAGE_SIZE;
 		$rows  = array_slice( $rows, 0, self::PAGE_SIZE );
 		$next  = $more && ! empty( $rows ) ? (int) end( $rows )['id'] : null;
@@ -247,6 +247,8 @@ class Ai_Timeline_Store {
 		$source             = ! empty( $row['source_activity_id'] ) ? $this->get( (int) $row['source_activity_id'] ) : null;
 		$revision_id        = ! empty( $row['revision_id'] ) ? (int) $row['revision_id'] : 0;
 		$revision_available = $revision_id > 0 && (bool) wp_get_post_revision( $revision_id );
+		$change_stats       = $this->change_stats_from_retained_job( $row );
+		$duration_seconds   = $this->duration_from_retained_job( $row );
 		return array(
 			'id'                => (int) $row['id'],
 			'activityId'        => (string) $row['activity_uuid'],
@@ -258,6 +260,8 @@ class Ai_Timeline_Store {
 			'executionStatus'   => $row['execution_status'] ? (string) $row['execution_status'] : null,
 			'applicationStatus' => $row['application_status'] ? (string) $row['application_status'] : null,
 			'changedTargets'    => self::decode_array( $row['changed_targets'] ),
+			'changeStats'       => $change_stats,
+			'durationSeconds'   => $duration_seconds,
 			'model'             => isset( $row['model'] ) && '' !== (string) $row['model'] ? (string) $row['model'] : null,
 			'inputTokens'       => isset( $row['input_tokens'] ) && null !== $row['input_tokens'] ? (int) $row['input_tokens'] : null,
 			'outputTokens'      => isset( $row['output_tokens'] ) && null !== $row['output_tokens'] ? (int) $row['output_tokens'] : null,
@@ -279,6 +283,136 @@ class Ai_Timeline_Store {
 			'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
 			'updatedAt'         => mysql_to_rfc3339( (string) $row['updated_at'] ),
 		);
+	}
+
+	/** Build display-only line counts while the full job payload remains retained. */
+	private function change_stats_from_retained_job( array $row ) {
+		if ( empty( $row['retained_job_uuid'] ) || empty( $row['retained_payload_json'] ) || empty( $row['retained_snapshot_json'] ) ) {
+			return null;
+		}
+		$payload = json_decode( (string) $row['retained_payload_json'], true );
+		$after   = json_decode( (string) $row['retained_snapshot_json'], true );
+		if ( ! is_array( $payload ) || ! is_array( $after ) ) {
+			return null;
+		}
+		$before  = self::snapshot_from_payload( $payload );
+		$stats   = array();
+		$targets = array(
+			'html' => 'html',
+			'head' => 'customHead',
+			'css'  => 'css',
+			'js'   => 'js',
+		);
+		foreach ( $targets as $label => $key ) {
+			$before_value = isset( $before[ $key ] ) ? (string) $before[ $key ] : '';
+			$after_value  = isset( $after[ $key ] ) ? (string) $after[ $key ] : '';
+			if ( $before_value !== $after_value ) {
+				$stats[ $label ] = self::line_change_stats( $before_value, $after_value );
+			}
+		}
+		if ( ( isset( $before['jsMode'] ) ? $before['jsMode'] : 'classic' ) !== ( isset( $after['jsMode'] ) ? $after['jsMode'] : 'classic' ) && ! isset( $stats['js'] ) ) {
+			$stats['js'] = array(
+				'added'   => 0,
+				'removed' => 0,
+			);
+		}
+		return $stats;
+	}
+
+	/** Return elapsed worker time while the job record is retained. */
+	private function duration_from_retained_job( array $row ) {
+		if ( empty( $row['retained_job_uuid'] ) || empty( $row['retained_started_at'] ) || empty( $row['retained_finished_at'] ) ) {
+			return null;
+		}
+		$started  = strtotime( (string) $row['retained_started_at'] . ' UTC' );
+		$finished = strtotime( (string) $row['retained_finished_at'] . ' UTC' );
+		if ( false === $started || false === $finished || $finished < $started ) {
+			return null;
+		}
+		return $finished - $started;
+	}
+
+	/** Count changed lines with a Myers shortest-edit-script diff. */
+	private static function line_change_stats( string $before, string $after ): array {
+		$old = self::split_lines( $before );
+		$new = self::split_lines( $after );
+		if ( $old === $new ) {
+			return array(
+				'added'   => 0,
+				'removed' => 0,
+			);
+		}
+		$old_count = count( $old );
+		$new_count = count( $new );
+		$max       = $old_count + $new_count;
+		$vector    = array( 1 => 0 );
+		$trace     = array();
+		for ( $distance = 0; $distance <= $max; $distance++ ) {
+			$trace[] = $vector;
+			for ( $diagonal = -$distance; $diagonal <= $distance; $diagonal += 2 ) {
+				$down  = isset( $vector[ $diagonal + 1 ] ) ? $vector[ $diagonal + 1 ] : 0;
+				$right = isset( $vector[ $diagonal - 1 ] ) ? $vector[ $diagonal - 1 ] : 0;
+				if ( -$distance === $diagonal || ( $distance !== $diagonal && $right < $down ) ) {
+					$x = $down;
+				} else {
+					$x = $right + 1;
+				}
+				$y = $x - $diagonal;
+				while ( $x < $old_count && $y < $new_count && $old[ $x ] === $new[ $y ] ) {
+					++$x;
+					++$y;
+				}
+				$vector[ $diagonal ] = $x;
+				if ( $x >= $old_count && $y >= $new_count ) {
+					return self::backtrack_line_stats( $trace, $old_count, $new_count );
+				}
+			}
+		}
+		return array(
+			'added'   => $new_count,
+			'removed' => $old_count,
+		);
+	}
+
+	/** Backtrack a Myers trace into addition and deletion counts. */
+	private static function backtrack_line_stats( array $trace, int $old_count, int $new_count ): array {
+		$added   = 0;
+		$removed = 0;
+		$x       = $old_count;
+		$y       = $new_count;
+		for ( $distance = count( $trace ) - 1; $distance > 0; $distance-- ) {
+			$vector     = $trace[ $distance ];
+			$diagonal   = $x - $y;
+			$down       = isset( $vector[ $diagonal + 1 ] ) ? $vector[ $diagonal + 1 ] : 0;
+			$right      = isset( $vector[ $diagonal - 1 ] ) ? $vector[ $diagonal - 1 ] : 0;
+			$previous   = ( -$distance === $diagonal || ( $distance !== $diagonal && $right < $down ) ) ? $diagonal + 1 : $diagonal - 1;
+			$previous_x = isset( $vector[ $previous ] ) ? $vector[ $previous ] : 0;
+			$previous_y = $previous_x - $previous;
+			while ( $x > $previous_x && $y > $previous_y ) {
+				--$x;
+				--$y;
+			}
+			if ( $x === $previous_x ) {
+				++$added;
+				--$y;
+			} else {
+				++$removed;
+				--$x;
+			}
+		}
+		return array(
+			'added'   => $added,
+			'removed' => $removed,
+		);
+	}
+
+	/** Split text into display lines without treating a trailing newline as an extra line. */
+	private static function split_lines( string $value ): array {
+		$value = str_replace( array( "\r\n", "\r" ), "\n", $value );
+		if ( '' === $value ) {
+			return array();
+		}
+		return explode( "\n", rtrim( $value, "\n" ) );
 	}
 
 	/** Normalize the editable snapshot fields from an agent payload. */

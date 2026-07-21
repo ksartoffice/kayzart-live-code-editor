@@ -8,7 +8,7 @@ const beforeSnapshot = { html: '<main>Before</main>', customHead: '', css: '', j
 const afterSnapshot = { html: '<main>After</main>', customHead: '', css: 'main{}', js: '', jsMode: 'classic' as const, baseHash: 'after' };
 const timelineItem = {
   id: 12, activityId: 'activity-12', type: 'ai_edit', jobId: 'job-1', requestId: 'request-1', prompt: 'Improve the hero', contexts: [],
-  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], model: 'gpt-4o', inputTokens: 1234, outputTokens: 567, beforeHash: 'before', afterHash: 'after',
+  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], changeStats: { html: { added: 2, removed: 1 }, css: { added: 1, removed: 0 } }, durationSeconds: 18, model: 'gpt-4o', inputTokens: 1234, outputTokens: 567, beforeHash: 'before', afterHash: 'after',
   revisionId: null, sourceActivityId: null, sourcePrompt: null, restoreTarget: null, detailsAvailable: true, canPoll: true,
   revisionAvailable: false, author: { id: 1, name: 'Editor' }, createdAt: '2026-07-15T00:00:00Z', updatedAt: '2026-07-15T00:00:01Z',
 };
@@ -57,7 +57,14 @@ describe('AiEditorPanel', () => {
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ post_id: 7, prompt: 'Improve the hero', html: '<main>Before</main>' });
     await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
     expect(container.textContent).not.toContain('Updated hero');
-    expect(container.textContent).toContain('Applied');
+    expect(container.textContent).toContain('変更を適用しました');
+    expect(container.textContent).toContain('HTML+2−1');
+    expect(container.textContent).toContain('詳細');
+    const details = container.querySelector('details') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    (container.querySelector('summary') as HTMLElement).click();
+    expect(details.open).toBe(true);
+    expect(container.textContent).toContain('gpt-4o');
     expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).toBeNull();
     expect(setEditorLock).toHaveBeenCalledWith(true); expect(setEditorLock).toHaveBeenLastCalledWith(false);
     await act(async () => root.unmount());
@@ -74,7 +81,7 @@ describe('AiEditorPanel', () => {
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
     await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
-    expect(container.textContent).toContain('Applied');
+    expect(container.textContent).toContain('変更を適用しました');
     await act(async () => root.unmount());
   });
 
@@ -107,7 +114,7 @@ describe('AiEditorPanel', () => {
     await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
 
     await vi.waitFor(() => expect(container.textContent).toContain('Generating the update'));
-    expect(container.textContent).toContain('Editing');
+    expect(container.textContent).toContain('変更を適用中です');
     await act(async () => root.unmount());
   });
 

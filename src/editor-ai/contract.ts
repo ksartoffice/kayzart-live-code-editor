@@ -12,6 +12,7 @@ export type EditorSnapshot = Omit<HostEditorSnapshot, 'customHead'> & {
 };
 
 export type ChangedTarget = 'html' | 'head' | 'css' | 'js';
+export type ChangeStat = { added: number; removed: number };
 
 export type AiAvailability = {
   available: boolean;
@@ -81,6 +82,8 @@ export type AiTimelineItem = {
   executionStatus: AiJobStatus | null;
   applicationStatus: 'not_applied' | 'applied' | 'reverted' | null;
   changedTargets: ChangedTarget[];
+  changeStats: Partial<Record<ChangedTarget, ChangeStat>> | null;
+  durationSeconds: number | null;
   model: string | null;
   inputTokens: number | null;
   outputTokens: number | null;

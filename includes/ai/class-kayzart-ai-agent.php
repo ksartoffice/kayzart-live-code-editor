@@ -165,6 +165,10 @@ class Ai_Agent {
 				if ( ! $applied_edit_operation ) {
 					throw new Ai_Agent_Error( 'No edit operations were applied. Use edit tools before finalizing.', false );
 				}
+				$summary = $this->try_parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
+				if ( null !== $summary ) {
+					return $this->build_result( $snapshot, $summary, $usage );
+				}
 				return $this->run_finalization_turns( $messages, $snapshot, $usage, $finalization_options );
 			}
 
@@ -402,12 +406,42 @@ class Ai_Agent {
 	 * @throws Ai_Agent_Error When the text is not valid JSON or lacks a summary.
 	 */
 	private function parse_final_summary( string $text ): string {
+		$summary = $this->parse_final_summary_value( $text, true );
+		return is_string( $summary ) ? $summary : '';
+	}
+
+	/**
+	 * Try to parse a final summary without failing the normal agent turn.
+	 *
+	 * @param string $text Model text output.
+	 * @return string|null Summary string, or null when invalid.
+	 */
+	private function try_parse_final_summary( string $text ) {
+		return $this->parse_final_summary_value( $text, false );
+	}
+
+	/**
+	 * Parse a final summary, optionally throwing detailed validation errors.
+	 *
+	 * @param string $text   Model text output.
+	 * @param bool   $strict Whether invalid output should throw.
+	 * @return string|null Summary string, or null in non-strict mode.
+	 *
+	 * @throws Ai_Agent_Error When strict parsing fails.
+	 */
+	private function parse_final_summary_value( string $text, bool $strict ) {
 		$parsed = $this->parse_json_object_from_text( $text );
 		if ( null === $parsed ) {
-			throw new Ai_Agent_Error( 'Model response is not valid JSON.', true );
+			if ( $strict ) {
+				throw new Ai_Agent_Error( 'Model response is not valid JSON.', true );
+			}
+			return null;
 		}
 		if ( ! isset( $parsed['summary'] ) || ! is_string( $parsed['summary'] ) ) {
-			throw new Ai_Agent_Error( 'Model response does not match output schema.', true );
+			if ( $strict ) {
+				throw new Ai_Agent_Error( 'Model response does not match output schema.', true );
+			}
+			return null;
 		}
 		return $parsed['summary'];
 	}

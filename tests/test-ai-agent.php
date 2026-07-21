@@ -57,12 +57,11 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A tool edit followed by a stop turn and final summary returns the edited snapshot.
+	 * A tool edit followed by a valid summary completes without finalization.
 	 */
 	public function test_happy_path_edit_then_summary(): void {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
-		$fake->queue_final_text( 'Editing complete.' );
 		$fake->queue_final_text( '{"summary":"Changed greeting to World."}' );
 
 		$agent  = new Ai_Agent( $fake );
@@ -80,8 +79,42 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$calls = $fake->calls();
 		$this->assertArrayNotHasKey( 'jsonSchema', $calls[0]['options'] );
 		$this->assertArrayNotHasKey( 'jsonSchema', $calls[1]['options'] );
+		$this->assertCount( 2, $calls );
+	}
+
+	/**
+	 * A non-JSON stop response falls back to one tool-free finalization turn.
+	 */
+	public function test_non_json_stop_response_falls_back_to_finalization(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+		$fake->queue_final_text( 'Editing complete.' );
+		$fake->queue_final_text( '{"summary":"Changed greeting to World."}' );
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$calls  = $fake->calls();
+
+		$this->assertSame( 'Changed greeting to World.', $result['summary'] );
+		$this->assertCount( 3, $calls );
 		$this->assertSame( Ai_Agent::FINAL_SUMMARY_JSON_SCHEMA, $calls[2]['options']['jsonSchema'] );
 		$this->assertSame( array(), $calls[2]['tools'] );
+	}
+
+	/**
+	 * Missing and non-string summaries both fall back to finalization.
+	 */
+	public function test_invalid_summary_shapes_fall_back_to_finalization(): void {
+		foreach ( array( '{"message":"done"}', '{"summary":123}' ) as $invalid_summary ) {
+			$fake = new Ai_Client_Fake();
+			$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+			$fake->queue_final_text( $invalid_summary );
+			$fake->queue_final_text( '{"summary":"Fallback summary."}' );
+
+			$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+
+			$this->assertSame( 'Fallback summary.', $result['summary'] );
+			$this->assertCount( 3, $fake->calls() );
+		}
 	}
 
 	/**
@@ -205,19 +238,10 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		);
 		$fake->queue_result(
 			array(
-				'text'  => 'Editing complete.',
+				'text'  => '{"summary":"Searched and changed the greeting."}',
 				'usage' => array(
 					'inputTokens'  => 20,
 					'outputTokens' => 3,
-				),
-			)
-		);
-		$fake->queue_result(
-			array(
-				'text'  => '{"summary":"Searched and changed the greeting."}',
-				'usage' => array(
-					'inputTokens'  => 30,
-					'outputTokens' => 2,
 				),
 			)
 		);
@@ -226,8 +250,9 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
 		$this->assertSame( 'Searched and changed the greeting.', $result['summary'] );
-		$this->assertSame( 60, $result['usage']['inputTokens'] );
-		$this->assertSame( 9, $result['usage']['outputTokens'] );
+		$this->assertSame( 30, $result['usage']['inputTokens'] );
+		$this->assertSame( 7, $result['usage']['outputTokens'] );
+		$this->assertCount( 2, $fake->calls() );
 
 		$second_turn_messages = $fake->calls()[1]['messages'];
 		$this->assertCount( 2, $second_turn_messages[1]['toolCalls'] );

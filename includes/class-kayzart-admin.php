@@ -896,7 +896,21 @@ class Admin {
 		if ( '' === $model ) {
 			return '';
 		}
-		$available = Ai_Models::available_for_text();
+		return self::validate_ai_default_model( $model, Ai_Models::available_for_text() );
+	}
+
+	/**
+	 * Validate a default AI model against an already discovered model list.
+	 *
+	 * Keeping this separate lets the settings field use one catalog lookup for
+	 * both validation and rendering. The public sanitizer still performs its own
+	 * lookup when WordPress saves a submitted setting.
+	 *
+	 * @param string                                   $model     Normalized model ID.
+	 * @param array<int,array{id:string,label:string}> $available Discovered models.
+	 * @return string
+	 */
+	private static function validate_ai_default_model( string $model, array $available ): string {
 		if ( empty( $available ) ) {
 			// Catalog could not be verified (provider offline, SDK missing). Keep
 			// the submitted value rather than silently resetting a valid choice.
@@ -1065,8 +1079,10 @@ class Admin {
 	 */
 	public static function render_ai_default_model_field(): void {
 
-		$value  = self::sanitize_ai_default_model( get_option( self::OPTION_AI_DEFAULT_MODEL, '' ) );
 		$models = Ai_Models::available_for_text();
+		$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
+		$model  = is_string( $stored ) ? trim( $stored ) : '';
+		$value  = '' === $model ? '' : self::validate_ai_default_model( $model, $models );
 
 		echo '<select name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '">';
 		echo '<option value="" ' . selected( '', $value, false ) . '>' . esc_html__( 'Auto (recommended)', 'kayzart-live-code-editor' ) . '</option>';

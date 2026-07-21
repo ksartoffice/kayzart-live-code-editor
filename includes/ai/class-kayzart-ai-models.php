@@ -1,6 +1,6 @@
 <?php
 /**
- * Enumerates AI models available for text-generation editing.
+ * Enumerates AI models available for AI editing.
  *
  * The model catalog is owned by the WordPress AI Client SDK and its configured
  * providers (Connectors), not by this plugin. This helper reads that catalog at
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Runtime discovery of usable text-generation models. */
+/** Runtime discovery of usable AI editing models. */
 class Ai_Models {
 
 	/**
@@ -50,7 +50,7 @@ class Ai_Models {
 	}
 
 	/**
-	 * SDK-SEAM: enumerate text-generation models from the default registry.
+	 * SDK-SEAM: enumerate models suitable for the complete AI editing workflow.
 	 *
 	 * Verify against the SDK: AiClient::defaultRegistry(),
 	 * ProviderRegistry::findModelsMetadataForSupport(ModelRequirements),
@@ -67,7 +67,7 @@ class Ai_Models {
 		if ( ! is_object( $registry ) || ! method_exists( $registry, 'findModelsMetadataForSupport' ) ) {
 			return array();
 		}
-		$requirements = self::text_requirements();
+		$requirements = self::ai_edit_requirements();
 		if ( null === $requirements ) {
 			return array();
 		}
@@ -95,20 +95,64 @@ class Ai_Models {
 	}
 
 	/**
-	 * SDK-SEAM: build the text-generation requirements object.
+	 * SDK-SEAM: build requirements for the complete AI editing workflow.
+	 *
+	 * AI editing needs more than text generation: it sends a system instruction,
+	 * performs function calls over multiple chat-history turns, and requests a
+	 * JSON-schema final summary. Keep this list aligned with Ai_Agent and
+	 * Ai_Client_WP so a selectable model can complete every part of that flow.
 	 *
 	 * @return object|null ModelRequirements instance, or null when unavailable.
 	 */
-	private static function text_requirements() {
-		$requirements_class = '\\WordPress\\AiClient\\Providers\\Models\\DTO\\ModelRequirements';
-		$capability_class   = '\\WordPress\\AiClient\\Providers\\Models\\Enums\\CapabilityEnum';
-		if ( ! class_exists( $requirements_class ) || ! class_exists( $capability_class ) || ! method_exists( $capability_class, 'from' ) || ! defined( $capability_class . '::TEXT_GENERATION' ) ) {
+	private static function ai_edit_requirements() {
+		$requirements_class    = '\\WordPress\\AiClient\\Providers\\Models\\DTO\\ModelRequirements';
+		$required_option_class = '\\WordPress\\AiClient\\Providers\\Models\\DTO\\RequiredOption';
+		$capability_class      = '\\WordPress\\AiClient\\Providers\\Models\\Enums\\CapabilityEnum';
+		$option_class          = '\\WordPress\\AiClient\\Providers\\Models\\Enums\\OptionEnum';
+		$modality_class        = '\\WordPress\\AiClient\\Messages\\Enums\\ModalityEnum';
+		if (
+			! class_exists( $requirements_class ) ||
+			! class_exists( $required_option_class ) ||
+			! class_exists( $capability_class ) ||
+			! class_exists( $option_class ) ||
+			! class_exists( $modality_class ) ||
+			! method_exists( $capability_class, 'from' ) ||
+			! method_exists( $option_class, 'from' ) ||
+			! method_exists( $modality_class, 'from' ) ||
+			! defined( $capability_class . '::TEXT_GENERATION' ) ||
+			! defined( $capability_class . '::CHAT_HISTORY' ) ||
+			! defined( $modality_class . '::TEXT' )
+		) {
 			return null;
 		}
 
 		return new $requirements_class(
-			array( $capability_class::from( $capability_class::TEXT_GENERATION ) ),
-			array()
+			array(
+				$capability_class::from( $capability_class::TEXT_GENERATION ),
+				$capability_class::from( $capability_class::CHAT_HISTORY ),
+			),
+			array(
+				new $required_option_class(
+					$option_class::from( 'inputModalities' ),
+					array( $modality_class::from( $modality_class::TEXT ) )
+				),
+				new $required_option_class(
+					$option_class::from( 'systemInstruction' ),
+					Ai_Prompt::system_prompt()
+				),
+				new $required_option_class(
+					$option_class::from( 'functionDeclarations' ),
+					true
+				),
+				new $required_option_class(
+					$option_class::from( 'outputMimeType' ),
+					'application/json'
+				),
+				new $required_option_class(
+					$option_class::from( 'outputSchema' ),
+					Ai_Agent::FINAL_SUMMARY_JSON_SCHEMA
+				),
+			)
 		);
 	}
 

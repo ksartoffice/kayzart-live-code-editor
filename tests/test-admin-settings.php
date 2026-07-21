@@ -28,6 +28,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
+		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -73,6 +74,53 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'hidden' ) );
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( '' ) );
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( array() ) );
+	}
+
+	public function test_sanitize_ai_default_model_validates_against_discovered_models(): void {
+		$filter = static function ( $models ) {
+			return array_merge( $models, array(
+				array(
+					'id'    => 'provider/model-a',
+					'label' => 'Model A',
+				),
+			) );
+		};
+		add_filter( 'kayzart_ai_available_models', $filter );
+
+		try {
+			$this->assertSame( 'provider/model-a', Admin::sanitize_ai_default_model( 'provider/model-a' ) );
+			$this->assertSame( '', Admin::sanitize_ai_default_model( 'provider/model-b' ) );
+			$this->assertSame( '', Admin::sanitize_ai_default_model( '' ) );
+		} finally {
+			remove_filter( 'kayzart_ai_available_models', $filter );
+		}
+	}
+
+	public function test_render_ai_default_model_field_discovers_models_once(): void {
+		$calls  = 0;
+		$filter = static function ( $models ) use ( &$calls ) {
+			++$calls;
+			return array_merge( $models, array(
+				array(
+					'id'    => 'provider/model-a',
+					'label' => 'Model A',
+				),
+			) );
+		};
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+		add_filter( 'kayzart_ai_available_models', $filter );
+
+		try {
+			ob_start();
+			Admin::render_ai_default_model_field();
+			$output = ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_available_models', $filter );
+		}
+
+		$this->assertSame( 1, $calls );
+		$this->assertStringContainsString( 'value="provider/model-a"', $output );
+		$this->assertStringContainsString( "selected='selected'", $output );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {

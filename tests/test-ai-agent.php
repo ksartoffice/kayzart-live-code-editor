@@ -287,4 +287,75 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		// 15 loop turns + 1 finalization turn.
 		$this->assertCount( Ai_Agent::MAX_AGENT_TURNS + 1, $fake->calls() );
 	}
+
+	/** Old bulky read observations are receipts while recent observations remain. */
+	public function test_model_context_compacts_old_read_observations(): void {
+		$fake = new Ai_Client_Fake();
+		$read = Ai_Message::tool_call(
+			'r1',
+			'read_document',
+			array(
+				'target'   => 'html',
+				'maxChars' => 12000,
+			)
+		);
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ), $read ) );
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'r2',
+					'read_document',
+					array(
+						'target'   => 'html',
+						'maxChars' => 12000,
+					)
+				),
+			)
+		);
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'r3',
+					'read_document',
+					array(
+						'target'   => 'html',
+						'maxChars' => 12000,
+					)
+				),
+			)
+		);
+		$fake->queue_final_text( '{"summary":"done"}' );
+
+		( new Ai_Agent( $fake ) )->run( $this->payload( '<main>Hello' . str_repeat( 'x', 40000 ) . '</main>' ) );
+		$messages = $fake->calls()[3]['messages'];
+		$outputs  = array();
+		foreach ( $messages as $message ) {
+			foreach ( isset( $message['toolResponses'] ) ? $message['toolResponses'] : array() as $response ) {
+				if ( 'read_document' === $response['name'] ) {
+					$outputs[] = $response['output'];
+				}
+			}
+		}
+		$this->assertTrue( $outputs[0]['observationOmitted'] );
+		$this->assertArrayHasKey( 'content', $outputs[1] );
+		$this->assertArrayHasKey( 'content', $outputs[2] );
+	}
+
+	/** Parallel reads share one 12k-character budget for the model turn. */
+	public function test_parallel_reads_share_turn_budget(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e1', 'Hello', 'World' ),
+				Ai_Message::tool_call( 'r1', 'read_document', array( 'target' => 'html' ) ),
+				Ai_Message::tool_call( 'r2', 'read_document', array( 'target' => 'html' ) ),
+			)
+		);
+		$fake->queue_final_text( '{"summary":"done"}' );
+		( new Ai_Agent( $fake ) )->run( $this->payload( '<main>Hello' . str_repeat( 'x', 20000 ) . '</main>' ) );
+
+		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
+		$this->assertSame( 8000, mb_strlen( $responses[1]['output']['content'] ) );
+		$this->assertSame( 4000, mb_strlen( $responses[2]['output']['content'] ) );
+	}
 }

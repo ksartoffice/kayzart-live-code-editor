@@ -30,6 +30,8 @@ class Ai_Agent {
 	const MAX_AGENT_TURNS             = 15;
 	const FINALIZATION_TURNS          = 1;
 	const REPEATED_TOOL_FAILURE_LIMIT = 3;
+	const READ_BUDGET_PER_TURN        = 12000;
+	const OBSERVATION_CONTEXT_CHARS   = 24000;
 
 	/**
 	 * JSON schema forcing the final summary shape.
@@ -85,6 +87,12 @@ class Ai_Agent {
 	 */
 	private $debug_input_parts = array();
 
+	/** Privacy-safe statistics for the most recent model context projection.
+	 *
+	 * @var array<string,int>
+	 */
+	private $model_context_stats = array();
+
 	/**
 	 * Constructor.
 	 *
@@ -109,9 +117,7 @@ class Ai_Agent {
 	 *                       jsMode/baseHash and an optional truthy historyTool).
 	 * @return array{snapshot:array,summary:string,usage:array}
 	 *
-	 * @throws Ai_Agent_Error On an unrecoverable loop outcome. Cancellation
-	 *                        (Ai_Agent_Canceled) and transport failures
-	 *                        (Ai_Client_Exception) may also propagate.
+	 * @throws Ai_Agent_Error On an unrecoverable loop outcome.
 	 */
 	public function run( array $payload ): array {
 		$edit_policy      = Ai_Tool_Schema::resolve_edit_policy(
@@ -122,7 +128,7 @@ class Ai_Agent {
 		$has_history_tool = ! empty( $payload['historyTool'] );
 		$tools            = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool );
 
-		$selected_contexts       = $this->resolve_selected_contexts( $payload );
+		$selection_records       = $this->resolve_selection_records( $payload );
 		$snapshot                = $this->initial_snapshot( $payload );
 		$this->debug_input_parts = Ai_Prompt::debug_input_parts( $payload );
 
@@ -155,8 +161,9 @@ class Ai_Agent {
 				)
 			);
 
-			$result = $this->client->generate( $messages, $tools, $turn_options );
-			$this->log_input_token_breakdown( 'agent', $turn + 1, $messages, $tools, $turn_options, $result );
+			$model_messages = $this->build_model_context( $messages );
+			$result         = $this->client->generate( $model_messages, $tools, $turn_options );
+			$this->log_input_token_breakdown( 'agent', $turn + 1, $model_messages, $tools, $turn_options, $result );
 			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
 			$usage = self::remember_model( $usage, $result );
 			$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
@@ -175,6 +182,7 @@ class Ai_Agent {
 			$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
 			$tool_responses = array();
 
+			$remaining_read_budget = self::READ_BUDGET_PER_TURN;
 			foreach ( $calls as $call ) {
 				$name = isset( $call['name'] ) ? (string) $call['name'] : '';
 				$args = isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array();
@@ -189,9 +197,22 @@ class Ai_Agent {
 				);
 
 				try {
-					$tool_result = $this->run_tool_call( $name, $args, $snapshot, $selected_contexts, $editable_targets );
+					if ( 'read_document' === $name || 'read_selection' === $name ) {
+						if ( $remaining_read_budget <= 0 ) {
+							$this->throw_read_budget_exhausted();
+						}
+						$requested        = isset( $args['maxChars'] ) && is_numeric( $args['maxChars'] ) ? (int) $args['maxChars'] : Ai_Tools::DEFAULT_READ_CHARS;
+						$args['maxChars'] = max( 1, min( $requested, $remaining_read_budget ) );
+					}
+					$tool_result = $this->run_tool_call( $name, $args, $snapshot, $selection_records, $editable_targets );
 					if ( isset( $tool_result['snapshot'] ) && is_array( $tool_result['snapshot'] ) ) {
 						$snapshot = $tool_result['snapshot'];
+					}
+					if ( isset( $tool_result['selectionRecords'] ) && is_array( $tool_result['selectionRecords'] ) ) {
+						$selection_records = $tool_result['selectionRecords'];
+					}
+					if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
+						$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
 					}
 					$applied_edit_operation = $applied_edit_operation || ! empty( $tool_result['appliedEditOperation'] );
 
@@ -263,8 +284,9 @@ class Ai_Agent {
 				)
 			);
 
-			$result = $this->client->generate( $messages, array(), $options );
-			$this->log_input_token_breakdown( 'finalization', $index + 1, $messages, array(), $options, $result );
+			$model_messages = $this->build_model_context( $messages );
+			$result         = $this->client->generate( $model_messages, array(), $options );
+			$this->log_input_token_breakdown( 'finalization', $index + 1, $model_messages, array(), $options, $result );
 			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
 			$usage = self::remember_model( $usage, $result );
 			$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
@@ -395,6 +417,111 @@ class Ai_Agent {
 			return array( $payload['selectedContext'] );
 		}
 		return array();
+	}
+
+	/** Resolve server-side selection records keyed by opaque selection ID.
+	 *
+	 * @param array $payload Agent payload.
+	 * @return array
+	 */
+	private function resolve_selection_records( array $payload ): array {
+		if ( empty( $payload['selectionRecords'] ) || ! is_array( $payload['selectionRecords'] ) ) {
+			return array();
+		}
+		return $payload['selectionRecords'];
+	}
+
+	/** Build a bounded model-facing copy while retaining the canonical history.
+	 *
+	 * @param array $messages Canonical messages.
+	 * @return array
+	 */
+	private function build_model_context( array $messages ): array {
+		$projected               = $messages;
+		$budget                  = self::OBSERVATION_CONTEXT_CHARS;
+		$total_observation_chars = 0;
+		$omitted_observations    = 0;
+		for ( $message_index = count( $projected ) - 1; $message_index >= 0; $message_index-- ) {
+			if ( empty( $projected[ $message_index ]['toolResponses'] ) || ! is_array( $projected[ $message_index ]['toolResponses'] ) ) {
+				continue;
+			}
+			for ( $response_index = count( $projected[ $message_index ]['toolResponses'] ) - 1; $response_index >= 0; $response_index-- ) {
+				$response = $projected[ $message_index ]['toolResponses'][ $response_index ];
+				$name     = isset( $response['name'] ) ? (string) $response['name'] : '';
+				if ( ! in_array( $name, array( 'read_document', 'read_selection', 'search_text', 'list_ai_edits', 'get_ai_edit' ), true ) ) {
+					continue;
+				}
+				$output                   = isset( $response['output'] ) ? $response['output'] : null;
+				$length                   = $this->observation_content_length( $name, $output );
+				$total_observation_chars += $length;
+				$is_error                 = is_array( $output ) && isset( $output['ok'] ) && false === $output['ok'];
+				if ( $is_error || $length <= $budget ) {
+					$budget -= min( $budget, $length );
+					continue;
+				}
+				$projected[ $message_index ]['toolResponses'][ $response_index ]['output'] = $this->observation_receipt( $name, $output, $length );
+				++$omitted_observations;
+			}
+		}
+		$this->model_context_stats = array(
+			'canonicalMessageBytes'     => strlen( $this->debug_json( $messages ) ),
+			'modelMessageBytes'         => strlen( $this->debug_json( $projected ) ),
+			'observationCharacters'     => $total_observation_chars,
+			'sentObservationCharacters' => self::OBSERVATION_CONTEXT_CHARS - $budget,
+			'omittedObservations'       => $omitted_observations,
+		);
+		return $projected;
+	}
+
+	/** Count the bulky observation portion, excluding small metadata receipts.
+	 *
+	 * @param string $name   Tool name.
+	 * @param mixed  $output Tool output.
+	 * @return int
+	 */
+	private function observation_content_length( string $name, $output ): int {
+		if ( is_array( $output ) && in_array( $name, array( 'read_document', 'read_selection' ), true ) ) {
+			return isset( $output['content'] ) ? mb_strlen( (string) $output['content'] ) : 0;
+		}
+		if ( is_array( $output ) && 'search_text' === $name ) {
+			$encoded = wp_json_encode( isset( $output['matches'] ) ? $output['matches'] : array() );
+			return is_string( $encoded ) ? mb_strlen( $encoded ) : 0;
+		}
+		$encoded = wp_json_encode( $output );
+		return is_string( $encoded ) ? mb_strlen( $encoded ) : 0;
+	}
+
+	/** Replace old bulky observation data with a small durable receipt.
+	 *
+	 * @param string $name   Tool name.
+	 * @param mixed  $output Tool output.
+	 * @param int    $length Omitted observation length.
+	 * @return array
+	 */
+	private function observation_receipt( string $name, $output, int $length ): array {
+		$receipt = array(
+			'ok'                 => true,
+			'tool'               => $name,
+			'observationOmitted' => true,
+			'omittedCharacters'  => $length,
+		);
+		if ( is_array( $output ) ) {
+			foreach ( array( 'target', 'baseHash', 'selectionId', 'contentHash', 'startLine', 'endLine', 'totalLines', 'count', 'truncated', 'nextCursor' ) as $key ) {
+				if ( array_key_exists( $key, $output ) ) {
+					$receipt[ $key ] = $output[ $key ];
+				}
+			}
+		}
+		return $receipt;
+	}
+
+	/** Raise a recoverable per-turn read budget error.
+	 *
+	 * @return void
+	 * @throws Ai_Tool_Error Always.
+	 */
+	private function throw_read_budget_exhausted(): void {
+		throw new Ai_Tool_Error( 'read_budget_exhausted: this model turn already read 12000 characters.', false );
 	}
 
 	/**
@@ -593,6 +720,7 @@ class Ai_Agent {
 			'estimatedPartsTotal'     => $estimated_total,
 			'providerOverheadOrError' => $input_tokens - $estimated_total,
 			'estimateMethod'          => 'ceil(UTF-8 bytes / 4); per-part values are approximate',
+			'contextProjection'       => $this->model_context_stats,
 			'parts'                   => $parts,
 		);
 		$encoded      = wp_json_encode( $log, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );

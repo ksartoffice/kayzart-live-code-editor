@@ -149,6 +149,12 @@ class Ai_Tool_Schema {
 							'type'    => 'integer',
 							'minimum' => 1,
 						),
+						'cursor'    => array( 'type' => 'string' ),
+						'maxChars'  => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+							'maximum' => Ai_Tools::MAX_READ_CHARS,
+						),
 					),
 					'required'             => array( 'target' ),
 					'additionalProperties' => false,
@@ -156,10 +162,20 @@ class Ai_Tool_Schema {
 			),
 			array(
 				'type'        => 'function',
-				'name'        => 'get_selected_context',
-				'description' => 'Return selected element context list from the editor if available.',
+				'name'        => 'read_selection',
+				'description' => 'Read the exact current source for one selected HTML element. Continue with nextCursor only when needed.',
 				'parameters'  => array(
 					'type'                 => 'object',
+					'properties'           => array(
+						'selectionId' => array( 'type' => 'string' ),
+						'cursor'      => array( 'type' => 'string' ),
+						'maxChars'    => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+							'maximum' => Ai_Tools::MAX_READ_CHARS,
+						),
+					),
+					'required'             => array( 'selectionId' ),
 					'additionalProperties' => false,
 				),
 			),
@@ -170,13 +186,14 @@ class Ai_Tool_Schema {
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(
-						'target'     => array(
+						'target'      => array(
 							'type' => 'string',
 							'enum' => $editable_target_enum,
 						),
-						'from'       => array( 'type' => 'string' ),
-						'to'         => array( 'type' => 'string' ),
-						'replaceAll' => array( 'type' => 'boolean' ),
+						'from'        => array( 'type' => 'string' ),
+						'to'          => array( 'type' => 'string' ),
+						'replaceAll'  => array( 'type' => 'boolean' ),
+						'selectionId' => array( 'type' => 'string' ),
 					),
 					'required'             => array( 'target', 'from', 'to' ),
 					'additionalProperties' => false,
@@ -207,6 +224,7 @@ class Ai_Tool_Schema {
 								'additionalProperties' => false,
 							),
 						),
+						'selectionId'  => array( 'type' => 'string' ),
 					),
 					'required'             => array( 'target', 'replacements' ),
 					'additionalProperties' => false,

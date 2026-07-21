@@ -131,6 +131,30 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 410, $expired->get_status() );
 	}
 
+	/** Rich selected HTML is stored as a compact descriptor plus an offset record. */
+	public function test_selection_context_is_compacted_at_job_boundary(): void {
+		$payload                     = $this->payload( 'rest-selection' );
+		$payload['selectedContexts'] = array(
+			array(
+				'lcId'        => 'hero-title',
+				'tagName'     => 'h1',
+				'outerHTML'   => '<h1>Hello</h1>',
+				'sourceRange' => array(
+					'startOffset' => 0,
+					'endOffset'   => 14,
+				),
+			),
+		);
+		$response                    = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+		$job                         = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
+		$stored                      = json_decode( $job['payload_json'], true );
+
+		$this->assertArrayNotHasKey( 'outerHTML', $stored['selectedContexts'][0] );
+		$this->assertNotEmpty( $stored['selectedContexts'][0]['selectionId'] );
+		$this->assertTrue( $stored['selectedContexts'][0]['resolvable'] );
+		$this->assertCount( 1, $stored['selectionRecords'] );
+	}
+
 	/** Build a valid REST request body.
 	 *
 	 * @param string $request_id Request ID.

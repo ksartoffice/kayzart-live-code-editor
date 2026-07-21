@@ -254,17 +254,54 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Selected context echoes non-empty lists and null otherwise.
+	 * Selection reads are bounded and replacement scope avoids identical siblings.
 	 */
-	public function test_get_selected_context(): void {
-		$this->assertNull( Ai_Tools::run_get_selected_context( null ) );
-		$this->assertNull( Ai_Tools::run_get_selected_context( array() ) );
-		$contexts = array(
-			array(
-				'lcId'    => 'a',
-				'tagName' => 'div',
+	public function test_read_and_replace_selected_context(): void {
+		$html     = '<p>Hello</p><p>Hello</p>';
+		$selected = '<p>Hello</p>';
+		$records  = array(
+			's1' => array(
+				'startOffset' => 12,
+				'endOffset'   => 24,
+				'contentHash' => hash( 'sha256', $selected ),
+				'resolvable'  => true,
 			),
 		);
-		$this->assertSame( $contexts, Ai_Tools::run_get_selected_context( $contexts ) );
+		$read     = Ai_Tools::run_read_selection( array( 'selectionId' => 's1' ), $this->snapshot( $html ), $records );
+		$this->assertSame( $selected, $read['content'] );
+
+		$result = Ai_Tools::run_replace_string(
+			array(
+				'target'      => 'html',
+				'from'        => 'Hello',
+				'to'          => 'World',
+				'selectionId' => 's1',
+			),
+			$this->snapshot( $html ),
+			$records
+		);
+		$this->assertSame( '<p>Hello</p><p>World</p>', $result['snapshot']['html'] );
+	}
+
+	/** Long reads return a cursor that resumes without gaps. */
+	public function test_read_document_cursor_resumes_content(): void {
+		$html  = str_repeat( 'a', 30 );
+		$first = Ai_Tools::run_read_document(
+			array(
+				'target'   => 'html',
+				'maxChars' => 10,
+			),
+			$this->snapshot( $html )
+		);
+		$next  = Ai_Tools::run_read_document(
+			array(
+				'target'   => 'html',
+				'cursor'   => $first['nextCursor'],
+				'maxChars' => 10,
+			),
+			$this->snapshot( $html )
+		);
+		$this->assertTrue( $first['truncated'] );
+		$this->assertSame( str_repeat( 'a', 20 ), $first['content'] . $next['content'] );
 	}
 }

@@ -86,11 +86,11 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	public function test_build_tool_definitions_default_set(): void {
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ) );
 		$this->assertSame(
-			array( 'search_text', 'read_document', 'get_selected_context', 'replace_string', 'replace_many', 'set_js_mode' ),
+			array( 'search_text', 'read_document', 'read_selection', 'replace_string', 'replace_many', 'set_js_mode' ),
 			$this->tool_names( $tools )
 		);
-		$selected = $this->find_tool( $tools, 'get_selected_context' );
-		$this->assertArrayNotHasKey( 'properties', $selected['parameters'] );
+		$selected = $this->find_tool( $tools, 'read_selection' );
+		$this->assertContains( 'selectionId', $selected['parameters']['required'] );
 	}
 
 	/**

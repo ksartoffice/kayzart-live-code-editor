@@ -26,6 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Stateless AI edit tools operating on a snapshot array.
  */
 class Ai_Tools {
+	const DEFAULT_READ_CHARS = 8000;
+	const MAX_READ_CHARS     = 12000;
+	const MAX_READ_LINES     = 200;
 
 	/**
 	 * Editable / addressable snapshot targets exposed to the model.
@@ -101,6 +104,28 @@ class Ai_Tools {
 			$units[] = ( ord( $utf16[ $i ] ) << 8 ) | ord( $utf16[ $i + 1 ] );
 		}
 		return $units;
+	}
+
+	/** Return the number of JavaScript-compatible UTF-16 code units.
+	 *
+	 * @param string $value UTF-8 value.
+	 * @return int
+	 */
+	public static function utf16_length( string $value ): int {
+		return count( self::utf16_code_units( $value ) );
+	}
+
+	/** Slice a UTF-8 string using JavaScript-compatible UTF-16 offsets.
+	 *
+	 * @param string $value  UTF-8 value.
+	 * @param int    $start  UTF-16 start offset.
+	 * @param int    $length UTF-16 length.
+	 * @return string
+	 */
+	public static function utf16_slice( string $value, int $start, int $length ): string {
+		$utf16 = mb_convert_encoding( $value, 'UTF-16BE', 'UTF-8' );
+		$slice = substr( $utf16, max( 0, $start ) * 2, max( 0, $length ) * 2 );
+		return (string) mb_convert_encoding( $slice, 'UTF-8', 'UTF-16BE' );
 	}
 
 	/**
@@ -269,40 +294,146 @@ class Ai_Tools {
 	 * @param array $args     Tool arguments (target, startLine, endLine).
 	 * @param array $snapshot Snapshot array.
 	 * @return array
+	 * @throws Ai_Tool_Error When a cursor is invalid or stale.
 	 */
 	public static function run_read_document( array $args, array $snapshot ): array {
 		$target = isset( $args['target'] ) ? (string) $args['target'] : 'html';
 		if ( ! in_array( $target, self::TARGETS, true ) ) {
 			$target = 'html';
 		}
-		$source      = self::get_snapshot_source( $snapshot, $target );
-		$lines       = explode( "\n", $source );
-		$total_lines = count( $lines );
-
-		$start_line = self::to_int_default( $args['startLine'] ?? null, 1 );
-		$start_line = max( 1, $start_line );
-		$end_line   = self::to_int_default( $args['endLine'] ?? null, $total_lines );
-		$end_line   = max( $start_line, $end_line );
-
-		$slice = array_slice( $lines, $start_line - 1, $end_line - ( $start_line - 1 ) );
+		$source       = self::get_snapshot_source( $snapshot, $target );
+		$base_hash    = isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '';
+		$lines        = explode( "\n", $source );
+		$total_lines  = count( $lines );
+		$cursor       = isset( $args['cursor'] ) ? self::decode_cursor( (string) $args['cursor'] ) : null;
+		$start_offset = null;
+		if ( null !== $cursor ) {
+			if ( 'document' !== ( $cursor['type'] ?? '' ) || ( $cursor['target'] ?? '' ) !== $target || ( $cursor['baseHash'] ?? '' ) !== $base_hash ) {
+				throw new Ai_Tool_Error( 'read_document cursor is stale or belongs to another document.', false );
+			}
+			$start_byte = max( 0, (int) ( $cursor['nextByteOffset'] ?? 0 ) );
+			$end_byte   = max( $start_byte, (int) ( $cursor['endByteOffset'] ?? strlen( $source ) ) );
+			if ( $end_byte > strlen( $source ) || ! mb_check_encoding( substr( $source, 0, $start_byte ), 'UTF-8' ) || ! mb_check_encoding( substr( $source, 0, $end_byte ), 'UTF-8' ) ) {
+				throw new Ai_Tool_Error( 'read_document cursor does not point to a valid UTF-8 boundary.', false );
+			}
+			$start_offset = mb_strlen( substr( $source, 0, $start_byte ) );
+			$start_line   = substr_count( mb_substr( $source, 0, $start_offset ), "\n" ) + 1;
+			$end_offset   = mb_strlen( substr( $source, 0, $end_byte ) );
+		} else {
+			$start_line   = self::to_int_default( $args['startLine'] ?? null, 1 );
+			$start_line   = min( $total_lines, max( 1, $start_line ) );
+			$end_line     = self::to_int_default( $args['endLine'] ?? null, $total_lines );
+			$end_line     = min( $total_lines, max( $start_line, $end_line ) );
+			$start_offset = mb_strlen( implode( "\n", array_slice( $lines, 0, $start_line - 1 ) ) );
+			if ( $start_line > 1 ) {
+				++$start_offset;
+			}
+			$requested  = implode( "\n", array_slice( $lines, $start_line - 1, $end_line - $start_line + 1 ) );
+			$end_offset = $start_offset + mb_strlen( $requested );
+		}
+		$page_end_offset = $end_offset;
+		$line_cursor     = $start_offset;
+		for ( $line_count = 0; $line_count < self::MAX_READ_LINES; $line_count++ ) {
+			$newline = mb_strpos( $source, "\n", $line_cursor );
+			if ( false === $newline || $newline >= $end_offset ) {
+				break;
+			}
+			$line_cursor = $newline + 1;
+			if ( self::MAX_READ_LINES === $line_count + 1 ) {
+				$page_end_offset = $line_cursor;
+			}
+		}
+		$max_chars  = self::read_char_limit( $args );
+		$content    = mb_substr( $source, $start_offset, min( $max_chars, $page_end_offset - $start_offset ) );
+		$next_at    = $start_offset + mb_strlen( $content );
+		$actual_end = $start_line + substr_count( $content, "\n" );
+		$truncated  = $next_at < $end_offset;
+		$next_byte  = strlen( mb_substr( $source, 0, $next_at ) );
+		$end_byte   = strlen( mb_substr( $source, 0, $end_offset ) );
+		$next       = $truncated ? self::encode_cursor(
+			array(
+				'v'              => 1,
+				'type'           => 'document',
+				'target'         => $target,
+				'baseHash'       => $base_hash,
+				'nextByteOffset' => $next_byte,
+				'endByteOffset'  => $end_byte,
+			)
+		) : null;
 
 		return array(
-			'target'     => $target,
-			'startLine'  => $start_line,
-			'endLine'    => $end_line,
-			'totalLines' => $total_lines,
-			'content'    => implode( "\n", $slice ),
+			'target'      => $target,
+			'baseHash'    => $base_hash,
+			'startLine'   => $start_line,
+			'endLine'     => $actual_end,
+			'startOffset' => $start_offset,
+			'endOffset'   => $next_at,
+			'totalLines'  => $total_lines,
+			'content'     => $content,
+			'truncated'   => $truncated,
+			'nextCursor'  => $next,
 		);
 	}
 
-	/**
-	 * Echo back the selected element context (get_selected_context tool).
+	/** Read one validated selection without exposing all selected HTML.
 	 *
-	 * @param array|null $contexts Selected contexts.
-	 * @return array|null
+	 * @param array $args     Tool arguments.
+	 * @param array $snapshot Current snapshot.
+	 * @param array $records  Selection records keyed by ID.
+	 * @return array
+	 * @throws Ai_Tool_Error When the selection or cursor is invalid or stale.
 	 */
-	public static function run_get_selected_context( $contexts ) {
-		return is_array( $contexts ) && count( $contexts ) > 0 ? $contexts : null;
+	public static function run_read_selection( array $args, array $snapshot, array $records ): array {
+		$id     = isset( $args['selectionId'] ) ? (string) $args['selectionId'] : '';
+		$record = isset( $records[ $id ] ) && is_array( $records[ $id ] ) ? $records[ $id ] : null;
+		if ( null === $record || empty( $record['resolvable'] ) ) {
+			throw new Ai_Tool_Error( 'Selection is missing or cannot be resolved.', false );
+		}
+		$source  = self::get_snapshot_source( $snapshot, 'html' );
+		$start   = (int) $record['startOffset'];
+		$length  = (int) $record['endOffset'] - $start;
+		$content = self::utf16_slice( $source, $start, $length );
+		$hash    = hash( 'sha256', $content );
+		if ( ! hash_equals( (string) $record['contentHash'], $hash ) ) {
+			throw new Ai_Tool_Error( 'Selection is stale because the selected source changed.', false );
+		}
+		$offset = 0;
+		if ( isset( $args['cursor'] ) ) {
+			$cursor    = self::decode_cursor( (string) $args['cursor'] );
+			$base_hash = isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '';
+			if ( 'selection' !== ( $cursor['type'] ?? '' ) || ( $cursor['selectionId'] ?? '' ) !== $id || ( $cursor['contentHash'] ?? '' ) !== $hash || ( $cursor['baseHash'] ?? '' ) !== $base_hash ) {
+				throw new Ai_Tool_Error( 'read_selection cursor is stale or belongs to another selection.', false );
+			}
+			$byte_offset = max( 0, (int) ( $cursor['nextByteOffset'] ?? 0 ) );
+			if ( $byte_offset > strlen( $content ) || ! mb_check_encoding( substr( $content, 0, $byte_offset ), 'UTF-8' ) ) {
+				throw new Ai_Tool_Error( 'read_selection cursor does not point to a valid UTF-8 boundary.', false );
+			}
+			$offset = mb_strlen( substr( $content, 0, $byte_offset ) );
+		}
+		$max_chars = self::read_char_limit( $args );
+		$chunk     = mb_substr( $content, $offset, $max_chars );
+		$next_at   = $offset + mb_strlen( $chunk );
+		$truncated = $next_at < mb_strlen( $content );
+		return array(
+			'selectionId' => $id,
+			'baseHash'    => isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '',
+			'contentHash' => $hash,
+			'startOffset' => $offset,
+			'endOffset'   => $next_at,
+			'totalChars'  => mb_strlen( $content ),
+			'content'     => $chunk,
+			'truncated'   => $truncated,
+			'nextCursor'  => $truncated ? self::encode_cursor(
+				array(
+					'v'              => 1,
+					'type'           => 'selection',
+					'selectionId'    => $id,
+					'baseHash'       => isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '',
+					'contentHash'    => $hash,
+					'nextByteOffset' => strlen( mb_substr( $content, 0, $next_at ) ),
+				)
+			) : null,
+		);
 	}
 
 	/**
@@ -310,21 +441,45 @@ class Ai_Tools {
 	 *
 	 * @param array $args     Tool arguments (target, from, to, replaceAll).
 	 * @param array $snapshot Snapshot array.
+	 * @param array $selection_records Selection records keyed by ID.
 	 * @return array Tool call result (output, snapshot, appliedEditOperation).
 	 * @throws Ai_Tool_Error On ambiguous / missing / invalid replacements.
 	 */
-	public static function run_replace_string( array $args, array $snapshot ): array {
-		$target      = (string) $args['target'];
-		$current     = self::get_snapshot_source( $snapshot, $target );
+	public static function run_replace_string( array $args, array $snapshot, array $selection_records = array() ): array {
+		$target       = (string) $args['target'];
+		$current      = self::get_snapshot_source( $snapshot, $target );
+		$scope        = null;
+		$selection_id = isset( $args['selectionId'] ) ? (string) $args['selectionId'] : '';
+		if ( '' !== $selection_id ) {
+			if ( 'html' !== $target ) {
+				throw new Ai_Tool_Error( 'selectionId can only scope HTML replacements.', false );
+			}
+			$scope = isset( $selection_records[ $selection_id ] ) ? $selection_records[ $selection_id ] : null;
+			if ( ! is_array( $scope ) || empty( $scope['resolvable'] ) ) {
+				throw new Ai_Tool_Error( 'Selection is missing or cannot be resolved.', false );
+			}
+			$current = self::utf16_slice( $current, (int) $scope['startOffset'], (int) $scope['endOffset'] - (int) $scope['startOffset'] );
+			if ( ! hash_equals( (string) $scope['contentHash'], hash( 'sha256', $current ) ) ) {
+				throw new Ai_Tool_Error( 'Selection is stale because the selected source changed.', false );
+			}
+		}
 		$from        = isset( $args['from'] ) ? (string) $args['from'] : '';
 		$to          = isset( $args['to'] ) ? (string) $args['to'] : '';
 		$replace_all = ! empty( $args['replaceAll'] );
 
 		if ( '' === $from ) {
+			if ( null !== $scope ) {
+				throw new Ai_Tool_Error( 'replace_string.from cannot be empty inside a selection.', false );
+			}
 			if ( '' !== trim( $current ) ) {
 				throw new Ai_Tool_Error( 'replace_string.from may be empty only when target is blank.', false );
 			}
 			$next = self::replace_snapshot_source( $snapshot, $target, $to );
+			if ( 'html' === $target ) {
+				foreach ( $selection_records as $record_id => $record ) {
+					$selection_records[ $record_id ]['resolvable'] = false;
+				}
+			}
 			return array(
 				'output'               => array(
 					'target'        => $target,
@@ -333,6 +488,7 @@ class Ai_Tools {
 					'nextBaseHash'  => $next['baseHash'],
 				),
 				'snapshot'             => $next,
+				'selectionRecords'     => $selection_records,
 				'appliedEditOperation' => true,
 			);
 		}
@@ -356,7 +512,34 @@ class Ai_Tools {
 			$replaced_count = 1;
 		}
 
+		if ( null !== $scope ) {
+			$full_source = self::get_snapshot_source( $snapshot, 'html' );
+			$before      = self::utf16_slice( $full_source, 0, (int) $scope['startOffset'] );
+			$after       = self::utf16_slice( $full_source, (int) $scope['endOffset'], self::utf16_length( $full_source ) - (int) $scope['endOffset'] );
+			$replaced    = $before . $replaced . $after;
+		}
 		$next = self::replace_snapshot_source( $snapshot, $target, $replaced );
+		if ( null !== $scope ) {
+			$old_end  = (int) $scope['endOffset'];
+			$new_body = self::utf16_slice( $replaced, (int) $scope['startOffset'], self::utf16_length( $replaced ) - self::utf16_length( $before ) - self::utf16_length( $after ) );
+			$new_end  = (int) $scope['startOffset'] + self::utf16_length( $new_body );
+			$delta    = $new_end - $old_end;
+			foreach ( $selection_records as $record_id => $record ) {
+				if ( $record_id === $selection_id ) {
+					$selection_records[ $record_id ]['endOffset']   = $new_end;
+					$selection_records[ $record_id ]['contentHash'] = hash( 'sha256', $new_body );
+				} elseif ( isset( $record['startOffset'] ) && (int) $record['startOffset'] >= $old_end ) {
+					$selection_records[ $record_id ]['startOffset'] = (int) $record['startOffset'] + $delta;
+					$selection_records[ $record_id ]['endOffset']   = (int) $record['endOffset'] + $delta;
+				} elseif ( isset( $record['endOffset'] ) && (int) $record['endOffset'] > (int) $scope['startOffset'] ) {
+					$selection_records[ $record_id ]['resolvable'] = false;
+				}
+			}
+		} elseif ( 'html' === $target ) {
+			foreach ( $selection_records as $record_id => $record ) {
+				$selection_records[ $record_id ]['resolvable'] = false;
+			}
+		}
 		return array(
 			'output'               => array(
 				'target'        => $target,
@@ -365,6 +548,7 @@ class Ai_Tools {
 				'nextBaseHash'  => $next['baseHash'],
 			),
 			'snapshot'             => $next,
+			'selectionRecords'     => $selection_records,
 			'appliedEditOperation' => true,
 		);
 	}
@@ -374,10 +558,11 @@ class Ai_Tools {
 	 *
 	 * @param array $args     Tool arguments (target, replacements[]).
 	 * @param array $snapshot Snapshot array.
+	 * @param array $selection_records Selection records keyed by ID.
 	 * @return array Tool call result.
 	 * @throws Ai_Tool_Error On empty list or a failed replacement step.
 	 */
-	public static function run_replace_many( array $args, array $snapshot ): array {
+	public static function run_replace_many( array $args, array $snapshot, array $selection_records = array() ): array {
 		$target       = (string) $args['target'];
 		$replacements = isset( $args['replacements'] ) && is_array( $args['replacements'] ) ? $args['replacements'] : array();
 		if ( 0 === count( $replacements ) ) {
@@ -389,20 +574,23 @@ class Ai_Tools {
 		$steps            = array();
 		$index            = 0;
 		foreach ( $replacements as $replacement ) {
-			$replacement      = is_array( $replacement ) ? $replacement : array();
-			$result           = self::run_replace_string(
+			$replacement       = is_array( $replacement ) ? $replacement : array();
+			$result            = self::run_replace_string(
 				array(
-					'target'     => $target,
-					'from'       => isset( $replacement['from'] ) ? (string) $replacement['from'] : '',
-					'to'         => isset( $replacement['to'] ) ? (string) $replacement['to'] : '',
-					'replaceAll' => ! empty( $replacement['replaceAll'] ),
+					'target'      => $target,
+					'selectionId' => isset( $args['selectionId'] ) ? (string) $args['selectionId'] : '',
+					'from'        => isset( $replacement['from'] ) ? (string) $replacement['from'] : '',
+					'to'          => isset( $replacement['to'] ) ? (string) $replacement['to'] : '',
+					'replaceAll'  => ! empty( $replacement['replaceAll'] ),
 				),
-				$current_snapshot
+				$current_snapshot,
+				$selection_records
 			);
-			$current_snapshot = isset( $result['snapshot'] ) ? $result['snapshot'] : $current_snapshot;
-			$replaced_count   = isset( $result['output']['replacedCount'] ) ? (int) $result['output']['replacedCount'] : 0;
-			$total_replaced  += $replaced_count;
-			$steps[]          = array(
+			$current_snapshot  = isset( $result['snapshot'] ) ? $result['snapshot'] : $current_snapshot;
+			$selection_records = isset( $result['selectionRecords'] ) ? $result['selectionRecords'] : $selection_records;
+			$replaced_count    = isset( $result['output']['replacedCount'] ) ? (int) $result['output']['replacedCount'] : 0;
+			$total_replaced   += $replaced_count;
+			$steps[]           = array(
 				'index'         => $index,
 				'replacedCount' => $replaced_count,
 				'replaceAll'    => ! empty( $replacement['replaceAll'] ),
@@ -418,6 +606,7 @@ class Ai_Tools {
 				'nextBaseHash'  => $current_snapshot['baseHash'],
 			),
 			'snapshot'             => $current_snapshot,
+			'selectionRecords'     => $selection_records,
 			'appliedEditOperation' => true,
 		);
 	}
@@ -476,17 +665,17 @@ class Ai_Tools {
 					'output'               => self::run_read_document( $args, $snapshot ),
 					'appliedEditOperation' => false,
 				);
-			case 'get_selected_context':
+			case 'read_selection':
 				return array(
-					'output'               => self::run_get_selected_context( $selected_contexts ),
+					'output'               => self::run_read_selection( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() ),
 					'appliedEditOperation' => false,
 				);
 			case 'replace_string':
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
-				return self::run_replace_string( $args, $snapshot );
+				return self::run_replace_string( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
 			case 'replace_many':
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
-				return self::run_replace_many( $args, $snapshot );
+				return self::run_replace_many( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
 			case 'set_js_mode':
 				return self::run_set_js_mode( $args, $snapshot );
 		}
@@ -507,5 +696,44 @@ class Ai_Tools {
 		}
 		$number = (int) $value;
 		return 0 !== $number ? $number : $fallback;
+	}
+
+	/** Clamp a requested read size.
+	 *
+	 * @param array $args Tool arguments.
+	 * @return int
+	 */
+	private static function read_char_limit( array $args ): int {
+		$value = isset( $args['maxChars'] ) && is_numeric( $args['maxChars'] ) ? (int) $args['maxChars'] : self::DEFAULT_READ_CHARS;
+		return max( 1, min( self::MAX_READ_CHARS, $value ) );
+	}
+
+	/** Encode an opaque pagination cursor.
+	 *
+	 * @param array $value Cursor payload.
+	 * @return string
+	 */
+	private static function encode_cursor( array $value ): string {
+		$json = wp_json_encode( $value );
+		return rtrim( strtr( base64_encode( (string) $json ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Opaque pagination token, not code obfuscation.
+	}
+
+	/** Decode and validate an opaque pagination cursor.
+	 *
+	 * @param string $value Encoded cursor.
+	 * @return array
+	 * @throws Ai_Tool_Error When malformed.
+	 */
+	private static function decode_cursor( string $value ): array {
+		$padding = strlen( $value ) % 4;
+		if ( $padding ) {
+			$value .= str_repeat( '=', 4 - $padding );
+		}
+		$json = base64_decode( strtr( $value, '-_', '+/' ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes our opaque pagination token.
+		$data = is_string( $json ) ? json_decode( $json, true ) : null;
+		if ( ! is_array( $data ) || 1 !== (int) ( $data['v'] ?? 0 ) ) {
+			throw new Ai_Tool_Error( 'Invalid read cursor.', false );
+		}
+		return $data;
 	}
 }

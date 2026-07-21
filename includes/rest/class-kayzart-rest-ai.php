@@ -13,9 +13,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Creates, reads, and cancels AI jobs. */
 class Rest_Ai {
-	const MAX_PROMPT_BYTES = 8192;
-	const MAX_CODE_BYTES   = 262144;
-	const MAX_CONTEXTS     = 20;
+	const MAX_PROMPT_BYTES               = 8192;
+	const MAX_CODE_BYTES                 = 262144;
+	const MAX_CONTEXTS                   = 20;
+	const MAX_SELECTION_DESCRIPTOR_BYTES = 8000;
 
 	/** Register all AI job endpoints. */
 	public static function register_routes(): void {
@@ -242,7 +243,9 @@ class Rest_Ai {
 			}
 			$contexts[] = self::sanitize_context( $input['selectedContext'] );
 		}
-		$agent['selectedContexts'] = $contexts;
+		$selection_data            = self::build_selection_data( $contexts, $agent['html'] );
+		$agent['selectedContexts'] = $selection_data['descriptors'];
+		$agent['selectionRecords'] = $selection_data['records'];
 
 		return array(
 			'requestId'    => $request_id,
@@ -288,6 +291,89 @@ class Rest_Ai {
 			}
 		}
 		return $result;
+	}
+
+	/** Convert rich browser selections into compact model descriptors and server records.
+	 *
+	 * @param array  $contexts Sanitized browser selections.
+	 * @param string $html     Current HTML source.
+	 * @return array
+	 */
+	private static function build_selection_data( array $contexts, string $html ): array {
+		$descriptors = array();
+		$records     = array();
+		foreach ( $contexts as $context ) {
+			$id         = wp_generate_uuid4();
+			$outer_html = isset( $context['outerHTML'] ) && is_string( $context['outerHTML'] ) ? $context['outerHTML'] : '';
+			$start      = null;
+			$end        = null;
+			$range      = isset( $context['sourceRange'] ) && is_array( $context['sourceRange'] ) ? $context['sourceRange'] : array();
+			if ( isset( $range['startOffset'], $range['endOffset'] ) && is_numeric( $range['startOffset'] ) && is_numeric( $range['endOffset'] ) ) {
+				$candidate_start = max( 0, (int) $range['startOffset'] );
+				$candidate_end   = max( $candidate_start, (int) $range['endOffset'] );
+				$candidate       = Ai_Tools::utf16_slice( $html, $candidate_start, $candidate_end - $candidate_start );
+				if ( $candidate_end <= Ai_Tools::utf16_length( $html ) && ( '' === $outer_html || $candidate === $outer_html ) ) {
+					$start      = $candidate_start;
+					$end        = $candidate_end;
+					$outer_html = $candidate;
+				}
+			}
+			if ( null === $start && '' !== $outer_html ) {
+				$byte_start = strpos( $html, $outer_html );
+				if ( false !== $byte_start && false === strpos( $html, $outer_html, $byte_start + 1 ) ) {
+					$start = Ai_Tools::utf16_length( substr( $html, 0, $byte_start ) );
+					$end   = $start + Ai_Tools::utf16_length( $outer_html );
+				}
+			}
+
+			$resolvable = null !== $start && null !== $end;
+			$content    = $resolvable ? Ai_Tools::utf16_slice( $html, $start, $end - $start ) : '';
+			$opening    = '';
+			if ( '' !== $outer_html && preg_match( '/^\s*(<[^>]+>)/s', $outer_html, $match ) ) {
+				$opening = mb_substr( $match[1], 0, 512 );
+			}
+			$text_preview   = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $outer_html ) ) );
+			$descriptor     = array(
+				'selectionId'   => $id,
+				'lcId'          => isset( $context['lcId'] ) ? mb_substr( (string) $context['lcId'], 0, 128 ) : '',
+				'tagName'       => isset( $context['tagName'] ) ? mb_substr( (string) $context['tagName'], 0, 64 ) : '',
+				'openingTag'    => $opening,
+				'textPreview'   => mb_substr( $text_preview, 0, 256 ),
+				'contentLength' => $resolvable ? Ai_Tools::utf16_length( $content ) : Ai_Tools::utf16_length( $outer_html ),
+				'contentHash'   => hash( 'sha256', $resolvable ? $content : $outer_html ),
+				'resolvable'    => $resolvable,
+			);
+			$descriptors[]  = $descriptor;
+			$records[ $id ] = array(
+				'selectionId' => $id,
+				'startOffset' => $resolvable ? $start : 0,
+				'endOffset'   => $resolvable ? $end : 0,
+				'contentHash' => $descriptor['contentHash'],
+				'resolvable'  => $resolvable,
+			);
+		}
+		$descriptor_bytes = strlen( (string) wp_json_encode( $descriptors ) );
+		while ( $descriptor_bytes > self::MAX_SELECTION_DESCRIPTOR_BYTES ) {
+			$changed = false;
+			foreach ( $descriptors as &$descriptor ) {
+				foreach ( array( 'openingTag', 'textPreview' ) as $key ) {
+					$length = mb_strlen( $descriptor[ $key ] );
+					if ( $length > 0 ) {
+						$descriptor[ $key ] = mb_substr( $descriptor[ $key ], 0, (int) floor( $length / 2 ) );
+						$changed            = true;
+					}
+				}
+			}
+			unset( $descriptor );
+			if ( ! $changed ) {
+				break;
+			}
+			$descriptor_bytes = strlen( (string) wp_json_encode( $descriptors ) );
+		}
+		return array(
+			'descriptors' => $descriptors,
+			'records'     => $records,
+		);
 	}
 
 	/** Add creation-only URLs to the common job representation.

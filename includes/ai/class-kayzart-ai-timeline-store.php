@@ -245,7 +245,8 @@ class Ai_Timeline_Store {
 	public function to_response( array $row ): array {
 		$user               = get_userdata( (int) $row['user_id'] );
 		$source             = ! empty( $row['source_activity_id'] ) ? $this->get( (int) $row['source_activity_id'] ) : null;
-		$revision_available = ! empty( $row['revision_id'] ) && (bool) wp_get_post_revision( (int) $row['revision_id'] );
+		$revision_id        = ! empty( $row['revision_id'] ) ? (int) $row['revision_id'] : 0;
+		$revision_available = $revision_id > 0 && (bool) wp_get_post_revision( $revision_id );
 		return array(
 			'id'                => (int) $row['id'],
 			'activityId'        => (string) $row['activity_uuid'],

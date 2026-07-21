@@ -118,6 +118,9 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertSame( $save['id'], $this->store->record_save( 42, 1, 9876 )['id'] );
 		$restore = $this->store->record_restore( $source, 1, 'before' );
 		$this->assertSame( (string) $source['id'], (string) $restore['source_activity_id'] );
+		$timeline = $this->store->list_for_post( 42 );
+		$this->assertCount( 3, $timeline['items'] );
+		$this->assertFalse( $timeline['items'][1]['revisionAvailable'] );
 		$this->assertSame( 3, $this->store->delete_for_post( 42 ) );
 		$this->assertNull( $this->store->get( (int) $source['id'] ) );
 	}

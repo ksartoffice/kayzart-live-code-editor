@@ -1,7 +1,7 @@
 import { createElement, createRoot, useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import type {
-  ActiveJobRecord, AiAvailability, AiJobEvent, AiJobStatusResponse, AiTimelineItem,
+  ActiveJobRecord, AiAvailability, AiJobEvent, AiJobStatus, AiJobStatusResponse, AiTimelineItem,
   EditorSnapshot, SelectedElementContext,
 } from './contract';
 import { normalizeSnapshot } from './contract';
@@ -80,8 +80,7 @@ function formatDate(value: string) {
   try { return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
   catch { return value; }
 }
-function statusLabel(item: AiTimelineItem) {
-  const status = item.executionStatus;
+function statusLabel(item: AiTimelineItem, status = item.executionStatus) {
   if (status === 'pending') return __('Waiting', 'kayzart-live-code-editor');
   if (status === 'running') return __('Editing', 'kayzart-live-code-editor');
   if (status === 'completed' && item.applicationStatus === 'applied') return __('Applied', 'kayzart-live-code-editor');
@@ -131,6 +130,7 @@ export function AiEditorPanel() {
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<AiJobEvent[]>([]);
+  const [liveJob, setLiveJob] = useState<{ requestId: string; status: AiJobStatus } | null>(null);
   const [running, setRunning] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState('');
@@ -140,13 +140,19 @@ export function AiEditorPanel() {
   const setPrompt = (value: string) => { draftState.prompt = value; setPromptState(value); };
   const setContexts = (value: SelectedElementContext[]) => { draftState.contexts = value; setContextsState(value); };
   const refresh = async () => {
-    if (!ai?.timelineUrl) return;
-    const page = await getTimeline(ai.timelineUrl, nonce, postId);
-    if (!mountedRef.current) return;
-    setItems(page.items); setHasMore(page.hasMore); setCursor(page.nextCursor); setLoading(false);
+    if (!ai?.timelineUrl) { setLoading(false); return; }
+    try {
+      const page = await getTimeline(ai.timelineUrl, nonce, postId);
+      if (!mountedRef.current) return;
+      setItems(page.items); setHasMore(page.hasMore); setCursor(page.nextCursor);
+    } catch (caught) {
+      if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor'));
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
   };
   const finish = () => {
-    clearActiveJob(postId); setRunning(false); setCanceling(false); setEvents([]); setOptimistic(null);
+    clearActiveJob(postId); setRunning(false); setCanceling(false); setEvents([]); setLiveJob(null); setOptimistic(null);
     host()?.setEditorLock?.(false); void refresh();
   };
   const complete = async (status: AiJobStatusResponse, active: ActiveJobRecord) => {
@@ -168,7 +174,7 @@ export function AiEditorPanel() {
   const poll = async (active: ActiveJobRecord) => {
     pollAbortRef.current?.abort();
     const controller = new AbortController(); pollAbortRef.current = controller;
-    setRunning(true); host()?.setEditorLock?.(true);
+    setRunning(true); setLiveJob({ requestId: active.requestId, status: 'pending' }); host()?.setEditorLock?.(true);
     const interval = positiveInteger(active.pollIntervalMs, DEFAULT_POLL_INTERVAL_MS);
     try {
       for (;;) {
@@ -180,7 +186,7 @@ export function AiEditorPanel() {
           await sleep(interval, controller.signal); continue;
         }
         if (!mountedRef.current) return;
-        setEvents(Array.isArray(status.events) ? status.events : []);
+        setEvents(Array.isArray(status.events) ? status.events : []); setLiveJob({ requestId: active.requestId, status: status.status });
         if (isTerminalStatus(status.status)) { terminal(status, active); return; }
         await sleep(interval, controller.signal);
       }
@@ -251,7 +257,10 @@ export function AiEditorPanel() {
         pollIntervalMs: positiveInteger(created.pollIntervalMs, DEFAULT_POLL_INTERVAL_MS), timeoutMs: positiveInteger(created.timeoutMs, DEFAULT_TIMEOUT_MS),
         startedAt: Date.now(), prompt: promptText, contexts: submittedContexts, inputSnapshot: input, activityId: created.timelineItem?.id,
       };
-      saveActiveJob(active); await refresh(); setOptimistic(null); await poll(active);
+      saveActiveJob(active);
+      if (created.timelineItem) setItems((current) => current.some((item) => item.requestId === created.requestId) ? current : [...current, created.timelineItem as AiTimelineItem]);
+      setOptimistic(null); setLiveJob({ requestId: created.requestId, status: created.status });
+      void refresh(); await poll(active);
     } catch (caught) {
       setError(caught instanceof AiApiError || caught instanceof Error ? caught.message : __('AI edit failed.', 'kayzart-live-code-editor'));
       setPrompt(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
@@ -281,7 +290,9 @@ export function AiEditorPanel() {
   };
 
   const renderAi = (item: AiTimelineItem) => {
-    const failed = item.executionStatus && ['error', 'canceled', 'timed_out', 'enqueue_failed'].includes(item.executionStatus);
+    const isLive = liveJob?.requestId === item.requestId;
+    const executionStatus = isLive ? liveJob.status : item.executionStatus;
+    const failed = executionStatus && ['error', 'canceled', 'timed_out', 'enqueue_failed'].includes(executionStatus);
     const currentHash = host()?.getEditorSnapshot?.()?.baseHash || '';
     const target: 'before' | 'after' = currentHash && currentHash === item.afterHash ? 'before' : 'after';
     return <div className="kayzart-ai-exchange" key={item.activityId}>
@@ -289,15 +300,15 @@ export function AiEditorPanel() {
         {item.contexts.length ? <small>{item.contexts.map(contextLabel).join(', ')}</small> : null}
         <span>{item.author.name} · {formatDate(item.createdAt)}</span>
       </div>
-      <div className={`kayzart-ai-result is-${item.executionStatus || 'unknown'}`}>
-        <div className="kayzart-ai-result-heading"><strong>{statusLabel(item)}</strong><small>AI</small></div>
+      <div className={`kayzart-ai-result is-${executionStatus || 'unknown'}`}>
+        <div className="kayzart-ai-result-heading"><strong>{statusLabel(item, executionStatus)}</strong><small>AI</small></div>
         {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => <span key={value}>{value.toUpperCase()}</span>)}</div> : null}
-        {item.executionStatus === 'running' && running ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
-        {item.executionStatus === 'completed' && item.detailsAvailable ? <div className="kayzart-ai-result-actions">
+        {isLive && running && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
+        {executionStatus === 'completed' && item.detailsAvailable ? <div className="kayzart-ai-result-actions">
           <button type="button" onClick={() => void inspect(item)}>{__('Review changes', 'kayzart-live-code-editor')}</button>
           <button type="button" onClick={() => void restore(item, target)}>{target === 'before' ? __('Revert change', 'kayzart-live-code-editor') : __('Restore this result', 'kayzart-live-code-editor')}</button>
         </div> : null}
-        {item.executionStatus === 'completed' && !item.detailsAvailable ? <p className="kayzart-ai-expired">{__('The change data retention period has ended.', 'kayzart-live-code-editor')}</p> : null}
+        {executionStatus === 'completed' && !item.detailsAvailable ? <p className="kayzart-ai-expired">{__('The change data retention period has ended.', 'kayzart-live-code-editor')}</p> : null}
         {usageLabel(item) ? <small className="kayzart-ai-usage">{usageLabel(item)}</small> : null}
         {failed ? <div className="kayzart-ai-result-actions"><button type="button" disabled={running} onClick={() => void send({ prompt: item.prompt || '', contexts: item.contexts as SelectedElementContext[] })}>{__('Run again', 'kayzart-live-code-editor')}</button><button type="button" onClick={() => { setPrompt(item.prompt || ''); promptRef.current?.focus(); }}>{__('Return to input', 'kayzart-live-code-editor')}</button></div> : null}
       </div>
@@ -318,7 +329,9 @@ export function AiEditorPanel() {
       </div>)}
       {optimistic && !items.some((item) => item.requestId === optimistic.requestId) ? <div className="kayzart-ai-exchange">
         <div className="kayzart-ai-message kayzart-ai-message-user"><p>{optimistic.prompt}</p><small>{optimistic.contexts.map(contextLabel).join(', ')}</small></div>
-        <div className="kayzart-ai-result is-running"><strong>{__('Waiting', 'kayzart-live-code-editor')}</strong></div>
+        <div className={`kayzart-ai-result is-${liveJob?.requestId === optimistic.requestId ? liveJob.status : 'pending'}`}><strong>{liveJob?.requestId === optimistic.requestId && liveJob.status === 'running' ? __('Editing', 'kayzart-live-code-editor') : __('Waiting', 'kayzart-live-code-editor')}</strong>
+          {liveJob?.requestId === optimistic.requestId && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
+        </div>
       </div> : null}
     </div>
     <div className="kayzart-ai-composer">

@@ -5,7 +5,6 @@ import type {
   AiTimelineItem,
   AiTimelineResponse,
   AiTimelineRestoreResponse,
-  AiTimelineSnapshotResponse,
 } from './contract';
 
 export class AiApiError extends Error {
@@ -60,11 +59,6 @@ export function getTimeline(url: string, nonce: string, postId: number, before?:
   target.searchParams.set('post_id', String(postId));
   if (before) target.searchParams.set('before', String(before));
   return fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
-}
-
-export function getTimelineSnapshot(baseUrl: string, nonce: string, id: number, target: 'before' | 'after') {
-  const url = `${baseUrl}${id}/snapshot?target=${target}`;
-  return fetchJson<AiTimelineSnapshotResponse>(url, nonce, { method: 'GET' });
 }
 
 export function updateTimelineApplication(baseUrl: string, nonce: string, id: number, status: 'applied' | 'reverted') {

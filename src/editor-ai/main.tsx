@@ -2,11 +2,11 @@ import { createElement, createRoot, Fragment, useEffect, useMemo, useRef, useSta
 import { __, sprintf } from '@wordpress/i18n';
 import type {
   ActiveJobRecord, AiAvailability, AiJobEvent, AiJobStatus, AiJobStatusResponse, AiTimelineItem,
-  EditorSnapshot, SelectedElementContext,
+  SelectedElementContext,
 } from './contract';
 import { normalizeSnapshot } from './contract';
 import {
-  AiApiError, cancelJob, createJob, getJob, getTimeline, getTimelineSnapshot,
+  AiApiError, cancelJob, createJob, getJob, getTimeline,
   restoreTimeline, updateTimelineApplication,
 } from './api';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isTerminalStatus, positiveInteger, sleep } from './polling';
@@ -138,7 +138,7 @@ export function AiEditorPanel() {
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState('');
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
-  const [review, setReview] = useState<{ item: AiTimelineItem; before: EditorSnapshot; after: EditorSnapshot } | null>(null);
+  const [editorHash, setEditorHash] = useState(() => host()?.getEditorSnapshot?.()?.baseHash || '');
 
   const setPrompt = (value: string) => { draftState.prompt = value; setPromptState(value); };
   const setContexts = (value: SelectedElementContext[]) => { draftState.contexts = value; setContextsState(value); };
@@ -162,6 +162,7 @@ export function AiEditorPanel() {
     if (!status.snapshot) { setError(__('AI response is missing its snapshot.', 'kayzart-live-code-editor')); finish(); return; }
     const output = normalizeSnapshot(status.snapshot);
     host()?.replaceEditorSnapshot?.(output);
+    setEditorHash(output.baseHash);
     if (active.activityId && ai) {
       try { await updateTimelineApplication(ai.timelineBaseUrl, nonce, active.activityId, 'applied'); } catch { /* The job remains recoverable. */ }
     }
@@ -215,6 +216,12 @@ export function AiEditorPanel() {
       pollAbortRef.current?.abort(); pollAbortRef.current = null;
       if (!loadActiveJob(postId)) host()?.setEditorLock?.(false);
     };
+  }, []);
+
+  useEffect(() => {
+    const syncEditorHash = () => setEditorHash(host()?.getEditorSnapshot?.()?.baseHash || '');
+    syncEditorHash();
+    return host()?.subscribeEditorSnapshot?.(syncEditorHash);
   }, []);
 
   useEffect(() => {
@@ -275,29 +282,34 @@ export function AiEditorPanel() {
     try { const status = await cancelJob(active.cancelUrl, nonce); if (isTerminalStatus(status.status)) terminal(status, active); }
     catch (caught) { setError(caught instanceof Error ? caught.message : __('Cancel request failed.', 'kayzart-live-code-editor')); setCanceling(false); }
   };
+  const snapshotPosition = (item: AiTimelineItem, hash: string): 'before' | 'after' | 'other' => {
+    const matchesBefore = Boolean(hash && item.beforeHash && hash === item.beforeHash);
+    const matchesAfter = Boolean(hash && item.afterHash && hash === item.afterHash);
+    if (matchesBefore && !matchesAfter) return 'before';
+    if (matchesAfter && !matchesBefore) return 'after';
+    if (matchesBefore && matchesAfter) return item.applicationStatus === 'reverted' ? 'before' : 'after';
+    return 'other';
+  };
   const restore = async (item: AiTimelineItem, target: 'before' | 'after') => {
     if (!ai) return;
-    const latestEdit = [...items].reverse().find((candidate) => candidate.type === 'ai_edit');
-    if (latestEdit?.id !== item.id && !window.confirm(__('This replaces later unsaved changes. Continue?', 'kayzart-live-code-editor'))) return;
-    try { const result = await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target); host()?.replaceEditorSnapshot?.(normalizeSnapshot(result.snapshot)); await refresh(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : __('The edit could not be restored.', 'kayzart-live-code-editor')); }
-  };
-  const inspect = async (item: AiTimelineItem) => {
-    if (!ai) return;
+    const currentHash = host()?.getEditorSnapshot?.()?.baseHash || '';
+    const position = snapshotPosition(item, currentHash);
+    if (position === target) return;
+    if (position === 'other' && !window.confirm('現在の未保存変更が置き換えられます。続行しますか？')) return;
     try {
-      const [before, after] = await Promise.all([
-        getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, 'before'), getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, 'after'),
-      ]);
-      setReview({ item, before: normalizeSnapshot(before.snapshot), after: normalizeSnapshot(after.snapshot) });
-    } catch (caught) { setError(caught instanceof Error ? caught.message : __('Change details could not be loaded.', 'kayzart-live-code-editor')); }
+      const result = await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target);
+      const snapshot = normalizeSnapshot(result.snapshot);
+      host()?.replaceEditorSnapshot?.(snapshot);
+      setEditorHash(snapshot.baseHash);
+      await refresh();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : __('The edit could not be restored.', 'kayzart-live-code-editor')); }
   };
 
   const renderAi = (item: AiTimelineItem) => {
     const isLive = liveJob?.requestId === item.requestId;
     const executionStatus = isLive ? liveJob.status : item.executionStatus;
     const failed = executionStatus && ['error', 'canceled', 'timed_out', 'enqueue_failed'].includes(executionStatus);
-    const currentHash = host()?.getEditorSnapshot?.()?.baseHash || '';
-    const target: 'before' | 'after' = currentHash && currentHash === item.afterHash ? 'before' : 'after';
+    const position = snapshotPosition(item, editorHash);
     return <div className="kayzart-ai-exchange" key={item.activityId}>
       <div className="kayzart-ai-message kayzart-ai-message-user"><p>{item.prompt}</p>
         {item.contexts.length ? <small>{item.contexts.map(contextLabel).join(', ')}</small> : null}
@@ -311,8 +323,8 @@ export function AiEditorPanel() {
         })}</div> : null}
         {isLive && running && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
         {executionStatus === 'completed' && item.detailsAvailable ? <div className="kayzart-ai-result-actions">
-          <button type="button" onClick={() => void inspect(item)}>変更内容を確認</button>
-          <button type="button" className="is-destructive" onClick={() => void restore(item, target)}>{target === 'before' ? '元に戻す' : 'この結果を復元'}</button>
+          <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? '現在この状態です' : undefined} onClick={() => void restore(item, 'before')}>変更前に戻す</button>
+          <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? '現在この状態です' : undefined} onClick={() => void restore(item, 'after')}>この結果を復元</button>
         </div> : null}
         {executionStatus === 'completed' && !item.detailsAvailable ? <p className="kayzart-ai-expired">変更内容の保持期間が終了しました。</p> : null}
         {executionStatus === 'completed' && (item.model || item.inputTokens !== null || item.outputTokens !== null || item.durationSeconds !== null) ? <details className="kayzart-ai-details"><summary>詳細</summary><dl>
@@ -352,9 +364,6 @@ export function AiEditorPanel() {
         <button type="button" disabled={!canSend} onClick={() => void send()}>{__('Send', 'kayzart-live-code-editor')}</button>
       </div></div>
     </div>
-    {review ? <div className="kayzart-ai-review-backdrop" role="presentation"><div className="kayzart-ai-review" role="dialog" aria-modal="true"><button type="button" className="kayzart-ai-review-close" onClick={() => setReview(null)}>×</button><h3>{__('Review changes', 'kayzart-live-code-editor')}</h3>
-      {review.item.changedTargets.map((target) => { const key = target === 'head' ? 'customHead' : target; return <section key={target}><h4>{target.toUpperCase()}</h4><div><pre>{String(review.before[key as keyof EditorSnapshot] || '')}</pre><pre>{String(review.after[key as keyof EditorSnapshot] || '')}</pre></div></section>; })}
-    </div></div> : null}
   </div>;
 }
 

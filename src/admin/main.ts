@@ -298,6 +298,10 @@ async function main() {
     contentListeners.add(listener);
     return () => contentListeners.delete(listener);
   };
+  const subscribeEditorSnapshot = (listener: () => void) => {
+    contentListeners.add(listener);
+    return () => contentListeners.delete(listener);
+  };
 
   let saveCopyController: ReturnType<typeof createSaveCopyController> | null = null;
 
@@ -1783,6 +1787,7 @@ async function main() {
       return;
     }
     jsMode = normalized;
+    notifyContentChange();
     syncJsModeSelectors();
     syncUnsavedUi();
     setPendingPreviewReloadChanges(true);
@@ -1920,6 +1925,7 @@ async function main() {
       registerSettingsTab,
       openSettingsTab,
       getEditorSnapshot,
+      subscribeEditorSnapshot,
       replaceEditorSnapshot,
       reloadPreview: reloadPreviewPreservingScroll,
       getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
@@ -1997,6 +2003,7 @@ async function main() {
   customHeadModel.onDidChangeContent(() => {
     setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
+    notifyContentChange();
     syncUnsavedUi();
   });
   cssModel.onDidChangeContent(() => {
@@ -2009,12 +2016,14 @@ async function main() {
     preview?.clearSelectionHighlight();
     preview?.clearCssSelectionHighlight();
     updateUndoRedoState();
+    notifyContentChange();
     syncUnsavedUi();
   });
 
   jsModel.onDidChangeContent(() => {
     setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
+    notifyContentChange();
     syncUnsavedUi();
   });
 

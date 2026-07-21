@@ -85,6 +85,55 @@ describe('AiEditorPanel', () => {
     await act(async () => root.unmount());
   });
 
+  it('shows both snapshot actions and confirms only before replacing divergent edits', async () => {
+    let currentSnapshot = afterSnapshot;
+    let onSnapshotChange: (() => void) | undefined;
+    const replaceEditorSnapshot = vi.fn((snapshot) => { currentSnapshot = snapshot; onSnapshotChange?.(); return true; });
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+      getEditorSnapshot: vi.fn(() => currentSnapshot), replaceEditorSnapshot,
+      subscribeEditorSnapshot: vi.fn((listener) => { onSnapshotChange = listener; return () => { onSnapshotChange = undefined; }; }),
+    };
+    const json = (value: unknown) => Promise.resolve(new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: [timelineItem], hasMore: false, nextCursor: null });
+      if (url.includes('/restore') && method === 'POST') {
+        const target = JSON.parse(String(init?.body)).target;
+        return json({ ok: true, snapshot: target === 'before' ? beforeSnapshot : afterSnapshot, item: null });
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('変更前に戻す'));
+    const actions = () => Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-result-actions button'));
+    expect(actions()).toHaveLength(2);
+    expect(actions()[0].disabled).toBe(false);
+    expect(actions()[1].disabled).toBe(true);
+
+    await act(async () => actions()[0].click());
+    await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenCalledWith(beforeSnapshot));
+    expect(actions()[0].disabled).toBe(true);
+    expect(actions()[1].disabled).toBe(false);
+
+    currentSnapshot = { ...beforeSnapshot, html: '<main>Diverged</main>', baseHash: 'diverged' };
+    await act(async () => onSnapshotChange?.());
+    expect(actions()[0].disabled).toBe(false);
+    expect(actions()[1].disabled).toBe(false);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await act(async () => actions()[0].click());
+    expect(confirm).toHaveBeenCalled();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/restore'))).toHaveLength(1);
+    await act(async () => actions()[1].click());
+    await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenLastCalledWith(afterSnapshot));
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/restore'))).toHaveLength(2);
+    expect(container.textContent).not.toContain('変更内容を確認');
+    await act(async () => root.unmount());
+  });
+
   it('shows live progress when the timeline item is still pending', async () => {
     const pendingTimelineItem = { ...timelineItem, executionStatus: 'pending' as const, applicationStatus: 'not_applied' as const };
     (window as any).KAYZART_EXTENSION_API = {

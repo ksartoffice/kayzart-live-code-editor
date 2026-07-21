@@ -84,7 +84,7 @@ class Ai_Models {
 				if ( '' === $id ) {
 					continue;
 				}
-				$label      = is_object( $metadata ) && method_exists( $metadata, 'getName' ) ? (string) $metadata->getName() : '';
+				$label    = is_object( $metadata ) && method_exists( $metadata, 'getName' ) ? (string) $metadata->getName() : '';
 				$models[] = array(
 					'id'    => $id,
 					'label' => '' !== $label ? $label : $id,
@@ -102,10 +102,14 @@ class Ai_Models {
 	private static function text_requirements() {
 		$requirements_class = '\\WordPress\\AiClient\\Providers\\Models\\DTO\\ModelRequirements';
 		$capability_class   = '\\WordPress\\AiClient\\Providers\\Models\\Enums\\CapabilityEnum';
-		if ( ! class_exists( $requirements_class ) || ! class_exists( $capability_class ) || ! method_exists( $capability_class, 'textGeneration' ) ) {
+		if ( ! class_exists( $requirements_class ) || ! class_exists( $capability_class ) || ! method_exists( $capability_class, 'from' ) || ! defined( $capability_class . '::TEXT_GENERATION' ) ) {
 			return null;
 		}
-		return new $requirements_class( array( $capability_class::textGeneration() ), array() );
+
+		return new $requirements_class(
+			array( $capability_class::from( $capability_class::TEXT_GENERATION ) ),
+			array()
+		);
 	}
 
 	/**

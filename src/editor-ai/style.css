@@ -17,7 +17,7 @@
   color: var(--ai-text);
   background: var(--ai-bg);
 }
-.kayzart-ai-notice, .kayzart-ai-error, .kayzart-ai-result {
+.kayzart-ai-notice, .kayzart-ai-error, .kayzart-ai-conflict, .kayzart-ai-result {
   padding: 11px;
   border: 1px solid var(--ai-border);
   border-radius: 8px;
@@ -27,6 +27,13 @@
 .kayzart-ai-notice p { margin: 6px 0; color: var(--ai-muted); }
 .kayzart-ai-notice a { color: var(--ai-accent); }
 .kayzart-ai-error { color: var(--ai-danger); border-color: #6b2a30; background: #3a1b20; }
+.kayzart-ai-conflict { color: var(--ai-text); border-color: #85622c; background: #2d2416; }
+.kayzart-ai-conflict p { margin: 6px 0 10px; color: var(--ai-muted); }
+.kayzart-ai-conflict-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.kayzart-ai-conflict-actions button { padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; color: #fff; cursor: pointer; }
+.kayzart-ai-conflict-actions button.is-keep { background: #2563eb; }
+.kayzart-ai-conflict-actions button.is-replace { border-color: #8d4248; background: #6b2a30; }
+.kayzart-ai-conflict-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .kayzart-ai-chat {
   display: flex;
   flex: 1 1 auto;

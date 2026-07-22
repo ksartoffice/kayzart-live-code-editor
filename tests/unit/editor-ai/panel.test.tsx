@@ -14,6 +14,46 @@ const timelineItem = {
 };
 
 describe('AiEditorPanel', () => {
+  const runCompletedJob = async (options: {
+    getCurrent: () => typeof beforeSnapshot | undefined;
+    beforeCompletion?: () => void;
+    replaceEditorSnapshot?: ReturnType<typeof vi.fn>;
+  }) => {
+    const replaceEditorSnapshot = options.replaceEditorSnapshot || vi.fn(() => true);
+    const setEditorLock = vi.fn();
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => options.getCurrent()), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot, setEditorLock,
+    };
+    let created = false;
+    const notAppliedItem = { ...timelineItem, applicationStatus: 'not_applied' as const };
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: created ? [notAppliedItem] : [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') { created = true; return json({ ok: true, jobId: 'job-1', requestId: 'request-1', status: 'pending', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: notAppliedItem }, 202); }
+      if (url.includes('/jobs/job-1') && !url.includes('/cancel')) {
+        options.beforeCompletion?.();
+        return json({
+          ok: true, jobId: 'job-1', requestId: 'request-1', status: 'completed', events: [], snapshot: afterSnapshot, error: null, usage: null,
+          cancelRequested: false, createdAt: timelineItem.createdAt, updatedAt: timelineItem.updatedAt,
+          startedAt: timelineItem.createdAt, finishedAt: timelineItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000,
+        });
+      }
+      if (url.includes('/application')) return json({ ok: true, item: timelineItem });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Describe'));
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set; setter?.call(textarea, 'Improve the hero'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
+    return { container, fetchMock, replaceEditorSnapshot, root, setEditorLock };
+  };
+
   beforeEach(() => {
     vi.resetModules(); sessionStorage.clear(); document.body.innerHTML = '';
     (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
@@ -24,7 +64,7 @@ describe('AiEditorPanel', () => {
   afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; });
 
   it('persists the prompt timeline, hides summary, and applies the completed snapshot', async () => {
-    const replaceEditorSnapshot = vi.fn(); const setEditorLock = vi.fn();
+    const replaceEditorSnapshot = vi.fn(() => true); const setEditorLock = vi.fn();
     (window as any).KAYZART_EXTENSION_API = {
       registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
       getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot, setEditorLock,
@@ -53,6 +93,7 @@ describe('AiEditorPanel', () => {
     await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
 
     await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenCalledWith(afterSnapshot));
+    await vi.waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(true));
     const createCall = fetchMock.mock.calls.find(([url]) => String(url) === '/jobs');
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ post_id: 7, prompt: 'Improve the hero', html: '<main>Before</main>' });
     await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
@@ -68,6 +109,73 @@ describe('AiEditorPanel', () => {
     expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).toBeNull();
     expect(setEditorLock).toHaveBeenCalledWith(true); expect(setEditorLock).toHaveBeenLastCalledWith(false);
     await act(async () => root.unmount());
+  });
+
+  it('keeps a changed editor snapshot instead of applying a completed AI result', async () => {
+    const divergentSnapshot = { ...beforeSnapshot, html: '<main>History</main>', baseHash: 'history' };
+    let current: typeof beforeSnapshot | undefined = beforeSnapshot;
+    const result = await runCompletedJob({ getCurrent: () => current, beforeCompletion: () => { current = divergentSnapshot; } });
+
+    await vi.waitFor(() => expect(result.container.textContent).toContain('The editor changed while the AI edit was running.'));
+    expect(result.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(result.fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(false);
+    expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).toBeNull();
+    expect(result.setEditorLock).toHaveBeenLastCalledWith(false);
+
+    const keep = result.container.querySelector<HTMLButtonElement>('.kayzart-ai-conflict-actions .is-keep') as HTMLButtonElement;
+    await act(async () => keep.click());
+    expect(result.container.textContent).not.toContain('The editor changed while the AI edit was running.');
+    expect(current).toBe(divergentSnapshot);
+    expect(result.fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(false);
+    await act(async () => result.root.unmount());
+  });
+
+  it('applies a conflicting AI result only after the user explicitly chooses it', async () => {
+    const divergentSnapshot = { ...beforeSnapshot, html: '<main>History</main>', baseHash: 'history' };
+    let current: typeof beforeSnapshot | undefined = beforeSnapshot;
+    const replaceEditorSnapshot = vi.fn((snapshot) => { current = snapshot; return true; });
+    const result = await runCompletedJob({ getCurrent: () => current, beforeCompletion: () => { current = divergentSnapshot; }, replaceEditorSnapshot });
+
+    await vi.waitFor(() => expect(result.container.textContent).toContain('Replace with AI result'));
+    expect(replaceEditorSnapshot).not.toHaveBeenCalled();
+    const replace = result.container.querySelector<HTMLButtonElement>('.kayzart-ai-conflict-actions .is-replace') as HTMLButtonElement;
+    await act(async () => replace.click());
+
+    await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenCalledWith(afterSnapshot));
+    await vi.waitFor(() => expect(result.fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(true));
+    expect(current).toStrictEqual(afterSnapshot);
+    expect(result.container.textContent).not.toContain('Replace with AI result');
+    await act(async () => result.root.unmount());
+  });
+
+  it('marks an already-present AI result as applied without replacing it again', async () => {
+    let current: typeof beforeSnapshot | undefined = beforeSnapshot;
+    const result = await runCompletedJob({ getCurrent: () => current, beforeCompletion: () => { current = afterSnapshot; } });
+
+    await vi.waitFor(() => expect(result.fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(true));
+    expect(result.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(result.container.textContent).not.toContain('The editor changed while the AI edit was running.');
+    await act(async () => result.root.unmount());
+  });
+
+  it('keeps the conflict recoverable when the editor is unavailable or rejects replacement', async () => {
+    const divergentSnapshot = { ...beforeSnapshot, html: '<main>History</main>', baseHash: 'history' };
+    let current: typeof beforeSnapshot | undefined = beforeSnapshot;
+    const replaceEditorSnapshot = vi.fn(() => false);
+    const result = await runCompletedJob({ getCurrent: () => current, beforeCompletion: () => { current = divergentSnapshot; }, replaceEditorSnapshot });
+
+    await vi.waitFor(() => expect(result.container.textContent).toContain('Replace with AI result'));
+    const replace = result.container.querySelector<HTMLButtonElement>('.kayzart-ai-conflict-actions .is-replace') as HTMLButtonElement;
+    await act(async () => replace.click());
+    expect(result.container.textContent).toContain('The AI result could not be applied to the editor.');
+    expect(result.container.textContent).toContain('Replace with AI result');
+    expect(result.fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(false);
+
+    current = undefined;
+    await act(async () => replace.click());
+    expect(result.container.textContent).toContain('The editor state is unavailable. The AI result was not applied.');
+    expect(result.fetchMock.mock.calls.some(([url]) => String(url).includes('/application'))).toBe(false);
+    await act(async () => result.root.unmount());
   });
 
   it('restores the persisted timeline after the panel is remounted', async () => {

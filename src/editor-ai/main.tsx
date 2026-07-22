@@ -2,7 +2,7 @@ import { createElement, createRoot, Fragment, useEffect, useMemo, useRef, useSta
 import { __, sprintf } from '@wordpress/i18n';
 import type {
   ActiveJobRecord, AiAvailability, AiJobEvent, AiJobStatus, AiJobStatusResponse, AiTimelineItem,
-  SelectedElementContext,
+  EditorSnapshot, SelectedElementContext,
 } from './contract';
 import { normalizeSnapshot } from './contract';
 import {
@@ -23,6 +23,11 @@ const MAX_PROMPT_BYTES = 8192;
 const MAX_CONTEXTS = 20;
 const ELEMENTS_PANEL_SELECTOR = '[data-kayzart-panel="elements"]';
 const ELEMENTS_BUTTON_CLASS = 'kayzart-ai-elements-button';
+
+type PendingConflict = {
+  output: EditorSnapshot;
+  activityId?: number;
+};
 
 declare global {
   interface Window {
@@ -141,6 +146,8 @@ export function AiEditorPanel() {
   const [canceling, setCanceling] = useState(false);
   const [error, setError] = useState('');
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
+  const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
+  const [resolvingConflict, setResolvingConflict] = useState(false);
   const [editorHash, setEditorHash] = useState(() => host()?.getEditorSnapshot?.()?.baseHash || '');
 
   const setPrompt = (value: string) => { draftState.prompt = value; setPromptState(value); };
@@ -161,15 +168,54 @@ export function AiEditorPanel() {
     clearActiveJob(postId); setRunning(false); setCanceling(false); setEvents([]); setLiveJob(null); setOptimistic(null);
     host()?.setEditorLock?.(false); void refresh();
   };
+  const markApplied = async (activityId?: number) => {
+    if (!activityId || !ai) return;
+    try { await updateTimelineApplication(ai.timelineBaseUrl, nonce, activityId, 'applied'); } catch { /* The applied result remains recoverable from the timeline. */ }
+  };
   const complete = async (status: AiJobStatusResponse, active: ActiveJobRecord) => {
     if (!status.snapshot) { setError(__('AI response is missing its snapshot.', 'kayzart-live-code-editor')); finish(); return; }
     const output = normalizeSnapshot(status.snapshot);
-    host()?.replaceEditorSnapshot?.(output);
-    setEditorHash(output.baseHash);
-    if (active.activityId && ai) {
-      try { await updateTimelineApplication(ai.timelineBaseUrl, nonce, active.activityId, 'applied'); } catch { /* The job remains recoverable. */ }
+    const current = host()?.getEditorSnapshot?.();
+    if (!current || current.baseHash !== active.inputSnapshot.baseHash) {
+      if (current?.baseHash === output.baseHash) {
+        setEditorHash(output.baseHash);
+        await markApplied(active.activityId);
+      } else {
+        setPendingConflict({ output, activityId: active.activityId });
+      }
+      finish();
+      return;
     }
+    const replace = host()?.replaceEditorSnapshot;
+    if (typeof replace !== 'function' || !replace(output)) {
+      setError(__('The AI result could not be applied to the editor.', 'kayzart-live-code-editor'));
+      finish();
+      return;
+    }
+    setEditorHash(output.baseHash);
+    await markApplied(active.activityId);
     finish();
+  };
+  const keepCurrentSnapshot = () => {
+    setPendingConflict(null); setResolvingConflict(false); void refresh();
+  };
+  const applyConflictingSnapshot = async () => {
+    if (!pendingConflict || resolvingConflict) return;
+    const current = host()?.getEditorSnapshot?.();
+    const replace = host()?.replaceEditorSnapshot;
+    if (!current || typeof replace !== 'function') {
+      setError(__('The editor state is unavailable. The AI result was not applied.', 'kayzart-live-code-editor'));
+      return;
+    }
+    setResolvingConflict(true); setError('');
+    if (current.baseHash !== pendingConflict.output.baseHash && !replace(pendingConflict.output)) {
+      setError(__('The AI result could not be applied to the editor.', 'kayzart-live-code-editor'));
+      setResolvingConflict(false);
+      return;
+    }
+    setEditorHash(pendingConflict.output.baseHash);
+    await markApplied(pendingConflict.activityId);
+    setPendingConflict(null); setResolvingConflict(false); void refresh();
   };
   const terminal = (status: AiJobStatusResponse, active: ActiveJobRecord) => {
     if (status.status === 'completed') { void complete(status, active); return; }
@@ -244,7 +290,7 @@ export function AiEditorPanel() {
   }, [items, running]);
 
   const promptBytes = useMemo(() => new TextEncoder().encode(prompt.trim()).length, [prompt]);
-  const canSend = Boolean(ai?.available && !running && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
+  const canSend = Boolean(ai?.available && !running && !pendingConflict && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
   const loadOlder = async () => {
     if (!ai || !cursor || !chatRef.current) return;
     const element = chatRef.current; const previousHeight = element.scrollHeight; setLoading(true);
@@ -344,6 +390,14 @@ export function AiEditorPanel() {
   return <div className="kayzart-ai-panel">
     {ai ? <AvailabilityNotice ai={ai} /> : null}
     {error ? <div className="kayzart-ai-error" role="alert">{error}</div> : null}
+    {pendingConflict ? <div className="kayzart-ai-conflict" role="alert">
+      <strong>{__('The editor changed while the AI edit was running.', 'kayzart-live-code-editor')}</strong>
+      <p>{__('Choose whether to keep the current editor content or replace it with the completed AI result.', 'kayzart-live-code-editor')}</p>
+      <div className="kayzart-ai-conflict-actions">
+        <button type="button" className="is-keep" disabled={resolvingConflict} onClick={keepCurrentSnapshot}>{__('Keep current content', 'kayzart-live-code-editor')}</button>
+        <button type="button" className="is-replace" disabled={resolvingConflict} onClick={() => void applyConflictingSnapshot()}>{resolvingConflict ? __('Applying…', 'kayzart-live-code-editor') : __('Replace with AI result', 'kayzart-live-code-editor')}</button>
+      </div>
+    </div> : null}
     <div className="kayzart-ai-chat" ref={chatRef} role="log" aria-live="polite">
       {hasMore ? <button className="kayzart-ai-load-more" type="button" disabled={loading} onClick={() => void loadOlder()}>{loading ? __('Loading…', 'kayzart-live-code-editor') : __('Load earlier history', 'kayzart-live-code-editor')}</button> : null}
       {!loading && !items.length && !optimistic ? <p className="kayzart-ai-empty">{__('Describe the landing page change you want.', 'kayzart-live-code-editor')}</p> : null}

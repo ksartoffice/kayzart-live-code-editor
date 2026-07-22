@@ -32,6 +32,8 @@ class Ai_Agent {
 	const REPEATED_TOOL_FAILURE_LIMIT = 3;
 	const READ_BUDGET_PER_TURN        = 12000;
 	const OBSERVATION_CONTEXT_CHARS   = 24000;
+	const DEBUG_TRACE_PREVIEW_CHARS   = 500;
+	const DEBUG_TRACE_MAX_BYTES       = 1048576;
 
 	/**
 	 * JSON schema forcing the final summary shape.
@@ -93,6 +95,12 @@ class Ai_Agent {
 	 */
 	private $model_context_stats = array();
 
+	/** Configured content trace mode: off, preview, or full.
+	 *
+	 * @var string
+	 */
+	private $debug_trace_mode;
+
 	/**
 	 * Constructor.
 	 *
@@ -103,11 +111,12 @@ class Ai_Agent {
 	 *                                     callable(string,array):mixed.
 	 */
 	public function __construct( Ai_Client_Interface $client, array $hooks = array() ) {
-		$this->client          = $client;
-		$this->emit            = isset( $hooks['emit'] ) && is_callable( $hooks['emit'] ) ? $hooks['emit'] : null;
-		$this->is_canceled     = isset( $hooks['isCanceled'] ) && is_callable( $hooks['isCanceled'] ) ? $hooks['isCanceled'] : null;
-		$this->history_handler = isset( $hooks['historyTool'] ) && is_callable( $hooks['historyTool'] ) ? $hooks['historyTool'] : null;
-		$this->debug_id        = isset( $hooks['debugId'] ) ? (string) $hooks['debugId'] : '';
+		$this->client           = $client;
+		$this->emit             = isset( $hooks['emit'] ) && is_callable( $hooks['emit'] ) ? $hooks['emit'] : null;
+		$this->is_canceled      = isset( $hooks['isCanceled'] ) && is_callable( $hooks['isCanceled'] ) ? $hooks['isCanceled'] : null;
+		$this->history_handler  = isset( $hooks['historyTool'] ) && is_callable( $hooks['historyTool'] ) ? $hooks['historyTool'] : null;
+		$this->debug_id         = isset( $hooks['debugId'] ) ? (string) $hooks['debugId'] : '';
+		$this->debug_trace_mode = self::resolve_debug_trace_mode();
 	}
 
 	/**
@@ -162,7 +171,9 @@ class Ai_Agent {
 			);
 
 			$model_messages = $this->build_model_context( $messages );
-			$result         = $this->client->generate( $model_messages, $tools, $turn_options );
+			$this->log_model_request_trace( 'agent', $turn + 1, $model_messages, $tools, $turn_options );
+			$result = $this->client->generate( $model_messages, $tools, $turn_options );
+			$this->log_model_response_trace( 'agent', $turn + 1, $result );
 			$this->log_input_token_breakdown( 'agent', $turn + 1, $model_messages, $tools, $turn_options, $result );
 			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
 			$usage = self::remember_model( $usage, $result );
@@ -285,7 +296,9 @@ class Ai_Agent {
 			);
 
 			$model_messages = $this->build_model_context( $messages );
-			$result         = $this->client->generate( $model_messages, array(), $options );
+			$this->log_model_request_trace( 'finalization', $index + 1, $model_messages, array(), $options );
+			$result = $this->client->generate( $model_messages, array(), $options );
+			$this->log_model_response_trace( 'finalization', $index + 1, $result );
 			$this->log_input_token_breakdown( 'finalization', $index + 1, $model_messages, array(), $options, $result );
 			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
 			$usage = self::remember_model( $usage, $result );
@@ -710,6 +723,7 @@ class Ai_Agent {
 		}
 		$usage        = isset( $result['usage'] ) && is_array( $result['usage'] ) ? $result['usage'] : array();
 		$input_tokens = isset( $usage['inputTokens'] ) ? max( 0, (int) $usage['inputTokens'] ) : 0;
+		$structure    = $this->build_debug_message_structure( $messages );
 		$log          = array(
 			'jobId'                   => $this->debug_id,
 			'phase'                   => $phase,
@@ -721,6 +735,8 @@ class Ai_Agent {
 			'providerOverheadOrError' => $input_tokens - $estimated_total,
 			'estimateMethod'          => 'ceil(UTF-8 bytes / 4); per-part values are approximate',
 			'contextProjection'       => $this->model_context_stats,
+			'messageStructure'        => $structure['messages'],
+			'toolTotals'              => $structure['toolTotals'],
 			'parts'                   => $parts,
 		);
 		$encoded      = wp_json_encode( $log, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
@@ -758,6 +774,302 @@ class Ai_Agent {
 	private function debug_json( $value ): string {
 		$encoded = wp_json_encode( $value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 		return is_string( $encoded ) ? $encoded : '';
+	}
+
+	/** Build content-free per-message and per-tool size diagnostics.
+	 *
+	 * @param array $messages Normalized messages sent to the client.
+	 * @return array
+	 */
+	private function build_debug_message_structure( array $messages ): array {
+		$message_metrics = array();
+		$tool_totals     = array();
+		foreach ( $messages as $index => $message ) {
+			if ( ! is_array( $message ) ) {
+				continue;
+			}
+			$text   = isset( $message['text'] ) ? (string) $message['text'] : '';
+			$metric = array(
+				'index' => (int) $index,
+				'role'  => isset( $message['role'] ) ? (string) $message['role'] : '',
+				'text'  => $this->debug_string_size( $text ),
+			);
+			if ( ! empty( $message['toolCalls'] ) && is_array( $message['toolCalls'] ) ) {
+				$metric['toolCalls'] = array();
+				foreach ( $message['toolCalls'] as $call ) {
+					$call                  = is_array( $call ) ? $call : array();
+					$name                  = isset( $call['name'] ) ? (string) $call['name'] : '';
+					$args                  = isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array();
+					$args_bytes            = strlen( $this->debug_json( $args ) );
+					$metric['toolCalls'][] = array(
+						'id'            => isset( $call['id'] ) ? (string) $call['id'] : '',
+						'name'          => $name,
+						'argumentBytes' => $args_bytes,
+						'stringFields'  => $this->debug_string_fields( $args ),
+					);
+					if ( ! isset( $tool_totals[ $name ] ) ) {
+						$tool_totals[ $name ] = array(
+							'callCount'     => 0,
+							'argumentBytes' => 0,
+							'responseCount' => 0,
+							'responseBytes' => 0,
+						);
+					}
+					++$tool_totals[ $name ]['callCount'];
+					$tool_totals[ $name ]['argumentBytes'] += $args_bytes;
+				}
+			}
+			if ( ! empty( $message['toolResponses'] ) && is_array( $message['toolResponses'] ) ) {
+				$metric['toolResponses'] = array();
+				foreach ( $message['toolResponses'] as $response ) {
+					$response                  = is_array( $response ) ? $response : array();
+					$name                      = isset( $response['name'] ) ? (string) $response['name'] : '';
+					$output                    = isset( $response['output'] ) ? $response['output'] : null;
+					$output_bytes              = strlen( $this->debug_json( $output ) );
+					$metric['toolResponses'][] = array(
+						'callId'       => isset( $response['callId'] ) ? (string) $response['callId'] : '',
+						'name'         => $name,
+						'outputBytes'  => $output_bytes,
+						'stringFields' => $this->debug_string_fields( $output ),
+					);
+					if ( ! isset( $tool_totals[ $name ] ) ) {
+						$tool_totals[ $name ] = array(
+							'callCount'     => 0,
+							'argumentBytes' => 0,
+							'responseCount' => 0,
+							'responseBytes' => 0,
+						);
+					}
+					++$tool_totals[ $name ]['responseCount'];
+					$tool_totals[ $name ]['responseBytes'] += $output_bytes;
+				}
+			}
+			$message_metrics[] = $metric;
+		}
+		ksort( $tool_totals );
+		return array(
+			'messages'   => $message_metrics,
+			'toolTotals' => $tool_totals,
+		);
+	}
+
+	/** Return string leaf sizes without retaining their contents.
+	 *
+	 * @param mixed  $value Current value.
+	 * @param string $path  Dot-separated field path.
+	 * @param array  $found Collected metrics.
+	 * @return array
+	 */
+	private function debug_string_fields( $value, string $path = '', array &$found = array() ): array {
+		if ( count( $found ) >= 100 ) {
+			return $found;
+		}
+		if ( is_string( $value ) ) {
+			$found[ '' !== $path ? $path : 'value' ] = $this->debug_string_size( $value );
+			return $found;
+		}
+		if ( ! is_array( $value ) ) {
+			return $found;
+		}
+		foreach ( $value as $key => $item ) {
+			$next_path = '' === $path ? (string) $key : $path . '.' . $key;
+			$this->debug_string_fields( $item, $next_path, $found );
+		}
+		return $found;
+	}
+
+	/** Return exact size metadata for one string.
+	 *
+	 * @param string $value String value.
+	 * @return array
+	 */
+	private function debug_string_size( string $value ): array {
+		return array(
+			'characters' => mb_strlen( $value ),
+			'bytes'      => strlen( $value ),
+		);
+	}
+
+	/** Log the normalized request immediately before the provider call.
+	 *
+	 * @param string $phase   Agent phase.
+	 * @param int    $turn    One-based phase turn.
+	 * @param array  $messages Normalized messages.
+	 * @param array  $tools    Tool definitions.
+	 * @param array  $options  Generation options.
+	 * @return void
+	 */
+	private function log_model_request_trace( string $phase, int $turn, array $messages, array $tools, array $options ): void {
+		$this->write_model_trace(
+			'[Kayzart AI request trace] ',
+			$phase,
+			$turn,
+			array(
+				'normalizedLayer'   => 'Ai_Client_Interface input; not raw HTTP wire format',
+				'initialInputParts' => $this->debug_input_parts,
+				'messages'          => $messages,
+				'tools'             => $tools,
+				'options'           => $options,
+			)
+		);
+	}
+
+	/** Log the normalized provider response.
+	 *
+	 * @param string $phase  Agent phase.
+	 * @param int    $turn   One-based phase turn.
+	 * @param array  $result Normalized result.
+	 * @return void
+	 */
+	private function log_model_response_trace( string $phase, int $turn, array $result ): void {
+		$this->write_model_trace( '[Kayzart AI response trace] ', $phase, $turn, array( 'result' => $result ) );
+	}
+
+	/** Encode and emit one opt-in trace event.
+	 *
+	 * @param string $prefix  Log prefix.
+	 * @param string $phase   Agent phase.
+	 * @param int    $turn    One-based phase turn.
+	 * @param array  $payload Trace payload.
+	 * @return void
+	 */
+	private function write_model_trace( string $prefix, string $phase, int $turn, array $payload ): void {
+		if ( ! $this->is_debug_logging_enabled() || 'off' === $this->debug_trace_mode ) {
+			return;
+		}
+		$log     = $this->build_model_trace_event( $phase, $turn, $payload, $this->debug_trace_mode );
+		$encoded = $this->debug_json( $log );
+		if ( '' !== $encoded ) {
+			error_log( $prefix . $encoded ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+	}
+
+	/** Build one trace event, applying the full-to-preview size fallback.
+	 *
+	 * @param string $phase   Agent phase.
+	 * @param int    $turn    One-based phase turn.
+	 * @param array  $payload Trace payload.
+	 * @param string $mode    preview or full.
+	 * @return array
+	 */
+	private function build_model_trace_event( string $phase, int $turn, array $payload, string $mode ): array {
+		$log     = array(
+			'jobId' => $this->debug_id,
+			'phase' => $phase,
+			'turn'  => $turn,
+			'mode'  => $mode,
+			'data'  => $this->trace_value( $payload, $mode ),
+		);
+		$encoded = $this->debug_json( $log );
+		if ( 'full' === $mode && strlen( $encoded ) > self::DEBUG_TRACE_MAX_BYTES ) {
+			$original_bytes                = strlen( $encoded );
+			$log['mode']                   = 'preview';
+			$log['fullTraceOmitted']       = true;
+			$log['fullTraceOmittedReason'] = 'encoded event exceeded 1 MiB';
+			$log['originalEncodedBytes']   = $original_bytes;
+			$log['data']                   = $this->trace_value( $payload, 'preview' );
+		}
+		return $log;
+	}
+
+	/** Convert normalized data into preview/full trace-safe data.
+	 *
+	 * @param mixed  $value Value to convert.
+	 * @param string $mode  preview or full.
+	 * @param string $key   Current field name.
+	 * @return mixed
+	 */
+	private function trace_value( $value, string $mode, string $key = '' ) {
+		if ( is_string( $value ) ) {
+			if ( $this->is_opaque_trace_key( $key ) ) {
+				return $this->trace_string_record( $value, 0, true );
+			}
+			return 'full' === $mode ? $value : $this->trace_string_record( $value, self::DEBUG_TRACE_PREVIEW_CHARS, false );
+		}
+		if ( ! is_array( $value ) ) {
+			return $value;
+		}
+		$result = array();
+		foreach ( $value as $item_key => $item ) {
+			$result[ $item_key ] = $this->trace_value( $item, $mode, is_string( $item_key ) ? $item_key : '' );
+		}
+		return $result;
+	}
+
+	/** Build a preview or opaque string record.
+	 *
+	 * @param string $value  Original string.
+	 * @param int    $limit  Preview character limit.
+	 * @param bool   $opaque Whether content must be redacted.
+	 * @return array
+	 */
+	private function trace_string_record( string $value, int $limit, bool $opaque ): array {
+		$characters = mb_strlen( $value );
+		$record     = array(
+			'characters' => $characters,
+			'bytes'      => strlen( $value ),
+			'sha256'     => hash( 'sha256', $value ),
+			'truncated'  => $opaque || $characters > $limit,
+		);
+		if ( $opaque ) {
+			$record['opaque'] = true;
+		} else {
+			$record['preview'] = mb_substr( $value, 0, $limit );
+		}
+		return $record;
+	}
+
+	/** Determine whether a field contains an opaque provider/internal token.
+	 *
+	 * @param string $key Field name.
+	 * @return bool
+	 */
+	private function is_opaque_trace_key( string $key ): bool {
+		return in_array(
+			strtolower( $key ),
+			array(
+				'thoughtsignature',
+				'cursor',
+				'nextcursor',
+				'authorization',
+				'apikey',
+				'api_key',
+				'accesstoken',
+				'access_token',
+				'refreshtoken',
+				'refresh_token',
+				'password',
+				'secret',
+			),
+			true
+		);
+	}
+
+	/** Check the standard WordPress debug logging gates.
+	 *
+	 * @return bool
+	 */
+	private function is_debug_logging_enabled(): bool {
+		return defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG;
+	}
+
+	/** Resolve the opt-in trace mode constant.
+	 *
+	 * @return string off, preview, or full.
+	 */
+	private static function resolve_debug_trace_mode(): string {
+		$value = defined( 'KAYZART_AI_DEBUG_TRACE' ) ? KAYZART_AI_DEBUG_TRACE : '';
+		return self::normalize_debug_trace_mode( $value );
+	}
+
+	/** Normalize a raw trace mode value.
+	 *
+	 * @param mixed $value Raw setting.
+	 * @return string off, preview, or full.
+	 */
+	private static function normalize_debug_trace_mode( $value ): string {
+		$mode = strtolower( trim( (string) $value ) );
+		return in_array( $mode, array( 'preview', 'full' ), true ) ? $mode : 'off';
 	}
 
 	/**

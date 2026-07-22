@@ -36,6 +36,19 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		);
 	}
 
+	/** Invoke a private agent diagnostic helper.
+	 *
+	 * @param Ai_Agent $agent  Agent instance.
+	 * @param string   $method Method name.
+	 * @param array    $args   Method arguments.
+	 * @return mixed
+	 */
+	private function invoke_agent_helper( Ai_Agent $agent, string $method, array $args = array() ) {
+		$reflection = new ReflectionMethod( Ai_Agent::class, $method );
+		$reflection->setAccessible( true );
+		return $reflection->invokeArgs( $agent, $args );
+	}
+
 	/**
 	 * Build a replace_string tool call.
 	 *
@@ -357,5 +370,96 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
 		$this->assertSame( 8000, mb_strlen( $responses[1]['output']['content'] ) );
 		$this->assertSame( 4000, mb_strlen( $responses[2]['output']['content'] ) );
+	}
+
+	/** Size diagnostics identify tool fields without retaining their text. */
+	public function test_debug_message_structure_has_tool_field_sizes_only(): void {
+		$agent     = new Ai_Agent( new Ai_Client_Fake() );
+		$secret    = 'private-from-value';
+		$messages  = array(
+			Ai_Message::assistant(
+				'',
+				array(
+					Ai_Message::tool_call(
+						'call-1',
+						'replace_string',
+						array(
+							'target' => 'html',
+							'from'   => $secret,
+							'to'     => 'replacement',
+						)
+					),
+				)
+			),
+			Ai_Message::tool( array( Ai_Message::tool_response( 'call-1', 'replace_string', array( 'content' => 'result' ) ) ) ),
+		);
+		$structure = $this->invoke_agent_helper( $agent, 'build_debug_message_structure', array( $messages ) );
+
+		$this->assertSame( strlen( $secret ), $structure['messages'][0]['toolCalls'][0]['stringFields']['from']['bytes'] );
+		$this->assertSame( 1, $structure['toolTotals']['replace_string']['callCount'] );
+		$this->assertSame( 1, $structure['toolTotals']['replace_string']['responseCount'] );
+		$this->assertStringNotContainsString( $secret, wp_json_encode( $structure ) );
+	}
+
+	/** Preview traces truncate UTF-8 safely and include source metadata. */
+	public function test_preview_trace_string_is_bounded_and_hashed(): void {
+		$agent = new Ai_Agent( new Ai_Client_Fake() );
+		$value = str_repeat( 'あ', 600 );
+		$trace = $this->invoke_agent_helper( $agent, 'trace_value', array( array( 'content' => $value ), 'preview' ) );
+
+		$this->assertSame( 500, mb_strlen( $trace['content']['preview'] ) );
+		$this->assertSame( 600, $trace['content']['characters'] );
+		$this->assertSame( hash( 'sha256', $value ), $trace['content']['sha256'] );
+		$this->assertTrue( $trace['content']['truncated'] );
+	}
+
+	/** Full traces preserve normal text but redact opaque tokens. */
+	public function test_full_trace_redacts_opaque_values(): void {
+		$agent = new Ai_Agent( new Ai_Client_Fake() );
+		$trace = $this->invoke_agent_helper(
+			$agent,
+			'trace_value',
+			array(
+				array(
+					'text'             => 'visible model text',
+					'thoughtSignature' => 'provider-secret',
+					'cursor'           => 'opaque-cursor',
+					'nextCursor'       => 'opaque-next-cursor',
+					'authorization'    => 'Bearer transport-secret',
+				),
+				'full',
+			)
+		);
+
+		$this->assertSame( 'visible model text', $trace['text'] );
+		$this->assertTrue( $trace['thoughtSignature']['opaque'] );
+		$this->assertTrue( $trace['cursor']['opaque'] );
+		$this->assertTrue( $trace['nextCursor']['opaque'] );
+		$this->assertTrue( $trace['authorization']['opaque'] );
+		$this->assertStringNotContainsString( 'provider-secret', wp_json_encode( $trace ) );
+	}
+
+	/** Oversized full events fall back to valid preview structures. */
+	public function test_oversized_full_trace_falls_back_to_preview(): void {
+		$agent = new Ai_Agent( new Ai_Client_Fake() );
+		$event = $this->invoke_agent_helper(
+			$agent,
+			'build_model_trace_event',
+			array( 'agent', 1, array( 'text' => str_repeat( 'x', Ai_Agent::DEBUG_TRACE_MAX_BYTES + 1 ) ), 'full' )
+		);
+
+		$this->assertSame( 'preview', $event['mode'] );
+		$this->assertTrue( $event['fullTraceOmitted'] );
+		$this->assertSame( 500, strlen( $event['data']['text']['preview'] ) );
+		$this->assertNotFalse( wp_json_encode( $event ) );
+	}
+
+	/** Trace mode accepts only the two explicit opt-in values. */
+	public function test_debug_trace_mode_normalization(): void {
+		$agent = new Ai_Agent( new Ai_Client_Fake() );
+		$this->assertSame( 'preview', $this->invoke_agent_helper( $agent, 'normalize_debug_trace_mode', array( ' PREVIEW ' ) ) );
+		$this->assertSame( 'full', $this->invoke_agent_helper( $agent, 'normalize_debug_trace_mode', array( 'full' ) ) );
+		$this->assertSame( 'off', $this->invoke_agent_helper( $agent, 'normalize_debug_trace_mode', array( 'invalid' ) ) );
+		$this->assertSame( 'off', $this->invoke_agent_helper( $agent, 'normalize_debug_trace_mode', array( true ) ) );
 	}
 }

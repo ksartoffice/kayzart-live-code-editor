@@ -45,7 +45,7 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 
 		Ai_Setup::activate();
 
-		$table_name = Ai_Setup::get_jobs_table_name();
+		$table_name     = Ai_Setup::get_jobs_table_name();
 		$timeline_table = Ai_Setup::get_timeline_table_name();
 		$this->assertSame( $table_name, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) );
 		$this->assertSame( $timeline_table, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $timeline_table ) ) );
@@ -60,12 +60,18 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 				'post_id',
 				'user_id',
 				'request_id',
+				'execution_mode',
 				'status',
 				'cancel_requested',
 				'payload_json',
 				'snapshot_json',
 				'events_json',
 				'usage_json',
+				'agent_state_json',
+				'state_version',
+				'step_attempt',
+				'step_lease_token',
+				'step_lease_expires_at',
 				'error',
 				'created_at',
 				'updated_at',
@@ -163,6 +169,10 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$this->assertContains( 'cancel_requested', $columns );
 		$this->assertContains( 'deadline_at', $columns );
 		$this->assertContains( 'lock_key', $columns );
+		$this->assertContains( 'execution_mode', $columns );
+		$this->assertContains( 'agent_state_json', $columns );
+		$mode_column = $wpdb->get_row( 'SHOW COLUMNS FROM ' . $table_name . " LIKE 'execution_mode'", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$this->assertSame( 'legacy', $mode_column['Default'] );
 		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
 		$timeline_table = Ai_Setup::get_timeline_table_name();
 		$this->assertSame( $timeline_table, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $timeline_table ) ) );

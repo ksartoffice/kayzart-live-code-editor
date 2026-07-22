@@ -107,6 +107,12 @@ class Ai_Agent {
 	 */
 	private $debug_trace_mode;
 
+	/** Step performance observer: function(array $metric): void.
+	 *
+	 * @var callable|null
+	 */
+	private $observe_step;
+
 	/**
 	 * Constructor.
 	 *
@@ -123,6 +129,7 @@ class Ai_Agent {
 		$this->history_handler  = isset( $hooks['historyTool'] ) && is_callable( $hooks['historyTool'] ) ? $hooks['historyTool'] : null;
 		$this->debug_id         = isset( $hooks['debugId'] ) ? (string) $hooks['debugId'] : '';
 		$this->debug_trace_mode = self::resolve_debug_trace_mode();
+		$this->observe_step     = isset( $hooks['observeStep'] ) && is_callable( $hooks['observeStep'] ) ? $hooks['observeStep'] : null;
 	}
 
 	/**
@@ -135,274 +142,435 @@ class Ai_Agent {
 	 * @throws Ai_Agent_Error On an unrecoverable loop outcome.
 	 */
 	public function run( array $payload ): array {
-		$edit_policy                      = Ai_Tool_Schema::resolve_edit_policy(
+		$state = $this->create_state( $payload );
+		while ( true ) {
+			$step = $this->advance( $payload, $state );
+			if ( 'completed' === $step['status'] ) {
+				return $step['result'];
+			}
+			$state = $step['state'];
+		}
+	}
+
+	/** Build a JSON-serializable checkpoint for a new agent run.
+	 *
+	 * @param array $payload Normalized request payload.
+	 * @return array
+	 */
+	public function create_state( array $payload ): array {
+		return array(
+			'schemaVersion'        => 1,
+			'phase'                => 'agent',
+			'turn'                 => 0,
+			'finalizationTurn'     => 0,
+			'messages'             => array( Ai_Message::user( Ai_Prompt::build_user_prompt( $payload ) ) ),
+			'snapshot'             => $this->initial_snapshot( $payload ),
+			'selectionRecords'     => $this->resolve_selection_records( $payload ),
+			'appliedEditOperation' => false,
+			'finishReady'          => false,
+			'usage'                => self::empty_usage(),
+			'repeatedFailures'     => array(),
+		);
+	}
+
+	/** Execute at most one provider call and return the next checkpoint.
+	 *
+	 * @param array $payload Request payload.
+	 * @param array $state   State returned by create_state() or advance().
+	 * @return array{status:string,state:array,result?:array,metrics:array}
+	 * @throws Ai_Agent_Error When state or model output cannot be used.
+	 */
+	public function advance( array $payload, array $state ): array {
+		$this->validate_state( $state );
+		$this->debug_input_parts          = Ai_Prompt::debug_input_parts( $payload );
+		$this->debug_edit_footprint_stats = $this->build_debug_edit_footprint_stats( $payload );
+		$this->ensure_not_canceled();
+
+		$phase = (string) $state['phase'];
+		if ( 'finalization' === $phase ) {
+			return $this->advance_finalization( $payload, $state );
+		}
+		if ( (int) $state['turn'] >= self::MAX_AGENT_TURNS ) {
+			if ( empty( $state['appliedEditOperation'] ) ) {
+				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true );
+			}
+			$state['phase'] = 'finalization';
+			return array(
+				'status'  => 'continue',
+				'state'   => $state,
+				'metrics' => $this->step_metrics( 'transition', (int) $state['turn'], 0.0, 0.0, $state['usage'] ),
+			);
+		}
+
+		$edit_policy           = Ai_Tool_Schema::resolve_edit_policy(
 			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
 			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : ''
 		);
-		$editable_targets                 = $edit_policy['editableTargets'];
-		$has_history_tool                 = ! empty( $payload['historyTool'] );
-		$selection_records                = $this->resolve_selection_records( $payload );
-		$has_selection_context            = $this->has_resolvable_selection( $selection_records );
-		$tools                            = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
-		$snapshot                         = $this->initial_snapshot( $payload );
-		$this->debug_input_parts          = Ai_Prompt::debug_input_parts( $payload );
-		$this->debug_edit_footprint_stats = $this->build_debug_edit_footprint_stats( $payload );
+		$editable_targets      = $edit_policy['editableTargets'];
+		$has_history_tool      = ! empty( $payload['historyTool'] );
+		$selection_records     = $state['selectionRecords'];
+		$has_selection_context = $this->has_resolvable_selection( $selection_records );
+		$tools                 = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
+		$snapshot              = $state['snapshot'];
 
-		$turn_options         = array(
+		$turn_options     = array(
 			'systemInstruction' => Ai_Prompt::system_prompt(),
 		);
-		$finalization_options = array(
-			'systemInstruction' => Ai_Prompt::system_prompt(),
-			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
-		);
-
 		$model_preference = self::resolve_model_preference( $payload );
 		if ( count( $model_preference ) > 0 ) {
-			$turn_options['modelPreference']         = $model_preference;
-			$finalization_options['modelPreference'] = $model_preference;
+			$turn_options['modelPreference'] = $model_preference;
 		}
 
-		$messages = array( Ai_Message::user( Ai_Prompt::build_user_prompt( $payload ) ) );
+		$messages               = $state['messages'];
+		$applied_edit_operation = (bool) $state['appliedEditOperation'];
+		$finish_ready           = (bool) $state['finishReady'];
+		$usage                  = $state['usage'];
+		$repeated_failures      = $state['repeatedFailures'];
+		$turn                   = (int) $state['turn'];
+		$provider_started       = microtime( true );
+		$tool_seconds           = 0.0;
 
-		$applied_edit_operation = false;
-		$finish_ready           = false;
-		$usage                  = self::empty_usage();
-		$repeated_failures      = array();
+		$this->emit_event(
+			array(
+				'event'   => 'progress',
+				'message' => sprintf( 'AI turn %d/%d', $turn + 1, self::MAX_AGENT_TURNS ),
+			)
+		);
 
-		for ( $turn = 0; $turn < self::MAX_AGENT_TURNS; $turn++ ) {
-			$this->ensure_not_canceled();
+		$model_messages = $this->build_model_context( $messages );
+		$this->log_model_request_trace( 'agent', $turn + 1, $model_messages, $tools, $turn_options );
+		$result           = $this->client->generate( $model_messages, $tools, $turn_options );
+		$provider_seconds = microtime( true ) - $provider_started;
+		$this->log_model_response_trace( 'agent', $turn + 1, $result );
+		$this->log_input_token_breakdown( 'agent', $turn + 1, $model_messages, $tools, $turn_options, $result );
+		$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
+		$usage = self::remember_model( $usage, $result );
+		$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
+
+		if ( count( $calls ) === 0 ) {
+			if ( ! $applied_edit_operation ) {
+				throw new Ai_Agent_Error( 'No edit operations were applied. Use edit tools before finalizing.', false );
+			}
+			$summary = $this->try_parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
+			if ( null !== $summary ) {
+				return $this->completed_step( $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, 0.0 );
+			}
+			$state['phase']    = 'finalization';
+			$state['snapshot'] = $snapshot;
+			$state['usage']    = $usage;
+			return $this->continued_step( $state, 'agent', $turn + 1, $provider_seconds, 0.0 );
+		}
+
+		$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
+		$tool_responses = array();
+		$finish_calls   = array();
+		$turn_had_error = false;
+		$turn_had_edit  = false;
+
+		$remaining_read_budget = self::READ_BUDGET_PER_TURN;
+		$tools_started         = microtime( true );
+		foreach ( $calls as $call ) {
+			$name = isset( $call['name'] ) ? (string) $call['name'] : '';
+			$args = isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array();
+			$id   = isset( $call['id'] ) ? (string) $call['id'] : '';
+
 			$this->emit_event(
 				array(
-					'event'   => 'progress',
-					'message' => sprintf( 'AI turn %d/%d', $turn + 1, self::MAX_AGENT_TURNS ),
+					'event'        => 'tool_start',
+					'toolName'     => $name,
+					'inputSummary' => $this->preview( wp_json_encode( $args ), 180 ),
 				)
 			);
 
-			$model_messages = $this->build_model_context( $messages );
-			$this->log_model_request_trace( 'agent', $turn + 1, $model_messages, $tools, $turn_options );
-			$result = $this->client->generate( $model_messages, $tools, $turn_options );
-			$this->log_model_response_trace( 'agent', $turn + 1, $result );
-			$this->log_input_token_breakdown( 'agent', $turn + 1, $model_messages, $tools, $turn_options, $result );
-			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
-			$usage = self::remember_model( $usage, $result );
-			$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
-
-			if ( count( $calls ) === 0 ) {
-				if ( ! $applied_edit_operation ) {
-					throw new Ai_Agent_Error( 'No edit operations were applied. Use edit tools before finalizing.', false );
-				}
-				$summary = $this->try_parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
-				if ( null !== $summary ) {
-					return $this->build_result( $snapshot, $summary, $usage );
-				}
-				return $this->run_finalization_turns( $messages, $snapshot, $usage, $finalization_options );
+			if ( 'finish_edit' === $name ) {
+				$finish_calls[] = array(
+					'id'   => $id,
+					'name' => $name,
+					'args' => $args,
+				);
+				continue;
 			}
 
-			$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
-			$tool_responses = array();
-			$finish_calls   = array();
-			$turn_had_error = false;
-			$turn_had_edit  = false;
-
-			$remaining_read_budget = self::READ_BUDGET_PER_TURN;
-			foreach ( $calls as $call ) {
-				$name = isset( $call['name'] ) ? (string) $call['name'] : '';
-				$args = isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array();
-				$id   = isset( $call['id'] ) ? (string) $call['id'] : '';
+			try {
+				if ( 'read_document' === $name || 'read_selection' === $name ) {
+					if ( $remaining_read_budget <= 0 ) {
+						$this->throw_read_budget_exhausted();
+					}
+					$requested        = isset( $args['maxChars'] ) && is_numeric( $args['maxChars'] ) ? (int) $args['maxChars'] : Ai_Tools::DEFAULT_READ_CHARS;
+					$args['maxChars'] = max( 1, min( $requested, $remaining_read_budget ) );
+				}
+				$tool_result = $this->run_tool_call( $name, $args, $snapshot, $selection_records, $editable_targets );
+				if ( isset( $tool_result['snapshot'] ) && is_array( $tool_result['snapshot'] ) ) {
+					$snapshot = $tool_result['snapshot'];
+				}
+				if ( isset( $tool_result['selectionRecords'] ) && is_array( $tool_result['selectionRecords'] ) ) {
+					$selection_records = $tool_result['selectionRecords'];
+				}
+				if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
+					$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
+				}
+				if ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] ) {
+					$turn_had_error = true;
+				}
+				$tool_applied_edit      = ! empty( $tool_result['appliedEditOperation'] );
+				$turn_had_edit          = $turn_had_edit || $tool_applied_edit;
+				$applied_edit_operation = $applied_edit_operation || $tool_applied_edit;
 
 				$this->emit_event(
 					array(
-						'event'        => 'tool_start',
-						'toolName'     => $name,
-						'inputSummary' => $this->preview( wp_json_encode( $args ), 180 ),
+						'event'         => 'tool_end',
+						'toolName'      => $name,
+						'outputSummary' => $this->preview( wp_json_encode( $tool_result['output'] ), 220 ),
 					)
 				);
-
-				if ( 'finish_edit' === $name ) {
-					$finish_calls[] = array(
-						'id'   => $id,
-						'name' => $name,
-						'args' => $args,
-					);
-					continue;
-				}
-
-				try {
-					if ( 'read_document' === $name || 'read_selection' === $name ) {
-						if ( $remaining_read_budget <= 0 ) {
-							$this->throw_read_budget_exhausted();
-						}
-						$requested        = isset( $args['maxChars'] ) && is_numeric( $args['maxChars'] ) ? (int) $args['maxChars'] : Ai_Tools::DEFAULT_READ_CHARS;
-						$args['maxChars'] = max( 1, min( $requested, $remaining_read_budget ) );
-					}
-					$tool_result = $this->run_tool_call( $name, $args, $snapshot, $selection_records, $editable_targets );
-					if ( isset( $tool_result['snapshot'] ) && is_array( $tool_result['snapshot'] ) ) {
-						$snapshot = $tool_result['snapshot'];
-					}
-					if ( isset( $tool_result['selectionRecords'] ) && is_array( $tool_result['selectionRecords'] ) ) {
-						$selection_records = $tool_result['selectionRecords'];
-					}
-					if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
-						$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
-					}
-					if ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] ) {
-						$turn_had_error = true;
-					}
-					$tool_applied_edit      = ! empty( $tool_result['appliedEditOperation'] );
-					$turn_had_edit          = $turn_had_edit || $tool_applied_edit;
-					$applied_edit_operation = $applied_edit_operation || $tool_applied_edit;
-
-					$this->emit_event(
-						array(
-							'event'         => 'tool_end',
-							'toolName'      => $name,
-							'outputSummary' => $this->preview( wp_json_encode( $tool_result['output'] ), 220 ),
-						)
-					);
-					$tool_responses[] = Ai_Message::tool_response( $id, $name, $tool_result['output'] );
-				} catch ( Ai_Tool_Error $error ) {
-					$turn_had_error = true;
-					$key            = $this->repeated_failure_key( $name, $args, $error );
-					if ( '' !== $key ) {
-						$count                     = ( isset( $repeated_failures[ $key ] ) ? $repeated_failures[ $key ] : 0 ) + 1;
-						$repeated_failures[ $key ] = $count;
-						if ( $count >= self::REPEATED_TOOL_FAILURE_LIMIT ) {
-							throw new Ai_Agent_Error( 'Repeated exact replacement failed. Inspect the current source and use a more specific instruction.', false );
-						}
-					}
-					$recoverable   = array(
-						'ok'    => false,
-						'error' => array(
-							'type'      => 'agent_error',
-							'message'   => $error->getMessage(),
-							'retryable' => $error->is_retryable(),
-						),
-					);
-					$error_details = $error->get_details();
-					if ( count( $error_details ) > 0 ) {
-						$recoverable['error']['details'] = $error_details;
-					}
-					$this->emit_event(
-						array(
-							'event'         => 'tool_end',
-							'toolName'      => $name,
-							'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
-						)
-					);
-					$tool_responses[] = Ai_Message::tool_response( $id, $name, $recoverable );
-				}
-			}
-
-			if ( $turn_had_error ) {
-				$finish_ready = false;
-			} elseif ( $turn_had_edit ) {
-				$finish_ready = true;
-			}
-
-			if ( count( $finish_calls ) > 0 ) {
-				$finish_error = '';
-				$summary      = '';
-				$retryable    = false;
-				if ( count( $finish_calls ) > 1 ) {
-					$finish_error = 'finish_edit may be called only once per turn.';
-				} else {
-					$finish_args = $finish_calls[0]['args'];
-					$raw_summary = isset( $finish_args['summary'] ) && is_string( $finish_args['summary'] ) ? $finish_args['summary'] : '';
-					$summary     = trim( $raw_summary );
-					if ( '' === $summary ) {
-						$finish_error = 'finish_edit.summary must be a non-empty string.';
-					} elseif ( mb_strlen( $raw_summary ) > 1000 ) {
-						$finish_error = 'finish_edit.summary must be 1,000 characters or fewer.';
-					} elseif ( $turn_had_error ) {
-						$finish_error = 'finish_edit was not accepted because another tool failed in this turn. Inspect the error and retry the required edit.';
-						$retryable    = true;
-					} elseif ( ! $finish_ready ) {
-						$finish_error = 'finish_edit requires a successful edit with no unresolved tool errors.';
-						$retryable    = true;
+				$tool_responses[] = Ai_Message::tool_response( $id, $name, $tool_result['output'] );
+			} catch ( Ai_Tool_Error $error ) {
+				$turn_had_error = true;
+				$key            = $this->repeated_failure_key( $name, $args, $error );
+				if ( '' !== $key ) {
+					$count                     = ( isset( $repeated_failures[ $key ] ) ? $repeated_failures[ $key ] : 0 ) + 1;
+					$repeated_failures[ $key ] = $count;
+					if ( $count >= self::REPEATED_TOOL_FAILURE_LIMIT ) {
+						throw new Ai_Agent_Error( 'Repeated exact replacement failed. Inspect the current source and use a more specific instruction.', false );
 					}
 				}
-
-				if ( '' === $finish_error ) {
-					$this->emit_event(
-						array(
-							'event'         => 'tool_end',
-							'toolName'      => 'finish_edit',
-							'outputSummary' => $this->preview( wp_json_encode( array( 'ok' => true ) ), 220 ),
-						)
-					);
-					return $this->build_result( $snapshot, $summary, $usage );
-				}
-
-				$recoverable = array(
+				$recoverable   = array(
 					'ok'    => false,
 					'error' => array(
 						'type'      => 'agent_error',
-						'message'   => $finish_error,
-						'retryable' => $retryable,
+						'message'   => $error->getMessage(),
+						'retryable' => $error->is_retryable(),
 					),
 				);
-				foreach ( $finish_calls as $finish_call ) {
-					$this->emit_event(
-						array(
-							'event'         => 'tool_end',
-							'toolName'      => 'finish_edit',
-							'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
-						)
-					);
-					$tool_responses[] = Ai_Message::tool_response( $finish_call['id'], 'finish_edit', $recoverable );
+				$error_details = $error->get_details();
+				if ( count( $error_details ) > 0 ) {
+					$recoverable['error']['details'] = $error_details;
+				}
+				$this->emit_event(
+					array(
+						'event'         => 'tool_end',
+						'toolName'      => $name,
+						'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
+					)
+				);
+				$tool_responses[] = Ai_Message::tool_response( $id, $name, $recoverable );
+			}
+		}
+
+		if ( $turn_had_error ) {
+			$finish_ready = false;
+		} elseif ( $turn_had_edit ) {
+			$finish_ready = true;
+		}
+
+		if ( count( $finish_calls ) > 0 ) {
+			$finish_error = '';
+			$summary      = '';
+			$retryable    = false;
+			if ( count( $finish_calls ) > 1 ) {
+				$finish_error = 'finish_edit may be called only once per turn.';
+			} else {
+				$finish_args = $finish_calls[0]['args'];
+				$raw_summary = isset( $finish_args['summary'] ) && is_string( $finish_args['summary'] ) ? $finish_args['summary'] : '';
+				$summary     = trim( $raw_summary );
+				if ( '' === $summary ) {
+					$finish_error = 'finish_edit.summary must be a non-empty string.';
+				} elseif ( mb_strlen( $raw_summary ) > 1000 ) {
+					$finish_error = 'finish_edit.summary must be 1,000 characters or fewer.';
+				} elseif ( $turn_had_error ) {
+					$finish_error = 'finish_edit was not accepted because another tool failed in this turn. Inspect the error and retry the required edit.';
+					$retryable    = true;
+				} elseif ( ! $finish_ready ) {
+					$finish_error = 'finish_edit requires a successful edit with no unresolved tool errors.';
+					$retryable    = true;
 				}
 			}
 
-			$messages[] = Ai_Message::tool( $tool_responses );
-		}
-
-		if ( $applied_edit_operation ) {
-			return $this->run_finalization_turns( $messages, $snapshot, $usage, $finalization_options );
-		}
-
-		throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true );
-	}
-
-	/**
-	 * Force a final summary after the edit turn limit, without tools.
-	 *
-	 * @param array $messages Conversation history.
-	 * @param array $snapshot Working snapshot.
-	 * @param array $usage    Accumulated usage.
-	 * @param array $options  Generation options.
-	 * @return array{snapshot:array,summary:string,usage:array}
-	 *
-	 * @throws Ai_Agent_Error When the model keeps calling tools or no summary
-	 *                        appears. Cancellation may also propagate.
-	 */
-	private function run_finalization_turns( array $messages, array $snapshot, array $usage, array $options ): array {
-		for ( $index = 0; $index < self::FINALIZATION_TURNS; $index++ ) {
-			$this->ensure_not_canceled();
-			$this->emit_event(
-				array(
-					'event'   => 'progress',
-					'message' => 'Preparing final AI edit summary.',
-				)
-			);
-
-			$model_messages = $this->build_model_context( $messages );
-			$this->log_model_request_trace( 'finalization', $index + 1, $model_messages, array(), $options );
-			$result = $this->client->generate( $model_messages, array(), $options );
-			$this->log_model_response_trace( 'finalization', $index + 1, $result );
-			$this->log_input_token_breakdown( 'finalization', $index + 1, $model_messages, array(), $options, $result );
-			$usage = self::add_usage( $usage, isset( $result['usage'] ) ? $result['usage'] : array() );
-			$usage = self::remember_model( $usage, $result );
-			$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
-
-			if ( count( $calls ) > 0 ) {
-				throw new Ai_Agent_Error( 'Model attempted tool calls during finalization after edit turn limit.', true );
+			if ( '' === $finish_error ) {
+				$this->emit_event(
+					array(
+						'event'         => 'tool_end',
+						'toolName'      => 'finish_edit',
+						'outputSummary' => $this->preview( wp_json_encode( array( 'ok' => true ) ), 220 ),
+					)
+				);
+				$tool_seconds = microtime( true ) - $tools_started;
+				return $this->completed_step( $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
 			}
 
-			$summary = $this->parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
-			return $this->build_result( $snapshot, $summary, $usage );
+			$recoverable = array(
+				'ok'    => false,
+				'error' => array(
+					'type'      => 'agent_error',
+					'message'   => $finish_error,
+					'retryable' => $retryable,
+				),
+			);
+			foreach ( $finish_calls as $finish_call ) {
+				$this->emit_event(
+					array(
+						'event'         => 'tool_end',
+						'toolName'      => 'finish_edit',
+						'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
+					)
+				);
+				$tool_responses[] = Ai_Message::tool_response( $finish_call['id'], 'finish_edit', $recoverable );
+			}
 		}
 
-		throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true );
+		$messages[]                    = Ai_Message::tool( $tool_responses );
+		$tool_seconds                  = microtime( true ) - $tools_started;
+		$state['turn']                 = $turn + 1;
+		$state['messages']             = $messages;
+		$state['snapshot']             = $snapshot;
+		$state['selectionRecords']     = $selection_records;
+		$state['appliedEditOperation'] = $applied_edit_operation;
+		$state['finishReady']          = $finish_ready;
+		$state['usage']                = $usage;
+		$state['repeatedFailures']     = $repeated_failures;
+		if ( $state['turn'] >= self::MAX_AGENT_TURNS ) {
+			if ( ! $applied_edit_operation ) {
+				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true );
+			}
+			$state['phase'] = 'finalization';
+		}
+		return $this->continued_step( $state, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
+	}
+
+	/** Execute the single finalization provider turn.
+	 *
+	 * @param array $payload Request payload.
+	 * @param array $state   Persisted agent state.
+	 * @return array
+	 * @throws Ai_Agent_Error When finalization fails.
+	 */
+	private function advance_finalization( array $payload, array $state ): array {
+		$index = (int) $state['finalizationTurn'];
+		if ( $index >= self::FINALIZATION_TURNS ) {
+			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true );
+		}
+		$options          = array(
+			'systemInstruction' => Ai_Prompt::system_prompt(),
+			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
+		);
+		$model_preference = self::resolve_model_preference( $payload );
+		if ( count( $model_preference ) > 0 ) {
+			$options['modelPreference'] = $model_preference;
+		}
+		$this->emit_event(
+			array(
+				'event'   => 'progress',
+				'message' => 'Preparing final AI edit summary.',
+			)
+		);
+
+		$model_messages = $this->build_model_context( $state['messages'] );
+		$this->log_model_request_trace( 'finalization', $index + 1, $model_messages, array(), $options );
+		$provider_started = microtime( true );
+		$result           = $this->client->generate( $model_messages, array(), $options );
+		$provider_seconds = microtime( true ) - $provider_started;
+		$this->log_model_response_trace( 'finalization', $index + 1, $result );
+		$this->log_input_token_breakdown( 'finalization', $index + 1, $model_messages, array(), $options, $result );
+		$usage = self::add_usage( $state['usage'], isset( $result['usage'] ) ? $result['usage'] : array() );
+		$usage = self::remember_model( $usage, $result );
+		$calls = isset( $result['toolCalls'] ) && is_array( $result['toolCalls'] ) ? $result['toolCalls'] : array();
+
+		if ( count( $calls ) > 0 ) {
+			throw new Ai_Agent_Error( 'Model attempted tool calls during finalization after edit turn limit.', true );
+		}
+
+		$summary = $this->parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
+		return $this->completed_step( $state, $state['snapshot'], $summary, $usage, 'finalization', $index + 1, $provider_seconds, 0.0 );
+	}
+
+	/** Validate a persisted checkpoint before using it.
+	 *
+	 * @param array $state Persisted agent state.
+	 * @throws Ai_Agent_Error When the state shape is invalid.
+	 */
+	private function validate_state( array $state ): void {
+		$required = array( 'schemaVersion', 'phase', 'turn', 'finalizationTurn', 'messages', 'snapshot', 'selectionRecords', 'appliedEditOperation', 'finishReady', 'usage', 'repeatedFailures' );
+		foreach ( $required as $key ) {
+			if ( ! array_key_exists( $key, $state ) ) {
+				throw new Ai_Agent_Error( 'The persisted AI agent state is invalid.', false );
+			}
+		}
+		if ( 1 !== (int) $state['schemaVersion'] || ! in_array( $state['phase'], array( 'agent', 'finalization' ), true ) || ! is_array( $state['messages'] ) || ! is_array( $state['snapshot'] ) || ! is_array( $state['selectionRecords'] ) || ! is_array( $state['usage'] ) || ! is_array( $state['repeatedFailures'] ) ) {
+			throw new Ai_Agent_Error( 'The persisted AI agent state is invalid.', false );
+		}
+	}
+
+	/** Build a completed step response.
+	 *
+	 * @param array  $state            Persisted agent state.
+	 * @param array  $snapshot         Completed snapshot.
+	 * @param string $summary          Completion summary.
+	 * @param array  $usage            Accumulated token usage.
+	 * @param string $phase            Current phase.
+	 * @param int    $turn             Current turn.
+	 * @param float  $provider_seconds Provider duration.
+	 * @param float  $tool_seconds     Tool duration.
+	 * @return array
+	 */
+	private function completed_step( array $state, array $snapshot, string $summary, array $usage, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
+		$state['snapshot'] = $snapshot;
+		$state['usage']    = $usage;
+		$metrics           = $this->step_metrics( $phase, $turn, $provider_seconds, $tool_seconds, $usage );
+		$this->observe_step( $metrics );
+		return array(
+			'status'  => 'completed',
+			'state'   => $state,
+			'result'  => $this->build_result( $snapshot, $summary, $usage ),
+			'metrics' => $metrics,
+		);
+	}
+
+	/** Build a continuation response.
+	 *
+	 * @param array  $state            Persisted agent state.
+	 * @param string $phase            Current phase.
+	 * @param int    $turn             Current turn.
+	 * @param float  $provider_seconds Provider duration.
+	 * @param float  $tool_seconds     Tool duration.
+	 * @return array
+	 */
+	private function continued_step( array $state, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
+		$metrics = $this->step_metrics( $phase, $turn, $provider_seconds, $tool_seconds, $state['usage'] );
+		$this->observe_step( $metrics );
+		return array(
+			'status'  => 'continue',
+			'state'   => $state,
+			'metrics' => $metrics,
+		);
+	}
+
+	/** Normalize one content-free performance record.
+	 *
+	 * @param string $phase            Current phase.
+	 * @param int    $turn             Current turn.
+	 * @param float  $provider_seconds Provider duration.
+	 * @param float  $tool_seconds     Tool duration.
+	 * @param array  $usage            Accumulated usage.
+	 * @return array
+	 */
+	private function step_metrics( string $phase, int $turn, float $provider_seconds, float $tool_seconds, array $usage ): array {
+		return array(
+			'phase'      => $phase,
+			'turn'       => $turn,
+			'providerMs' => (int) round( $provider_seconds * 1000 ),
+			'toolMs'     => (int) round( $tool_seconds * 1000 ),
+			'usage'      => $usage,
+		);
+	}
+
+	/** Notify the optional performance observer.
+	 *
+	 * @param array $metrics Content-free step metrics.
+	 */
+	private function observe_step( array $metrics ): void {
+		if ( null !== $this->observe_step ) {
+			call_user_func( $this->observe_step, $metrics );
+		}
 	}
 
 	/**

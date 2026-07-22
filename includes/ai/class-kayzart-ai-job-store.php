@@ -15,10 +15,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Owns job creation, state transitions, events, and retention.
  */
 class Ai_Job_Store {
-	const MAX_EVENTS       = 300;
-	const TIMEOUT_SECONDS  = 600;
-	const POLL_INTERVAL_MS = 1000;
-	const RETENTION_DAYS   = 7;
+	const MAX_EVENTS               = 300;
+	const TIMEOUT_SECONDS          = 600;
+	const STEPWISE_TIMEOUT_SECONDS = 1800;
+	const STEP_LEASE_SECONDS       = 660;
+	const POLL_INTERVAL_MS         = 1000;
+	const RETENTION_DAYS           = 7;
 
 	const ACTIVE_STATUSES   = array( 'pending', 'running' );
 	const TERMINAL_STATUSES = array( 'completed', 'error', 'canceled', 'timed_out', 'enqueue_failed' );
@@ -46,23 +48,34 @@ class Ai_Job_Store {
 
 		$now      = self::now();
 		$job_uuid = wp_generate_uuid4();
-		$inserted = $wpdb->insert(
+		/**
+		 * Filter the execution mode captured for a newly created AI job.
+		 *
+		 * @param string $mode    Default mode, stepwise.
+		 * @param array  $payload Normalized request payload.
+		 * @param int    $user_id Owner user ID.
+		 * @param int    $post_id Target post ID.
+		 */
+		$execution_mode = self::normalize_execution_mode( apply_filters( 'kayzart_ai_execution_mode', 'stepwise', $payload, $user_id, $post_id ) );
+		$timeout        = 'stepwise' === $execution_mode ? self::STEPWISE_TIMEOUT_SECONDS : self::TIMEOUT_SECONDS;
+		$inserted       = $wpdb->insert(
 			Ai_Setup::get_jobs_table_name(),
 			array(
 				'job_uuid'         => $job_uuid,
 				'post_id'          => $post_id,
 				'user_id'          => $user_id,
 				'request_id'       => $request_id,
+				'execution_mode'   => $execution_mode,
 				'status'           => 'pending',
 				'cancel_requested' => 0,
 				'payload_json'     => $payload_json,
 				'events_json'      => '[]',
 				'created_at'       => $now,
 				'updated_at'       => $now,
-				'deadline_at'      => gmdate( 'Y-m-d H:i:s', time() + self::TIMEOUT_SECONDS ),
+				'deadline_at'      => gmdate( 'Y-m-d H:i:s', time() + $timeout ),
 				'lock_key'         => 'post:' . $post_id,
 			),
-			array( '%s', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
@@ -135,6 +148,74 @@ class Ai_Job_Store {
 		return $claimed;
 	}
 
+	/** Initialize a claimed stepwise job without overwriting a checkpoint.
+	 *
+	 * @param string $job_uuid Job UUID.
+	 * @param array  $state    Initial agent state.
+	 */
+	public function initialize_step_state( string $job_uuid, array $state ): bool {
+		global $wpdb;
+		$encoded = wp_json_encode( $state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return 1 === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET agent_state_json = %s, updated_at = %s WHERE job_uuid = %s AND execution_mode = 'stepwise' AND status = 'running' AND agent_state_json IS NULL AND state_version = 0", $encoded, self::now(), $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/** Acquire one expected checkpoint version for a bounded worker request.
+	 *
+	 * @param string $job_uuid         Job UUID.
+	 * @param int    $expected_version Expected state version.
+	 * @param string $token            Unique lease token.
+	 */
+	public function acquire_step_lease( string $job_uuid, int $expected_version, string $token ) {
+		global $wpdb;
+		$now     = self::now();
+		$expires = gmdate( 'Y-m-d H:i:s', time() + self::STEP_LEASE_SECONDS );
+		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET step_lease_token = %s, step_lease_expires_at = %s, step_attempt = step_attempt + 1, updated_at = %s WHERE job_uuid = %s AND execution_mode = 'stepwise' AND status = 'running' AND cancel_requested = 0 AND deadline_at > %s AND state_version = %d AND (step_lease_token IS NULL OR step_lease_expires_at < %s)", $token, $expires, $now, $job_uuid, $now, $expected_version, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return 1 === $changed ? $this->get( $job_uuid ) : false;
+	}
+
+	/** Persist the next checkpoint using lease-token and version CAS.
+	 *
+	 * @param string $job_uuid         Job UUID.
+	 * @param int    $expected_version Expected state version.
+	 * @param string $token            Held lease token.
+	 * @param array  $state            Next agent state.
+	 */
+	public function save_step_state( string $job_uuid, int $expected_version, string $token, array $state ): bool {
+		global $wpdb;
+		$encoded = wp_json_encode( $state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return 1 === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET agent_state_json = %s, state_version = state_version + 1, step_attempt = 0, step_lease_token = NULL, step_lease_expires_at = NULL, updated_at = %s WHERE job_uuid = %s AND status = 'running' AND cancel_requested = 0 AND deadline_at > %s AND state_version = %d AND step_lease_token = %s", $encoded, self::now(), $job_uuid, self::now(), $expected_version, $token ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/** Release a step lease after a retryable failure, retaining its attempt.
+	 *
+	 * @param string $job_uuid         Job UUID.
+	 * @param int    $expected_version Expected state version.
+	 * @param string $token            Held lease token.
+	 */
+	public function release_step_lease( string $job_uuid, int $expected_version, string $token ): bool {
+		global $wpdb;
+		return 1 === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . ' SET step_lease_token = NULL, step_lease_expires_at = NULL, updated_at = %s WHERE job_uuid = %s AND status = %s AND state_version = %d AND step_lease_token = %s', self::now(), $job_uuid, 'running', $expected_version, $token ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/** Decode a persisted stepwise checkpoint.
+	 *
+	 * @param array $job Job database row.
+	 */
+	public function get_step_state( array $job ) {
+		$state = json_decode( (string) $job['agent_state_json'], true );
+		return is_array( $state ) ? $state : null;
+	}
+
+	/** Return active stepwise jobs whose lease no longer protects a worker.
+	 *
+	 * @param int $limit Maximum rows to return.
+	 */
+	public function get_recoverable_steps( int $limit = 20 ): array {
+		global $wpdb;
+		$now = self::now();
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Ai_Setup::get_jobs_table_name() . " WHERE execution_mode = 'stepwise' AND status IN ('pending','running') AND cancel_requested = 0 AND deadline_at > %s AND (status = 'pending' OR step_lease_token IS NULL OR step_lease_expires_at < %s) ORDER BY updated_at ASC LIMIT %d", $now, $now, max( 1, $limit ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
 	/**
 	 * Whether a running agent should stop. Also expires overdue jobs.
 	 *
@@ -185,7 +266,7 @@ class Ai_Job_Store {
 	public function complete( string $job_uuid, array $snapshot, string $summary, array $usage ): bool {
 		global $wpdb;
 		$now     = self::now();
-		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'completed', snapshot_json = %s, usage_json = %s, error = NULL, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status = 'running' AND cancel_requested = 0 AND deadline_at > %s", wp_json_encode( $snapshot ), wp_json_encode( $usage ), $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'completed', snapshot_json = %s, usage_json = %s, error = NULL, finished_at = %s, updated_at = %s, lock_key = NULL, step_lease_token = NULL, step_lease_expires_at = NULL WHERE job_uuid = %s AND status = 'running' AND cancel_requested = 0 AND deadline_at > %s", wp_json_encode( $snapshot ), wp_json_encode( $usage ), $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( 1 === $changed ) {
 			$job     = $this->get( $job_uuid );
 			$payload = $job ? json_decode( (string) $job['payload_json'], true ) : null;
@@ -226,7 +307,7 @@ class Ai_Job_Store {
 		}
 		$now = self::now();
 		if ( 'pending' === $job['status'] ) {
-			$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'canceled', cancel_requested = 1, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status = 'pending'", $now, $now, $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'canceled', cancel_requested = 1, finished_at = %s, updated_at = %s, lock_key = NULL, step_lease_token = NULL, step_lease_expires_at = NULL WHERE job_uuid = %s AND status = 'pending'", $now, $now, $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			if ( 1 === $changed ) {
 				( new Ai_Timeline_Store() )->update_execution( $job_uuid, 'canceled' );
 				$this->append_event( $job_uuid, array( 'event' => 'canceled' ) );
@@ -284,7 +365,7 @@ class Ai_Job_Store {
 				'retryable' => true,
 			)
 		);
-		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'timed_out', cancel_requested = 1, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status IN ('pending','running') AND deadline_at <= %s", $error, $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'timed_out', cancel_requested = 1, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL, step_lease_token = NULL, step_lease_expires_at = NULL WHERE job_uuid = %s AND status IN ('pending','running') AND deadline_at <= %s", $error, $now, $now, $job_uuid, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( 1 === $changed ) {
 			( new Ai_Timeline_Store() )->update_execution( $job_uuid, 'timed_out' );
 			$this->append_event( $job_uuid, array( 'event' => 'timed_out' ) );
@@ -315,7 +396,7 @@ class Ai_Job_Store {
 				'retryable' => true,
 			)
 		);
-		$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'canceled', cancel_requested = 1, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL WHERE status IN ('pending','running')", $error, $now, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = 'canceled', cancel_requested = 1, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL, step_lease_token = NULL, step_lease_expires_at = NULL WHERE status IN ('pending','running')", $error, $now, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		foreach ( $active as $job_uuid ) {
 			( new Ai_Timeline_Store() )->update_execution( (string) $job_uuid, 'canceled' );
 		}
@@ -342,8 +423,24 @@ class Ai_Job_Store {
 			'startedAt'       => self::iso_time( $job['started_at'] ),
 			'finishedAt'      => self::iso_time( $job['finished_at'] ),
 			'pollIntervalMs'  => self::POLL_INTERVAL_MS,
-			'timeoutMs'       => self::TIMEOUT_SECONDS * 1000,
+			'timeoutMs'       => ( 'stepwise' === self::row_execution_mode( $job ) ? self::STEPWISE_TIMEOUT_SECONDS : self::TIMEOUT_SECONDS ) * 1000,
 		);
+	}
+
+	/** Normalize a filtered execution mode.
+	 *
+	 * @param mixed $mode Filtered mode.
+	 */
+	public static function normalize_execution_mode( $mode ): string {
+		return 'legacy' === strtolower( trim( (string) $mode ) ) ? 'legacy' : 'stepwise';
+	}
+
+	/** Treat rows created before the schema upgrade as legacy.
+	 *
+	 * @param array $job Job database row.
+	 */
+	public static function row_execution_mode( array $job ): string {
+		return isset( $job['execution_mode'] ) ? self::normalize_execution_mode( $job['execution_mode'] ) : 'legacy';
 	}
 
 	/** Resolve an idempotent create attempt.
@@ -387,7 +484,7 @@ class Ai_Job_Store {
 				'retryable' => $retryable,
 			)
 		);
-		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = %s, cancel_requested = %d, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL WHERE job_uuid = %s AND status IN ('pending','running')", $status, $request_cancel ? 1 : 0, $error, $now, $now, $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . " SET status = %s, cancel_requested = %d, error = %s, finished_at = %s, updated_at = %s, lock_key = NULL, step_lease_token = NULL, step_lease_expires_at = NULL WHERE job_uuid = %s AND status IN ('pending','running')", $status, $request_cancel ? 1 : 0, $error, $now, $now, $job_uuid ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		if ( 1 === $changed ) {
 			( new Ai_Timeline_Store() )->update_execution( $job_uuid, $status );
 			$this->append_event(

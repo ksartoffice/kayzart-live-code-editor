@@ -876,4 +876,46 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( 'off', $this->invoke_agent_helper( $agent, 'normalize_debug_trace_mode', array( 'invalid' ) ) );
 		$this->assertSame( 'off', $this->invoke_agent_helper( $agent, 'normalize_debug_trace_mode', array( true ) ) );
 	}
+
+	/** Checkpoints survive JSON storage and each advance performs one model call. */
+	public function test_stepwise_checkpoint_round_trip_and_single_call_boundary(): void {
+		$fake     = new Ai_Client_Fake(
+			array(
+				array( 'toolCalls' => array( $this->replace_call( 'r1', 'Hello', 'World' ) ) ),
+				array( 'text' => 'Done' ),
+				array( 'text' => '{"summary":"Changed the greeting."}' ),
+			)
+		);
+		$observed = array();
+		$agent    = new Ai_Agent(
+			$fake,
+			array(
+				'observeStep' => static function ( array $metrics ) use ( &$observed ) {
+					$observed[] = $metrics;
+				},
+			)
+		);
+		$state    = $agent->create_state( $this->payload() );
+
+		$first = $agent->advance( $this->payload(), $state );
+		$this->assertSame( 'continue', $first['status'] );
+		$this->assertCount( 1, $fake->calls() );
+		$state = json_decode( wp_json_encode( $first['state'] ), true );
+
+		$second = $agent->advance( $this->payload(), $state );
+		$this->assertSame( 'continue', $second['status'] );
+		$this->assertSame( 'finalization', $second['state']['phase'] );
+		$this->assertCount( 2, $fake->calls() );
+
+		$third = $agent->advance( $this->payload(), json_decode( wp_json_encode( $second['state'] ), true ) );
+		$this->assertSame( 'completed', $third['status'] );
+		$this->assertSame( '<main>World</main>', $third['result']['snapshot']['html'] );
+		$this->assertSame( 'Changed the greeting.', $third['result']['summary'] );
+		$this->assertCount( 3, $fake->calls() );
+		$this->assertCount( 3, $observed );
+		$this->assertArrayHasKey( 'providerMs', $observed[0] );
+		$this->assertArrayHasKey( 'toolMs', $observed[0] );
+		$this->assertStringNotContainsString( 'Hello', wp_json_encode( $observed ) );
+		$this->assertStringNotContainsString( 'World', wp_json_encode( $observed ) );
+	}
 }

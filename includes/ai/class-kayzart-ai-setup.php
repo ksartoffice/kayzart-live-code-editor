@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ai_Setup {
 	const CAPABILITY            = 'kayzart_ai_edit';
-	const DB_VERSION            = '4';
+	const DB_VERSION            = '5';
 	const DB_VERSION_OPTION     = 'kayzart_ai_db_version';
 	const JOBS_TABLE_SUFFIX     = 'kayzart_ai_jobs';
 	const TIMELINE_TABLE_SUFFIX = 'kayzart_ai_timeline';
@@ -72,12 +72,18 @@ class Ai_Setup {
 			post_id bigint(20) unsigned NOT NULL,
 			user_id bigint(20) unsigned NOT NULL,
 			request_id varchar(64) NOT NULL,
+			execution_mode varchar(16) NOT NULL DEFAULT 'legacy',
 			status varchar(20) NOT NULL,
 			cancel_requested tinyint(1) unsigned NOT NULL DEFAULT 0,
 			payload_json longtext NOT NULL,
 			snapshot_json longtext NULL,
 			events_json longtext NOT NULL,
 			usage_json longtext NULL,
+			agent_state_json longtext NULL,
+			state_version bigint(20) unsigned NOT NULL DEFAULT 0,
+			step_attempt smallint(5) unsigned NOT NULL DEFAULT 0,
+			step_lease_token varchar(64) NULL,
+			step_lease_expires_at datetime NULL,
 			error longtext NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,

@@ -15,8 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Ai_Immediate_Dispatcher {
 	const ROUTE            = '/ai/internal/run';
 	const SIGNATURE_TTL    = 60;
-	const LOCK_GRACE       = 60;
-	const LOCK_OPTION      = 'kayzart_ai_immediate_runner_lock';
 	const HEADER_ACTION_ID = 'X-Kayzart-AI-Action';
 	const HEADER_JOB_UUID  = 'X-Kayzart-AI-Job';
 	const HEADER_EXPIRES   = 'X-Kayzart-AI-Expires';
@@ -146,34 +144,13 @@ class Ai_Immediate_Dispatcher {
 			);
 		}
 
-		$lock = self::acquire_lock();
-		if ( false === $lock ) {
-			return rest_ensure_response(
-				array(
-					'ok'      => true,
-					'started' => false,
-					'reason'  => 'busy',
-				)
-			);
-		}
-
 		$claim      = null;
 		$started    = false;
 		$claimed_id = 0;
 		try {
-			if ( $job_store->has_running_job() || self::has_claimed_ai_action( $store ) ) {
-				return rest_ensure_response(
-					array(
-						'ok'      => true,
-						'started' => false,
-						'reason'  => 'busy',
-					)
-				);
-			}
-
 			// The run hook is Kayzart-specific. Omitting the redundant group here
 			// also supports Action Scheduler's migration-time HybridStore.
-			$claim   = $store->stake_claim( 1, null, array( Ai_Worker::RUN_HOOK ) );
+			$claim   = $store->stake_claim( 1, null, array( Ai_Worker::RUN_HOOK, Ai_Worker::STEP_HOOK ) );
 			$actions = $claim->get_actions();
 			if ( empty( $actions ) ) {
 				return rest_ensure_response(
@@ -195,7 +172,6 @@ class Ai_Immediate_Dispatcher {
 			if ( $claim instanceof \ActionScheduler_ActionClaim ) {
 				$store->release_claim( $claim );
 			}
-			self::release_lock( $lock );
 		}
 
 		self::dispatch_oldest_pending();
@@ -224,15 +200,29 @@ class Ai_Immediate_Dispatcher {
 		if ( ! self::is_enabled() || ! class_exists( '\\ActionScheduler' ) ) {
 			return false;
 		}
-		$store     = \ActionScheduler::store();
-		$action_id = $store->find_action(
-			Ai_Worker::RUN_HOOK,
+		$store      = \ActionScheduler::store();
+		$query      = array(
+			'group'   => Ai_Worker::GROUP,
+			'status'  => \ActionScheduler_Store::STATUS_PENDING,
+			'claimed' => false,
+			'date'    => new \DateTime( 'now', new \DateTimeZone( 'UTC' ) ),
+		);
+		$candidates = array_filter(
 			array(
-				'group'   => Ai_Worker::GROUP,
-				'status'  => \ActionScheduler_Store::STATUS_PENDING,
-				'claimed' => false,
+				$store->find_action( Ai_Worker::STEP_HOOK, $query ),
+				$store->find_action( Ai_Worker::RUN_HOOK, $query ),
 			)
 		);
+		$action_id  = 0;
+		$oldest     = PHP_INT_MAX;
+		foreach ( $candidates as $candidate ) {
+			$date      = $store->fetch_action( $candidate )->get_schedule()->get_date();
+			$timestamp = $date instanceof \DateTimeInterface ? $date->getTimestamp() : 0;
+			if ( $timestamp < $oldest ) {
+				$oldest    = $timestamp;
+				$action_id = (int) $candidate;
+			}
+		}
 		if ( empty( $action_id ) ) {
 			return false;
 		}
@@ -247,11 +237,10 @@ class Ai_Immediate_Dispatcher {
 		}
 	}
 
-	/** Clear request-local scheduling and the immediate-runner lock on deactivation. */
+	/** Clear request-local scheduling on deactivation. */
 	public static function deactivate(): void {
 		self::$shutdown_dispatch_scheduled = false;
 		remove_action( 'shutdown', array( __CLASS__, 'dispatch_oldest_pending' ), 999 );
-		delete_option( self::LOCK_OPTION );
 	}
 
 	/** Return normalized signed request fields, or false when malformed/expired.
@@ -284,66 +273,18 @@ class Ai_Immediate_Dispatcher {
 			return false;
 		}
 		try {
-			$action = \ActionScheduler::store()->fetch_action( $action_id );
+			$store  = \ActionScheduler::store();
+			$action = $store->fetch_action( $action_id );
 			$args   = $action->get_args();
 			$job    = ( new Ai_Job_Store() )->get( $job_uuid );
 			return $job
-				&& Ai_Worker::RUN_HOOK === $action->get_hook()
+				&& in_array( $action->get_hook(), array( Ai_Worker::RUN_HOOK, Ai_Worker::STEP_HOOK ), true )
 				&& Ai_Worker::GROUP === $action->get_group()
 				&& isset( $args[0] )
 				&& hash_equals( $job_uuid, (string) $args[0] );
 		} catch ( \Throwable $error ) {
 			return false;
 		}
-	}
-
-	/** Whether another Action Scheduler runner already owns a Kayzart AI action.
-	 *
-	 * @param \ActionScheduler_Store $store Action Scheduler store.
-	 */
-	private static function has_claimed_ai_action( \ActionScheduler_Store $store ): bool {
-		$claimed = $store->query_actions(
-			array(
-				'hook'     => Ai_Worker::RUN_HOOK,
-				'group'    => Ai_Worker::GROUP,
-				'status'   => \ActionScheduler_Store::STATUS_PENDING,
-				'claimed'  => true,
-				'per_page' => 1,
-			)
-		);
-		return ! empty( $claimed );
-	}
-
-	/** Acquire the crash-recoverable site-wide immediate-runner lock. */
-	private static function acquire_lock() {
-		global $wpdb;
-		$value = wp_json_encode(
-			array(
-				'token'   => wp_generate_password( 32, false, false ),
-				'expires' => time() + Ai_Job_Store::TIMEOUT_SECONDS + self::LOCK_GRACE,
-			)
-		);
-		if ( add_option( self::LOCK_OPTION, $value, '', 'no' ) ) {
-			return $value;
-		}
-		$current = (string) get_option( self::LOCK_OPTION, '' );
-		$decoded = json_decode( $current, true );
-		if ( ! is_array( $decoded ) || empty( $decoded['expires'] ) || (int) $decoded['expires'] >= time() ) {
-			return false;
-		}
-		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPTION, $current ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		wp_cache_delete( self::LOCK_OPTION, 'options' );
-		return 1 === $deleted && add_option( self::LOCK_OPTION, $value, '', 'no' ) ? $value : false;
-	}
-
-	/** Release only the lock token acquired by this request.
-	 *
-	 * @param string $value Exact stored lock value.
-	 */
-	private static function release_lock( string $value ): void {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPTION, $value ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		wp_cache_delete( self::LOCK_OPTION, 'options' );
 	}
 
 	/** Build the canonical HMAC signature.

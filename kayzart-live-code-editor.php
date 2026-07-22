@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Kayzart — Live HTML Landing Pages
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
- * Description: A live HTML/CSS/JavaScript editor for clean, theme-independent landing pages in WordPress. No page builder, no build step.
+ * Description: A live HTML/CSS/JavaScript editor for clean, theme-independent landing pages in WordPress, with AI editing built in. No page builder, no build step.
  * Version: 3.0.0
  * Requires at least: 7.0
  * Tested up to: 7.0

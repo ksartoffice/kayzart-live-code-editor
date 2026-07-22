@@ -1,6 +1,6 @@
 === Kayzart — Live HTML Landing Pages ===
 Contributors: ksartoffice
-Tags: landing page, custom html, html editor, tailwind, live preview
+Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 7.4
@@ -8,17 +8,26 @@ Stable tag: 3.0.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Build clean, theme-independent landing pages with a live HTML/CSS/JS editor. No page builder, no build pipeline.
+Build clean, theme-independent landing pages with a live HTML/CSS/JS editor — now with built-in AI editing. No page builder, no build pipeline.
 
 == Description ==
-Kayzart turns custom HTML, CSS, and JavaScript into a real, publishable WordPress landing page — rendered live as you edit, kept clean and independent from your active theme, with no page builder and no build tooling to set up.
+Kayzart turns custom HTML, CSS, and JavaScript into a real, publishable WordPress landing page — rendered live as you edit, kept clean and independent from your active theme, with no page builder and no build tooling to set up. And now AI can edit that page for you, right inside WordPress.
 
-Write the page by hand, start from a template, drop in code from a designer, or paste what an AI tool gave you. The source doesn't matter — Kayzart is where that code becomes a page you can preview, keep editing, and ship in minutes, without a child theme and without fighting your theme's header, footer, and styles.
+Write the page by hand, start from a template, drop in code from a designer, or paste what an AI tool gave you — then ask the built-in AI to refine it. The source doesn't matter — Kayzart is where that code becomes a page you can preview, keep editing, and ship in minutes, without a child theme and without fighting your theme's header, footer, and styles.
+
+**New in 3.0: AI editing inside WordPress**
+Describe the change you want in plain language and the AI edits your page's HTML, CSS, and JavaScript directly — no copy-pasting between a chatbot and your editor. Select an element in the preview and tell the AI what to change about it. Each request runs as a background job with a running activity log you can watch or cancel, and the result is applied to your editor tabs for you to review before you save.
+
+It runs on the WordPress-native AI Client (WordPress 7.0+) using your own AI provider configured through Connectors — you bring your own API key, so there is no per-edit fee to Kayzart, no separate account, and no external service in the loop. Site admins decide which roles and users can use AI editing.
 
 **Who this is for**
-People comfortable with HTML/CSS who want full control over the result — freelancers, agencies, and developers who need a clean landing page fast, without a child theme, a page builder, or a build pipeline. Non-developers can still tweak text, links, and images visually from the Elements panel.
+People comfortable with HTML/CSS who want full control over the result — freelancers, agencies, and developers who need a clean landing page fast, without a child theme, a page builder, or a build pipeline. Non-developers can still tweak text, links, and images visually from the Elements panel, or ask the AI to make a change in plain language.
 
 **What you can do**
+* Edit your page with AI in plain language — it changes the actual HTML, CSS, and JavaScript, inside WordPress
+* Point the AI at a selected preview element to refine just that part
+* Watch each AI edit run as a background job with a live activity log, and cancel any time
+* Review AI changes in the editor before you save — nothing is published automatically
 * Edit everything live with a CodeMirror 6 editor and instant iframe preview
 * Click an element in the preview to jump to its code (real-time DOM selection)
 * Keep the page theme-independent in Standalone mode, or render inside your theme in Theme mode
@@ -29,7 +38,7 @@ People comfortable with HTML/CSS who want full control over the result — freel
 * Restrict external embeds with an allowlist
 
 **Works great with**
-Bring HTML from anywhere — hand-written, a template, a designer, or an AI tool like ChatGPT, Claude, Gemini, or v0. Kayzart doesn't generate the code — it's where that code becomes a real, publishable WordPress page you can keep editing.
+Bring HTML from anywhere — hand-written, a template, a designer, or an AI tool like ChatGPT, Claude, Gemini, or v0 — then keep editing it with the AI built into Kayzart. Whether the code starts as a paste from a chatbot or a hand-written draft, Kayzart is where it becomes a real, publishable WordPress page you can refine by hand or by prompt.
 
 Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
@@ -42,6 +51,7 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 4. Paste your HTML/CSS/JS from any source (or keep editing the existing page content), watch the live preview, and adjust.
 5. Publish or update. Use Standalone mode for a clean, theme-free landing page.
 6. Optional: Settings > Landing page settings to enable Kayzart for posts or custom post types.
+7. Optional: To use AI editing, run WordPress 7.0+ and configure an AI provider (your own API key) in Connectors, then open the AI tab in the editor. Admins can choose which roles and users may use it.
 
 == Frequently Asked Questions ==
 = What is Kayzart and what can I build with it? =
@@ -51,10 +61,19 @@ Kayzart is a live HTML/CSS/JavaScript editor for WordPress. You build clean, the
 Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs. You can also convert an existing WordPress page from the page list or edit screen; Kayzart keeps the existing post content as the initial HTML. If you have one complete HTML document, use the full HTML import feature to split it into the right fields. The live preview renders it immediately, and you can keep editing before you publish.
 
 = Can AI edit the page for me, right inside WordPress? =
-Not yet in this free plugin — today Kayzart is the editor and runtime where you paste and refine AI-generated code. AI-assisted editing inside WordPress is on our roadmap. For now, generate your HTML/CSS/JS in ChatGPT, Claude, or Gemini, then paste it here to publish and keep editing.
+Yes. In the editor's AI tab, describe the change you want and the AI edits your page's HTML, CSS, and JavaScript directly — you don't copy code back and forth from a chatbot. You can also select an element in the preview and ask the AI to change just that part. Each request runs as a background job you can watch or cancel, and the result is applied to your editor tabs for you to review. Nothing is published until you save. AI editing needs WordPress 7.0+ and an AI provider you configure (see the setup question below).
+
+= How do I set up AI editing? What does it cost? =
+AI editing uses the WordPress-native AI Client, so it needs WordPress 7.0 or newer and an AI provider configured through Connectors — you add your own API key from a provider such as OpenAI, Anthropic, or Google. Because it uses your key and runs inside your site, there is no per-edit fee to Kayzart, no separate Kayzart account, and no Kayzart server in the loop; you pay only your provider's usage for the requests you make. If no provider is configured, the editor points you to the Connectors setup. Kayzart itself never stores your API key.
+
+= Who can use AI editing, and can I turn it off? =
+Access is controlled by a dedicated capability. Administrators get it on activation, and a site admin decides which roles and users may use AI editing — useful when an agency configures the key and enables it for specific client accounts. Users without permission don't see the AI features at all. Site owners can also disable the feature entirely with a filter.
+
+= Which AI model does it use? =
+The model list comes from whatever provider you configure in Connectors, not from Kayzart, so new models appear without a plugin update. You can pick a model in settings or leave it on automatic and let the AI Client choose. More capable models generally produce more reliable edits.
 
 = Do I need to know how to code? =
-Basic familiarity with HTML/CSS helps when fine-tuning, and Kayzart gives you full control when you want it. But you don't have to start from scratch — paste existing code (hand-written, a template, or AI output) and adjust from there, or edit text, links, and images visually from the Elements panel.
+Basic familiarity with HTML/CSS helps when fine-tuning, and Kayzart gives you full control when you want it. But you don't have to start from scratch — paste existing code (hand-written, a template, or AI output) and adjust from there, ask the built-in AI to make a change in plain language, or edit text, links, and images visually from the Elements panel.
 
 = Can I use shortcodes? =
 Yes. You can place WordPress shortcodes directly in the HTML editor. They are not expanded inside the live preview iframe, but they are processed normally on the published page or front-end view.
@@ -82,10 +101,17 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 5. Review the detected HTML, head, CSS, and JavaScript sections before importing.
 6. Edit the imported code while the live preview renders the landing page immediately.
 7. Select preview text and refine the matching element from the Elements panel.
+8. Ask the AI to edit the page in plain language from the AI tab, right inside WordPress.
+9. Watch an AI edit run as a background job with a live activity log, then review the result before saving.
 
 == Changelog ==
 = 3.0.0 =
-* Infrastructure: Require WordPress 7.0 and prepare the WordPress-native AI agent job runtime.
+* Add: AI editing inside WordPress — describe a change in plain language and the AI edits your page's HTML, CSS, and JavaScript directly.
+* Add: Point the AI at a selected preview element to refine just that part.
+* Add: Run AI edits as background jobs with a live activity log, cancel support, and a per-page edit history; results are applied for review and never published without saving.
+* Add: Bring your own AI provider through Connectors — no Kayzart account, no per-edit fee, and no external Kayzart server.
+* Add: Per-role and per-user permission controls for who can use AI editing.
+* Infrastructure: Require WordPress 7.0 and run AI editing on the WordPress-native AI Client with an Action Scheduler job runtime.
 
 = 2.3.0 =
 * Add: Keep full-page revision history for HTML, CSS, JavaScript, and page settings.

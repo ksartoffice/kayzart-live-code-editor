@@ -129,15 +129,15 @@ class Ai_Agent {
 	 * @throws Ai_Agent_Error On an unrecoverable loop outcome.
 	 */
 	public function run( array $payload ): array {
-		$edit_policy      = Ai_Tool_Schema::resolve_edit_policy(
+		$edit_policy             = Ai_Tool_Schema::resolve_edit_policy(
 			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
 			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : ''
 		);
-		$editable_targets = $edit_policy['editableTargets'];
-		$has_history_tool = ! empty( $payload['historyTool'] );
-		$tools            = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool );
-
+		$editable_targets        = $edit_policy['editableTargets'];
+		$has_history_tool        = ! empty( $payload['historyTool'] );
 		$selection_records       = $this->resolve_selection_records( $payload );
+		$has_selection_context   = $this->has_resolvable_selection( $selection_records );
+		$tools                   = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
 		$snapshot                = $this->initial_snapshot( $payload );
 		$this->debug_input_parts = Ai_Prompt::debug_input_parts( $payload );
 
@@ -192,6 +192,9 @@ class Ai_Agent {
 
 			$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
 			$tool_responses = array();
+			$finish_calls   = array();
+			$turn_had_error = false;
+			$turn_had_edit  = false;
 
 			$remaining_read_budget = self::READ_BUDGET_PER_TURN;
 			foreach ( $calls as $call ) {
@@ -206,6 +209,15 @@ class Ai_Agent {
 						'inputSummary' => $this->preview( wp_json_encode( $args ), 180 ),
 					)
 				);
+
+				if ( 'finish_edit' === $name ) {
+					$finish_calls[] = array(
+						'id'   => $id,
+						'name' => $name,
+						'args' => $args,
+					);
+					continue;
+				}
 
 				try {
 					if ( 'read_document' === $name || 'read_selection' === $name ) {
@@ -225,7 +237,12 @@ class Ai_Agent {
 					if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
 						$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
 					}
-					$applied_edit_operation = $applied_edit_operation || ! empty( $tool_result['appliedEditOperation'] );
+					if ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] ) {
+						$turn_had_error = true;
+					}
+					$tool_applied_edit      = ! empty( $tool_result['appliedEditOperation'] );
+					$turn_had_edit          = $turn_had_edit || $tool_applied_edit;
+					$applied_edit_operation = $applied_edit_operation || $tool_applied_edit;
 
 					$this->emit_event(
 						array(
@@ -236,7 +253,8 @@ class Ai_Agent {
 					);
 					$tool_responses[] = Ai_Message::tool_response( $id, $name, $tool_result['output'] );
 				} catch ( Ai_Tool_Error $error ) {
-					$key = $this->repeated_failure_key( $name, $args, $error );
+					$turn_had_error = true;
+					$key            = $this->repeated_failure_key( $name, $args, $error );
 					if ( '' !== $key ) {
 						$count                     = ( isset( $repeated_failures[ $key ] ) ? $repeated_failures[ $key ] : 0 ) + 1;
 						$repeated_failures[ $key ] = $count;
@@ -260,6 +278,60 @@ class Ai_Agent {
 						)
 					);
 					$tool_responses[] = Ai_Message::tool_response( $id, $name, $recoverable );
+				}
+			}
+
+			if ( count( $finish_calls ) > 0 ) {
+				$finish_error = '';
+				$summary      = '';
+				$retryable    = false;
+				if ( count( $finish_calls ) > 1 ) {
+					$finish_error = 'finish_edit may be called only once per turn.';
+				} else {
+					$finish_args = $finish_calls[0]['args'];
+					$raw_summary = isset( $finish_args['summary'] ) && is_string( $finish_args['summary'] ) ? $finish_args['summary'] : '';
+					$summary     = trim( $raw_summary );
+					if ( '' === $summary ) {
+						$finish_error = 'finish_edit.summary must be a non-empty string.';
+					} elseif ( mb_strlen( $raw_summary ) > 1000 ) {
+						$finish_error = 'finish_edit.summary must be 1,000 characters or fewer.';
+					} elseif ( $turn_had_error ) {
+						$finish_error = 'finish_edit was not accepted because another tool failed in this turn. Inspect the error and retry the required edit.';
+						$retryable    = true;
+					} elseif ( ! $turn_had_edit ) {
+						$finish_error = 'finish_edit requires at least one successful edit tool in the same turn.';
+						$retryable    = true;
+					}
+				}
+
+				if ( '' === $finish_error ) {
+					$this->emit_event(
+						array(
+							'event'         => 'tool_end',
+							'toolName'      => 'finish_edit',
+							'outputSummary' => $this->preview( wp_json_encode( array( 'ok' => true ) ), 220 ),
+						)
+					);
+					return $this->build_result( $snapshot, $summary, $usage );
+				}
+
+				$recoverable = array(
+					'ok'    => false,
+					'error' => array(
+						'type'      => 'agent_error',
+						'message'   => $finish_error,
+						'retryable' => $retryable,
+					),
+				);
+				foreach ( $finish_calls as $finish_call ) {
+					$this->emit_event(
+						array(
+							'event'         => 'tool_end',
+							'toolName'      => 'finish_edit',
+							'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
+						)
+					);
+					$tool_responses[] = Ai_Message::tool_response( $finish_call['id'], 'finish_edit', $recoverable );
 				}
 			}
 
@@ -442,6 +514,20 @@ class Ai_Agent {
 			return array();
 		}
 		return $payload['selectionRecords'];
+	}
+
+	/** Determine whether at least one selection can safely be resolved.
+	 *
+	 * @param array $selection_records Selection records keyed by ID.
+	 * @return bool
+	 */
+	private function has_resolvable_selection( array $selection_records ): bool {
+		foreach ( $selection_records as $record ) {
+			if ( is_array( $record ) && ! empty( $record['resolvable'] ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Build a bounded model-facing copy while retaining the canonical history.

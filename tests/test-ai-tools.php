@@ -304,4 +304,84 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 		$this->assertTrue( $first['truncated'] );
 		$this->assertSame( str_repeat( 'a', 20 ), $first['content'] . $next['content'] );
 	}
+
+	/** Blank document cursors are treated as an omitted first-page cursor. */
+	public function test_read_document_blank_cursor_starts_at_first_page(): void {
+		foreach ( array( '', " \t\n" ) as $cursor ) {
+			$result = Ai_Tools::run_read_document(
+				array(
+					'target'   => 'html',
+					'cursor'   => $cursor,
+					'maxChars' => 5,
+				),
+				$this->snapshot( 'abcdefghij' )
+			);
+			$this->assertSame( 'abcde', $result['content'] );
+		}
+	}
+
+	/** Blank selection cursors likewise start at the beginning. */
+	public function test_read_selection_blank_cursor_starts_at_first_page(): void {
+		$html    = '<p>Hello</p>';
+		$records = array(
+			's1' => array(
+				'startOffset' => 0,
+				'endOffset'   => Ai_Tools::utf16_length( $html ),
+				'contentHash' => hash( 'sha256', $html ),
+				'resolvable'  => true,
+			),
+		);
+		$result  = Ai_Tools::run_read_selection(
+			array(
+				'selectionId' => 's1',
+				'cursor'      => '   ',
+			),
+			$this->snapshot( $html ),
+			$records
+		);
+		$this->assertSame( $html, $result['content'] );
+	}
+
+	/** Non-empty guessed cursors remain a recoverable error with guidance. */
+	public function test_read_document_guessed_cursor_is_rejected(): void {
+		$this->expectException( Ai_Tool_Error::class );
+		$this->expectExceptionMessage( 'Omit cursor for the first page' );
+		Ai_Tools::run_read_document(
+			array(
+				'target' => 'html',
+				'cursor' => '0',
+			),
+			$this->snapshot( 'Hello' )
+		);
+	}
+
+	/** Legacy none placeholders are global only when no selection exists. */
+	public function test_none_selection_placeholder_without_records_is_global(): void {
+		$result = Ai_Tools::run_replace_string(
+			array(
+				'target'      => 'html',
+				'from'        => 'Hello',
+				'to'          => 'World',
+				'selectionId' => 'none',
+			),
+			$this->snapshot( '<p>Hello</p>' )
+		);
+		$this->assertSame( '<p>World</p>', $result['snapshot']['html'] );
+	}
+
+	/** A placeholder must not bypass a real available selection. */
+	public function test_none_selection_placeholder_with_records_is_rejected(): void {
+		$this->expectException( Ai_Tool_Error::class );
+		$this->expectExceptionMessage( 'Invalid selectionId' );
+		Ai_Tools::run_replace_string(
+			array(
+				'target'      => 'html',
+				'from'        => 'Hello',
+				'to'          => 'World',
+				'selectionId' => 'none',
+			),
+			$this->snapshot( '<p>Hello</p>' ),
+			array( 's1' => array( 'resolvable' => true ) )
+		);
+	}
 }

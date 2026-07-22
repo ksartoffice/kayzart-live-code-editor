@@ -81,16 +81,25 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The default tool set exposes the six editing tools only.
+	 * The default remains compatible with callers that predate dynamic context.
 	 */
 	public function test_build_tool_definitions_default_set(): void {
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ) );
 		$this->assertSame(
-			array( 'search_text', 'read_document', 'read_selection', 'replace_string', 'replace_many', 'set_js_mode' ),
+			array( 'search_text', 'read_document', 'read_selection', 'replace_string', 'replace_many', 'finish_edit', 'set_js_mode' ),
 			$this->tool_names( $tools )
 		);
-		$selected = $this->find_tool( $tools, 'read_selection' );
-		$this->assertContains( 'selectionId', $selected['parameters']['required'] );
+		$this->assertNotNull( $this->find_tool( $tools, 'read_selection' ) );
+		$this->assertArrayHasKey( 'selectionId', $this->find_tool( $tools, 'replace_string' )['parameters']['properties'] );
+		$this->assertArrayHasKey( 'selectionId', $this->find_tool( $tools, 'replace_many' )['parameters']['properties'] );
+	}
+
+	/** Selection-specific tools and arguments are omitted when unavailable. */
+	public function test_build_tool_definitions_without_selection_context(): void {
+		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ), false, false );
+		$this->assertNull( $this->find_tool( $tools, 'read_selection' ) );
+		$this->assertArrayNotHasKey( 'selectionId', $this->find_tool( $tools, 'replace_string' )['parameters']['properties'] );
+		$this->assertArrayNotHasKey( 'selectionId', $this->find_tool( $tools, 'replace_many' )['parameters']['properties'] );
 	}
 
 	/**
@@ -101,7 +110,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 		$names = $this->tool_names( $tools );
 		$this->assertContains( 'list_ai_edits', $names );
 		$this->assertContains( 'get_ai_edit', $names );
-		$this->assertCount( 8, $tools );
+		$this->assertCount( 9, $tools );
 	}
 
 	/**

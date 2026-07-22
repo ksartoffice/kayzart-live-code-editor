@@ -69,6 +69,220 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		);
 	}
 
+	/** Build a finish_edit marker call.
+	 *
+	 * @param string $id      Call ID.
+	 * @param mixed  $summary Summary argument.
+	 * @return array
+	 */
+	private function finish_call( string $id, $summary ): array {
+		return Ai_Message::tool_call( $id, 'finish_edit', array( 'summary' => $summary ) );
+	}
+
+	/** Agent tool exposure follows the presence of a resolvable selection. */
+	public function test_agent_builds_selection_aware_tool_schema(): void {
+		$without_selection = new Ai_Client_Fake();
+		$without_selection->queue_final_text( '{"summary":"not edited"}' );
+		try {
+			( new Ai_Agent( $without_selection ) )->run( $this->payload() );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
+		}
+		$without_names = array_column( $without_selection->calls()[0]['tools'], 'name' );
+		$this->assertNotContains( 'read_selection', $without_names );
+		$replace = array_values(
+			array_filter(
+				$without_selection->calls()[0]['tools'],
+				static function ( $tool ) {
+					return 'replace_string' === $tool['name'];
+				}
+			)
+		)[0];
+		$this->assertArrayNotHasKey( 'selectionId', $replace['parameters']['properties'] );
+
+		$html           = '<main>Hello</main>';
+		$with_selection = new Ai_Client_Fake();
+		$with_selection->queue_final_text( '{"summary":"not edited"}' );
+		$payload                     = $this->payload( $html );
+		$payload['selectionRecords'] = array(
+			's1' => array(
+				'startOffset' => 0,
+				'endOffset'   => strlen( $html ),
+				'contentHash' => hash( 'sha256', $html ),
+				'resolvable'  => true,
+			),
+		);
+		try {
+			( new Ai_Agent( $with_selection ) )->run( $payload );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
+		}
+		$with_names = array_column( $with_selection->calls()[0]['tools'], 'name' );
+		$this->assertContains( 'read_selection', $with_names );
+	}
+
+	/** A final edit and finish marker complete in the same model turn. */
+	public function test_edit_and_finish_complete_in_one_turn(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_result(
+			array(
+				'toolCalls' => array(
+					$this->finish_call( 'f1', 'Changed the greeting.' ),
+					$this->replace_call( 'e1', 'Hello', 'World' ),
+				),
+				'usage'     => array(
+					'inputTokens'  => 20,
+					'outputTokens' => 8,
+				),
+			)
+		);
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+		$this->assertSame( 'Changed the greeting.', $result['summary'] );
+		$this->assertSame( 20, $result['usage']['inputTokens'] );
+		$this->assertSame( 8, $result['usage']['outputTokens'] );
+		$this->assertCount( 1, $fake->calls() );
+	}
+
+	/** Multiple successful edits may share a response with one finish marker. */
+	public function test_parallel_edits_and_finish_complete_in_one_turn(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e1', 'Hello', 'World' ),
+				$this->replace_call( 'e2', '<main>', '<section>' ),
+				$this->replace_call( 'e3', '</main>', '</section>' ),
+				$this->finish_call( 'f1', 'Updated the greeting and wrapper.' ),
+			)
+		);
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( '<section>World</section>', $result['snapshot']['html'] );
+		$this->assertCount( 1, $fake->calls() );
+	}
+
+	/** The observed blank-cursor/no-selection sequence completes without looping. */
+	public function test_blank_cursor_and_none_selection_reproduction_completes(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'r1',
+					'read_document',
+					array(
+						'target' => 'css',
+						'cursor' => '',
+					)
+				),
+			)
+		);
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'e1',
+					'replace_string',
+					array(
+						'target'      => 'html',
+						'from'        => '',
+						'to'          => '<section class="testimonials">Customer voices</section>',
+						'selectionId' => 'none',
+					)
+				),
+				$this->finish_call( 'f1', 'Added a testimonials section.' ),
+			)
+		);
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload( '' ) );
+		$this->assertStringContainsString( 'testimonials', $result['snapshot']['html'] );
+		$this->assertCount( 2, $fake->calls() );
+	}
+
+	/** Any tool error in the turn invalidates finish and is visible next turn. */
+	public function test_tool_error_invalidates_finish_until_retry(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'bad', 'Missing', 'X' ),
+				$this->finish_call( 'f1', 'Not done.' ),
+			)
+		);
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'good', 'Hello', 'World' ),
+				$this->finish_call( 'f2', 'Recovered and edited.' ),
+			)
+		);
+
+		$result    = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+		$this->assertFalse( $responses[0]['output']['ok'] );
+		$this->assertFalse( $responses[1]['output']['ok'] );
+		$this->assertStringContainsString( 'another tool failed', $responses[1]['output']['error']['message'] );
+	}
+
+	/** Finish without a same-turn edit is rejected and can be retried. */
+	public function test_finish_only_is_rejected(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Too early.' ) ) );
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e1', 'Hello', 'World' ),
+				$this->finish_call( 'f2', 'Done.' ),
+			)
+		);
+		$result   = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$response = $fake->calls()[1]['messages'][2]['toolResponses'][0]['output'];
+		$this->assertSame( 'Done.', $result['summary'] );
+		$this->assertStringContainsString( 'same turn', $response['error']['message'] );
+	}
+
+	/** Duplicate finish calls are rejected rather than choosing one summary. */
+	public function test_duplicate_finish_calls_are_rejected(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e1', 'Hello', 'World' ),
+				$this->finish_call( 'f1', 'One.' ),
+				$this->finish_call( 'f2', 'Two.' ),
+			)
+		);
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e2', 'World', 'Done' ),
+				$this->finish_call( 'f3', 'Valid finish.' ),
+			)
+		);
+		$result    = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
+		$this->assertSame( '<main>Done</main>', $result['snapshot']['html'] );
+		$this->assertCount( 3, $responses );
+		$this->assertStringContainsString( 'only once', $responses[1]['output']['error']['message'] );
+		$this->assertStringContainsString( 'only once', $responses[2]['output']['error']['message'] );
+	}
+
+	/** Empty and oversized summaries are rejected by the runtime guard. */
+	public function test_invalid_finish_summaries_are_rejected(): void {
+		foreach ( array( '', str_repeat( 'a', 1001 ), 123 ) as $invalid_summary ) {
+			$fake = new Ai_Client_Fake();
+			$fake->queue_tool_calls(
+				array(
+					$this->replace_call( 'e1', 'Hello', 'World' ),
+					$this->finish_call( 'f1', $invalid_summary ),
+				)
+			);
+			$fake->queue_tool_calls(
+				array(
+					$this->replace_call( 'e2', 'World', 'Done' ),
+					$this->finish_call( 'f2', 'Valid.' ),
+				)
+			);
+			$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+			$this->assertSame( 'Valid.', $result['summary'] );
+			$this->assertFalse( $fake->calls()[1]['messages'][2]['toolResponses'][1]['output']['ok'] );
+		}
+	}
+
 	/**
 	 * A tool edit followed by a valid summary completes without finalization.
 	 */

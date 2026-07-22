@@ -305,16 +305,16 @@ class Ai_Tools {
 		$base_hash    = isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '';
 		$lines        = explode( "\n", $source );
 		$total_lines  = count( $lines );
-		$cursor       = isset( $args['cursor'] ) ? self::decode_cursor( (string) $args['cursor'] ) : null;
+		$cursor       = self::parse_optional_cursor( $args['cursor'] ?? null );
 		$start_offset = null;
 		if ( null !== $cursor ) {
 			if ( 'document' !== ( $cursor['type'] ?? '' ) || ( $cursor['target'] ?? '' ) !== $target || ( $cursor['baseHash'] ?? '' ) !== $base_hash ) {
-				throw new Ai_Tool_Error( 'read_document cursor is stale or belongs to another document.', false );
+				throw new Ai_Tool_Error( 'read_document cursor is stale or belongs to another document. Omit cursor to restart from the first page; for continuation, copy nextCursor exactly.', false );
 			}
 			$start_byte = max( 0, (int) ( $cursor['nextByteOffset'] ?? 0 ) );
 			$end_byte   = max( $start_byte, (int) ( $cursor['endByteOffset'] ?? strlen( $source ) ) );
 			if ( $end_byte > strlen( $source ) || ! mb_check_encoding( substr( $source, 0, $start_byte ), 'UTF-8' ) || ! mb_check_encoding( substr( $source, 0, $end_byte ), 'UTF-8' ) ) {
-				throw new Ai_Tool_Error( 'read_document cursor does not point to a valid UTF-8 boundary.', false );
+				throw new Ai_Tool_Error( 'read_document cursor does not point to a valid UTF-8 boundary. Omit cursor to restart from the first page; for continuation, copy nextCursor exactly.', false );
 			}
 			$start_offset = mb_strlen( substr( $source, 0, $start_byte ) );
 			$start_line   = substr_count( mb_substr( $source, 0, $start_offset ), "\n" ) + 1;
@@ -398,15 +398,15 @@ class Ai_Tools {
 			throw new Ai_Tool_Error( 'Selection is stale because the selected source changed.', false );
 		}
 		$offset = 0;
-		if ( isset( $args['cursor'] ) ) {
-			$cursor    = self::decode_cursor( (string) $args['cursor'] );
+		$cursor = self::parse_optional_cursor( $args['cursor'] ?? null );
+		if ( null !== $cursor ) {
 			$base_hash = isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '';
 			if ( 'selection' !== ( $cursor['type'] ?? '' ) || ( $cursor['selectionId'] ?? '' ) !== $id || ( $cursor['contentHash'] ?? '' ) !== $hash || ( $cursor['baseHash'] ?? '' ) !== $base_hash ) {
-				throw new Ai_Tool_Error( 'read_selection cursor is stale or belongs to another selection.', false );
+				throw new Ai_Tool_Error( 'read_selection cursor is stale or belongs to another selection. Omit cursor to restart from the first page; for continuation, copy nextCursor exactly.', false );
 			}
 			$byte_offset = max( 0, (int) ( $cursor['nextByteOffset'] ?? 0 ) );
 			if ( $byte_offset > strlen( $content ) || ! mb_check_encoding( substr( $content, 0, $byte_offset ), 'UTF-8' ) ) {
-				throw new Ai_Tool_Error( 'read_selection cursor does not point to a valid UTF-8 boundary.', false );
+				throw new Ai_Tool_Error( 'read_selection cursor does not point to a valid UTF-8 boundary. Omit cursor to restart from the first page; for continuation, copy nextCursor exactly.', false );
 			}
 			$offset = mb_strlen( substr( $content, 0, $byte_offset ) );
 		}
@@ -449,7 +449,7 @@ class Ai_Tools {
 		$target       = (string) $args['target'];
 		$current      = self::get_snapshot_source( $snapshot, $target );
 		$scope        = null;
-		$selection_id = isset( $args['selectionId'] ) ? (string) $args['selectionId'] : '';
+		$selection_id = self::normalize_optional_selection_id( $args['selectionId'] ?? null, $selection_records );
 		if ( '' !== $selection_id ) {
 			if ( 'html' !== $target ) {
 				throw new Ai_Tool_Error( 'selectionId can only scope HTML replacements.', false );
@@ -708,6 +708,49 @@ class Ai_Tools {
 		return max( 1, min( self::MAX_READ_CHARS, $value ) );
 	}
 
+	/** Parse an optional read cursor, treating blank strings as omitted.
+	 *
+	 * @param mixed $value Raw cursor value.
+	 * @return array|null
+	 * @throws Ai_Tool_Error When a non-empty cursor is malformed.
+	 */
+	private static function parse_optional_cursor( $value ) {
+		if ( null === $value ) {
+			return null;
+		}
+		$cursor = trim( (string) $value );
+		if ( '' === $cursor ) {
+			return null;
+		}
+		return self::decode_cursor( $cursor );
+	}
+
+	/** Normalize an optional selection identifier.
+	 *
+	 * Placeholder values are tolerated only when no selection records exist,
+	 * which keeps older model output safe while preserving strict scoping when
+	 * a real selection is available.
+	 *
+	 * @param mixed $value             Raw selection identifier.
+	 * @param array $selection_records Selection records keyed by ID.
+	 * @return string
+	 * @throws Ai_Tool_Error When a placeholder is used despite available selections.
+	 */
+	private static function normalize_optional_selection_id( $value, array $selection_records ): string {
+		$selection_id = trim( (string) ( null === $value ? '' : $value ) );
+		if ( '' === $selection_id ) {
+			return '';
+		}
+		$lower = strtolower( $selection_id );
+		if ( in_array( $lower, array( 'none', 'null' ), true ) ) {
+			if ( 0 === count( $selection_records ) ) {
+				return '';
+			}
+			throw new Ai_Tool_Error( 'Invalid selectionId. Omit selectionId for a global edit, or copy an available selectionId exactly.', false );
+		}
+		return $selection_id;
+	}
+
 	/** Encode an opaque pagination cursor.
 	 *
 	 * @param array $value Cursor payload.
@@ -732,7 +775,7 @@ class Ai_Tools {
 		$json = base64_decode( strtr( $value, '-_', '+/' ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes our opaque pagination token.
 		$data = is_string( $json ) ? json_decode( $json, true ) : null;
 		if ( ! is_array( $data ) || 1 !== (int) ( $data['v'] ?? 0 ) ) {
-			throw new Ai_Tool_Error( 'Invalid read cursor.', false );
+			throw new Ai_Tool_Error( 'Invalid read cursor. Omit cursor for the first page; for continuation, copy nextCursor exactly from the previous read response.', false );
 		}
 		return $data;
 	}

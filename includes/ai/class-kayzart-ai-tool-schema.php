@@ -102,10 +102,44 @@ class Ai_Tool_Schema {
 	 *
 	 * @param array<int,string> $editable_targets Editable target allow list.
 	 * @param bool              $has_history_tool Whether to expose history tools.
+	 * @param bool              $has_selection_context Whether resolvable selection context exists.
 	 * @return array<int,array> Tool definitions.
 	 */
-	public static function build_tool_definitions( array $editable_targets, bool $has_history_tool = false ): array {
+	public static function build_tool_definitions( array $editable_targets, bool $has_history_tool = false, bool $has_selection_context = true ): array {
 		$editable_target_enum = array_values( $editable_targets );
+		$replace_properties   = array(
+			'target'     => array(
+				'type' => 'string',
+				'enum' => $editable_target_enum,
+			),
+			'from'       => array( 'type' => 'string' ),
+			'to'         => array( 'type' => 'string' ),
+			'replaceAll' => array( 'type' => 'boolean' ),
+		);
+		$many_properties      = array(
+			'target'       => array(
+				'type' => 'string',
+				'enum' => $editable_target_enum,
+			),
+			'replacements' => array(
+				'type'     => 'array',
+				'minItems' => 1,
+				'items'    => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'from'       => array( 'type' => 'string' ),
+						'to'         => array( 'type' => 'string' ),
+						'replaceAll' => array( 'type' => 'boolean' ),
+					),
+					'required'             => array( 'from', 'to' ),
+					'additionalProperties' => false,
+				),
+			),
+		);
+		if ( $has_selection_context ) {
+			$replace_properties['selectionId'] = array( 'type' => 'string' );
+			$many_properties['selectionId']    = array( 'type' => 'string' );
+		}
 
 		$tools = array(
 			array(
@@ -133,7 +167,7 @@ class Ai_Tool_Schema {
 			array(
 				'type'        => 'function',
 				'name'        => 'read_document',
-				'description' => 'Read lines from html/head/css/js for close inspection.',
+				'description' => 'Read lines from html/head/css/js for close inspection. Omit cursor on the first read; only for continuation, copy the previous nextCursor exactly.',
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(
@@ -162,39 +196,11 @@ class Ai_Tool_Schema {
 			),
 			array(
 				'type'        => 'function',
-				'name'        => 'read_selection',
-				'description' => 'Read the exact current source for one selected HTML element. Continue with nextCursor only when needed.',
-				'parameters'  => array(
-					'type'                 => 'object',
-					'properties'           => array(
-						'selectionId' => array( 'type' => 'string' ),
-						'cursor'      => array( 'type' => 'string' ),
-						'maxChars'    => array(
-							'type'    => 'integer',
-							'minimum' => 1,
-							'maximum' => Ai_Tools::MAX_READ_CHARS,
-						),
-					),
-					'required'             => array( 'selectionId' ),
-					'additionalProperties' => false,
-				),
-			),
-			array(
-				'type'        => 'function',
 				'name'        => 'replace_string',
 				'description' => 'Replace one or more exact string matches in editable targets and update the working snapshot. from may be empty only when the target document is blank (for initialization).',
 				'parameters'  => array(
 					'type'                 => 'object',
-					'properties'           => array(
-						'target'      => array(
-							'type' => 'string',
-							'enum' => $editable_target_enum,
-						),
-						'from'        => array( 'type' => 'string' ),
-						'to'          => array( 'type' => 'string' ),
-						'replaceAll'  => array( 'type' => 'boolean' ),
-						'selectionId' => array( 'type' => 'string' ),
-					),
+					'properties'           => $replace_properties,
 					'required'             => array( 'target', 'from', 'to' ),
 					'additionalProperties' => false,
 				),
@@ -205,28 +211,25 @@ class Ai_Tool_Schema {
 				'description' => 'Apply multiple exact string replacements in order against editable targets. The same empty-from rule as replace_string applies to each step.',
 				'parameters'  => array(
 					'type'                 => 'object',
-					'properties'           => array(
-						'target'       => array(
-							'type' => 'string',
-							'enum' => $editable_target_enum,
-						),
-						'replacements' => array(
-							'type'     => 'array',
-							'minItems' => 1,
-							'items'    => array(
-								'type'                 => 'object',
-								'properties'           => array(
-									'from'       => array( 'type' => 'string' ),
-									'to'         => array( 'type' => 'string' ),
-									'replaceAll' => array( 'type' => 'boolean' ),
-								),
-								'required'             => array( 'from', 'to' ),
-								'additionalProperties' => false,
-							),
-						),
-						'selectionId'  => array( 'type' => 'string' ),
-					),
+					'properties'           => $many_properties,
 					'required'             => array( 'target', 'replacements' ),
+					'additionalProperties' => false,
+				),
+			),
+			array(
+				'type'        => 'function',
+				'name'        => 'finish_edit',
+				'description' => 'Finish the edit with a concise summary. Include this in the same model response as the final successful edit tools when no further inspection is needed.',
+				'parameters'  => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'summary' => array(
+							'type'      => 'string',
+							'minLength' => 1,
+							'maxLength' => 1000,
+						),
+					),
+					'required'             => array( 'summary' ),
 					'additionalProperties' => false,
 				),
 			),
@@ -247,6 +250,35 @@ class Ai_Tool_Schema {
 				),
 			),
 		);
+
+		if ( $has_selection_context ) {
+			array_splice(
+				$tools,
+				2,
+				0,
+				array(
+					array(
+						'type'        => 'function',
+						'name'        => 'read_selection',
+						'description' => 'Read the exact current source for one selected HTML element. Omit cursor on the first read; only for continuation, copy the previous nextCursor exactly.',
+						'parameters'  => array(
+							'type'                 => 'object',
+							'properties'           => array(
+								'selectionId' => array( 'type' => 'string' ),
+								'cursor'      => array( 'type' => 'string' ),
+								'maxChars'    => array(
+									'type'    => 'integer',
+									'minimum' => 1,
+									'maximum' => Ai_Tools::MAX_READ_CHARS,
+								),
+							),
+							'required'             => array( 'selectionId' ),
+							'additionalProperties' => false,
+						),
+					),
+				)
+			);
+		}
 
 		if ( $has_history_tool ) {
 			$tools[] = array(

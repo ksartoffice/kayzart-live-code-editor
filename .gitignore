@@ -1,5 +1,7 @@
 /node_modules
-/assets/dist/
+/assets/dist/*
+!/assets/dist/ai-editor.js
+!/assets/dist/ai-editor.css
 /assets/monaco/
 /vendor
 /.wordpress

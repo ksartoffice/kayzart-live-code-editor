@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
 class Test_Admin_Settings extends WP_UnitTestCase {
@@ -27,6 +28,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
+		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -72,6 +74,53 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'hidden' ) );
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( '' ) );
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( array() ) );
+	}
+
+	public function test_sanitize_ai_default_model_validates_against_discovered_models(): void {
+		$filter = static function ( $models ) {
+			return array_merge( $models, array(
+				array(
+					'id'    => 'provider/model-a',
+					'label' => 'Model A',
+				),
+			) );
+		};
+		add_filter( 'kayzart_ai_available_models', $filter );
+
+		try {
+			$this->assertSame( 'provider/model-a', Admin::sanitize_ai_default_model( 'provider/model-a' ) );
+			$this->assertSame( '', Admin::sanitize_ai_default_model( 'provider/model-b' ) );
+			$this->assertSame( '', Admin::sanitize_ai_default_model( '' ) );
+		} finally {
+			remove_filter( 'kayzart_ai_available_models', $filter );
+		}
+	}
+
+	public function test_render_ai_default_model_field_discovers_models_once(): void {
+		$calls  = 0;
+		$filter = static function ( $models ) use ( &$calls ) {
+			++$calls;
+			return array_merge( $models, array(
+				array(
+					'id'    => 'provider/model-a',
+					'label' => 'Model A',
+				),
+			) );
+		};
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+		add_filter( 'kayzart_ai_available_models', $filter );
+
+		try {
+			ob_start();
+			Admin::render_ai_default_model_field();
+			$output = ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_available_models', $filter );
+		}
+
+		$this->assertSame( 1, $calls );
+		$this->assertStringContainsString( 'value="provider/model-a"', $output );
+		$this->assertStringContainsString( "selected='selected'", $output );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -371,8 +420,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		$original_get    = $_GET;
-		$_GET['post_id'] = (string) $post_id;
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 		$before          = did_action( 'wp_enqueue_media' );
 
@@ -430,8 +479,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		$original_get     = $_GET;
-		$_GET['post_id']  = (string) $post_id;
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
@@ -452,6 +501,63 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'documentHtmlAttributes', $payload );
 		$this->assertIsString( $payload['documentHtmlAttributes'] );
 		$this->assertStringContainsString( 'lang=', $payload['documentHtmlAttributes'] );
+	}
+
+	/**
+	 * Editor configuration includes the complete AI availability status.
+	 */
+	public function test_enqueue_assets_inline_config_includes_ai_availability(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+
+		wp_dequeue_script( 'kayzart-admin' );
+		wp_deregister_script( 'kayzart-admin' );
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+		$_GET = $original_get;
+
+		remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+
+		$registered    = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$payload = json_decode( $matches[1] ?? '', true );
+
+		$this->assertSame(
+			array(
+				'available'           => true,
+				'featureEnabled'      => true,
+				'sdkPresent'          => true,
+				'providerConfigured'  => true,
+				'schedulerPresent'    => true,
+				'canEdit'             => true,
+				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
+				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
+				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'canManageConnectors' => true,
+			),
+			$payload['ai'] ?? null
+		);
 	}
 
 	public function test_enqueue_assets_inline_config_includes_default_editor_layout(): void {
@@ -543,8 +649,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		};
 		add_action( 'kayzart_editor_enqueue_assets', $listener, 10, 1 );
 
-		$original_get    = $_GET;
-		$_GET['post_id'] = (string) $post_id;
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );

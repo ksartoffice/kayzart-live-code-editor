@@ -33,6 +33,7 @@ class Admin {
 	const OPTION_ENABLED_POST_TYPES    = 'kayzart_enabled_post_types';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_DEFAULT_EDITOR_LAYOUT = 'kayzart_default_editor_layout';
+	const OPTION_AI_DEFAULT_MODEL      = 'kayzart_ai_default_model';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
@@ -744,6 +745,16 @@ class Admin {
 			)
 		);
 
+		register_setting(
+			self::SETTINGS_GROUP,
+			self::OPTION_AI_DEFAULT_MODEL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_ai_default_model' ),
+				'default'           => '',
+			)
+		);
+
 		if ( self::should_show_post_slug_settings() ) {
 			add_settings_section(
 				'kayzart_permalink',
@@ -807,6 +818,21 @@ class Admin {
 			self::SETTINGS_SLUG,
 			'kayzart_post_types'
 		);
+
+		add_settings_section(
+			'kayzart_ai',
+			__( 'AI editing', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_section' ),
+			self::SETTINGS_SLUG
+		);
+
+		add_settings_field(
+			self::OPTION_AI_DEFAULT_MODEL,
+			__( 'Default AI model', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_default_model_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai'
+		);
 	}
 
 	/**
@@ -854,6 +880,48 @@ class Admin {
 		$layout = is_string( $value ) ? sanitize_key( $value ) : '';
 		$valid  = array( 'code_visible', 'code_hidden' );
 		return in_array( $layout, $valid, true ) ? $layout : 'code_visible';
+	}
+
+	/**
+	 * Sanitize the default AI model. Empty means auto (let the AI Client pick).
+	 *
+	 * Only a model currently offered by the SDK is accepted; anything else
+	 * (including a model that vanished from the catalog) falls back to auto.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	public static function sanitize_ai_default_model( $value ): string {
+		$model = is_string( $value ) ? trim( $value ) : '';
+		if ( '' === $model ) {
+			return '';
+		}
+		return self::validate_ai_default_model( $model, Ai_Models::available_for_text() );
+	}
+
+	/**
+	 * Validate a default AI model against an already discovered model list.
+	 *
+	 * Keeping this separate lets the settings field use one catalog lookup for
+	 * both validation and rendering. The public sanitizer still performs its own
+	 * lookup when WordPress saves a submitted setting.
+	 *
+	 * @param string                                   $model     Normalized model ID.
+	 * @param array<int,array{id:string,label:string}> $available Discovered models.
+	 * @return string
+	 */
+	private static function validate_ai_default_model( string $model, array $available ): string {
+		if ( empty( $available ) ) {
+			// Catalog could not be verified (provider offline, SDK missing). Keep
+			// the submitted value rather than silently resetting a valid choice.
+			return $model;
+		}
+		foreach ( $available as $candidate ) {
+			if ( $candidate['id'] === $model ) {
+				return $model;
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -996,6 +1064,38 @@ class Admin {
 		}
 
 		echo '<p class="description">' . esc_html__( 'Existing posts are converted only when you choose Convert to landing page or create one with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
+	}
+
+	/**
+	 * Render AI editing section description.
+	 */
+	public static function render_ai_section(): void {
+
+		echo '<p>' . esc_html__( 'Choose which model AI editing uses. Auto lets the configured AI provider pick.', 'kayzart-live-code-editor' ) . '</p>';
+	}
+
+	/**
+	 * Render the default AI model select field.
+	 */
+	public static function render_ai_default_model_field(): void {
+
+		$models = Ai_Models::available_for_text();
+		$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
+		$model  = is_string( $stored ) ? trim( $stored ) : '';
+		$value  = '' === $model ? '' : self::validate_ai_default_model( $model, $models );
+
+		echo '<select name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '">';
+		echo '<option value="" ' . selected( '', $value, false ) . '>' . esc_html__( 'Auto (recommended)', 'kayzart-live-code-editor' ) . '</option>';
+		foreach ( $models as $model ) {
+			echo '<option value="' . esc_attr( $model['id'] ) . '" ' . selected( $model['id'], $value, false ) . '>' . esc_html( $model['label'] ) . '</option>';
+		}
+		echo '</select>';
+
+		if ( empty( $models ) ) {
+			echo '<p class="description">' . esc_html__( 'No selectable models were found. Configure an AI provider (Connector); editing will use the provider default until then.', 'kayzart-live-code-editor' ) . '</p>';
+		} else {
+			echo '<p class="description">' . esc_html__( 'Auto follows the provider default and any newly added models automatically.', 'kayzart-live-code-editor' ) . '</p>';
+		}
 	}
 
 	/**
@@ -1196,7 +1296,8 @@ class Admin {
 			)
 			: $preview_url;
 
-		$data = array(
+		$ai_status = Ai_Availability::get_status();
+		$data      = array(
 			'post_id'                => $post_id,
 			'initialHtml'            => $html,
 			'initialCustomHead'      => $custom_head,
@@ -1227,8 +1328,22 @@ class Admin {
 			'canUpdateCore'          => current_user_can( 'update_core' ),
 			'updateCoreUrl'          => current_user_can( 'update_core' ) ? admin_url( 'update-core.php' ) : '',
 			'adminTitleSeparators'   => array_values( self::ADMIN_TITLE_SEPARATORS ),
+			'ai'                     => array(
+				'available'           => $ai_status['available'],
+				'featureEnabled'      => $ai_status['feature_enabled'],
+				'sdkPresent'          => $ai_status['sdk_present'],
+				'providerConfigured'  => $ai_status['provider_configured'],
+				'schedulerPresent'    => $ai_status['scheduler_present'],
+				'canEdit'             => current_user_can( Ai_Setup::CAPABILITY ),
+				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
+				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
+				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'canManageConnectors' => current_user_can( 'manage_options' ),
+			),
 		);
-		$json = wp_json_encode( $data );
+		$json      = wp_json_encode( $data );
 		if ( false === $json ) {
 			$json = '{}';
 		}

@@ -1,13 +1,16 @@
 {
   "name": "kayzart-live-code-editor",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "description": "Live HTML/CSS/JS editor with a custom Kayzart post type, CodeMirror editor, and live preview.",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "version:set": "node scripts/version-set.mjs",
     "version:check": "node scripts/version-check.mjs",
     "dev": "vite",
-    "build": "vite build",
+    "dev:ai": "vite build --watch --config vite.config.ai.ts",
+    "build": "npm run build:admin && npm run build:ai",
+    "build:admin": "vite build",
+    "build:ai": "vite build --config vite.config.ai.ts",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "plugin-zip": "npm run build && composer install --no-dev --optimize-autoloader && node scripts/plugin-zip.mjs && composer install",

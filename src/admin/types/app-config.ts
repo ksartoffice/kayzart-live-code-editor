@@ -30,4 +30,18 @@ export type AppConfig = {
   canUpdateCore?: boolean;
   updateCoreUrl?: string;
   adminTitleSeparators?: string[];
+  ai?: {
+    available: boolean;
+    featureEnabled: boolean;
+    sdkPresent: boolean;
+    providerConfigured: boolean;
+    schedulerPresent: boolean;
+    canEdit: boolean;
+    jobsUrl: string;
+    jobsBaseUrl: string;
+    timelineUrl: string;
+    timelineBaseUrl: string;
+    connectorsUrl: string;
+    canManageConnectors: boolean;
+  };
 };

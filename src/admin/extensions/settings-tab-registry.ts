@@ -65,6 +65,7 @@ export type KayzArtExtensionApi = {
   registerToolbarAction?: RegisterToolbarAction;
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
+  subscribeEditorSnapshot?: (listener: () => void) => () => void;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
   reloadPreview?: () => void;
   getEditorMode?: () => EditorMode;

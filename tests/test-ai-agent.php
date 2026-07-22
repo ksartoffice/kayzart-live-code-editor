@@ -145,6 +145,60 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertCount( 1, $fake->calls() );
 	}
 
+	/** A finish-only turn is accepted after a prior successful edit. */
+	public function test_delayed_finish_completes_after_prior_edit(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_result(
+			array(
+				'toolCalls' => array( $this->replace_call( 'e1', 'Hello', 'World' ) ),
+				'usage'     => array(
+					'inputTokens'  => 10,
+					'outputTokens' => 3,
+				),
+			)
+		);
+		$fake->queue_result(
+			array(
+				'toolCalls' => array( $this->finish_call( 'f1', 'Changed the greeting.' ) ),
+				'usage'     => array(
+					'inputTokens'  => 20,
+					'outputTokens' => 4,
+				),
+			)
+		);
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+		$this->assertSame( 'Changed the greeting.', $result['summary'] );
+		$this->assertSame( 30, $result['usage']['inputTokens'] );
+		$this->assertSame( 7, $result['usage']['outputTokens'] );
+		$this->assertCount( 2, $fake->calls() );
+	}
+
+	/** Successful read-only turns preserve readiness for a delayed finish. */
+	public function test_read_only_turn_preserves_finish_readiness(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ) ) );
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					's1',
+					'search_text',
+					array(
+						'query'  => 'World',
+						'target' => 'html',
+					)
+				),
+				Ai_Message::tool_call( 'r1', 'read_document', array( 'target' => 'html' ) ),
+			)
+		);
+		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Verified the greeting change.' ) ) );
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( 'Verified the greeting change.', $result['summary'] );
+		$this->assertCount( 3, $fake->calls() );
+	}
+
 	/** Multiple successful edits may share a response with one finish marker. */
 	public function test_parallel_edits_and_finish_complete_in_one_turn(): void {
 		$fake = new Ai_Client_Fake();
@@ -221,7 +275,52 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'another tool failed', $responses[1]['output']['error']['message'] );
 	}
 
-	/** Finish without a same-turn edit is rejected and can be retried. */
+	/** An error after a successful edit blocks finish until another edit succeeds. */
+	public function test_later_error_clears_finish_readiness(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ) ) );
+		$fake->queue_tool_calls( array( $this->replace_call( 'bad', 'Missing', 'X' ) ) );
+		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Not yet.' ) ) );
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e2', 'World', 'Done' ),
+				$this->finish_call( 'f2', 'Recovered and finished.' ),
+			)
+		);
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( '<main>Done</main>', $result['snapshot']['html'] );
+		$this->assertSame( 'Recovered and finished.', $result['summary'] );
+		$this->assertCount( 4, $fake->calls() );
+		$finish_response = $fake->calls()[3]['messages'][6]['toolResponses'][0]['output'];
+		$this->assertStringContainsString( 'no unresolved tool errors', $finish_response['error']['message'] );
+	}
+
+	/** A mixed success/error batch cannot finish on its partial edit. */
+	public function test_mixed_edit_results_invalidate_same_turn_finish(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'good', 'Hello', 'World' ),
+				$this->replace_call( 'bad', 'Missing', 'X' ),
+				$this->finish_call( 'f1', 'Partial.' ),
+			)
+		);
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'e2', 'World', 'Done' ),
+				$this->finish_call( 'f2', 'Completed after retry.' ),
+			)
+		);
+
+		$result    = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
+		$this->assertSame( '<main>Done</main>', $result['snapshot']['html'] );
+		$this->assertFalse( $responses[1]['output']['ok'] );
+		$this->assertStringContainsString( 'another tool failed', $responses[2]['output']['error']['message'] );
+	}
+
+	/** Finish before any successful edit is rejected and can be retried. */
 	public function test_finish_only_is_rejected(): void {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Too early.' ) ) );
@@ -234,7 +333,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$result   = ( new Ai_Agent( $fake ) )->run( $this->payload() );
 		$response = $fake->calls()[1]['messages'][2]['toolResponses'][0]['output'];
 		$this->assertSame( 'Done.', $result['summary'] );
-		$this->assertStringContainsString( 'same turn', $response['error']['message'] );
+		$this->assertStringContainsString( 'no unresolved tool errors', $response['error']['message'] );
 	}
 
 	/** Duplicate finish calls are rejected rather than choosing one summary. */
@@ -249,13 +348,12 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		);
 		$fake->queue_tool_calls(
 			array(
-				$this->replace_call( 'e2', 'World', 'Done' ),
 				$this->finish_call( 'f3', 'Valid finish.' ),
 			)
 		);
 		$result    = ( new Ai_Agent( $fake ) )->run( $this->payload() );
 		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
-		$this->assertSame( '<main>Done</main>', $result['snapshot']['html'] );
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
 		$this->assertCount( 3, $responses );
 		$this->assertStringContainsString( 'only once', $responses[1]['output']['error']['message'] );
 		$this->assertStringContainsString( 'only once', $responses[2]['output']['error']['message'] );
@@ -273,7 +371,6 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 			);
 			$fake->queue_tool_calls(
 				array(
-					$this->replace_call( 'e2', 'World', 'Done' ),
 					$this->finish_call( 'f2', 'Valid.' ),
 				)
 			);

@@ -219,7 +219,7 @@ class Ai_Tool_Schema {
 			array(
 				'type'        => 'function',
 				'name'        => 'finish_edit',
-				'description' => 'Finish the edit with a concise summary. Include this in the same model response as the final successful edit tools when no further inspection is needed.',
+				'description' => 'Finish the edit with a concise summary. Prefer including this with the final successful edit tools; it may also be called alone after a prior successful edit when there are no unresolved tool errors.',
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(

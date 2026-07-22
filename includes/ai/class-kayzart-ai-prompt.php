@@ -64,8 +64,9 @@ Rules:
 - If replace_string or replace_many fails, do not repeat the same from string. Inspect the current document with read_document or search_text, then retry with an exact current string.
 - If a replacement is ambiguous, use replaceAll only when every match should change. Otherwise use a longer unique from string from the current document.
 - After inspecting the source, group related exact replacements for the same target into one replace_many call when they can be applied safely in order.
-- When the final edits need no further inspection, include finish_edit with a concise summary in the same response as those edit tool calls. Do not call finish_edit when another verification or edit turn is needed.
-- If an edit already succeeded in an earlier turn and no final edit can be combined with finish_edit, return the final summary JSON instead of making extra inspection calls.
+- When the final edits need no further inspection, include finish_edit with a concise summary in the same response as those edit tool calls. This is the shortest completion path.
+- If a successful edit already completed in an earlier turn with no unresolved tool errors, call finish_edit by itself when no further inspection or editing is needed.
+- If you do not call finish_edit after a successful edit, return the final summary JSON instead of making extra inspection calls.
 - HTML must be a body fragment only. Do not generate <!doctype>, <html>, <head>, or <body> tags.
 - Head edits target only the custom additions inserted inside the document <head>. Do not generate <!doctype>, <html>, <head>, or <body> wrapper tags in head.
 - Do not add stylesheet/script links in HTML. CSS and JS are loaded from separate editor tabs.

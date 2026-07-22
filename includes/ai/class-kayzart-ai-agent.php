@@ -158,6 +158,7 @@ class Ai_Agent {
 		$messages = array( Ai_Message::user( Ai_Prompt::build_user_prompt( $payload ) ) );
 
 		$applied_edit_operation = false;
+		$finish_ready           = false;
 		$usage                  = self::empty_usage();
 		$repeated_failures      = array();
 
@@ -281,6 +282,12 @@ class Ai_Agent {
 				}
 			}
 
+			if ( $turn_had_error ) {
+				$finish_ready = false;
+			} elseif ( $turn_had_edit ) {
+				$finish_ready = true;
+			}
+
 			if ( count( $finish_calls ) > 0 ) {
 				$finish_error = '';
 				$summary      = '';
@@ -298,8 +305,8 @@ class Ai_Agent {
 					} elseif ( $turn_had_error ) {
 						$finish_error = 'finish_edit was not accepted because another tool failed in this turn. Inspect the error and retry the required edit.';
 						$retryable    = true;
-					} elseif ( ! $turn_had_edit ) {
-						$finish_error = 'finish_edit requires at least one successful edit tool in the same turn.';
+					} elseif ( ! $finish_ready ) {
+						$finish_error = 'finish_edit requires a successful edit with no unresolved tool errors.';
 						$retryable    = true;
 					}
 				}

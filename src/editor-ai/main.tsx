@@ -100,6 +100,9 @@ function formatDuration(seconds: number) {
 function AiIcon() {
   return <svg className="kayzart-ai-result-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l1.7 6.3a2.1 2.1 0 0 0 1.5 1.5l6.3 1.7-6.3 1.7a2.1 2.1 0 0 0-1.5 1.5L12 21.5l-1.7-6.3a2.1 2.1 0 0 0-1.5-1.5L2.5 12l6.3-1.7a2.1 2.1 0 0 0 1.5-1.5L12 2.5z" /></svg>;
 }
+function RestoreIcon() {
+  return <svg className="kayzart-ai-system-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M4 12h11a5 5 0 0 1 0 10h-3" /></svg>;
+}
 
 function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   if (ai.available) return null;
@@ -346,8 +349,8 @@ export function AiEditorPanel() {
       {!loading && !items.length && !optimistic ? <p className="kayzart-ai-empty">{__('Describe the landing page change you want.', 'kayzart-live-code-editor')}</p> : null}
       {items.map((item) => item.type === 'ai_edit' ? renderAi(item) : item.type === 'save' ? <div className="kayzart-ai-save-divider" key={item.activityId}>
         <span>変更を保存しました・</span>{item.revisionAvailable ? <button type="button" onClick={() => host()?.openSettingsTab?.('history')}>Revision #{item.revisionId}</button> : <><span>Revision #{item.revisionId}</span><em>Revisionは削除済みです</em></>}
-      </div> : <div className="kayzart-ai-system" key={item.activityId}>
-        <strong>{sprintf(item.restoreTarget === 'before' ? __('Restored the state before edit #%d', 'kayzart-live-code-editor') : __('Restored the state after edit #%d', 'kayzart-live-code-editor'), item.sourceActivityId || 0)}</strong><small>{item.author.name} · {formatDate(item.createdAt)}</small>
+      </div> : <div className={`kayzart-ai-system is-${item.restoreTarget === 'before' ? 'before' : 'after'}`} key={item.activityId}>
+        <RestoreIcon /><strong>{sprintf(item.restoreTarget === 'before' ? '編集 #%d の変更前に戻しました' : '編集 #%d の結果を復元しました', item.sourceActivityId || 0)}</strong><small>{item.author.name} · {formatDate(item.createdAt)}</small>
       </div>)}
       {optimistic && !items.some((item) => item.requestId === optimistic.requestId) ? <div className="kayzart-ai-exchange">
         <div className="kayzart-ai-message kayzart-ai-message-user"><p>{optimistic.prompt}</p><small>{optimistic.contexts.map(contextLabel).join(', ')}</small></div>

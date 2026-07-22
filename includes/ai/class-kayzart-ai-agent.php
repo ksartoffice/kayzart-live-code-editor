@@ -89,6 +89,12 @@ class Ai_Agent {
 	 */
 	private $debug_input_parts = array();
 
+	/** Privacy-safe size statistics for the latest edit footprint.
+	 *
+	 * @var array<string,int|string|bool>
+	 */
+	private $debug_edit_footprint_stats = array();
+
 	/** Privacy-safe statistics for the most recent model context projection.
 	 *
 	 * @var array<string,int>
@@ -129,17 +135,18 @@ class Ai_Agent {
 	 * @throws Ai_Agent_Error On an unrecoverable loop outcome.
 	 */
 	public function run( array $payload ): array {
-		$edit_policy             = Ai_Tool_Schema::resolve_edit_policy(
+		$edit_policy                      = Ai_Tool_Schema::resolve_edit_policy(
 			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
 			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : ''
 		);
-		$editable_targets        = $edit_policy['editableTargets'];
-		$has_history_tool        = ! empty( $payload['historyTool'] );
-		$selection_records       = $this->resolve_selection_records( $payload );
-		$has_selection_context   = $this->has_resolvable_selection( $selection_records );
-		$tools                   = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
-		$snapshot                = $this->initial_snapshot( $payload );
-		$this->debug_input_parts = Ai_Prompt::debug_input_parts( $payload );
+		$editable_targets                 = $edit_policy['editableTargets'];
+		$has_history_tool                 = ! empty( $payload['historyTool'] );
+		$selection_records                = $this->resolve_selection_records( $payload );
+		$has_selection_context            = $this->has_resolvable_selection( $selection_records );
+		$tools                            = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
+		$snapshot                         = $this->initial_snapshot( $payload );
+		$this->debug_input_parts          = Ai_Prompt::debug_input_parts( $payload );
+		$this->debug_edit_footprint_stats = $this->build_debug_edit_footprint_stats( $payload );
 
 		$turn_options         = array(
 			'systemInstruction' => Ai_Prompt::system_prompt(),
@@ -832,6 +839,7 @@ class Ai_Agent {
 			'providerOverheadOrError' => $input_tokens - $estimated_total,
 			'estimateMethod'          => 'ceil(UTF-8 bytes / 4); per-part values are approximate',
 			'contextProjection'       => $this->model_context_stats,
+			'editFootprint'           => $this->debug_edit_footprint_stats,
 			'messageStructure'        => $structure['messages'],
 			'toolTotals'              => $structure['toolTotals'],
 			'parts'                   => $parts,
@@ -984,6 +992,42 @@ class Ai_Agent {
 		return array(
 			'characters' => mb_strlen( $value ),
 			'bytes'      => strlen( $value ),
+		);
+	}
+
+	/** Build content-free size metrics for the latest edit footprint.
+	 *
+	 * @param array $payload Agent request payload.
+	 * @return array
+	 */
+	private function build_debug_edit_footprint_stats( array $payload ): array {
+		$history = isset( $payload['recentEditContext'] ) && is_array( $payload['recentEditContext'] ) ? $payload['recentEditContext'] : array();
+		if ( 0 === count( $history ) ) {
+			return array( 'present' => false );
+		}
+		$latest    = end( $history );
+		$footprint = is_array( $latest ) && isset( $latest['editFootprint'] ) && is_array( $latest['editFootprint'] ) ? $latest['editFootprint'] : array();
+		if ( 0 === count( $footprint ) ) {
+			return array( 'present' => false );
+		}
+		$content = '';
+		$changes = isset( $footprint['changes'] ) && is_array( $footprint['changes'] ) ? $footprint['changes'] : array();
+		foreach ( $changes as $change ) {
+			if ( ! is_array( $change ) ) {
+				continue;
+			}
+			$content .= isset( $change['before'] ) ? (string) $change['before'] : '';
+			$content .= isset( $change['after'] ) ? (string) $change['after'] : '';
+		}
+		$json = $this->debug_json( $footprint );
+		return array(
+			'present'           => true,
+			'validation'        => isset( $footprint['validation'] ) ? (string) $footprint['validation'] : '',
+			'changeCount'       => count( $changes ),
+			'contentCharacters' => mb_strlen( $content ),
+			'contentBytes'      => strlen( $content ),
+			'jsonCharacters'    => mb_strlen( $json ),
+			'jsonBytes'         => strlen( $json ),
 		);
 	}
 

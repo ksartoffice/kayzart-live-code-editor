@@ -22,6 +22,8 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'call finish_edit by itself', $prompt );
 		$this->assertStringContainsString( 'no unresolved tool errors', $prompt );
 		$this->assertStringContainsString( 'error.details.candidates', $prompt );
+		$this->assertStringContainsString( 'validated editFootprint', $prompt );
+		$this->assertStringContainsString( 'must not be broadened to :root', $prompt );
 		$this->assertStringContainsString( '{"summary":"..."}', $prompt );
 		// trim() removes the leading/trailing blank lines from the source block.
 		$this->assertSame( trim( $prompt ), $prompt );
@@ -148,5 +150,33 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 			Ai_Prompt::build_user_prompt( $payload ),
 			implode( "\n\n", array_values( Ai_Prompt::debug_input_parts( $payload ) ) )
 		);
+	}
+
+	/** A validated footprint is included with implicit-follow-up guidance. */
+	public function test_recent_edit_footprint_is_rendered_in_user_prompt(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode'        => 'normal',
+				'prompt'            => 'Make it a little calmer.',
+				'recentEditContext' => array(
+					array(
+						'prompt'        => 'Make the main button green.',
+						'editFootprint' => array(
+							'validation' => 'snapshot_hash',
+							'changes'    => array(
+								array(
+									'target' => 'css',
+									'before' => 'background: var(--blue);',
+									'after'  => 'background: #16a34a;',
+								),
+							),
+						),
+					),
+				),
+			)
+		);
+		$this->assertStringContainsString( 'implicit follow-ups', $prompt );
+		$this->assertStringContainsString( '"editFootprint"', $prompt );
+		$this->assertStringContainsString( 'background: #16a34a;', $prompt );
 	}
 }

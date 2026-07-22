@@ -70,7 +70,7 @@ class Rest_Ai {
 		}
 
 		$store                                        = new Ai_Job_Store();
-		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'] );
+		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'] );
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
 		$result                                       = $store->create( get_current_user_id(), $payload['postId'], $payload['requestId'], $payload['agentPayload'] );
 		if ( is_wp_error( $result ) ) {

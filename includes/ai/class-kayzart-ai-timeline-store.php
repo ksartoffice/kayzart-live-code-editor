@@ -16,8 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Stores durable AI edit, save, and restore activities. */
 class Ai_Timeline_Store {
-	const PAGE_SIZE     = 50;
-	const CONTEXT_LIMIT = 10;
+	const PAGE_SIZE                   = 50;
+	const CONTEXT_LIMIT               = 10;
+	const FOOTPRINT_MAX_CHANGES       = 2;
+	const FOOTPRINT_MAX_CONTENT_CHARS = 600;
+	const FOOTPRINT_MAX_JSON_BYTES    = 2400;
+	const FOOTPRINT_CONTEXT_LINES     = 1;
+	const FOOTPRINT_INLINE_CONTEXT    = 120;
 
 	/** Create the durable prompt entry for a job. */
 	public function create_ai_edit( array $job, array $payload ) {
@@ -215,23 +220,34 @@ class Ai_Timeline_Store {
 	}
 
 	/** Recent lightweight successful context for the next AI request. */
-	public function recent_context( int $post_id ): array {
+	public function recent_context( int $post_id, array $current_snapshot = array() ): array {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT prompt, changed_targets, application_status, summary, created_at FROM ' . Ai_Setup::get_timeline_table_name() . " WHERE post_id = %d AND activity_type = 'ai_edit' AND execution_status = 'completed' ORDER BY id DESC LIMIT 10", $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return array_reverse(
-			array_map(
-				static function ( array $row ): array {
-					return array(
-						'prompt'            => self::truncate( (string) $row['prompt'], 1024 ),
-						'summary'           => self::truncate( (string) $row['summary'], 512 ),
-						'changedTargets'    => self::decode_array( $row['changed_targets'] ),
-						'applicationStatus' => (string) $row['application_status'],
-						'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
-					);
-				},
-				$rows
-			)
+		$timeline = Ai_Setup::get_timeline_table_name();
+		$jobs     = Ai_Setup::get_jobs_table_name();
+		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type = 'ai_edit' AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT 10", $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		$context  = array_map(
+			static function ( array $row ): array {
+				return array(
+					'prompt'            => self::truncate( (string) $row['prompt'], 1024 ),
+					'summary'           => self::truncate( (string) $row['summary'], 512 ),
+					'changedTargets'    => self::decode_array( $row['changed_targets'] ),
+					'applicationStatus' => (string) $row['application_status'],
+					'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
+				);
+			},
+			$rows
 		);
+		if ( count( $rows ) > 0 && count( $current_snapshot ) > 0 ) {
+			$before = json_decode( isset( $rows[0]['retained_payload_json'] ) ? (string) $rows[0]['retained_payload_json'] : '', true );
+			$after  = json_decode( isset( $rows[0]['retained_snapshot_json'] ) ? (string) $rows[0]['retained_snapshot_json'] : '', true );
+			if ( is_array( $before ) && is_array( $after ) ) {
+				$footprint = self::build_edit_footprint( self::snapshot_from_payload( $before ), self::snapshot_from_payload( $after ), self::snapshot_from_payload( $current_snapshot ) );
+				if ( count( $footprint ) > 0 ) {
+					$context[0]['editFootprint'] = $footprint;
+				}
+			}
+		}
+		return array_reverse( $context );
 	}
 
 	/** Delete timeline data only when a post is permanently deleted. */
@@ -332,72 +348,325 @@ class Ai_Timeline_Store {
 		return $finished - $started;
 	}
 
-	/** Count changed lines with a Myers shortest-edit-script diff. */
-	private static function line_change_stats( string $before, string $after ): array {
-		$old = self::split_lines( $before );
-		$new = self::split_lines( $after );
-		if ( $old === $new ) {
-			return array(
-				'added'   => 0,
-				'removed' => 0,
+	/** Build a bounded, current-source-validated footprint for the latest edit. */
+	private static function build_edit_footprint( array $before, array $after, array $current ): array {
+		$after_hash   = self::editor_hash( $after );
+		$current_hash = self::editor_hash( $current );
+		$hash_matches = hash_equals( $after_hash, $current_hash );
+		$candidates   = array();
+		$omitted      = 0;
+		$targets      = array(
+			'html' => 'html',
+			'head' => 'customHead',
+			'css'  => 'css',
+			'js'   => 'js',
+		);
+
+		foreach ( $targets as $label => $key ) {
+			$old_source = isset( $before[ $key ] ) ? (string) $before[ $key ] : '';
+			$new_source = isset( $after[ $key ] ) ? (string) $after[ $key ] : '';
+			if ( $old_source === $new_source ) {
+				continue;
+			}
+			$built      = self::build_source_footprint_changes( $label, $old_source, $new_source );
+			$candidates = array_merge( $candidates, $built['changes'] );
+			$omitted   += $built['omitted'];
+		}
+
+		$before_mode = isset( $before['jsMode'] ) && 'module' === $before['jsMode'] ? 'module' : 'classic';
+		$after_mode  = isset( $after['jsMode'] ) && 'module' === $after['jsMode'] ? 'module' : 'classic';
+		if ( $before_mode !== $after_mode ) {
+			$candidates[] = array(
+				'target'          => 'jsMode',
+				'kind'            => 'replace',
+				'before'          => $before_mode,
+				'after'           => $after_mode,
+				'beforeHash'      => hash( 'sha256', $before_mode ),
+				'afterHash'       => hash( 'sha256', $after_mode ),
+				'startLineBefore' => 1,
+				'startLineAfter'  => 1,
 			);
 		}
+
+		$changes       = array();
+		$content_chars = 0;
+		foreach ( $candidates as $candidate ) {
+			$target = (string) $candidate['target'];
+			$valid  = $hash_matches;
+			if ( ! $valid ) {
+				if ( 'jsMode' === $target ) {
+					$valid = isset( $current['jsMode'] ) && (string) $current['jsMode'] === (string) $candidate['after'];
+				} else {
+					$key            = 'head' === $target ? 'customHead' : $target;
+					$current_source = isset( $current[ $key ] ) ? (string) $current[ $key ] : '';
+					$needle         = (string) $candidate['after'];
+					$valid          = '' !== $needle && 1 === substr_count( $current_source, $needle );
+				}
+			}
+			$length = mb_strlen( (string) $candidate['before'] ) + mb_strlen( (string) $candidate['after'] );
+			if ( ! $valid || count( $changes ) >= self::FOOTPRINT_MAX_CHANGES || $content_chars + $length > self::FOOTPRINT_MAX_CONTENT_CHARS ) {
+				++$omitted;
+				continue;
+			}
+			$changes[]      = $candidate;
+			$content_chars += $length;
+		}
+
+		if ( 0 === count( $changes ) ) {
+			return array();
+		}
+		$footprint    = array(
+			'validation'     => $hash_matches ? 'snapshot_hash' : 'unique_after_match',
+			'changes'        => $changes,
+			'omittedChanges' => $omitted,
+		);
+		$change_count = count( $footprint['changes'] );
+		$json_bytes   = strlen( (string) wp_json_encode( $footprint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+		while ( $change_count > 0 && $json_bytes > self::FOOTPRINT_MAX_JSON_BYTES ) {
+			array_pop( $footprint['changes'] );
+			++$footprint['omittedChanges'];
+			$change_count = count( $footprint['changes'] );
+			$json_bytes   = strlen( (string) wp_json_encode( $footprint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+		}
+		return count( $footprint['changes'] ) > 0 ? $footprint : array();
+	}
+
+	/** Build exact line-oriented changes for one source target. */
+	private static function build_source_footprint_changes( string $target, string $before, string $after ): array {
+		$old_lines = self::source_lines( $before );
+		$new_lines = self::source_lines( $after );
+		$ranges    = self::line_change_ranges( self::line_diff_operations( $old_lines, $new_lines ) );
+		$changes   = array();
+		$omitted   = 0;
+
+		foreach ( $ranges as $range ) {
+			$change = self::line_footprint_change( $target, $old_lines, $new_lines, $range, self::FOOTPRINT_CONTEXT_LINES );
+			$length = null === $change ? PHP_INT_MAX : mb_strlen( $change['before'] ) + mb_strlen( $change['after'] );
+			if ( $length > self::FOOTPRINT_MAX_CONTENT_CHARS ) {
+				$change = self::line_footprint_change( $target, $old_lines, $new_lines, $range, 0 );
+				$length = null === $change ? PHP_INT_MAX : mb_strlen( $change['before'] ) + mb_strlen( $change['after'] );
+			}
+			if ( $length > self::FOOTPRINT_MAX_CONTENT_CHARS && count( $old_lines ) <= 1 && count( $new_lines ) <= 1 ) {
+				$change = self::inline_footprint_change( $target, $before, $after );
+				$length = null === $change ? PHP_INT_MAX : mb_strlen( $change['before'] ) + mb_strlen( $change['after'] );
+			}
+			if ( null === $change || $length > self::FOOTPRINT_MAX_CONTENT_CHARS ) {
+				++$omitted;
+				continue;
+			}
+			$changes[] = $change;
+		}
+		return array(
+			'changes' => $changes,
+			'omitted' => $omitted,
+		);
+	}
+
+	/** Split a source into exact lines, retaining its original newline bytes. */
+	private static function source_lines( string $source ): array {
+		if ( '' === $source ) {
+			return array();
+		}
+		$parts = preg_split( '/(\r\n|\n|\r)/', $source, -1, PREG_SPLIT_DELIM_CAPTURE );
+		if ( ! is_array( $parts ) ) {
+			return array( $source );
+		}
+		$lines = array();
+		$count = count( $parts );
+		for ( $index = 0; $index < $count; $index += 2 ) {
+			$line = (string) $parts[ $index ];
+			if ( isset( $parts[ $index + 1 ] ) ) {
+				$line .= (string) $parts[ $index + 1 ];
+			}
+			if ( '' !== $line ) {
+				$lines[] = $line;
+			}
+		}
+		return $lines;
+	}
+
+	/** Return a Myers shortest edit script for two line arrays. */
+	private static function line_diff_operations( array $old, array $new_lines ): array {
 		$old_count = count( $old );
-		$new_count = count( $new );
+		$new_count = count( $new_lines );
 		$max       = $old_count + $new_count;
 		$vector    = array( 1 => 0 );
 		$trace     = array();
 		for ( $distance = 0; $distance <= $max; $distance++ ) {
-			$trace[] = $vector;
+			$trace[ $distance ] = $vector;
 			for ( $diagonal = -$distance; $diagonal <= $distance; $diagonal += 2 ) {
 				$down  = isset( $vector[ $diagonal + 1 ] ) ? $vector[ $diagonal + 1 ] : 0;
 				$right = isset( $vector[ $diagonal - 1 ] ) ? $vector[ $diagonal - 1 ] : 0;
-				if ( -$distance === $diagonal || ( $distance !== $diagonal && $right < $down ) ) {
-					$x = $down;
-				} else {
-					$x = $right + 1;
-				}
-				$y = $x - $diagonal;
-				while ( $x < $old_count && $y < $new_count && $old[ $x ] === $new[ $y ] ) {
+				$x     = ( -$distance === $diagonal || ( $distance !== $diagonal && $right < $down ) ) ? $down : $right + 1;
+				$y     = $x - $diagonal;
+				while ( $x < $old_count && $y < $new_count && $old[ $x ] === $new_lines[ $y ] ) {
 					++$x;
 					++$y;
 				}
 				$vector[ $diagonal ] = $x;
 				if ( $x >= $old_count && $y >= $new_count ) {
-					return self::backtrack_line_stats( $trace, $old_count, $new_count );
+					return self::backtrack_line_operations( $trace, $old, $new_lines, $distance );
 				}
 			}
 		}
-		return array(
-			'added'   => $new_count,
-			'removed' => $old_count,
-		);
+		return array();
 	}
 
-	/** Backtrack a Myers trace into addition and deletion counts. */
-	private static function backtrack_line_stats( array $trace, int $old_count, int $new_count ): array {
-		$added   = 0;
-		$removed = 0;
-		$x       = $old_count;
-		$y       = $new_count;
-		for ( $distance = count( $trace ) - 1; $distance > 0; $distance-- ) {
-			$vector     = $trace[ $distance ];
-			$diagonal   = $x - $y;
-			$down       = isset( $vector[ $diagonal + 1 ] ) ? $vector[ $diagonal + 1 ] : 0;
-			$right      = isset( $vector[ $diagonal - 1 ] ) ? $vector[ $diagonal - 1 ] : 0;
-			$previous   = ( -$distance === $diagonal || ( $distance !== $diagonal && $right < $down ) ) ? $diagonal + 1 : $diagonal - 1;
-			$previous_x = isset( $vector[ $previous ] ) ? $vector[ $previous ] : 0;
-			$previous_y = $previous_x - $previous;
-			while ( $x > $previous_x && $y > $previous_y ) {
+	/** Backtrack a Myers trace into ordered equal/insert/delete operations. */
+	private static function backtrack_line_operations( array $trace, array $old, array $new_lines, int $distance ): array {
+		$x          = count( $old );
+		$y          = count( $new_lines );
+		$operations = array();
+		for ( $depth = $distance; $depth > 0; $depth-- ) {
+			$vector   = $trace[ $depth ];
+			$diagonal = $x - $y;
+			$down     = isset( $vector[ $diagonal + 1 ] ) ? $vector[ $diagonal + 1 ] : 0;
+			$right    = isset( $vector[ $diagonal - 1 ] ) ? $vector[ $diagonal - 1 ] : 0;
+			$previous = ( -$depth === $diagonal || ( $depth !== $diagonal && $right < $down ) ) ? $diagonal + 1 : $diagonal - 1;
+			$old_x    = isset( $vector[ $previous ] ) ? $vector[ $previous ] : 0;
+			$old_y    = $old_x - $previous;
+			while ( $x > $old_x && $y > $old_y ) {
+				array_unshift( $operations, array( 'type' => 'equal' ) );
 				--$x;
 				--$y;
 			}
-			if ( $x === $previous_x ) {
-				++$added;
+			if ( $x === $old_x ) {
+				array_unshift( $operations, array( 'type' => 'insert' ) );
 				--$y;
 			} else {
-				++$removed;
+				array_unshift( $operations, array( 'type' => 'delete' ) );
 				--$x;
+			}
+		}
+		while ( $x > 0 && $y > 0 ) {
+			array_unshift( $operations, array( 'type' => 'equal' ) );
+			--$x;
+			--$y;
+		}
+		return $operations;
+	}
+
+	/** Group line operations into changed ranges separated by more than two lines. */
+	private static function line_change_ranges( array $operations ): array {
+		$records   = array();
+		$old_index = 0;
+		$new_index = 0;
+		foreach ( $operations as $operation ) {
+			$type = isset( $operation['type'] ) ? (string) $operation['type'] : '';
+			if ( 'equal' === $type ) {
+				++$old_index;
+				++$new_index;
+			} elseif ( 'delete' === $type ) {
+				$records[] = array(
+					'oldStart' => $old_index,
+					'oldEnd'   => $old_index + 1,
+					'newStart' => $new_index,
+					'newEnd'   => $new_index,
+				);
+				++$old_index;
+			} elseif ( 'insert' === $type ) {
+				$records[] = array(
+					'oldStart' => $old_index,
+					'oldEnd'   => $old_index,
+					'newStart' => $new_index,
+					'newEnd'   => $new_index + 1,
+				);
+				++$new_index;
+			}
+		}
+		$ranges = array();
+		foreach ( $records as $record ) {
+			$last = count( $ranges ) - 1;
+			if ( $last >= 0 && $record['oldStart'] - $ranges[ $last ]['oldEnd'] <= 2 && $record['newStart'] - $ranges[ $last ]['newEnd'] <= 2 ) {
+				$ranges[ $last ]['oldEnd'] = max( $ranges[ $last ]['oldEnd'], $record['oldEnd'] );
+				$ranges[ $last ]['newEnd'] = max( $ranges[ $last ]['newEnd'], $record['newEnd'] );
+			} else {
+				$ranges[] = $record;
+			}
+		}
+		return $ranges;
+	}
+
+	/** Convert one changed line range to exact source snippets. */
+	private static function line_footprint_change( string $target, array $old_lines, array $new_lines, array $range, int $context_lines ) {
+		$old_start = max( 0, (int) $range['oldStart'] - $context_lines );
+		$new_start = max( 0, (int) $range['newStart'] - $context_lines );
+		$old_end   = min( count( $old_lines ), (int) $range['oldEnd'] + $context_lines );
+		$new_end   = min( count( $new_lines ), (int) $range['newEnd'] + $context_lines );
+		$before    = implode( '', array_slice( $old_lines, $old_start, $old_end - $old_start ) );
+		$after     = implode( '', array_slice( $new_lines, $new_start, $new_end - $new_start ) );
+		if ( '' === $before && '' === $after ) {
+			return null;
+		}
+		$old_changed = (int) $range['oldEnd'] - (int) $range['oldStart'];
+		$new_changed = (int) $range['newEnd'] - (int) $range['newStart'];
+		return self::footprint_change( $target, 0 === $old_changed ? 'insert' : ( 0 === $new_changed ? 'delete' : 'replace' ), $before, $after, $old_start + 1, $new_start + 1 );
+	}
+
+	/** Build a bounded exact hunk for minified single-line sources. */
+	private static function inline_footprint_change( string $target, string $before, string $after ) {
+		$old_bytes    = strlen( $before );
+		$new_bytes    = strlen( $after );
+		$prefix_bytes = 0;
+		$byte_limit   = min( $old_bytes, $new_bytes );
+		while ( $prefix_bytes < $byte_limit && $before[ $prefix_bytes ] === $after[ $prefix_bytes ] ) {
+			++$prefix_bytes;
+		}
+		while ( $prefix_bytes > 0 && $prefix_bytes < $old_bytes && 0x80 === ( ord( $before[ $prefix_bytes ] ) & 0xC0 ) ) {
+			--$prefix_bytes;
+		}
+		$suffix_bytes = 0;
+		while ( $suffix_bytes < $old_bytes - $prefix_bytes && $suffix_bytes < $new_bytes - $prefix_bytes && $before[ $old_bytes - $suffix_bytes - 1 ] === $after[ $new_bytes - $suffix_bytes - 1 ] ) {
+			++$suffix_bytes;
+		}
+		while ( $suffix_bytes > 0 && ( 0x80 === ( ord( $before[ $old_bytes - $suffix_bytes ] ) & 0xC0 ) || 0x80 === ( ord( $after[ $new_bytes - $suffix_bytes ] ) & 0xC0 ) ) ) {
+			--$suffix_bytes;
+		}
+		$prefix      = mb_strlen( substr( $before, 0, $prefix_bytes ) );
+		$old_length  = mb_strlen( $before );
+		$new_length  = mb_strlen( $after );
+		$old_suffix  = mb_strlen( substr( $before, $old_bytes - $suffix_bytes ) );
+		$new_suffix  = mb_strlen( substr( $after, $new_bytes - $suffix_bytes ) );
+		$old_changed = mb_substr( $before, $prefix, $old_length - $prefix - $old_suffix );
+		$new_changed = mb_substr( $after, $prefix, $new_length - $prefix - $new_suffix );
+		$changed_len = mb_strlen( $old_changed ) + mb_strlen( $new_changed );
+		if ( $changed_len > self::FOOTPRINT_MAX_CONTENT_CHARS ) {
+			return null;
+		}
+		$context_each = min( self::FOOTPRINT_INLINE_CONTEXT, (int) floor( ( self::FOOTPRINT_MAX_CONTENT_CHARS - $changed_len ) / 4 ) );
+		$leading      = mb_substr( $before, max( 0, $prefix - $context_each ), min( $context_each, $prefix ) );
+		$trailing     = $old_suffix > 0 ? mb_substr( $before, $old_length - $old_suffix, min( $context_each, $old_suffix ) ) : '';
+		$old_snippet  = $leading . $old_changed . $trailing;
+		$new_snippet  = $leading . $new_changed . $trailing;
+		$kind         = '' === $old_changed ? 'insert' : ( '' === $new_changed ? 'delete' : 'replace' );
+		return self::footprint_change( $target, $kind, $old_snippet, $new_snippet, 1, 1 );
+	}
+
+	/** Normalize one footprint change and attach integrity hashes. */
+	private static function footprint_change( string $target, string $kind, string $before, string $after, int $old_line, int $new_line ): array {
+		return array(
+			'target'          => $target,
+			'kind'            => $kind,
+			'before'          => $before,
+			'after'           => $after,
+			'beforeHash'      => hash( 'sha256', $before ),
+			'afterHash'       => hash( 'sha256', $after ),
+			'startLineBefore' => $old_line,
+			'startLineAfter'  => $new_line,
+		);
+	}
+
+	/** Count changed lines with a Myers shortest-edit-script diff. */
+	private static function line_change_stats( string $before, string $after ): array {
+		$added   = 0;
+		$removed = 0;
+		$old     = self::split_lines( $before );
+		$new     = self::split_lines( $after );
+		foreach ( self::line_diff_operations( $old, $new ) as $operation ) {
+			if ( 'insert' === $operation['type'] ) {
+				++$added;
+			} elseif ( 'delete' === $operation['type'] ) {
+				++$removed;
 			}
 		}
 		return array(

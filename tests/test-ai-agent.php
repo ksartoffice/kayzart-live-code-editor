@@ -705,9 +705,9 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 	/** Replacement diagnostics count against the bounded observation budget. */
 	public function test_replace_error_details_count_toward_observation_budget(): void {
-		$agent      = new Ai_Agent( new Ai_Client_Fake() );
-		$candidate  = str_repeat( 'x', 1200 );
-		$messages   = array(
+		$agent     = new Ai_Agent( new Ai_Client_Fake() );
+		$candidate = str_repeat( 'x', 1200 );
+		$messages  = array(
 			Ai_Message::tool(
 				array(
 					Ai_Message::tool_response(
@@ -778,6 +778,41 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( 1, $structure['toolTotals']['replace_string']['responseCount'] );
 		$this->assertSame( strlen( $secret ), $structure['messages'][1]['toolResponses'][0]['stringFields']['error.details.candidates.0.content']['bytes'] );
 		$this->assertStringNotContainsString( $secret, wp_json_encode( $structure ) );
+	}
+
+	/** Footprint diagnostics expose sizes without retaining source snippets. */
+	public function test_debug_edit_footprint_has_sizes_only(): void {
+		$agent  = new Ai_Agent( new Ai_Client_Fake() );
+		$before = 'background: var(--blue);';
+		$after  = 'background: #16a34a;';
+		$stats  = $this->invoke_agent_helper(
+			$agent,
+			'build_debug_edit_footprint_stats',
+			array(
+				array(
+					'recentEditContext' => array(
+						array(
+							'editFootprint' => array(
+								'validation' => 'snapshot_hash',
+								'changes'    => array(
+									array(
+										'before' => $before,
+										'after'  => $after,
+									),
+								),
+							),
+						),
+					),
+				),
+			)
+		);
+
+		$this->assertTrue( $stats['present'] );
+		$this->assertSame( 1, $stats['changeCount'] );
+		$this->assertSame( mb_strlen( $before . $after ), $stats['contentCharacters'] );
+		$this->assertSame( strlen( $before . $after ), $stats['contentBytes'] );
+		$this->assertStringNotContainsString( $before, wp_json_encode( $stats ) );
+		$this->assertStringNotContainsString( $after, wp_json_encode( $stats ) );
 	}
 
 	/** Preview traces truncate UTF-8 safely and include source metadata. */

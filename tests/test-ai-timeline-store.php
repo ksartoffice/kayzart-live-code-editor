@@ -83,6 +83,127 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertSame( 0, $item['outputTokens'] );
 	}
 
+	/** A retained latest edit exposes only its exact local CSS footprint. */
+	public function test_recent_context_builds_local_edit_footprint(): void {
+		$before        = $this->payload( 'Make the main button green.' );
+		$before['css'] = ":root {\n  --blue: #2563eb;\n}\n\n.button-primary {\n  background: var(--blue);\n}\n";
+		$after         = $before;
+		$after['css']  = ":root {\n  --blue: #2563eb;\n}\n\n.button-primary {\n  background: #16a34a;\n}\n";
+		$this->complete_retained_edit( 'request-footprint', $before, $after );
+
+		$context   = $this->store->recent_context( 42, $after );
+		$footprint = $context[0]['editFootprint'];
+		$this->assertSame( 'snapshot_hash', $footprint['validation'] );
+		$this->assertCount( 1, $footprint['changes'] );
+		$this->assertSame( 'css', $footprint['changes'][0]['target'] );
+		$this->assertStringContainsString( '.button-primary', $footprint['changes'][0]['after'] );
+		$this->assertStringContainsString( 'background: #16a34a;', $footprint['changes'][0]['after'] );
+		$this->assertStringNotContainsString( '--blue:', $footprint['changes'][0]['after'] );
+	}
+
+	/** Manual edits elsewhere retain a uniquely matching current hunk. */
+	public function test_recent_context_validates_footprint_after_unrelated_manual_edit(): void {
+		$before        = $this->payload( 'Make the main button green.' );
+		$before['css'] = ".button-primary {\n  background: var(--blue);\n}\n";
+		$after         = $before;
+		$after['css']  = ".button-primary {\n  background: #16a34a;\n}\n";
+		$this->complete_retained_edit( 'request-manual-elsewhere', $before, $after );
+
+		$current         = $after;
+		$current['html'] = '<h1>Manually changed elsewhere</h1>';
+		$context         = $this->store->recent_context( 42, $current );
+		$this->assertSame( 'unique_after_match', $context[0]['editFootprint']['validation'] );
+		$this->assertCount( 1, $context[0]['editFootprint']['changes'] );
+	}
+
+	/** A stale or ambiguous local hunk is omitted instead of becoming prompt noise. */
+	public function test_recent_context_omits_stale_or_ambiguous_footprint(): void {
+		$before        = $this->payload( 'Make the main button green.' );
+		$before['css'] = ".button-primary {\n  background: var(--blue);\n}\n";
+		$after         = $before;
+		$after['css']  = ".button-primary {\n  background: #16a34a;\n}\n";
+		$this->complete_retained_edit( 'request-stale-footprint', $before, $after );
+
+		$stale        = $after;
+		$stale['css'] = ".button-primary {\n  background: #15803d;\n}\n";
+		$this->assertArrayNotHasKey( 'editFootprint', $this->store->recent_context( 42, $stale )[0] );
+
+		$ambiguous        = $after;
+		$ambiguous['css'] = $after['css'] . "\n" . $after['css'];
+		$this->assertArrayNotHasKey( 'editFootprint', $this->store->recent_context( 42, $ambiguous )[0] );
+	}
+
+	/** Only the latest retained history item receives a strictly bounded footprint. */
+	public function test_recent_context_limits_footprint_to_latest_item_and_budget(): void {
+		$first               = $this->payload( 'First edit.' );
+		$first_after         = $first;
+		$first_after['html'] = '<h1>First</h1>';
+		$this->complete_retained_edit( 'request-first-footprint', $first, $first_after );
+
+		$second              = $first_after;
+		$second['prompt']    = 'Change several styles.';
+		$second['css']       = ".one { color: red; }\n.two { color: red; }\n.three { color: red; }\n";
+		$second_after        = $second;
+		$second_after['css'] = ".one { color: green; }\n.two { color: green; }\n.three { color: green; }\n";
+		$this->complete_retained_edit( 'request-second-footprint', $second, $second_after );
+
+		$context = $this->store->recent_context( 42, $second_after );
+		$this->assertCount( 2, $context );
+		$this->assertArrayNotHasKey( 'editFootprint', $context[0] );
+		$this->assertArrayHasKey( 'editFootprint', $context[1] );
+		$this->assertLessThanOrEqual( 2, count( $context[1]['editFootprint']['changes'] ) );
+		$content_chars = 0;
+		foreach ( $context[1]['editFootprint']['changes'] as $change ) {
+			$content_chars += mb_strlen( $change['before'] ) + mb_strlen( $change['after'] );
+		}
+		$this->assertLessThanOrEqual( 600, $content_chars );
+		$this->assertLessThanOrEqual( 2400, strlen( wp_json_encode( $context[1]['editFootprint'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) );
+	}
+
+	/** Expired retained snapshots leave the durable lightweight context intact. */
+	public function test_recent_context_omits_footprint_after_job_cleanup(): void {
+		$before        = $this->payload( 'Temporary detail.' );
+		$after         = $before;
+		$after['html'] = '<h1>After</h1>';
+		$job           = $this->complete_retained_edit( 'request-expired-footprint', $before, $after );
+		global $wpdb;
+		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $job['job_uuid'] ), array( '%s' ) );
+		$context = $this->store->recent_context( 42, $after );
+		$this->assertCount( 1, $context );
+		$this->assertArrayNotHasKey( 'editFootprint', $context[0] );
+		$this->assertSame( 'Temporary detail.', $context[0]['prompt'] );
+	}
+
+	/** Footprints cover all editable targets plus JavaScript mode changes. */
+	public function test_recent_context_footprint_covers_supported_change_kinds(): void {
+		$cases = array(
+			array( 'html', 'html', '<h1>Before</h1>', '<h1>After</h1>', 'replace' ),
+			array( 'head', 'customHead', '', '<meta name="theme-color" content="#fff">', 'insert' ),
+			array( 'js', 'js', 'window.ready = true;', '', 'delete' ),
+		);
+		foreach ( $cases as $index => $case ) {
+			$before             = $this->payload( 'Change target.' );
+			$before[ $case[1] ] = $case[2];
+			$after              = $before;
+			$after[ $case[1] ]  = $case[3];
+			$this->complete_retained_edit( 'request-target-' . $index, $before, $after );
+			$context = $this->store->recent_context( 42, $after );
+			$change  = $context[ count( $context ) - 1 ]['editFootprint']['changes'][0];
+			$this->assertSame( $case[0], $change['target'] );
+			$this->assertSame( $case[4], $change['kind'] );
+		}
+
+		$before          = $this->payload( 'Use modules.' );
+		$after           = $before;
+		$after['jsMode'] = 'module';
+		$this->complete_retained_edit( 'request-js-mode-footprint', $before, $after );
+		$context = $this->store->recent_context( 42, $after );
+		$change  = $context[ count( $context ) - 1 ]['editFootprint']['changes'][0];
+		$this->assertSame( 'jsMode', $change['target'] );
+		$this->assertSame( 'classic', $change['before'] );
+		$this->assertSame( 'module', $change['after'] );
+	}
+
 	/** Retained jobs expose exact display stats and worker duration without exposing snapshots. */
 	public function test_retained_job_exposes_change_stats_and_duration_only_while_available(): void {
 		$jobs            = new Ai_Job_Store();
@@ -207,5 +328,21 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 			'jsMode'           => 'classic',
 			'selectedContexts' => array(),
 		);
+	}
+
+	/** Create, run, and complete one retained job-backed edit.
+	 *
+	 * @param string $request_id Unique request ID.
+	 * @param array  $before     Input snapshot.
+	 * @param array  $after      Completed snapshot.
+	 */
+	private function complete_retained_edit( string $request_id, array $before, array $after ): array {
+		$jobs    = new Ai_Job_Store();
+		$created = $jobs->create( 1, 42, $request_id, $before );
+		$job     = $created['job'];
+		$this->store->create_ai_edit( $job, $before );
+		$this->assertTrue( $jobs->claim( (string) $job['job_uuid'] ) );
+		$this->assertTrue( $jobs->complete( (string) $job['job_uuid'], $after, 'Completed edit.', array() ) );
+		return $job;
 	}
 }

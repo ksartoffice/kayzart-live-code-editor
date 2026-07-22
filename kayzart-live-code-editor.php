@@ -60,6 +60,7 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-job-store.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-timeline-store.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-worker.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-immediate-dispatcher.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-editor.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-ai.php';
 require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-ai-timeline.php';

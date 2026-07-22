@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Ai_Job_Store;
+use KayzArt\Ai_Immediate_Dispatcher;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
 use KayzArt\Post_Type;
@@ -23,6 +24,12 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	 * @var int
 	 */
 	private $post_id;
+
+	/** Number of immediate loopback requests observed during a test.
+	 *
+	 * @var int
+	 */
+	private $immediate_dispatches = 0;
 
 	/** Prepare REST routes, permissions, and an empty table. */
 	protected function setUp(): void {
@@ -44,6 +51,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10, 3 );
 	}
 
 	/** Restore global filters, actions, and user state. */
@@ -51,6 +59,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10 );
 		Ai_Worker::deactivate();
 		wp_set_current_user( 0 );
 		parent::tearDown();
@@ -67,6 +76,31 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$again = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-idempotent' ) );
 		$this->assertSame( 200, $again->get_status() );
 		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
+		$this->assertSame( 1, $this->immediate_dispatches );
+	}
+
+	/** Capture the non-blocking internal request without performing network I/O.
+	 *
+	 * @param mixed  $preempted Existing preempted response.
+	 * @param array  $args      HTTP request arguments.
+	 * @param string $url       Request URL.
+	 * @return mixed
+	 */
+	public function mock_immediate_loopback( $preempted, array $args, string $url ) {
+		if ( false === strpos( $url, Ai_Immediate_Dispatcher::ROUTE ) ) {
+			return $preempted;
+		}
+		++$this->immediate_dispatches;
+		return array(
+			'headers'  => array(),
+			'body'     => '',
+			'response' => array(
+				'code'    => 202,
+				'message' => 'Accepted',
+			),
+			'cookies'  => array(),
+			'filename' => null,
+		);
 	}
 
 	/** Invalid sizes return 400 and an occupied post returns 409. */

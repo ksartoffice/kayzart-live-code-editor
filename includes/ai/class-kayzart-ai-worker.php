@@ -31,12 +31,13 @@ class Ai_Worker {
 	/** Enqueue a worker plus its independent deadline action.
 	 *
 	 * @param string $job_uuid Job UUID.
+	 * @return array{run_action_id:int,timeout_action_id:int}|false Action IDs, or false on failure.
 	 */
-	public static function enqueue( string $job_uuid ): bool {
+	public static function enqueue( string $job_uuid ) {
 		if ( ! function_exists( 'as_enqueue_async_action' ) || ! function_exists( 'as_schedule_single_action' ) ) {
 			return false;
 		}
-		$action_id = as_enqueue_async_action( self::RUN_HOOK, array( $job_uuid ), self::GROUP, true );
+		$action_id = as_enqueue_async_action( self::RUN_HOOK, array( $job_uuid ), self::GROUP, true, 0 );
 		if ( 0 === (int) $action_id ) {
 			return false;
 		}
@@ -47,7 +48,10 @@ class Ai_Worker {
 			}
 			return false;
 		}
-		return true;
+		return array(
+			'run_action_id'     => (int) $action_id,
+			'timeout_action_id' => (int) $timeout_id,
+		);
 	}
 
 	/** Claim and execute one AI agent job.
@@ -59,6 +63,7 @@ class Ai_Worker {
 		$store = new Ai_Job_Store();
 		if ( ! $store->claim( $job_uuid ) ) {
 			$store->expire_overdue( $job_uuid );
+			self::schedule_pending_dispatch();
 			return;
 		}
 
@@ -71,6 +76,7 @@ class Ai_Worker {
 		if ( ! is_array( $payload ) ) {
 			$store->mark_error( $job_uuid, __( 'The AI job payload is invalid.', 'kayzart-live-code-editor' ), false );
 			self::unschedule_timeout( $job_uuid );
+			self::schedule_pending_dispatch();
 			return;
 		}
 
@@ -114,6 +120,7 @@ class Ai_Worker {
 		}
 
 		self::unschedule_timeout( $job_uuid );
+		self::schedule_pending_dispatch();
 	}
 
 	/** Enforce a persisted job deadline.
@@ -163,6 +170,9 @@ class Ai_Worker {
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions( '', array(), self::GROUP );
 		}
+		if ( class_exists( __NAMESPACE__ . '\\Ai_Immediate_Dispatcher' ) ) {
+			Ai_Immediate_Dispatcher::deactivate();
+		}
 	}
 
 	/** Remove pending worker and timeout actions for one job.
@@ -206,6 +216,13 @@ class Ai_Worker {
 	private static function unschedule_timeout( string $job_uuid ): void {
 		if ( function_exists( 'as_unschedule_action' ) ) {
 			as_unschedule_action( self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP );
+		}
+	}
+
+	/** Dispatch the next pending AI action after the current request releases its claim. */
+	private static function schedule_pending_dispatch(): void {
+		if ( class_exists( __NAMESPACE__ . '\\Ai_Immediate_Dispatcher' ) ) {
+			Ai_Immediate_Dispatcher::schedule_pending_dispatch();
 		}
 	}
 }

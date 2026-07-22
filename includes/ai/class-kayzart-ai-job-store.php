@@ -114,6 +114,12 @@ class Ai_Job_Store {
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Ai_Setup::get_jobs_table_name() . ' WHERE lock_key = %s', 'post:' . $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
+	/** Whether any AI job is currently executing on this site. */
+	public function has_running_job(): bool {
+		global $wpdb;
+		return (bool) $wpdb->get_var( 'SELECT 1 FROM ' . Ai_Setup::get_jobs_table_name() . " WHERE status = 'running' LIMIT 1" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
 	/**
 	 * Atomically claim a pending job.
 	 *

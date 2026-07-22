@@ -20,6 +20,7 @@ class Rest_Ai {
 
 	/** Register all AI job endpoints. */
 	public static function register_routes(): void {
+		Ai_Immediate_Dispatcher::register_route();
 		register_rest_route(
 			'kayzart/v1',
 			'/ai/jobs',
@@ -85,17 +86,21 @@ class Rest_Ai {
 			$store->mark_error( $job['job_uuid'], __( 'The AI edit history could not be created.', 'kayzart-live-code-editor' ), true );
 			return new \WP_Error( 'kayzart_ai_timeline_create_failed', __( 'The AI edit history could not be created.', 'kayzart-live-code-editor' ), array( 'status' => 503 ) );
 		}
-		if ( $result['is_new'] && ! Ai_Worker::enqueue( $job['job_uuid'] ) ) {
-			$store->mark_enqueue_failed( $job['job_uuid'] );
-			$job = $store->get( $job['job_uuid'] );
-			return new \WP_Error(
-				'kayzart_ai_enqueue_failed',
-				__( 'The AI edit job could not be scheduled.', 'kayzart-live-code-editor' ),
-				array(
-					'status' => 503,
-					'job'    => self::creation_response( $store, $job, $activity ),
-				)
-			);
+		if ( $result['is_new'] ) {
+			$scheduled = Ai_Worker::enqueue( $job['job_uuid'] );
+			if ( false === $scheduled ) {
+				$store->mark_enqueue_failed( $job['job_uuid'] );
+				$job = $store->get( $job['job_uuid'] );
+				return new \WP_Error(
+					'kayzart_ai_enqueue_failed',
+					__( 'The AI edit job could not be scheduled.', 'kayzart-live-code-editor' ),
+					array(
+						'status' => 503,
+						'job'    => self::creation_response( $store, $job, $activity ),
+					)
+				);
+			}
+			Ai_Immediate_Dispatcher::dispatch( $scheduled['run_action_id'], $job['job_uuid'] );
 		}
 
 		$response = new \WP_REST_Response( self::creation_response( $store, $job, $activity ), $result['is_new'] ? 202 : 200 );

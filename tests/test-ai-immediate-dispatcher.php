@@ -39,6 +39,7 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 	protected function tearDown(): void {
 		remove_all_filters( 'kayzart_ai_client' );
 		remove_all_filters( 'kayzart_ai_immediate_dispatch_enabled' );
+		remove_all_filters( 'kayzart_ai_performance_logging_enabled' );
 		remove_all_filters( 'pre_http_request' );
 		Ai_Worker::deactivate();
 		parent::tearDown();
@@ -88,6 +89,124 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 		$this->assertSame( 'pending', $this->store->get( $uuid )['status'] );
 	}
 
+	/** A continuation posts only after the worker releases its execution lock. */
+	public function test_continuation_dispatch_waits_until_after_worker_returns(): void {
+		$uuid = $this->create_job( 'continuation-after-release', 210 );
+		$fake = $this->successful_fake();
+		add_filter(
+			'kayzart_ai_client',
+			static function () use ( $fake ) {
+				return $fake;
+			}
+		);
+		$requests = array();
+		add_filter(
+			'pre_http_request',
+			function ( $preempted, $args ) use ( &$requests ) {
+				unset( $preempted );
+				$requests[] = $args;
+				return $this->http_response();
+			},
+			10,
+			3
+		);
+
+		Ai_Worker::run_step( $uuid, 0, 'first-step' );
+
+		$this->assertCount( 0, $requests, 'The worker must not POST while it still owns the execution lock.' );
+		$this->assertFalse( get_option( Ai_Worker::EXECUTION_LOCK_OPTION, false ) );
+		$this->assertTrue( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
+		$this->assertCount( 1, $requests );
+		$headers = $requests[0]['headers'];
+		$this->assertSame( $uuid, $headers[ Ai_Immediate_Dispatcher::HEADER_JOB_UUID ] );
+		$action = ActionScheduler::store()->fetch_action( (int) $headers[ Ai_Immediate_Dispatcher::HEADER_ACTION_ID ] );
+		$this->assertSame( Ai_Worker::STEP_HOOK, $action->get_hook() );
+		$this->assertSame( 1, (int) $action->get_args()[1] );
+	}
+
+	/** Retry delays are never bypassed by the immediate dispatcher. */
+	public function test_retry_action_is_not_dispatched_before_its_due_time(): void {
+		$uuid   = $this->create_job( 'retry-not-early', 211 );
+		$client = new class() implements \KayzArt\Ai_Client_Interface {
+			/** Report test-client availability. */
+			public function is_available(): bool {
+				return true;
+			}
+
+			/** Always produce a retryable provider failure.
+			 *
+			 * @param array $messages Normalized messages.
+			 * @param array $tools    Tool definitions.
+			 * @param array $options  Generation options.
+			 * @return array
+			 * @throws \KayzArt\Ai_Client_Exception Always.
+			 */
+			public function generate( array $messages, array $tools, array $options = array() ): array {
+				if ( isset( $options['testResult'] ) && is_array( $options['testResult'] ) ) {
+					return $options['testResult'];
+				}
+				unset( $messages, $tools, $options );
+				throw new \KayzArt\Ai_Client_Exception( 'Temporary failure.', true );
+			}
+		};
+		add_filter(
+			'kayzart_ai_client',
+			static function () use ( $client ) {
+				return $client;
+			}
+		);
+		$requests = 0;
+		add_filter(
+			'pre_http_request',
+			function () use ( &$requests ) {
+				++$requests;
+				return $this->http_response();
+			}
+		);
+
+		Ai_Worker::run_step( $uuid, 0, 'retry-step' );
+
+		$this->assertSame( 0, $requests );
+		$this->assertFalse( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
+		$this->assertSame( 0, $requests );
+	}
+
+	/** Recovery defers its loopback until the recovery action has returned. */
+	public function test_recovery_dispatches_only_after_recovery_returns(): void {
+		$uuid = $this->create_job( 'recovery-after-return', 213 );
+		$this->assertTrue( $this->store->claim( $uuid ) );
+		global $wpdb;
+		$wpdb->update(
+			Ai_Setup::get_jobs_table_name(),
+			array(
+				'agent_state_json'      => '{}',
+				'state_version'         => 3,
+				'step_lease_token'      => 'abandoned',
+				'step_lease_expires_at' => gmdate( 'Y-m-d H:i:s', time() - 1 ),
+			),
+			array( 'job_uuid' => $uuid )
+		);
+		$requests = array();
+		add_filter(
+			'pre_http_request',
+			function ( $preempted, $args ) use ( &$requests ) {
+				unset( $preempted );
+				$requests[] = $args;
+				return $this->http_response();
+			},
+			10,
+			3
+		);
+
+		Ai_Worker::recover_steps();
+
+		$this->assertCount( 0, $requests );
+		$this->assertTrue( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
+		$this->assertCount( 1, $requests );
+		$action = ActionScheduler::store()->fetch_action( (int) $requests[0]['headers'][ Ai_Immediate_Dispatcher::HEADER_ACTION_ID ] );
+		$this->assertSame( 3, (int) $action->get_args()[1] );
+	}
+
 	/** The rollout filter restores Action Scheduler-only behavior. */
 	public function test_disabled_filter_skips_http_dispatch(): void {
 		$uuid      = $this->create_job( 'immediate-disabled', 22 );
@@ -133,13 +252,25 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 				return $fake;
 			}
 		);
-		add_filter( 'pre_http_request', array( $this, 'preempt_http' ), 10, 3 );
+		$dispatched = array();
+		add_filter(
+			'pre_http_request',
+			function ( $preempted, $args ) use ( &$dispatched ) {
+				unset( $preempted );
+				$dispatched[] = $args['headers'];
+				return $this->http_response();
+			},
+			10,
+			3
+		);
 		$request = $this->signed_request( $scheduled['run_action_id'], $uuid );
 
 		$response = rest_do_request( $request );
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $response->get_data()['started'] );
 		$this->assertSame( 'running', $this->store->get( $uuid )['status'] );
+		$this->assertCount( 1, $dispatched, 'The internal runner must dispatch the continuation after process_action returns.' );
+		$this->assertSame( $uuid, $dispatched[0][ Ai_Immediate_Dispatcher::HEADER_JOB_UUID ] );
 		$this->run_next_step( $uuid );
 		$this->run_next_step( $uuid );
 		$this->assertSame( 'completed', $this->store->get( $uuid )['status'] );

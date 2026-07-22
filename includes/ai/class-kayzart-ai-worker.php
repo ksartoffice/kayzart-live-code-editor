@@ -186,7 +186,16 @@ class Ai_Worker {
 
 		$lock = self::acquire_execution_lock();
 		if ( false === $lock ) {
-			self::schedule_step( $job_uuid, $expected_version, 2, false );
+			$retry_action_id = self::schedule_step( $job_uuid, $expected_version, 2 );
+			self::performance_log(
+				$job,
+				'execution_lock_busy',
+				array(
+					'stateVersion'  => $expected_version,
+					'retryActionId' => $retry_action_id,
+					'delaySeconds'  => 2,
+				)
+			);
 			return;
 		}
 
@@ -277,7 +286,18 @@ class Ai_Worker {
 					)
 				);
 			} else {
-				self::schedule_step( $job_uuid, $expected_version + 1, 0, true );
+				$next_version   = $expected_version + 1;
+				$next_action_id = self::schedule_step( $job_uuid, $next_version, 0 );
+				self::performance_log(
+					$job,
+					'continuation_scheduled',
+					array(
+						'actionId'     => $next_action_id,
+						'stateVersion' => $next_version,
+						'scheduledAt'  => gmdate( 'c' ),
+						'delaySeconds' => 0,
+					)
+				);
 			}
 			self::performance_log(
 				$job,
@@ -307,9 +327,19 @@ class Ai_Worker {
 			$current = $store->get( $job_uuid );
 			$attempt = $current ? (int) $current['step_attempt'] : 3;
 			if ( $error->is_retryable() && $attempt < 3 && '' !== $lease_token && $store->release_step_lease( $job_uuid, $expected_version, $lease_token ) ) {
-				$lease_token = '';
-				$delay       = 1 === $attempt ? 5 : 20;
-				self::schedule_step( $job_uuid, $expected_version, $delay, false );
+				$lease_token     = '';
+				$delay           = 1 === $attempt ? 5 : 20;
+				$retry_action_id = self::schedule_step( $job_uuid, $expected_version, $delay );
+				self::performance_log(
+					$job,
+					'continuation_scheduled',
+					array(
+						'actionId'     => $retry_action_id,
+						'stateVersion' => $expected_version,
+						'scheduledAt'  => gmdate( 'c', time() + $delay ),
+						'delaySeconds' => $delay,
+					)
+				);
 				self::performance_log(
 					$job,
 					'retry_scheduled',
@@ -391,7 +421,8 @@ class Ai_Worker {
 
 	/** Requeue stepwise jobs abandoned after a fatal or scheduling gap. */
 	public static function recover_steps(): void {
-		$store = new Ai_Job_Store();
+		$store  = new Ai_Job_Store();
+		$queued = false;
 		foreach ( $store->get_recoverable_steps() as $job ) {
 			$uuid    = (string) $job['job_uuid'];
 			$attempt = (int) $job['step_attempt'];
@@ -403,7 +434,23 @@ class Ai_Worker {
 			if ( self::has_pending_step_action( $uuid, (int) $job['state_version'] ) ) {
 				continue;
 			}
-			self::schedule_step( $uuid, (int) $job['state_version'], 0, true );
+			$version   = (int) $job['state_version'];
+			$action_id = self::schedule_step( $uuid, $version, 0 );
+			$queued    = $queued || $action_id > 0;
+			self::performance_log(
+				$job,
+				'continuation_scheduled',
+				array(
+					'actionId'     => $action_id,
+					'stateVersion' => $version,
+					'scheduledAt'  => gmdate( 'c' ),
+					'delaySeconds' => 0,
+					'source'       => 'recovery',
+				)
+			);
+		}
+		if ( $queued ) {
+			self::schedule_pending_dispatch();
 		}
 	}
 
@@ -547,18 +594,24 @@ class Ai_Worker {
 	 * @param string $job_uuid Job UUID.
 	 * @param int    $version  Expected state version.
 	 * @param int    $delay    Delay in seconds.
-	 * @param bool   $dispatch Whether to send an immediate loopback.
 	 */
-	private static function schedule_step( string $job_uuid, int $version, int $delay, bool $dispatch ): int {
+	private static function schedule_step( string $job_uuid, int $version, int $delay ): int {
 		if ( ! function_exists( 'as_schedule_single_action' ) ) {
 			return 0;
 		}
 		$args      = array( $job_uuid, $version, wp_generate_uuid4() );
 		$action_id = as_schedule_single_action( time() + max( 0, $delay ), self::STEP_HOOK, $args, self::GROUP, false, 0 );
-		if ( $dispatch && 0 === $delay && (int) $action_id > 0 && class_exists( __NAMESPACE__ . '\\Ai_Immediate_Dispatcher' ) ) {
-			Ai_Immediate_Dispatcher::dispatch( (int) $action_id, $job_uuid );
-		}
 		return (int) $action_id;
+	}
+
+	/** Emit a performance event from another AI subsystem.
+	 *
+	 * @param mixed  $job   Job database row.
+	 * @param string $event Event name.
+	 * @param array  $data  Content-free metric fields.
+	 */
+	public static function log_performance_event( $job, string $event, array $data = array() ): void {
+		self::performance_log( $job, $event, $data );
 	}
 
 	/** Reschedule a legacy action when the site execution lock is occupied.

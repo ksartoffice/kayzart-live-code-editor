@@ -57,7 +57,18 @@ class Ai_Immediate_Dispatcher {
 	 * @param string $job_uuid  Kayzart AI job UUID.
 	 */
 	public static function dispatch( int $action_id, string $job_uuid ): bool {
-		if ( ! self::is_enabled() || $action_id <= 0 || ! self::valid_uuid( $job_uuid ) ) {
+		if ( $action_id <= 0 || ! self::valid_uuid( $job_uuid ) ) {
+			return false;
+		}
+		if ( ! self::is_enabled() ) {
+			self::performance_log(
+				$job_uuid,
+				'loopback_noop',
+				array(
+					'actionId' => $action_id,
+					'reason'   => 'disabled',
+				)
+			);
 			return false;
 		}
 
@@ -81,8 +92,24 @@ class Ai_Immediate_Dispatcher {
 
 		if ( is_wp_error( $result ) ) {
 			error_log( 'Kayzart AI immediate dispatch failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			self::performance_log(
+				$job_uuid,
+				'loopback_post_failed',
+				array(
+					'actionId'  => $action_id,
+					'errorCode' => (string) $result->get_error_code(),
+				)
+			);
 			return false;
 		}
+		self::performance_log(
+			$job_uuid,
+			'loopback_post_sent',
+			array(
+				'actionId' => $action_id,
+				'httpCode' => (int) wp_remote_retrieve_response_code( $result ),
+			)
+		);
 		return true;
 	}
 
@@ -109,6 +136,17 @@ class Ai_Immediate_Dispatcher {
 	 */
 	public static function run( \WP_REST_Request $request ) {
 		if ( ! self::is_enabled() ) {
+			$identity = self::request_identity( $request );
+			if ( false !== $identity ) {
+				self::performance_log(
+					$identity['job_uuid'],
+					'loopback_noop',
+					array(
+						'actionId' => $identity['action_id'],
+						'reason'   => 'disabled',
+					)
+				);
+			}
 			return rest_ensure_response(
 				array(
 					'ok'      => true,
@@ -120,6 +158,16 @@ class Ai_Immediate_Dispatcher {
 
 		$identity = self::request_identity( $request );
 		if ( false === $identity || ! class_exists( '\\ActionScheduler' ) ) {
+			if ( false !== $identity ) {
+				self::performance_log(
+					$identity['job_uuid'],
+					'loopback_noop',
+					array(
+						'actionId' => $identity['action_id'],
+						'reason'   => 'unavailable',
+					)
+				);
+			}
 			return rest_ensure_response(
 				array(
 					'ok'      => true,
@@ -135,6 +183,14 @@ class Ai_Immediate_Dispatcher {
 		$as_status  = $store->get_status( $identity['action_id'] );
 		$job_active = $job && in_array( $job['status'], Ai_Job_Store::ACTIVE_STATUSES, true );
 		if ( \ActionScheduler_Store::STATUS_PENDING !== $as_status || ! $job_active ) {
+			self::performance_log(
+				$identity['job_uuid'],
+				'loopback_noop',
+				array(
+					'actionId' => $identity['action_id'],
+					'reason'   => 'settled',
+				)
+			);
 			return rest_ensure_response(
 				array(
 					'ok'      => true,
@@ -153,6 +209,14 @@ class Ai_Immediate_Dispatcher {
 			$claim   = $store->stake_claim( 1, null, array( Ai_Worker::RUN_HOOK, Ai_Worker::STEP_HOOK ) );
 			$actions = $claim->get_actions();
 			if ( empty( $actions ) ) {
+				self::performance_log(
+					$identity['job_uuid'],
+					'loopback_noop',
+					array(
+						'actionId' => $identity['action_id'],
+						'reason'   => 'empty',
+					)
+				);
 				return rest_ensure_response(
 					array(
 						'ok'      => true,
@@ -162,11 +226,25 @@ class Ai_Immediate_Dispatcher {
 				);
 			}
 
-			$claimed_id = (int) $actions[0];
-			$started    = true;
+			$claimed_id       = (int) $actions[0];
+			$started          = true;
+			$claimed          = $store->fetch_action( $claimed_id );
+			$claim_args       = $claimed->get_args();
+			$claimed_job_uuid = isset( $claim_args[0] ) ? (string) $claim_args[0] : $identity['job_uuid'];
+			self::performance_log(
+				$claimed_job_uuid,
+				'loopback_started',
+				array(
+					'signedActionId'  => $identity['action_id'],
+					'signedJobId'     => $identity['job_uuid'],
+					'claimedActionId' => $claimed_id,
+					'actionId'        => $claimed_id,
+				)
+			);
 			\ActionScheduler::runner()->process_action( $claimed_id, 'Kayzart Immediate Loopback' );
 		} catch ( \Throwable $error ) {
 			error_log( 'Kayzart AI immediate execution failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			self::performance_log( $identity['job_uuid'], 'loopback_execution_failed', array( 'actionId' => $identity['action_id'] ) );
 			return new \WP_Error( 'kayzart_ai_immediate_failed', __( 'The AI job could not be started immediately.', 'kayzart-live-code-editor' ), array( 'status' => 500 ) );
 		} finally {
 			if ( $claim instanceof \ActionScheduler_ActionClaim ) {
@@ -309,5 +387,16 @@ class Ai_Immediate_Dispatcher {
 	/** Return a deliberately generic authentication failure. */
 	private static function forbidden(): \WP_Error {
 		return new \WP_Error( 'kayzart_ai_internal_forbidden', __( 'Permission denied.', 'kayzart-live-code-editor' ), array( 'status' => 403 ) );
+	}
+
+	/** Emit one content-free dispatcher performance event.
+	 *
+	 * @param string $job_uuid Job UUID.
+	 * @param string $event    Event name.
+	 * @param array  $data     Safe diagnostic fields.
+	 */
+	private static function performance_log( string $job_uuid, string $event, array $data = array() ): void {
+		$job = ( new Ai_Job_Store() )->get( $job_uuid );
+		Ai_Worker::log_performance_event( $job, $event, $data );
 	}
 }

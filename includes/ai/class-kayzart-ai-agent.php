@@ -263,7 +263,7 @@ class Ai_Agent {
 							throw new Ai_Agent_Error( 'Repeated exact replacement failed. Inspect the current source and use a more specific instruction.', false );
 						}
 					}
-					$recoverable = array(
+					$recoverable   = array(
 						'ok'    => false,
 						'error' => array(
 							'type'      => 'agent_error',
@@ -271,6 +271,10 @@ class Ai_Agent {
 							'retryable' => $error->is_retryable(),
 						),
 					);
+					$error_details = $error->get_details();
+					if ( count( $error_details ) > 0 ) {
+						$recoverable['error']['details'] = $error_details;
+					}
 					$this->emit_event(
 						array(
 							'event'         => 'tool_end',
@@ -554,7 +558,7 @@ class Ai_Agent {
 			for ( $response_index = count( $projected[ $message_index ]['toolResponses'] ) - 1; $response_index >= 0; $response_index-- ) {
 				$response = $projected[ $message_index ]['toolResponses'][ $response_index ];
 				$name     = isset( $response['name'] ) ? (string) $response['name'] : '';
-				if ( ! in_array( $name, array( 'read_document', 'read_selection', 'search_text', 'list_ai_edits', 'get_ai_edit' ), true ) ) {
+				if ( ! in_array( $name, array( 'read_document', 'read_selection', 'search_text', 'replace_string', 'replace_many', 'list_ai_edits', 'get_ai_edit' ), true ) ) {
 					continue;
 				}
 				$output                   = isset( $response['output'] ) ? $response['output'] : null;

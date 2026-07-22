@@ -21,6 +21,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Do not create or preserve <script> tags', $prompt );
 		$this->assertStringContainsString( 'call finish_edit by itself', $prompt );
 		$this->assertStringContainsString( 'no unresolved tool errors', $prompt );
+		$this->assertStringContainsString( 'error.details.candidates', $prompt );
 		$this->assertStringContainsString( '{"summary":"..."}', $prompt );
 		// trim() removes the leading/trailing blank lines from the source block.
 		$this->assertSame( trim( $prompt ), $prompt );

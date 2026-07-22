@@ -479,6 +479,26 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertFalse( $tool_message['toolResponses'][0]['output']['ok'] );
 	}
 
+	/** No-match candidates let the model recover without separate read tools. */
+	public function test_no_match_details_support_direct_replacement_retry(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'bad', '<main>Hallo</main>', '<main>World</main>' ) ) );
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'good', '<main>Hello</main>', '<main>World</main>' ),
+				$this->finish_call( 'finish', 'Corrected the greeting.' ),
+			)
+		);
+
+		$result   = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$response = $fake->calls()[1]['messages'][2]['toolResponses'][0]['output'];
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+		$this->assertTrue( $response['error']['retryable'] );
+		$this->assertSame( 'replace_no_match', $response['error']['details']['code'] );
+		$this->assertSame( '<main>Hello</main>', $response['error']['details']['candidates'][0]['content'] );
+		$this->assertCount( 2, $fake->calls() );
+	}
+
 	/**
 	 * Repeating the same failing replacement trips the guard.
 	 */
@@ -683,6 +703,38 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( 4000, mb_strlen( $responses[2]['output']['content'] ) );
 	}
 
+	/** Replacement diagnostics count against the bounded observation budget. */
+	public function test_replace_error_details_count_toward_observation_budget(): void {
+		$agent      = new Ai_Agent( new Ai_Client_Fake() );
+		$candidate  = str_repeat( 'x', 1200 );
+		$messages   = array(
+			Ai_Message::tool(
+				array(
+					Ai_Message::tool_response(
+						'call-1',
+						'replace_string',
+						array(
+							'ok'    => false,
+							'error' => array(
+								'details' => array(
+									'candidates' => array( array( 'content' => $candidate ) ),
+								),
+							),
+						)
+					),
+				)
+			),
+		);
+		$projected = $this->invoke_agent_helper( $agent, 'build_model_context', array( $messages ) );
+		$property  = new ReflectionProperty( Ai_Agent::class, 'model_context_stats' );
+		$property->setAccessible( true );
+		$stats = $property->getValue( $agent );
+
+		$this->assertSame( $messages, $projected );
+		$this->assertGreaterThanOrEqual( 1200, $stats['observationCharacters'] );
+		$this->assertSame( $stats['observationCharacters'], $stats['sentObservationCharacters'] );
+	}
+
 	/** Size diagnostics identify tool fields without retaining their text. */
 	public function test_debug_message_structure_has_tool_field_sizes_only(): void {
 		$agent     = new Ai_Agent( new Ai_Client_Fake() );
@@ -702,13 +754,29 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 					),
 				)
 			),
-			Ai_Message::tool( array( Ai_Message::tool_response( 'call-1', 'replace_string', array( 'content' => 'result' ) ) ) ),
+			Ai_Message::tool(
+				array(
+					Ai_Message::tool_response(
+						'call-1',
+						'replace_string',
+						array(
+							'ok'    => false,
+							'error' => array(
+								'details' => array(
+									'candidates' => array( array( 'content' => $secret ) ),
+								),
+							),
+						)
+					),
+				)
+			),
 		);
 		$structure = $this->invoke_agent_helper( $agent, 'build_debug_message_structure', array( $messages ) );
 
 		$this->assertSame( strlen( $secret ), $structure['messages'][0]['toolCalls'][0]['stringFields']['from']['bytes'] );
 		$this->assertSame( 1, $structure['toolTotals']['replace_string']['callCount'] );
 		$this->assertSame( 1, $structure['toolTotals']['replace_string']['responseCount'] );
+		$this->assertSame( strlen( $secret ), $structure['messages'][1]['toolResponses'][0]['stringFields']['error.details.candidates.0.content']['bytes'] );
 		$this->assertStringNotContainsString( $secret, wp_json_encode( $structure ) );
 	}
 

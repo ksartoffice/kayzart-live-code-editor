@@ -26,9 +26,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Stateless AI edit tools operating on a snapshot array.
  */
 class Ai_Tools {
-	const DEFAULT_READ_CHARS = 8000;
-	const MAX_READ_CHARS     = 12000;
-	const MAX_READ_LINES     = 200;
+	const DEFAULT_READ_CHARS                     = 8000;
+	const MAX_READ_CHARS                         = 12000;
+	const MAX_READ_LINES                         = 200;
+	const MAX_REPLACE_DIAGNOSTIC_CANDIDATES      = 2;
+	const MAX_REPLACE_DIAGNOSTIC_CANDIDATE_CHARS = 600;
+	const MAX_REPLACE_DIAGNOSTIC_TOTAL_CHARS     = 1200;
+	const MAX_REPLACE_DIAGNOSTIC_ANCHORS         = 6;
 
 	/**
 	 * Editable / addressable snapshot targets exposed to the model.
@@ -214,6 +218,182 @@ class Ai_Tools {
 			return 0;
 		}
 		return substr_count( $haystack, $needle );
+	}
+
+	/** Build bounded diagnostics for an exact replacement that matched nothing.
+	 *
+	 * @param string $target       Snapshot target.
+	 * @param string $from         Failed exact source string.
+	 * @param string $current      Current source inside the effective scope.
+	 * @param string $base_hash    Current snapshot hash.
+	 * @param string $selection_id Optional selection identifier.
+	 * @return array
+	 */
+	private static function build_replace_no_match_details( string $target, string $from, string $current, string $base_hash, string $selection_id = '' ): array {
+		$candidates = self::find_replace_diagnostic_candidates( $from, $current );
+		$details    = array(
+			'code'              => 'replace_no_match',
+			'target'            => $target,
+			'baseHash'          => $base_hash,
+			'scope'             => '' === $selection_id ? 'document' : 'selection',
+			'attemptedFromHash' => hash( 'sha256', $from ),
+			'sourceCharacters'  => mb_strlen( $current ),
+			'candidateCount'    => count( $candidates ),
+			'candidates'        => $candidates,
+			'guidance'          => 'Do not retry the same from value. Copy an exact substring from a candidate content field. If the candidates are insufficient, use one targeted read or search call.',
+		);
+		if ( '' !== $selection_id ) {
+			$details['selectionId'] = $selection_id;
+		}
+		return $details;
+	}
+
+	/** Find at most two bounded exact-source contexts related to a failed value.
+	 *
+	 * @param string $from    Failed exact source string.
+	 * @param string $current Current scoped source.
+	 * @return array<int,array>
+	 */
+	private static function find_replace_diagnostic_candidates( string $from, string $current ): array {
+		if ( '' === trim( $from ) || '' === $current ) {
+			return array();
+		}
+
+		$tokens = self::diagnostic_tokens( $from );
+		if ( count( $tokens ) > 0 && count( $tokens ) <= 200 && mb_strlen( $from ) <= 2000 ) {
+			$quoted  = array_map(
+				static function ( $token ) {
+					return preg_quote( $token, '~' );
+				},
+				$tokens
+			);
+			$pattern = '~' . implode( '\\s*', $quoted ) . '~u';
+			$matched = preg_match( $pattern, $current, $matches, PREG_OFFSET_CAPTURE );
+			if ( 1 === $matched && isset( $matches[0][0], $matches[0][1] ) ) {
+				$match_text = (string) $matches[0][0];
+				$start      = mb_strlen( substr( $current, 0, (int) $matches[0][1] ) );
+				return array( self::build_diagnostic_candidate( $current, $start, mb_strlen( $match_text ), 'whitespace_equivalent' ) );
+			}
+		}
+
+		$anchors = self::diagnostic_anchors( $from );
+		$ranked  = array();
+		foreach ( $anchors as $anchor ) {
+			$offset = 0;
+			$found  = 0;
+			while ( $found < 3 ) {
+				$position = mb_strpos( $current, $anchor, $offset );
+				if ( false === $position ) {
+					break;
+				}
+				$candidate = self::build_diagnostic_candidate( $current, $position, mb_strlen( $anchor ), 'anchor_context' );
+				$score     = 0;
+				foreach ( $anchors as $score_anchor ) {
+					if ( false !== mb_strpos( $candidate['content'], $score_anchor ) ) {
+						++$score;
+					}
+				}
+				$hash = $candidate['contentHash'];
+				if ( ! isset( $ranked[ $hash ] ) || $score > $ranked[ $hash ]['score'] ) {
+					$ranked[ $hash ] = array(
+						'score'     => $score,
+						'candidate' => $candidate,
+					);
+				}
+				$offset = $position + max( 1, mb_strlen( $anchor ) );
+				++$found;
+			}
+		}
+
+		usort(
+			$ranked,
+			static function ( $left, $right ) {
+				if ( $left['score'] === $right['score'] ) {
+					return $left['candidate']['line'] - $right['candidate']['line'];
+				}
+				return $right['score'] - $left['score'];
+			}
+		);
+		$candidates = array();
+		$total      = 0;
+		foreach ( $ranked as $item ) {
+			$content_length = mb_strlen( $item['candidate']['content'] );
+			if ( $total + $content_length > self::MAX_REPLACE_DIAGNOSTIC_TOTAL_CHARS ) {
+				continue;
+			}
+			$candidates[] = $item['candidate'];
+			$total       += $content_length;
+			if ( count( $candidates ) >= self::MAX_REPLACE_DIAGNOSTIC_CANDIDATES ) {
+				break;
+			}
+		}
+		return $candidates;
+	}
+
+	/** Tokenize an attempted replacement for whitespace-tolerant diagnostics.
+	 *
+	 * @param string $value Source value.
+	 * @return array<int,string>
+	 */
+	private static function diagnostic_tokens( string $value ): array {
+		$matched = preg_match_all( '/[\p{L}\p{N}_-]+|[^\s]/u', $value, $matches );
+		return false !== $matched && isset( $matches[0] ) ? array_values( $matches[0] ) : array();
+	}
+
+	/** Extract a short ordered set of useful exact-search anchors.
+	 *
+	 * @param string $value Failed replacement source.
+	 * @return array<int,string>
+	 */
+	private static function diagnostic_anchors( string $value ): array {
+		$pool  = array();
+		$lines = preg_split( '/\R/u', $value );
+		foreach ( is_array( $lines ) ? $lines : array() as $line ) {
+			$line = trim( $line );
+			if ( 4 <= mb_strlen( $line ) && trim( $value ) !== $line && 160 >= mb_strlen( $line ) ) {
+				$pool[] = $line;
+			}
+		}
+		preg_match_all( '/[\p{L}\p{N}_-]{4,}/u', $value, $word_matches );
+		foreach ( isset( $word_matches[0] ) ? $word_matches[0] : array() as $word ) {
+			$pool[] = $word;
+		}
+		preg_match_all( '/[\p{L}\p{N}]{4,}/u', $value, $plain_word_matches );
+		foreach ( isset( $plain_word_matches[0] ) ? $plain_word_matches[0] : array() as $word ) {
+			$pool[] = $word;
+		}
+		$pool = array_values( array_unique( $pool ) );
+		usort(
+			$pool,
+			static function ( $left, $right ) {
+				return mb_strlen( $right ) - mb_strlen( $left );
+			}
+		);
+		return array_slice( $pool, 0, self::MAX_REPLACE_DIAGNOSTIC_ANCHORS );
+	}
+
+	/** Build one exact, bounded source context.
+	 *
+	 * @param string $current      Current scoped source.
+	 * @param int    $match_start  Match start in UTF-8 characters.
+	 * @param int    $match_length Match length in UTF-8 characters.
+	 * @param string $match_kind   Diagnostic matching strategy.
+	 * @return array
+	 */
+	private static function build_diagnostic_candidate( string $current, int $match_start, int $match_length, string $match_kind ): array {
+		$source_length = mb_strlen( $current );
+		$limit         = self::MAX_REPLACE_DIAGNOSTIC_CANDIDATE_CHARS;
+		$context       = max( 0, $limit - min( $limit, $match_length ) );
+		$start         = max( 0, $match_start - (int) floor( $context / 2 ) );
+		$start         = min( $start, max( 0, $source_length - $limit ) );
+		$content       = mb_substr( $current, $start, $limit );
+		return array(
+			'matchKind'   => $match_kind,
+			'line'        => substr_count( mb_substr( $current, 0, $start ), "\n" ) + 1,
+			'content'     => $content,
+			'contentHash' => hash( 'sha256', $content ),
+			'truncated'   => $start > 0 || $start + mb_strlen( $content ) < $source_length,
+		);
 	}
 
 	/**
@@ -436,20 +616,18 @@ class Ai_Tools {
 		);
 	}
 
-	/**
-	 * Replace exact string matches in one field (replace_string tool).
+	/** Resolve the exact current source used by a replacement operation.
 	 *
-	 * @param array $args     Tool arguments (target, from, to, replaceAll).
-	 * @param array $snapshot Snapshot array.
-	 * @param array $selection_records Selection records keyed by ID.
-	 * @return array Tool call result (output, snapshot, appliedEditOperation).
-	 * @throws Ai_Tool_Error On ambiguous / missing / invalid replacements.
+	 * @param string $target            Replacement target.
+	 * @param array  $snapshot          Current snapshot.
+	 * @param array  $selection_records Selection records keyed by ID.
+	 * @param string $selection_id      Optional normalized selection ID.
+	 * @return array{current:string,scope:array|null}
+	 * @throws Ai_Tool_Error When the requested selection scope is invalid.
 	 */
-	public static function run_replace_string( array $args, array $snapshot, array $selection_records = array() ): array {
-		$target       = (string) $args['target'];
-		$current      = self::get_snapshot_source( $snapshot, $target );
-		$scope        = null;
-		$selection_id = self::normalize_optional_selection_id( $args['selectionId'] ?? null, $selection_records );
+	private static function resolve_replacement_scope( string $target, array $snapshot, array $selection_records, string $selection_id ): array {
+		$current = self::get_snapshot_source( $snapshot, $target );
+		$scope   = null;
 		if ( '' !== $selection_id ) {
 			if ( 'html' !== $target ) {
 				throw new Ai_Tool_Error( 'selectionId can only scope HTML replacements.', false );
@@ -463,9 +641,30 @@ class Ai_Tools {
 				throw new Ai_Tool_Error( 'Selection is stale because the selected source changed.', false );
 			}
 		}
-		$from        = isset( $args['from'] ) ? (string) $args['from'] : '';
-		$to          = isset( $args['to'] ) ? (string) $args['to'] : '';
-		$replace_all = ! empty( $args['replaceAll'] );
+		return array(
+			'current' => $current,
+			'scope'   => $scope,
+		);
+	}
+
+	/**
+	 * Replace exact string matches in one field (replace_string tool).
+	 *
+	 * @param array $args     Tool arguments (target, from, to, replaceAll).
+	 * @param array $snapshot Snapshot array.
+	 * @param array $selection_records Selection records keyed by ID.
+	 * @return array Tool call result (output, snapshot, appliedEditOperation).
+	 * @throws Ai_Tool_Error On ambiguous / missing / invalid replacements.
+	 */
+	public static function run_replace_string( array $args, array $snapshot, array $selection_records = array() ): array {
+		$target       = (string) $args['target'];
+		$selection_id = self::normalize_optional_selection_id( $args['selectionId'] ?? null, $selection_records );
+		$scope_info   = self::resolve_replacement_scope( $target, $snapshot, $selection_records, $selection_id );
+		$current      = $scope_info['current'];
+		$scope        = $scope_info['scope'];
+		$from         = isset( $args['from'] ) ? (string) $args['from'] : '';
+		$to           = isset( $args['to'] ) ? (string) $args['to'] : '';
+		$replace_all  = ! empty( $args['replaceAll'] );
 
 		if ( '' === $from ) {
 			if ( null !== $scope ) {
@@ -496,7 +695,17 @@ class Ai_Tools {
 		$count = self::count_occurrences( $current, $from );
 		if ( 0 === $count ) {
 			// Internal tool error surfaced to the model as JSON, not HTML output.
-			throw new Ai_Tool_Error( 'replace_string matched 0 occurrences in ' . $target . '.', false );
+			throw new Ai_Tool_Error(
+				'replace_string matched 0 occurrences in ' . $target . '.',
+				true,
+				self::build_replace_no_match_details(
+					$target,
+					$from,
+					$current,
+					isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '',
+					$selection_id
+				)
+			);
 		}
 		if ( ! $replace_all && $count > 1 ) {
 			// Internal tool error surfaced to the model as JSON, not HTML output.
@@ -573,19 +782,39 @@ class Ai_Tools {
 		$total_replaced   = 0;
 		$steps            = array();
 		$index            = 0;
+		$selection_id     = self::normalize_optional_selection_id( $args['selectionId'] ?? null, $selection_records );
+		$original_scope   = self::resolve_replacement_scope( $target, $snapshot, $selection_records, $selection_id );
 		foreach ( $replacements as $replacement ) {
-			$replacement       = is_array( $replacement ) ? $replacement : array();
-			$result            = self::run_replace_string(
-				array(
-					'target'      => $target,
-					'selectionId' => isset( $args['selectionId'] ) ? (string) $args['selectionId'] : '',
-					'from'        => isset( $replacement['from'] ) ? (string) $replacement['from'] : '',
-					'to'          => isset( $replacement['to'] ) ? (string) $replacement['to'] : '',
-					'replaceAll'  => ! empty( $replacement['replaceAll'] ),
-				),
-				$current_snapshot,
-				$selection_records
-			);
+			$replacement = is_array( $replacement ) ? $replacement : array();
+			$failed_from = isset( $replacement['from'] ) ? (string) $replacement['from'] : '';
+			try {
+				$result = self::run_replace_string(
+					array(
+						'target'      => $target,
+						'selectionId' => $selection_id,
+						'from'        => $failed_from,
+						'to'          => isset( $replacement['to'] ) ? (string) $replacement['to'] : '',
+						'replaceAll'  => ! empty( $replacement['replaceAll'] ),
+					),
+					$current_snapshot,
+					$selection_records
+				);
+			} catch ( Ai_Tool_Error $error ) {
+				$details = $error->get_details();
+				if ( isset( $details['code'] ) && 'replace_no_match' === $details['code'] ) {
+					$details                          = self::build_replace_no_match_details(
+						$target,
+						$failed_from,
+						$original_scope['current'],
+						isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '',
+						$selection_id
+					);
+					$details['failedStepIndex']       = $index;
+					$details['transactionRolledBack'] = true;
+					throw new Ai_Tool_Error( $error->getMessage(), $error->is_retryable(), $details );
+				}
+				throw $error;
+			}
 			$current_snapshot  = isset( $result['snapshot'] ) ? $result['snapshot'] : $current_snapshot;
 			$selection_records = isset( $result['selectionRecords'] ) ? $result['selectionRecords'] : $selection_records;
 			$replaced_count    = isset( $result['output']['replacedCount'] ) ? (int) $result['output']['replacedCount'] : 0;

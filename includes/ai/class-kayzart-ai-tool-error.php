@@ -30,14 +30,23 @@ class Ai_Tool_Error extends \Exception {
 	private $retryable;
 
 	/**
+	 * Optional structured diagnostics safe to expose to the model.
+	 *
+	 * @var array
+	 */
+	private $details;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string $message   Human readable error message.
 	 * @param bool   $retryable Whether the model may retry.
+	 * @param array  $details   Optional structured recovery diagnostics.
 	 */
-	public function __construct( string $message, bool $retryable = false ) {
+	public function __construct( string $message, bool $retryable = false, array $details = array() ) {
 		parent::__construct( $message );
 		$this->retryable = $retryable;
+		$this->details   = $details;
 	}
 
 	/**
@@ -47,5 +56,14 @@ class Ai_Tool_Error extends \Exception {
 	 */
 	public function is_retryable(): bool {
 		return $this->retryable;
+	}
+
+	/**
+	 * Return structured recovery diagnostics.
+	 *
+	 * @return array
+	 */
+	public function get_details(): array {
+		return $this->details;
 	}
 }

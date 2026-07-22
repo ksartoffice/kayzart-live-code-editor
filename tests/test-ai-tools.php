@@ -38,6 +38,24 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 		);
 	}
 
+	/** Capture a replacement error for diagnostic assertions.
+	 *
+	 * @param array $args      Replacement arguments.
+	 * @param array $snapshot  Current snapshot.
+	 * @param array $selections Selection records.
+	 * @return Ai_Tool_Error
+	 * @throws RuntimeException When the expected tool error is not raised.
+	 */
+	private function replace_error( array $args, array $snapshot, array $selections = array() ): Ai_Tool_Error {
+		try {
+			Ai_Tools::run_replace_string( $args, $snapshot, $selections );
+			$this->fail( 'Expected replace_string to fail.' );
+		} catch ( Ai_Tool_Error $error ) {
+			return $error;
+		}
+		throw new RuntimeException( 'Unreachable test branch.' );
+	}
+
 	/**
 	 * The base hash must match the JavaScript editor implementation exactly.
 	 *
@@ -94,6 +112,89 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 			),
 			$this->snapshot( '<main>Hello</main>' )
 		);
+	}
+
+	/** Whitespace-only differences return exact current CSS as a candidate. */
+	public function test_replace_no_match_returns_whitespace_equivalent_candidate(): void {
+		$current = ".card {\n  color: red;\n}";
+		$error   = $this->replace_error(
+			array(
+				'target' => 'css',
+				'from'   => '.card{color:red;}',
+				'to'     => '.card{color:blue;}',
+			),
+			$this->snapshot( '', '', $current )
+		);
+		$details = $error->get_details();
+		$this->assertTrue( $error->is_retryable() );
+		$this->assertSame( 'replace_no_match', $details['code'] );
+		$this->assertSame( 'whitespace_equivalent', $details['candidates'][0]['matchKind'] );
+		$this->assertSame( $current, $details['candidates'][0]['content'] );
+		$this->assertSame( hash( 'sha256', $current ), $details['candidates'][0]['contentHash'] );
+	}
+
+	/** Anchor diagnostics work across every editable document target. */
+	public function test_replace_no_match_returns_anchor_candidates_for_all_targets(): void {
+		$cases = array(
+			array( 'html', $this->snapshot( '<section class="hero"><h1>Welcome</h1></section>' ), '<section class="hero"><h1>Hello</h1></section>' ),
+			array( 'head', $this->snapshot( '', '<meta name="description" content="Current">' ), '<meta name="description" content="Old">' ),
+			array( 'css', $this->snapshot( '', '', '.button { color: blue; }' ), '.button { color: red; }' ),
+			array( 'js', $this->snapshot( '', '', '', 'function greet(){ return "Hello"; }' ), 'function greet(){ return "Hi"; }' ),
+		);
+		foreach ( $cases as $case ) {
+			$error      = $this->replace_error(
+				array(
+					'target' => $case[0],
+					'from'   => $case[2],
+					'to'     => 'replacement',
+				),
+				$case[1]
+			);
+			$candidates = $error->get_details()['candidates'];
+			$this->assertNotEmpty( $candidates, $case[0] . ' should return an anchor candidate.' );
+			$this->assertSame( 'anchor_context', $candidates[0]['matchKind'] );
+		}
+	}
+
+	/** Candidate count and content remain strictly bounded and UTF-8 safe. */
+	public function test_replace_no_match_candidates_are_bounded(): void {
+		$marker  = 'unicode-marker-' . "\xE3\x81\x82\xE3\x81\x84\xE3\x81\x86"; // Japanese hiragana suffix.
+		$current = str_repeat( 'a', 700 ) . $marker . str_repeat( 'b', 700 ) . $marker . str_repeat( 'c', 700 );
+		$error   = $this->replace_error(
+			array(
+				'target' => 'css',
+				'from'   => $marker . '-missing-value',
+				'to'     => 'replacement',
+			),
+			$this->snapshot( '', '', $current )
+		);
+		$total   = 0;
+		$this->assertLessThanOrEqual( Ai_Tools::MAX_REPLACE_DIAGNOSTIC_CANDIDATES, count( $error->get_details()['candidates'] ) );
+		$this->assertNotEmpty( $error->get_details()['candidates'] );
+		foreach ( $error->get_details()['candidates'] as $candidate ) {
+			$length = mb_strlen( $candidate['content'] );
+			$total += $length;
+			$this->assertLessThanOrEqual( Ai_Tools::MAX_REPLACE_DIAGNOSTIC_CANDIDATE_CHARS, $length );
+			$this->assertTrue( mb_check_encoding( $candidate['content'], 'UTF-8' ) );
+			$this->assertSame( hash( 'sha256', $candidate['content'] ), $candidate['contentHash'] );
+		}
+		$this->assertLessThanOrEqual( Ai_Tools::MAX_REPLACE_DIAGNOSTIC_TOTAL_CHARS, $total );
+	}
+
+	/** Missing anchors still return structured guidance with no candidates. */
+	public function test_replace_no_match_can_return_empty_candidates(): void {
+		$error   = $this->replace_error(
+			array(
+				'target' => 'html',
+				'from'   => 'zzzz-completely-absent',
+				'to'     => 'replacement',
+			),
+			$this->snapshot( '<main>Hello</main>' )
+		);
+		$details = $error->get_details();
+		$this->assertSame( array(), $details['candidates'] );
+		$this->assertSame( 0, $details['candidateCount'] );
+		$this->assertNotEmpty( $details['guidance'] );
 	}
 
 	/**
@@ -281,6 +382,67 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 			$records
 		);
 		$this->assertSame( '<p>Hello</p><p>World</p>', $result['snapshot']['html'] );
+	}
+
+	/** No-match diagnostics never include source outside the selected element. */
+	public function test_replace_no_match_candidates_stay_inside_selection(): void {
+		$html     = '<div>outside-secret</div><section class="hero">Selected current text</section>';
+		$selected = '<section class="hero">Selected current text</section>';
+		$start    = strpos( $html, $selected );
+		$records  = array(
+			's1' => array(
+				'startOffset' => $start,
+				'endOffset'   => $start + strlen( $selected ),
+				'contentHash' => hash( 'sha256', $selected ),
+				'resolvable'  => true,
+			),
+		);
+		$error    = $this->replace_error(
+			array(
+				'target'      => 'html',
+				'from'        => '<section class="hero">Different text</section>',
+				'to'          => 'replacement',
+				'selectionId' => 's1',
+			),
+			$this->snapshot( $html ),
+			$records
+		);
+		$details  = $error->get_details();
+		$this->assertSame( 'selection', $details['scope'] );
+		$this->assertSame( 's1', $details['selectionId'] );
+		$this->assertStringNotContainsString( 'outside-secret', wp_json_encode( $details['candidates'] ) );
+	}
+
+	/** Replace_many failures diagnose the original snapshot after rollback. */
+	public function test_replace_many_no_match_diagnostics_use_rolled_back_snapshot(): void {
+		$snapshot = $this->snapshot( 'alpha beta' );
+		try {
+			Ai_Tools::run_replace_many(
+				array(
+					'target'       => 'html',
+					'replacements' => array(
+						array(
+							'from' => 'alpha',
+							'to'   => 'one',
+						),
+						array(
+							'from' => 'one beta missing',
+							'to'   => 'done',
+						),
+					),
+				),
+				$snapshot
+			);
+			$this->fail( 'Expected replace_many to roll back.' );
+		} catch ( Ai_Tool_Error $error ) {
+			$details = $error->get_details();
+			$this->assertSame( 1, $details['failedStepIndex'] );
+			$this->assertTrue( $details['transactionRolledBack'] );
+			$this->assertSame( $snapshot['baseHash'], $details['baseHash'] );
+			$this->assertStringContainsString( 'alpha beta', wp_json_encode( $details['candidates'] ) );
+			$this->assertStringNotContainsString( 'one beta', wp_json_encode( $details['candidates'] ) );
+		}
+		$this->assertSame( 'alpha beta', $snapshot['html'] );
 	}
 
 	/** Long reads return a cursor that resumes without gaps. */

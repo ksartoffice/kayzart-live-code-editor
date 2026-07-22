@@ -110,7 +110,18 @@ install_wp() {
   fi
 
   if [ ! -f "$WP_CORE_DIR/wp-config.php" ]; then
-    download "https://raw.githubusercontent.com/WordPress/WordPress/$WP_VERSION/wp-config-sample.php" "$WP_CORE_DIR/wp-config.php"
+    # The core tarball already ships wp-config-sample.php, so prefer the local
+    # copy. Falling back to raw.githubusercontent requires a real git ref, and
+    # "latest"/"nightly"/"trunk" are not refs (they 404), so map them to master.
+    if [ -f "$WP_CORE_DIR/wp-config-sample.php" ]; then
+      cp "$WP_CORE_DIR/wp-config-sample.php" "$WP_CORE_DIR/wp-config.php"
+    else
+      local config_ref="$WP_VERSION"
+      if [ "$WP_VERSION" = "latest" ] || [ "$WP_VERSION" = "nightly" ] || [ "$WP_VERSION" = "trunk" ]; then
+        config_ref='master'
+      fi
+      download "https://raw.githubusercontent.com/WordPress/WordPress/$config_ref/wp-config-sample.php" "$WP_CORE_DIR/wp-config.php"
+    fi
     sed -i.bak "s/database_name_here/$DB_NAME/" "$WP_CORE_DIR/wp-config.php"
     sed -i.bak "s/username_here/$DB_USER/" "$WP_CORE_DIR/wp-config.php"
     sed -i.bak "s/password_here/$DB_PASS/" "$WP_CORE_DIR/wp-config.php"

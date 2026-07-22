@@ -20,6 +20,8 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'You are the Kayzart AI edit engine.', $prompt );
 		$this->assertStringContainsString( 'Do not create or preserve <script> tags', $prompt );
 		$this->assertStringContainsString( 'call finish_edit by itself', $prompt );
+		$this->assertStringContainsString( 'js source and jsMode are read-only', $prompt );
+		$this->assertStringContainsString( 'call finish_without_edit', $prompt );
 		$this->assertStringContainsString( 'no unresolved tool errors', $prompt );
 		$this->assertStringContainsString( 'error.details.candidates', $prompt );
 		$this->assertStringContainsString( 'validated editFootprint', $prompt );
@@ -46,7 +48,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'User prompt: make the heading blue', $prompt );
 		$this->assertStringContainsString( 'Editor mode: normal', $prompt );
-		$this->assertStringContainsString( 'Editable targets for this request: html, head, css, js', $prompt );
+		$this->assertStringContainsString( 'Editable targets for this request: html, head, css', $prompt );
 		$this->assertStringContainsString( 'Selected contexts: none', $prompt );
 		$this->assertStringContainsString( 'Recent edit context: none', $prompt );
 		$this->assertStringContainsString( 'History tools available: none', $prompt );
@@ -66,7 +68,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString( 'Editor mode: tailwind', $prompt );
-		$this->assertStringContainsString( 'Editable targets for this request: html, head, js', $prompt );
+		$this->assertStringContainsString( 'Editable targets for this request: html, head', $prompt );
 		$this->assertStringContainsString( 'Tailwind mode policy:', $prompt );
 	}
 

@@ -235,6 +235,8 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 			$item['changeStats']['css']
 		);
 		$this->assertIsInt( $item['durationSeconds'] );
+		$this->assertSame( Ai_Job_Store::STEPWISE_TIMEOUT_SECONDS * 1000, $item['timeoutMs'] );
+		$this->assertStringEndsWith( '+00:00', $item['createdAt'] );
 		$this->assertArrayNotHasKey( 'snapshot', $item );
 		$this->assertArrayNotHasKey( 'summary', $item );
 
@@ -243,6 +245,7 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$expired = $this->store->list_for_post( 42 )['items'][0];
 		$this->assertNull( $expired['changeStats'] );
 		$this->assertNull( $expired['durationSeconds'] );
+		$this->assertNull( $expired['timeoutMs'] );
 	}
 
 	/** Cursor pages contain 50 stable chronological rows without overlap. */

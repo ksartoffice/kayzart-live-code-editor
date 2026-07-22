@@ -79,6 +79,11 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		return Ai_Message::tool_call( $id, 'finish_edit', array( 'summary' => $summary ) );
 	}
 
+	/** Build a finish_without_edit marker call. */
+	private function finish_without_edit_call( string $id, string $summary ): array {
+		return Ai_Message::tool_call( $id, 'finish_without_edit', array( 'summary' => $summary ) );
+	}
+
 	/** Agent tool exposure follows the presence of a resolvable selection. */
 	public function test_agent_builds_selection_aware_tool_schema(): void {
 		$without_selection = new Ai_Client_Fake();
@@ -143,6 +148,45 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( 20, $result['usage']['inputTokens'] );
 		$this->assertSame( 8, $result['usage']['outputTokens'] );
 		$this->assertCount( 1, $fake->calls() );
+	}
+
+	/** Unsupported JavaScript-only requests can complete without fabricating an edit. */
+	public function test_finish_without_edit_preserves_snapshot(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->finish_without_edit_call( 'n1', 'JavaScript editing is not supported.' ) ) );
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( '<main>Hello</main>', $result['snapshot']['html'] );
+		$this->assertSame( 'JavaScript editing is not supported.', $result['summary'] );
+		$this->assertCount( 1, $fake->calls() );
+	}
+
+	/** finish_without_edit cannot hide a prior snapshot mutation. */
+	public function test_finish_without_edit_rejects_changed_snapshot(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ) ) );
+		$fake->queue_tool_calls( array( $this->finish_without_edit_call( 'n1', 'No change.' ) ) );
+		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Changed the greeting.' ) ) );
+		$result = ( new Ai_Agent( $fake ) )->run( $this->payload() );
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+		$responses = $fake->calls()[2]['messages'][4]['toolResponses'];
+		$this->assertFalse( $responses[0]['output']['ok'] );
+		$this->assertStringContainsString( 'snapshot to remain unchanged', $responses[0]['output']['error']['message'] );
+	}
+
+	/** Finalization revalidates unsafe content even if a checkpoint is tampered with. */
+	public function test_completed_snapshot_is_revalidated_against_original_input(): void {
+		$fake  = new Ai_Client_Fake();
+		$agent = new Ai_Agent( $fake );
+		$input = $this->payload();
+		$state = $agent->create_state( $input );
+		$state['snapshot']['html'] = '<main>Hello</main><script>alert(1)</script>';
+		$state['appliedEditOperation'] = true;
+		$state['finishReady']          = true;
+		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Unsafe result.' ) ) );
+
+		$this->expectException( Ai_Agent_Error::class );
+		$this->expectExceptionMessage( 'server safety policy' );
+		$agent->advance( $input, $state );
 	}
 
 	/** A finish-only turn is accepted after a prior successful edit. */

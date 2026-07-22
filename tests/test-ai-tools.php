@@ -133,13 +133,12 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 		$this->assertSame( hash( 'sha256', $current ), $details['candidates'][0]['contentHash'] );
 	}
 
-	/** Anchor diagnostics work across every editable document target. */
+	/** Anchor diagnostics work across every AI-editable document target. */
 	public function test_replace_no_match_returns_anchor_candidates_for_all_targets(): void {
 		$cases = array(
 			array( 'html', $this->snapshot( '<section class="hero"><h1>Welcome</h1></section>' ), '<section class="hero"><h1>Hello</h1></section>' ),
 			array( 'head', $this->snapshot( '', '<meta name="description" content="Current">' ), '<meta name="description" content="Old">' ),
 			array( 'css', $this->snapshot( '', '', '.button { color: blue; }' ), '.button { color: red; }' ),
-			array( 'js', $this->snapshot( '', '', '', 'function greet(){ return "Hello"; }' ), 'function greet(){ return "Hi"; }' ),
 		);
 		foreach ( $cases as $case ) {
 			$error      = $this->replace_error(
@@ -316,17 +315,6 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Setting the jsMode updates the working snapshot.
-	 */
-	public function test_set_js_mode(): void {
-		$result = Ai_Tools::run_set_js_mode(
-			array( 'jsMode' => 'module' ),
-			$this->snapshot()
-		);
-		$this->assertSame( 'module', $result['snapshot']['jsMode'] );
-	}
-
-	/**
 	 * The dispatcher enforces the editable-target allow list.
 	 */
 	public function test_run_tool_rejects_non_editable_target(): void {
@@ -343,6 +331,139 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 			null,
 			array( 'html', 'head', 'js' )
 		);
+	}
+
+	/** AI dispatch never permits JavaScript source or mode changes. */
+	public function test_run_tool_rejects_javascript_edits(): void {
+		try {
+			Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => 'js',
+					'from'   => '',
+					'to'     => 'alert(1)',
+				),
+				$this->snapshot(),
+				null,
+				array( 'html', 'head', 'css' )
+			);
+			$this->fail( 'Expected JavaScript target rejection.' );
+		} catch ( Ai_Tool_Error $error ) {
+			$this->assertStringContainsString( 'not editable', $error->getMessage() );
+		}
+		try {
+			Ai_Tools::run_replace_string(
+				array(
+					'target' => 'js',
+					'from'   => '',
+					'to'     => 'alert(1)',
+				),
+				$this->snapshot()
+			);
+			$this->fail( 'Expected low-level JavaScript rejection.' );
+		} catch ( Ai_Tool_Error $error ) {
+			$this->assertStringContainsString( 'JavaScript source is read-only', $error->getMessage() );
+		}
+
+		$this->expectException( Ai_Tool_Error::class );
+		$this->expectExceptionMessage( 'JavaScript mode is read-only' );
+		Ai_Tools::run_tool( 'set_js_mode', array( 'jsMode' => 'module' ), $this->snapshot(), null, array( 'html', 'head', 'css' ) );
+	}
+
+	/** Safe edits may preserve or remove pre-existing executable HTML. */
+	public function test_output_policy_grandfathers_unchanged_existing_script(): void {
+		$before = $this->snapshot( '<script>alert(1)</script><p>Old</p>' );
+		$safe   = Ai_Tools::run_tool(
+			'replace_string',
+			array(
+				'target' => 'html',
+				'from'   => 'Old',
+				'to'     => 'New',
+			),
+			$before,
+			null,
+			array( 'html', 'head', 'css' )
+		);
+		$this->assertSame( '<script>alert(1)</script><p>New</p>', $safe['snapshot']['html'] );
+
+		$removed = Ai_Tools::run_tool(
+			'replace_string',
+			array(
+				'target' => 'html',
+				'from'   => '<script>alert(1)</script>',
+				'to'     => '',
+			),
+			$before,
+			null,
+			array( 'html', 'head', 'css' )
+		);
+		$this->assertStringNotContainsString( '<script', $removed['snapshot']['html'] );
+	}
+
+	/** Newly added or changed executable HTML is rejected. */
+	public function test_output_policy_rejects_unsafe_html_changes(): void {
+		$cases = array(
+			array( '<p>Old</p>', 'Old', '<script>alert(1)</script>' ),
+			array( '<button>Old</button>', 'Old', '<img src="x" onerror="alert(1)">' ),
+			array( '<a href="#">Old</a>', '#', 'javascript:alert(1)' ),
+			array( '<p>Old</p>', 'Old', '<img src="https://tracker.example/pixel.gif">' ),
+			array( '<div style="color:red">Old</div>', 'color:red', 'background:url(https://cdn.example/a.png)' ),
+			array( '<script>alert(1)</script>', 'alert(1)', 'alert(2)' ),
+		);
+		foreach ( $cases as $case ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => $case[1],
+						'to'     => $case[2],
+					),
+					$this->snapshot( $case[0] ),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected unsafe HTML rejection.' );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'] );
+			}
+		}
+
+		$this->expectException( Ai_Tool_Error::class );
+		$this->expectExceptionMessage( 'violates the AI safety policy' );
+		Ai_Tools::run_tool(
+			'replace_string',
+			array(
+				'target' => 'head',
+				'from'   => '<meta name="description" content="Safe">',
+				'to'     => '<script src="https://cdn.example/app.js"></script>',
+			),
+			$this->snapshot( '', '<meta name="description" content="Safe">' ),
+			null,
+			array( 'html', 'head', 'css' )
+		);
+	}
+
+	/** CSS imports, remote URLs and executable data URLs are rejected. */
+	public function test_output_policy_rejects_unsafe_css_changes(): void {
+		foreach ( array( '@import url("https://cdn.example/a.css");', '.x{background:url(//cdn.example/a.png)}', '.x{background:url(data:image/svg+xml,x)}' ) as $css ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'css',
+						'from'   => '',
+						'to'     => $css,
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected unsafe CSS rejection.' );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'] );
+			}
+		}
 	}
 
 	/**

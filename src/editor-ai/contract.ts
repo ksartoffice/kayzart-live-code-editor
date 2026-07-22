@@ -84,6 +84,7 @@ export type AiTimelineItem = {
   changedTargets: ChangedTarget[];
   changeStats: Partial<Record<ChangedTarget, ChangeStat>> | null;
   durationSeconds: number | null;
+  timeoutMs: number | null;
   model: string | null;
   inputTokens: number | null;
   outputTokens: number | null;

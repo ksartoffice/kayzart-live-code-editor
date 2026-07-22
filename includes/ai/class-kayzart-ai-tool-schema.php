@@ -29,12 +29,12 @@ class Ai_Tool_Schema {
 	/**
 	 * Every editable target, used for the normal editor mode.
 	 */
-	const ALL_EDITABLE_TARGETS = array( 'html', 'head', 'css', 'js' );
+	const ALL_EDITABLE_TARGETS = array( 'html', 'head', 'css' );
 
 	/**
 	 * Default editable targets for tailwind mode when CSS is not requested.
 	 */
-	const TAILWIND_DEFAULT_EDITABLE_TARGETS = array( 'html', 'head', 'js' );
+	const TAILWIND_DEFAULT_EDITABLE_TARGETS = array( 'html', 'head' );
 
 	/**
 	 * Keywords signalling that the user explicitly wants CSS-tab edits.
@@ -106,7 +106,7 @@ class Ai_Tool_Schema {
 	 * @return array<int,array> Tool definitions.
 	 */
 	public static function build_tool_definitions( array $editable_targets, bool $has_history_tool = false, bool $has_selection_context = true ): array {
-		$editable_target_enum = array_values( $editable_targets );
+		$editable_target_enum = array_values( array_intersect( $editable_targets, self::ALL_EDITABLE_TARGETS ) );
 		$replace_properties   = array(
 			'target'     => array(
 				'type' => 'string',
@@ -235,17 +235,18 @@ class Ai_Tool_Schema {
 			),
 			array(
 				'type'        => 'function',
-				'name'        => 'set_js_mode',
-				'description' => 'Set jsMode for the working snapshot.',
+				'name'        => 'finish_without_edit',
+				'description' => 'Finish without changing the snapshot only when the request requires JavaScript/jsMode changes or another prohibited operation and no relevant safe HTML/CSS edit is possible.',
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(
-						'jsMode' => array(
-							'type' => 'string',
-							'enum' => array( 'classic', 'module' ),
+						'summary' => array(
+							'type'      => 'string',
+							'minLength' => 1,
+							'maxLength' => 1000,
 						),
 					),
-					'required'             => array( 'jsMode' ),
+					'required'             => array( 'summary' ),
 					'additionalProperties' => false,
 				),
 			),

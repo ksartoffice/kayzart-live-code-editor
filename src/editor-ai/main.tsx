@@ -6,10 +6,10 @@ import type {
 } from './contract';
 import { normalizeSnapshot } from './contract';
 import {
-  AiApiError, cancelJob, createJob, getJob, getTimeline,
+  AiApiError, cancelJob, createJob, getJob, getTimeline, getTimelineSnapshot,
   restoreTimeline, updateTimelineApplication,
 } from './api';
-import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isTerminalStatus, positiveInteger, sleep } from './polling';
+import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotIdentity, sleep } from './polling';
 import { clearActiveJob, loadActiveJob, saveActiveJob } from './session';
 import './style.css';
 
@@ -134,6 +134,7 @@ export function AiEditorPanel() {
   const pollAbortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const timelineRecoveryRef = useRef(false);
+  const blockedRecoveryJobIdsRef = useRef(new Set<string>());
   const [prompt, setPromptState] = useState(draftState.prompt);
   const [contexts, setContextsState] = useState<SelectedElementContext[]>(draftState.contexts);
   const [items, setItems] = useState<AiTimelineItem[]>([]);
@@ -176,13 +177,14 @@ export function AiEditorPanel() {
     if (!status.snapshot) { setError(__('AI response is missing its snapshot.', 'kayzart-live-code-editor')); finish(); return; }
     const output = normalizeSnapshot(status.snapshot);
     const current = host()?.getEditorSnapshot?.();
-    if (!current || current.baseHash !== active.inputSnapshot.baseHash) {
-      if (current?.baseHash === output.baseHash) {
-        setEditorHash(output.baseHash);
-        await markApplied(active.activityId);
-      } else {
-        setPendingConflict({ output, activityId: active.activityId });
-      }
+    if (current && sameSnapshotIdentity(current, output)) {
+      setEditorHash(output.baseHash);
+      await markApplied(active.activityId);
+      finish();
+      return;
+    }
+    if (!current || !sameSnapshotIdentity(current, active.inputSnapshot)) {
+      setPendingConflict({ output, activityId: active.activityId });
       finish();
       return;
     }
@@ -208,7 +210,7 @@ export function AiEditorPanel() {
       return;
     }
     setResolvingConflict(true); setError('');
-    if (current.baseHash !== pendingConflict.output.baseHash && !replace(pendingConflict.output)) {
+    if (!sameSnapshotIdentity(current, pendingConflict.output) && !replace(pendingConflict.output)) {
       setError(__('The AI result could not be applied to the editor.', 'kayzart-live-code-editor'));
       setResolvingConflict(false);
       return;
@@ -227,25 +229,76 @@ export function AiEditorPanel() {
   const poll = async (active: ActiveJobRecord) => {
     pollAbortRef.current?.abort();
     const controller = new AbortController(); pollAbortRef.current = controller;
+    let pollingActive = active;
+    const failPolling = (message: string) => {
+      blockedRecoveryJobIdsRef.current.add(pollingActive.jobId);
+      setError(message);
+      finish();
+    };
+    if (Date.now() >= pollingActive.startedAt + pollingActive.timeoutMs) {
+      failPolling(__('AI edit timed out while waiting for its status.', 'kayzart-live-code-editor'));
+      return;
+    }
     setRunning(true); setLiveJob({ requestId: active.requestId, status: 'pending' }); host()?.setEditorLock?.(true);
     const interval = positiveInteger(active.pollIntervalMs, DEFAULT_POLL_INTERVAL_MS);
     try {
       for (;;) {
+        const remainingBeforeRequest = pollingActive.startedAt + pollingActive.timeoutMs - Date.now();
+        if (remainingBeforeRequest <= 0) {
+          failPolling(__('AI edit timed out while waiting for its status.', 'kayzart-live-code-editor'));
+          return;
+        }
         let status: AiJobStatusResponse;
-        try { status = await getJob(active.statusUrl, nonce, controller.signal); setError(''); }
+        const requestController = new AbortController();
+        const abortRequest = () => requestController.abort();
+        controller.signal.addEventListener('abort', abortRequest, { once: true });
+        const requestTimeout = window.setTimeout(abortRequest, remainingBeforeRequest);
+        try { status = await getJob(active.statusUrl, nonce, requestController.signal); setError(''); }
         catch (caught) {
-          if (caught instanceof DOMException && caught.name === 'AbortError') throw caught;
+          if (caught instanceof DOMException && caught.name === 'AbortError') {
+            if (controller.signal.aborted) throw caught;
+            failPolling(__('AI edit timed out while waiting for its status.', 'kayzart-live-code-editor'));
+            return;
+          }
+          if (caught instanceof AiApiError && !isRetryableHttpStatus(caught.status)) {
+            failPolling(caught.message);
+            return;
+          }
+          const remaining = pollingActive.startedAt + pollingActive.timeoutMs - Date.now();
+          if (remaining <= 0) {
+            failPolling(__('AI edit timed out while waiting for its status.', 'kayzart-live-code-editor'));
+            return;
+          }
           setError(__('Connection lost. Retrying the AI job status…', 'kayzart-live-code-editor'));
-          await sleep(interval, controller.signal); continue;
+          await sleep(Math.min(interval, remaining), controller.signal); continue;
+        } finally {
+          window.clearTimeout(requestTimeout);
+          controller.signal.removeEventListener('abort', abortRequest);
         }
         if (!mountedRef.current) return;
         setEvents(Array.isArray(status.events) ? status.events : []); setLiveJob({ requestId: active.requestId, status: status.status });
-        if (isTerminalStatus(status.status)) { terminal(status, active); return; }
-        await sleep(interval, controller.signal);
+        const serverStartedAt = Date.parse(status.createdAt);
+        const corrected: ActiveJobRecord = {
+          ...pollingActive,
+          startedAt: Number.isFinite(serverStartedAt) ? serverStartedAt : pollingActive.startedAt,
+          timeoutMs: positiveInteger(status.timeoutMs, pollingActive.timeoutMs),
+          pollIntervalMs: positiveInteger(status.pollIntervalMs, pollingActive.pollIntervalMs),
+        };
+        if (corrected.startedAt !== pollingActive.startedAt || corrected.timeoutMs !== pollingActive.timeoutMs || corrected.pollIntervalMs !== pollingActive.pollIntervalMs) {
+          pollingActive = corrected;
+          saveActiveJob(pollingActive);
+        }
+        if (isTerminalStatus(status.status)) { terminal(status, pollingActive); return; }
+        const remaining = pollingActive.startedAt + pollingActive.timeoutMs - Date.now();
+        if (remaining <= 0) {
+          failPolling(__('AI edit timed out while waiting for its status.', 'kayzart-live-code-editor'));
+          return;
+        }
+        await sleep(Math.min(positiveInteger(pollingActive.pollIntervalMs, interval), remaining), controller.signal);
       }
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return;
-      if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('AI edit failed.', 'kayzart-live-code-editor'));
+      if (mountedRef.current) failPolling(caught instanceof Error ? caught.message : __('AI edit failed.', 'kayzart-live-code-editor'));
     }
   };
 
@@ -275,18 +328,26 @@ export function AiEditorPanel() {
 
   useEffect(() => {
     if (!ai || running || timelineRecoveryRef.current || loadActiveJob(postId)) return;
-    const item = [...items].reverse().find((candidate) => candidate.type === 'ai_edit' && candidate.canPoll && (candidate.executionStatus === 'pending' || candidate.executionStatus === 'running'));
-    const snapshot = host()?.getEditorSnapshot?.();
-    if (!item?.jobId || !item.requestId || !snapshot) return;
+    const item = [...items].reverse().find((candidate) => candidate.type === 'ai_edit' && candidate.canPoll && candidate.jobId && !blockedRecoveryJobIdsRef.current.has(candidate.jobId) && (candidate.executionStatus === 'pending' || candidate.executionStatus === 'running'));
+    if (!item?.jobId || !item.requestId) return;
     timelineRecoveryRef.current = true;
-    const active: ActiveJobRecord = {
-      version: 1, postId, jobId: item.jobId, requestId: item.requestId,
-      statusUrl: normalizeUrl(`${ai.jobsBaseUrl}${item.jobId}`), cancelUrl: normalizeUrl(`${ai.jobsBaseUrl}${item.jobId}/cancel`),
-      pollIntervalMs: DEFAULT_POLL_INTERVAL_MS, timeoutMs: DEFAULT_TIMEOUT_MS,
-      startedAt: Date.parse(item.createdAt) || Date.now(), prompt: item.prompt || '', contexts: item.contexts as SelectedElementContext[],
-      inputSnapshot: normalizeSnapshot(snapshot), activityId: item.id,
-    };
-    saveActiveJob(active); void poll(active);
+    setRunning(true); setLiveJob({ requestId: item.requestId, status: item.executionStatus || 'pending' }); host()?.setEditorLock?.(true);
+    void getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, 'before').then((response) => {
+      if (!mountedRef.current) return;
+      const active: ActiveJobRecord = {
+        version: 1, postId, jobId: item.jobId as string, requestId: item.requestId as string,
+        statusUrl: normalizeUrl(`${ai.jobsBaseUrl}${item.jobId}`), cancelUrl: normalizeUrl(`${ai.jobsBaseUrl}${item.jobId}/cancel`),
+        pollIntervalMs: DEFAULT_POLL_INTERVAL_MS, timeoutMs: positiveInteger(item.timeoutMs || 0, DEFAULT_TIMEOUT_MS),
+        startedAt: Date.parse(item.createdAt) || Date.now(), prompt: item.prompt || '', contexts: item.contexts as SelectedElementContext[],
+        inputSnapshot: normalizeSnapshot(response.snapshot), activityId: item.id,
+      };
+      saveActiveJob(active); void poll(active);
+    }).catch((caught) => {
+      blockedRecoveryJobIdsRef.current.add(item.jobId as string);
+      setRunning(false); setLiveJob(null);
+      host()?.setEditorLock?.(false);
+      if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('The original AI input could not be recovered.', 'kayzart-live-code-editor'));
+    });
   }, [items, running]);
 
   const promptBytes = useMemo(() => new TextEncoder().encode(prompt.trim()).length, [prompt]);

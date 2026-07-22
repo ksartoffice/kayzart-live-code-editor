@@ -155,11 +155,11 @@ class Ai_Tools {
 	 * @param string $source   Replacement source for the target field.
 	 * @return array New snapshot.
 	 */
-	public static function replace_snapshot_source( array $snapshot, string $target, string $source ): array {
+	private static function replace_snapshot_source( array $snapshot, string $target, string $source ): array {
 		$html        = 'html' === $target ? $source : (string) ( $snapshot['html'] ?? '' );
 		$custom_head = 'head' === $target ? $source : (string) ( $snapshot['customHead'] ?? '' );
 		$css         = 'css' === $target ? $source : (string) ( $snapshot['css'] ?? '' );
-		$js          = 'js' === $target ? $source : (string) ( $snapshot['js'] ?? '' );
+		$js          = (string) ( $snapshot['js'] ?? '' );
 
 		return array(
 			'html'       => $html,
@@ -189,21 +189,6 @@ class Ai_Tools {
 			throw new Ai_Tool_Error( 'Target "' . $value . '" is not editable in this mode.', false );
 		}
 		return (string) $value;
-	}
-
-	/**
-	 * Validate a jsMode value.
-	 *
-	 * @param mixed $value Raw jsMode value.
-	 * @return string 'classic' or 'module'.
-	 * @throws Ai_Tool_Error When invalid.
-	 */
-	public static function parse_js_mode( $value ): string {
-		if ( 'classic' === $value || 'module' === $value ) {
-			return (string) $value;
-		}
-		// Internal tool error surfaced to the model as JSON, not HTML output.
-		throw new Ai_Tool_Error( 'Invalid jsMode: ' . ( is_string( $value ) ? $value : '' ), false );
 	}
 
 	/**
@@ -657,7 +642,10 @@ class Ai_Tools {
 	 * @throws Ai_Tool_Error On ambiguous / missing / invalid replacements.
 	 */
 	public static function run_replace_string( array $args, array $snapshot, array $selection_records = array() ): array {
-		$target       = (string) $args['target'];
+		$target = (string) $args['target'];
+		if ( 'js' === $target ) {
+			throw new Ai_Tool_Error( 'JavaScript source is read-only for AI edits.', false );
+		}
 		$selection_id = self::normalize_optional_selection_id( $args['selectionId'] ?? null, $selection_records );
 		$scope_info   = self::resolve_replacement_scope( $target, $snapshot, $selection_records, $selection_id );
 		$current      = $scope_info['current'];
@@ -815,6 +803,7 @@ class Ai_Tools {
 				}
 				throw $error;
 			}
+			Ai_Output_Policy::assert_safe_transition( $current_snapshot, $result['snapshot'] );
 			$current_snapshot  = isset( $result['snapshot'] ) ? $result['snapshot'] : $current_snapshot;
 			$selection_records = isset( $result['selectionRecords'] ) ? $result['selectionRecords'] : $selection_records;
 			$replaced_count    = isset( $result['output']['replacedCount'] ) ? (int) $result['output']['replacedCount'] : 0;
@@ -836,34 +825,6 @@ class Ai_Tools {
 			),
 			'snapshot'             => $current_snapshot,
 			'selectionRecords'     => $selection_records,
-			'appliedEditOperation' => true,
-		);
-	}
-
-	/**
-	 * Set the working snapshot jsMode (set_js_mode tool).
-	 *
-	 * @param array $args     Tool arguments (jsMode).
-	 * @param array $snapshot Snapshot array.
-	 * @return array Tool call result.
-	 * @throws Ai_Tool_Error When jsMode is invalid.
-	 */
-	public static function run_set_js_mode( array $args, array $snapshot ): array {
-		$js_mode          = self::parse_js_mode( $args['jsMode'] ?? null );
-		$next             = $snapshot;
-		$next['jsMode']   = $js_mode;
-		$next['baseHash'] = self::compute_base_hash(
-			(string) ( $snapshot['html'] ?? '' ),
-			(string) ( $snapshot['customHead'] ?? '' ),
-			(string) ( $snapshot['css'] ?? '' ),
-			(string) ( $snapshot['js'] ?? '' )
-		);
-		return array(
-			'output'               => array(
-				'jsMode'       => $next['jsMode'],
-				'nextBaseHash' => $next['baseHash'],
-			),
-			'snapshot'             => $next,
 			'appliedEditOperation' => true,
 		);
 	}
@@ -901,12 +862,16 @@ class Ai_Tools {
 				);
 			case 'replace_string':
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
-				return self::run_replace_string( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
+				$result         = self::run_replace_string( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
+				Ai_Output_Policy::assert_safe_transition( $snapshot, $result['snapshot'] );
+				return $result;
 			case 'replace_many':
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
-				return self::run_replace_many( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
+				$result         = self::run_replace_many( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
+				Ai_Output_Policy::assert_safe_transition( $snapshot, $result['snapshot'] );
+				return $result;
 			case 'set_js_mode':
-				return self::run_set_js_mode( $args, $snapshot );
+				throw new Ai_Tool_Error( 'JavaScript mode is read-only for AI edits.', false );
 		}
 		// Internal tool error surfaced to the model as JSON, not HTML output.
 		throw new Ai_Tool_Error( 'Unknown tool: ' . $name, false );

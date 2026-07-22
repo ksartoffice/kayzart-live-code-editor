@@ -193,7 +193,7 @@ class Ai_Timeline_Store {
 		$table = Ai_Setup::get_timeline_table_name();
 		$jobs  = Ai_Setup::get_jobs_table_name();
 		$where = $before > 0 ? $wpdb->prepare( 't.post_id = %d AND t.id < %d', $post_id, $before ) : $wpdb->prepare( 't.post_id = %d', $post_id );
-		$rows  = $wpdb->get_results( "SELECT t.*, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json, j.started_at AS retained_started_at, j.finished_at AS retained_finished_at FROM {$table} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE {$where} ORDER BY t.id DESC LIMIT 51", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		$rows  = $wpdb->get_results( "SELECT t.*, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json, j.execution_mode AS retained_execution_mode, j.started_at AS retained_started_at, j.finished_at AS retained_finished_at FROM {$table} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE {$where} ORDER BY t.id DESC LIMIT 51", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$more  = count( $rows ) > self::PAGE_SIZE;
 		$rows  = array_slice( $rows, 0, self::PAGE_SIZE );
 		$next  = $more && ! empty( $rows ) ? (int) end( $rows )['id'] : null;
@@ -265,6 +265,7 @@ class Ai_Timeline_Store {
 		$revision_available = $revision_id > 0 && (bool) wp_get_post_revision( $revision_id );
 		$change_stats       = $this->change_stats_from_retained_job( $row );
 		$duration_seconds   = $this->duration_from_retained_job( $row );
+		$timeout_ms         = $this->timeout_from_retained_job( $row );
 		return array(
 			'id'                => (int) $row['id'],
 			'activityId'        => (string) $row['activity_uuid'],
@@ -278,6 +279,7 @@ class Ai_Timeline_Store {
 			'changedTargets'    => self::decode_array( $row['changed_targets'] ),
 			'changeStats'       => $change_stats,
 			'durationSeconds'   => $duration_seconds,
+			'timeoutMs'         => $timeout_ms,
 			'model'             => isset( $row['model'] ) && '' !== (string) $row['model'] ? (string) $row['model'] : null,
 			'inputTokens'       => isset( $row['input_tokens'] ) && null !== $row['input_tokens'] ? (int) $row['input_tokens'] : null,
 			'outputTokens'      => isset( $row['output_tokens'] ) && null !== $row['output_tokens'] ? (int) $row['output_tokens'] : null,
@@ -296,9 +298,23 @@ class Ai_Timeline_Store {
 				'id'   => (int) $row['user_id'],
 				'name' => $user instanceof \WP_User ? (string) $user->display_name : __( 'Deleted user', 'kayzart-live-code-editor' ),
 			),
-			'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
-			'updatedAt'         => mysql_to_rfc3339( (string) $row['updated_at'] ),
+			'createdAt'         => self::iso_time( $row['created_at'] ),
+			'updatedAt'         => self::iso_time( $row['updated_at'] ),
 		);
+	}
+
+	/** Return the retained job timeout without adding timeline schema columns. */
+	private function timeout_from_retained_job( array $row ) {
+		$has_joined_job = array_key_exists( 'retained_execution_mode', $row );
+		$execution_mode = isset( $row['retained_execution_mode'] ) ? (string) $row['retained_execution_mode'] : '';
+		if ( ! $has_joined_job && '' === $execution_mode && ! empty( $row['job_uuid'] ) ) {
+			$job            = ( new Ai_Job_Store() )->get( (string) $row['job_uuid'] );
+			$execution_mode = is_array( $job ) && isset( $job['execution_mode'] ) ? (string) $job['execution_mode'] : '';
+		}
+		if ( '' === $execution_mode ) {
+			return null;
+		}
+		return ( 'stepwise' === $execution_mode ? Ai_Job_Store::STEPWISE_TIMEOUT_SECONDS : Ai_Job_Store::TIMEOUT_SECONDS ) * 1000;
 	}
 
 	/** Build display-only line counts while the full job payload remains retained. */
@@ -753,6 +769,11 @@ class Ai_Timeline_Store {
 			return mb_strcut( $value, 0, $bytes, 'UTF-8' );
 		}
 		return wp_check_invalid_utf8( substr( $value, 0, $bytes ), true );
+	}
+
+	/** Convert a stored UTC MySQL timestamp to ISO 8601. */
+	private static function iso_time( $value ): string {
+		return gmdate( 'c', strtotime( (string) $value . ' UTC' ) );
 	}
 
 	/** Current UTC SQL datetime. */

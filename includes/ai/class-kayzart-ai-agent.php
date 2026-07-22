@@ -253,7 +253,7 @@ class Ai_Agent {
 			}
 			$summary = $this->try_parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
 			if ( null !== $summary ) {
-				return $this->completed_step( $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, 0.0 );
+				return $this->completed_step( $payload, $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, 0.0 );
 			}
 			$state['phase']    = 'finalization';
 			$state['snapshot'] = $snapshot;
@@ -282,7 +282,7 @@ class Ai_Agent {
 				)
 			);
 
-			if ( 'finish_edit' === $name ) {
+			if ( 'finish_edit' === $name || 'finish_without_edit' === $name ) {
 				$finish_calls[] = array(
 					'id'   => $id,
 					'name' => $name,
@@ -367,8 +367,9 @@ class Ai_Agent {
 			$finish_error = '';
 			$summary      = '';
 			$retryable    = false;
+			$finish_name  = isset( $finish_calls[0]['name'] ) ? (string) $finish_calls[0]['name'] : 'finish_edit';
 			if ( count( $finish_calls ) > 1 ) {
-				$finish_error = 'finish_edit may be called only once per turn.';
+				$finish_error = 'A finish tool may be called only once per turn.';
 			} else {
 				$finish_args = $finish_calls[0]['args'];
 				$raw_summary = isset( $finish_args['summary'] ) && is_string( $finish_args['summary'] ) ? $finish_args['summary'] : '';
@@ -380,7 +381,10 @@ class Ai_Agent {
 				} elseif ( $turn_had_error ) {
 					$finish_error = 'finish_edit was not accepted because another tool failed in this turn. Inspect the error and retry the required edit.';
 					$retryable    = true;
-				} elseif ( ! $finish_ready ) {
+				} elseif ( 'finish_without_edit' === $finish_name && ( $applied_edit_operation || ! Ai_Output_Policy::snapshots_equal( $this->initial_snapshot( $payload ), $snapshot ) ) ) {
+					$finish_error = 'finish_without_edit requires the snapshot to remain unchanged.';
+					$retryable    = false;
+				} elseif ( 'finish_edit' === $finish_name && ! $finish_ready ) {
 					$finish_error = 'finish_edit requires a successful edit with no unresolved tool errors.';
 					$retryable    = true;
 				}
@@ -390,12 +394,12 @@ class Ai_Agent {
 				$this->emit_event(
 					array(
 						'event'         => 'tool_end',
-						'toolName'      => 'finish_edit',
+						'toolName'      => $finish_name,
 						'outputSummary' => $this->preview( wp_json_encode( array( 'ok' => true ) ), 220 ),
 					)
 				);
 				$tool_seconds = microtime( true ) - $tools_started;
-				return $this->completed_step( $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
+				return $this->completed_step( $payload, $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
 			}
 
 			$recoverable = array(
@@ -410,11 +414,11 @@ class Ai_Agent {
 				$this->emit_event(
 					array(
 						'event'         => 'tool_end',
-						'toolName'      => 'finish_edit',
+						'toolName'      => $finish_call['name'],
 						'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
 					)
 				);
-				$tool_responses[] = Ai_Message::tool_response( $finish_call['id'], 'finish_edit', $recoverable );
+				$tool_responses[] = Ai_Message::tool_response( $finish_call['id'], $finish_call['name'], $recoverable );
 			}
 		}
 
@@ -480,7 +484,7 @@ class Ai_Agent {
 		}
 
 		$summary = $this->parse_final_summary( isset( $result['text'] ) ? (string) $result['text'] : '' );
-		return $this->completed_step( $state, $state['snapshot'], $summary, $usage, 'finalization', $index + 1, $provider_seconds, 0.0 );
+		return $this->completed_step( $payload, $state, $state['snapshot'], $summary, $usage, 'finalization', $index + 1, $provider_seconds, 0.0 );
 	}
 
 	/** Validate a persisted checkpoint before using it.
@@ -502,6 +506,7 @@ class Ai_Agent {
 
 	/** Build a completed step response.
 	 *
+	 * @param array  $payload          Original normalized request payload.
 	 * @param array  $state            Persisted agent state.
 	 * @param array  $snapshot         Completed snapshot.
 	 * @param string $summary          Completion summary.
@@ -511,8 +516,14 @@ class Ai_Agent {
 	 * @param float  $provider_seconds Provider duration.
 	 * @param float  $tool_seconds     Tool duration.
 	 * @return array
+	 * @throws Ai_Agent_Error When the final snapshot violates the server policy.
 	 */
-	private function completed_step( array $state, array $snapshot, string $summary, array $usage, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
+	private function completed_step( array $payload, array $state, array $snapshot, string $summary, array $usage, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
+		try {
+			Ai_Output_Policy::assert_safe_transition( $this->initial_snapshot( $payload ), $snapshot );
+		} catch ( Ai_Tool_Error $error ) {
+			throw new Ai_Agent_Error( 'The completed AI edit violates the server safety policy: ' . $error->getMessage(), false );
+		}
 		$state['snapshot'] = $snapshot;
 		$state['usage']    = $usage;
 		$metrics           = $this->step_metrics( $phase, $turn, $provider_seconds, $tool_seconds, $usage );

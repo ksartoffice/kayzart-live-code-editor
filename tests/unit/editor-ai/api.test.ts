@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AiApiError, createJob, getJob, getTimeline, restoreTimeline } from '../../../src/editor-ai/api';
+import { AiApiError, createJob, getJob, getTimeline, getTimelineSnapshot, restoreTimeline } from '../../../src/editor-ai/api';
 
 describe('AI REST client', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -39,8 +39,10 @@ describe('AI REST client', () => {
     await getTimeline('/timeline', 'nonce', 7, 51);
     expect(String(fetchMock.mock.calls[0][0])).toContain('post_id=7');
     expect(String(fetchMock.mock.calls[0][0])).toContain('before=51');
+    await getTimelineSnapshot('/timeline/', 'nonce', 12, 'before');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/timeline/12/snapshot?target=before');
     await restoreTimeline('/timeline/', 'nonce', 12, 'before');
-    expect(String(fetchMock.mock.calls[1][0])).toBe('/timeline/12/restore');
-    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ target: 'before' });
+    expect(String(fetchMock.mock.calls[2][0])).toBe('/timeline/12/restore');
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({ target: 'before' });
   });
 });

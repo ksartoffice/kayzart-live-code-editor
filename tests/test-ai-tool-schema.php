@@ -48,7 +48,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 */
 	public function test_resolve_edit_policy_normal_mode(): void {
 		$policy = Ai_Tool_Schema::resolve_edit_policy( 'normal', 'make the background red' );
-		$this->assertSame( array( 'html', 'head', 'css', 'js' ), $policy['editableTargets'] );
+		$this->assertSame( array( 'html', 'head', 'css' ), $policy['editableTargets'] );
 		$this->assertTrue( $policy['cssExplicitlyRequested'] );
 	}
 
@@ -57,7 +57,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 */
 	public function test_resolve_edit_policy_tailwind_without_css_intent(): void {
 		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger' );
-		$this->assertSame( array( 'html', 'head', 'js' ), $policy['editableTargets'] );
+		$this->assertSame( array( 'html', 'head' ), $policy['editableTargets'] );
 		$this->assertFalse( $policy['cssExplicitlyRequested'] );
 	}
 
@@ -66,7 +66,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 */
 	public function test_resolve_edit_policy_tailwind_with_css_intent(): void {
 		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'edit the stylesheet spacing' );
-		$this->assertSame( array( 'html', 'head', 'css', 'js' ), $policy['editableTargets'] );
+		$this->assertSame( array( 'html', 'head', 'css' ), $policy['editableTargets'] );
 		$this->assertTrue( $policy['cssExplicitlyRequested'] );
 	}
 
@@ -86,10 +86,11 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	public function test_build_tool_definitions_default_set(): void {
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ) );
 		$this->assertSame(
-			array( 'search_text', 'read_document', 'read_selection', 'replace_string', 'replace_many', 'finish_edit', 'set_js_mode' ),
+			array( 'search_text', 'read_document', 'read_selection', 'replace_string', 'replace_many', 'finish_edit', 'finish_without_edit' ),
 			$this->tool_names( $tools )
 		);
 		$this->assertNotNull( $this->find_tool( $tools, 'read_selection' ) );
+		$this->assertContains( 'js', $this->find_tool( $tools, 'read_document' )['parameters']['properties']['target']['enum'] );
 		$this->assertArrayHasKey( 'selectionId', $this->find_tool( $tools, 'replace_string' )['parameters']['properties'] );
 		$this->assertArrayHasKey( 'selectionId', $this->find_tool( $tools, 'replace_many' )['parameters']['properties'] );
 	}
@@ -121,13 +122,13 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 
 		$replace_string = $this->find_tool( $tools, 'replace_string' );
 		$this->assertSame(
-			array( 'html', 'head', 'js' ),
+			array( 'html', 'head' ),
 			$replace_string['parameters']['properties']['target']['enum']
 		);
 
 		$replace_many = $this->find_tool( $tools, 'replace_many' );
 		$this->assertSame(
-			array( 'html', 'head', 'js' ),
+			array( 'html', 'head' ),
 			$replace_many['parameters']['properties']['target']['enum']
 		);
 	}

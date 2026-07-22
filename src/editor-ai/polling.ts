@@ -11,6 +11,14 @@ export function isTerminalStatus(status: AiJobStatus) {
   return ['completed', 'error', 'canceled', 'timed_out', 'enqueue_failed'].includes(status);
 }
 
+export function sameSnapshotIdentity(left: Pick<EditorSnapshot, 'baseHash' | 'jsMode'>, right: Pick<EditorSnapshot, 'baseHash' | 'jsMode'>) {
+  return left.baseHash === right.baseHash && left.jsMode === right.jsMode;
+}
+
+export function isRetryableHttpStatus(status: number) {
+  return status === 0 || status === 408 || status === 429 || status >= 500;
+}
+
 export function computeChangedTargets(before: EditorSnapshot, after: EditorSnapshot): ChangedTarget[] {
   const changed: ChangedTarget[] = [];
   if (before.html !== after.html) changed.push('html');

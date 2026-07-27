@@ -2,21 +2,21 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Kayzart Landing Pages — Paste & Edit AI-Generated HTML 2.0.3\n"
+"Project-Id-Version: AI Landing Page Editor — Kayzart 3.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/kayzart-live-code-editor\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-17T09:48:46+02:00\n"
+"POT-Creation-Date: 2026-07-27T03:43:57+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
 
 #. Plugin Name of the plugin
 #: kayzart-live-code-editor.php
-msgid "Kayzart Landing Pages — Paste & Edit AI-Generated HTML"
+msgid "AI Landing Page Editor — Kayzart"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -26,7 +26,7 @@ msgstr ""
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "The place to paste landing pages your AI wrote. Edit HTML, CSS & JavaScript live and publish — without fighting your theme."
+msgid "A live HTML/CSS/JavaScript editor for clean, theme-independent landing pages in WordPress, with AI editing built in. No page builder, no build step."
 msgstr ""
 
 #. Author of the plugin
@@ -34,137 +34,271 @@ msgstr ""
 msgid "K's Art Office"
 msgstr ""
 
-#. translators: %s: post title.
-#: includes/class-kayzart-admin.php:91
-#: assets/dist/main.js:145
-#, php-format,js-format
-msgid "Kayzart Landing Page Editor: %s"
+#: includes/ai/class-kayzart-ai-editor.php:76
+msgid "Add selected element to AI edit context"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:121
-#: assets/dist/main.js:101
-#: assets/dist/main.js:145
-msgid "Untitled"
+#: includes/ai/class-kayzart-ai-immediate-dispatcher.php:248
+msgid "The AI job could not be started immediately."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:146
-#: includes/class-kayzart-admin.php:168
-#: includes/class-kayzart-admin.php:209
-#: includes/class-kayzart-admin.php:219
-#: includes/class-kayzart-admin.php:275
-#: includes/class-kayzart-admin.php:291
-#: includes/class-kayzart-preview.php:88
-#: includes/class-kayzart-rest.php:121
-#: includes/class-kayzart-rest.php:129
+#: includes/ai/class-kayzart-ai-immediate-dispatcher.php:389
+#: includes/class-kayzart-admin.php:155
+#: includes/class-kayzart-admin.php:177
+#: includes/class-kayzart-admin.php:218
+#: includes/class-kayzart-admin.php:228
+#: includes/class-kayzart-admin.php:293
+#: includes/class-kayzart-admin.php:346
+#: includes/class-kayzart-admin.php:351
+#: includes/class-kayzart-admin.php:354
+#: includes/class-kayzart-admin.php:473
+#: includes/class-kayzart-admin.php:489
+#: includes/class-kayzart-preview.php:171
+#: includes/class-kayzart-rest.php:170
+#: includes/class-kayzart-rest.php:178
+#: includes/rest/class-kayzart-rest-ai-timeline.php:159
+#: includes/rest/class-kayzart-rest-ai.php:189
+#: includes/rest/class-kayzart-rest-revisions.php:88
 #: includes/rest/class-kayzart-rest-save.php:62
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:154
-#: includes/class-kayzart-admin.php:213
-#: includes/class-kayzart-preview.php:80
+#: includes/ai/class-kayzart-ai-job-store.php:46
+#: includes/ai/class-kayzart-ai-job-store.php:88
+msgid "An AI edit is already active for this post."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-job-store.php:90
+msgid "The AI edit job could not be created."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-job-store.php:341
+msgid "The AI edit job was canceled."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-job-store.php:349
+#: includes/ai/class-kayzart-ai-job-store.php:379
+msgid "The AI edit job timed out."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-job-store.php:357
+#: includes/rest/class-kayzart-rest-ai.php:96
+msgid "The AI edit job could not be scheduled."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-job-store.php:410
+msgid "The plugin was deactivated."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-job-store.php:477
+msgid "This request ID was already used for different input."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-timeline-store.php:302
+msgid "Deleted user"
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-worker.php:118
+#: includes/ai/class-kayzart-ai-worker.php:221
+msgid "The AI job payload is invalid."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-worker.php:145
+#: includes/ai/class-kayzart-ai-worker.php:358
+msgid "The AI provider request failed."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-worker.php:150
+#: includes/ai/class-kayzart-ai-worker.php:382
+msgid "The AI edit job failed unexpectedly."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-worker.php:249
+msgid "The AI provider request failed after retries."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-worker.php:434
+msgid "The AI step failed repeatedly before it could save progress."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-worker.php:553
+msgid "The scheduled AI worker failed."
+msgstr ""
+
+#. translators: %s: post title.
+#: includes/class-kayzart-admin.php:100
+#, php-format
+msgid "Kayzart Landing Page Editor: %s"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:130
+msgid "Untitled"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:163
+#: includes/class-kayzart-admin.php:222
+#: includes/class-kayzart-admin.php:285
+#: includes/class-kayzart-admin.php:334
+#: includes/class-kayzart-preview.php:163
 msgid "post_id is required."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:161
-#: includes/class-kayzart-admin.php:216
+#: includes/class-kayzart-admin.php:170
+#: includes/class-kayzart-admin.php:225
+#: includes/class-kayzart-admin.php:289
+#: includes/class-kayzart-admin.php:339
+#: includes/class-kayzart-admin.php:342
 msgid "This editor is only available for Kayzart posts."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:286
+#. translators: %s: original post title.
+#: includes/class-kayzart-admin.php:362
+#, php-format
+msgid "%s (copy)"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:461
+msgid "Landing page duplicated. The copy was saved as a draft."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:484
 msgid "This post type is not enabled for Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:298
+#: includes/class-kayzart-admin.php:496
 msgid "Untitled landing page"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:433
-#: includes/class-kayzart-admin.php:434
+#: includes/class-kayzart-admin.php:667
+#: includes/class-kayzart-admin.php:668
 msgid "Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:451
-#: includes/class-kayzart-admin.php:452
+#: includes/class-kayzart-admin.php:685
+#: includes/class-kayzart-admin.php:686
 #: assets/admin/post-type-list.js:30
 msgid "Add landing page"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:461
-#: includes/class-kayzart-admin.php:462
-#: includes/class-kayzart-admin.php:726
+#: includes/class-kayzart-admin.php:695
+#: includes/class-kayzart-admin.php:696
+#: includes/class-kayzart-admin.php:1123
 msgid "Landing page settings"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:507
+#: includes/class-kayzart-admin.php:761
 msgid "Permalink"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:515
-#: assets/dist/main.js:101
+#: includes/class-kayzart-admin.php:769
 msgid "Page template"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:523
+#: includes/class-kayzart-admin.php:777
 msgid "Kayzart slug"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:532
+#: includes/class-kayzart-admin.php:786
 msgid "Default template mode"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:540
+#: includes/class-kayzart-admin.php:794
+msgid "Editor display"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:801
+msgid "Default editor layout"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:809
 msgid "Post types"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:547
+#: includes/class-kayzart-admin.php:816
 msgid "Enabled post types"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:639
+#: includes/class-kayzart-admin.php:824
+msgid "AI editing"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:831
+msgid "Default AI model"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:978
 msgid "Change the URL slug for Kayzart posts. Existing URLs will change after saving."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:647
+#: includes/class-kayzart-admin.php:986
 msgid "Choose the default page template mode used by Kayzart previews."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:654
+#: includes/class-kayzart-admin.php:993
+msgid "Choose how the Kayzart editor opens by default."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1000
 msgid "Choose which post types can use the Kayzart landing page editor."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:663
+#: includes/class-kayzart-admin.php:1009
 msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:674
-#: assets/dist/main.js:101
+#: includes/class-kayzart-admin.php:1020
 msgid "Standalone"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:675
-#: assets/dist/main.js:101
+#: includes/class-kayzart-admin.php:1021
 msgid "Theme"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:682
+#: includes/class-kayzart-admin.php:1028
 msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:701
+#: includes/class-kayzart-admin.php:1039
+msgid "Show code"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1040
+msgid "Hide code"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1047
+msgid "When code is hidden, the editor opens with the preview area expanded. The toolbar can still show code for the current session."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1066
 msgid "Existing posts are converted only when you choose Convert to landing page or create one with Add landing page."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:752
-#: includes/class-kayzart-admin.php:763
-#: includes/class-kayzart-admin.php:777
+#: includes/class-kayzart-admin.php:1074
+msgid "Choose which model AI editing uses. Auto lets the configured AI provider pick."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1088
+msgid "Auto (recommended)"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1095
+msgid "No selectable models were found. Configure an AI provider (Connector); editing will use the provider default until then."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1097
+msgid "Auto follows the provider default and any newly added models automatically."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1149
+#: includes/class-kayzart-admin.php:1160
+#: includes/class-kayzart-admin.php:1174
 msgid "基本設定"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1033
-#: includes/class-kayzart-admin.php:1041
-#: assets/dist/main.js:101
+#: includes/class-kayzart-admin.php:1455
+#: includes/class-kayzart-admin.php:1463
 msgid "Posts"
 msgstr ""
 
@@ -229,59 +363,170 @@ msgid "Landing page"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:327
-#: assets/dist/main.js:154
 msgid "TailwindCSS"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:360
-#: assets/admin/editor-bridge.js:13
-msgid "Convert to landing page"
-msgstr ""
-
 #: includes/class-kayzart-post-type.php:354
-#: assets/admin/editor-bridge.js:13
-#: assets/admin/editor-bridge.js:122
-#: assets/admin/editor-bridge.js:164
+#: assets/admin/editor-bridge.js:18
 msgid "Edit landing page"
 msgstr ""
 
-#: includes/class-kayzart-preview.php:84
+#: includes/class-kayzart-post-type.php:359
+msgid "Duplicate landing page"
+msgstr ""
+
+#: includes/class-kayzart-post-type.php:365
+msgid "Convert to landing page"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:167
 msgid "Invalid preview token."
 msgstr ""
 
-#: includes/class-kayzart-preview.php:92
+#: includes/class-kayzart-preview.php:175
 #: includes/rest/class-kayzart-rest-save.php:51
-#: includes/rest/class-kayzart-rest-save.php:311
+#: includes/rest/class-kayzart-rest-save.php:385
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr ""
 
-#: includes/class-kayzart-preview.php:96
+#: includes/class-kayzart-preview.php:179
 #: includes/rest/class-kayzart-rest-settings.php:128
 msgid "Post not found."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:75
+#: includes/class-kayzart-preview.php:409
+msgid "Move to parent element"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:410
+msgid "Replace image"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:411
+msgid "Copy HTML"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:412
+msgid "Delete"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:413
+msgid "Shortcode"
+msgstr ""
+
+#: includes/class-kayzart-preview.php:414
+msgid "Not available in preview. It will render on the front end."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-timeline.php:77
+#: includes/rest/class-kayzart-rest-ai-timeline.php:117
+msgid "The AI edit snapshot is no longer available."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-timeline.php:92
+msgid "The AI edit application state is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-timeline.php:97
+msgid "The AI edit application state could not be saved."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-timeline.php:147
+msgid "AI edit history not found."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-timeline.php:174
+msgid "The AI edit restore target is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:61
+msgid "AI editing is not currently available."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:86
+#: includes/rest/class-kayzart-rest-ai.php:87
+msgid "The AI edit history could not be created."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:174
+msgid "AI edit job not found."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:201
+msgid "A JSON request body is required."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:205
+msgid "requestId is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:209
+msgid "post_id is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:213
+msgid "editorMode is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:217
+msgid "prompt is empty or too large."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:227
+msgid "A code field is invalid or too large."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:237
+msgid "selectedContexts is invalid or too large."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:241
+msgid "A selected context is invalid or too large."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai.php:247
+msgid "selectedContext is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-revisions.php:77
+msgid "Full-page revisions require WordPress 6.4 or later."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-revisions.php:103
+#: includes/rest/class-kayzart-rest-revisions.php:121
+msgid "Revision not found."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-revisions.php:191
+msgid "Unknown user"
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-save.php:78
 msgid "Invalid jsMode value."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:87
+#: includes/rest/class-kayzart-rest-save.php:90
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr ""
 
 #. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-save.php:161
-#: includes/rest/class-kayzart-rest-save.php:342
+#: includes/rest/class-kayzart-rest-save.php:146
+#: includes/rest/class-kayzart-rest-save.php:416
 #, php-format
 msgid "Tailwind compile failed: %s"
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:280
+#: includes/rest/class-kayzart-rest-save.php:250
+msgid "The saved page did not match the requested snapshot."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-save.php:354
 msgid "Tailwind HTML input exceeds the maximum size."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:288
+#: includes/rest/class-kayzart-rest-save.php:362
 msgid "Tailwind CSS input exceeds the maximum size."
 msgstr ""
 
@@ -289,634 +534,307 @@ msgstr ""
 msgid "Invalid setup mode."
 msgstr ""
 
-#: assets/admin/editor-bridge.js:56
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
+#: assets/admin/editor-bridge.js:65
 msgid "Saving..."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Use default follows the default template mode from plugin settings."
+#: assets/dist/ai-editor.js:1
+msgid "Element"
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Standalone hides the theme header and footer."
+#: assets/dist/ai-editor.js:1
+msgid "Working…"
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Theme uses the active theme template."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Template mode"
-msgstr ""
-
-#: assets/dist/main.js:101
+#: assets/dist/ai-editor.js:1
 #, js-format
-msgid "Use default (%s)"
+msgid "Running %s"
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display."
+#: assets/dist/ai-editor.js:1
+msgid "tool"
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Display settings"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Enable live edit highlight"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Elements"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Text"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Attributes"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Attribute name"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Value"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Remove attribute"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Remove"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Add attribute"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Select an element in the preview to edit its content and attributes."
-msgstr ""
-
-#: includes/class-kayzart-preview.php:321
-msgid "Move to parent element"
-msgstr ""
-
-#: includes/class-kayzart-preview.php:322
-msgid "Copy HTML"
-msgstr ""
-
-#: includes/class-kayzart-preview.php:323
-msgid "Delete"
-msgstr ""
-
-#: includes/class-kayzart-preview.php:412
-msgid "Shortcode"
-msgstr ""
-
-#: includes/class-kayzart-preview.php:413
-msgid "Not available in preview. It will render on the front end."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Settings"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Settings tabs"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Close settings panel"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Show code"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Hide code"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Reload preview"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "View post"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Preview"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Desktop"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Tablet"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Mobile"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Back to WordPress"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "(Draft)"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Tailwind CSS"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Editing in Tailwind CSS mode"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Save draft"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Save for review"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Update as private"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Update"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Publish"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Move to review"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Make private"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Revert to draft"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
-#: assets/dist/main.js:157
-msgid "Update failed."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Undo"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Redo"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Title"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Close"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Slug"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
-msgid "Cancel"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:157
-msgid "Save"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Save options"
-msgstr ""
-
-#: assets/dist/main.js:101
+#: assets/dist/ai-editor.js:1
 #, js-format
-msgid "Status: %s"
+msgid "Finished %s"
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Draft"
+#: assets/dist/ai-editor.js:1
+msgid "Changes are ready."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Pending"
+#: assets/dist/ai-editor.js:1
+msgid "AI edit is waiting."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Private"
+#: assets/dist/ai-editor.js:1
+msgid "Applying changes."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Scheduled"
+#: assets/dist/ai-editor.js:1
+msgid "Changes were applied."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "Published"
+#: assets/dist/ai-editor.js:1
+msgid "Changes were reverted."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "JavaScript mode"
+#: assets/dist/ai-editor.js:1
+msgid "AI edit was canceled."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "type: classic script"
+#: assets/dist/ai-editor.js:1
+msgid "AI edit timed out."
 msgstr ""
 
-#: assets/dist/main.js:101
-msgid "type: module"
+#: assets/dist/ai-editor.js:1
+msgid "AI edit failed."
 msgstr ""
 
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
-msgid "HTML"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
-msgid "CSS"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
-msgid "head"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "JavaScript"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:154
-msgid "Import full HTML"
-msgstr ""
-
-#: src/admin/toolbar.tsx
-msgid "Import / Export"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Add Media"
-msgstr ""
-
-#: assets/dist/main.js:101
-#: assets/dist/main.js:157
-msgid "Wrap: Off"
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Reload preview to apply head and JavaScript changes."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Enter code to add inside the head."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Use this for external CSS, Google Fonts, OGP, structured data, and similar head markup."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Write external JS here, or add it as <script src=\"\"> at the bottom of the HTML editor."
-msgstr ""
-
-#: assets/dist/main.js:101
-msgid "Note: <title>, <meta charset>, viewport, and <base> cannot be used."
-msgstr ""
-
-#: assets/dist/main.js:154
-msgid "Tailwind compile failed."
-msgstr ""
-
-#: assets/dist/main.js:154
+#: assets/dist/ai-editor.js:1
 #, js-format
-msgid "Tailwind error: %s"
-msgstr ""
+msgid "%d second"
+msgid_plural "%d seconds"
+msgstr[0] ""
+msgstr[1] ""
 
-#: assets/dist/main.js:154
-#: assets/dist/main.js:157
-msgid "Save failed."
-msgstr ""
-
-#: assets/dist/main.js:154
-msgid "Fix settings errors before saving."
-msgstr ""
-
-#: assets/dist/main.js:154
-#: assets/dist/main.js:157
+#: assets/dist/ai-editor.js:1
 #, js-format
-msgid "Removed unsupported head tags: %s"
+msgid "%1$d minutes %2$d seconds"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Saved."
-msgstr ""
-
-#: assets/dist/main.js:154
+#: assets/dist/ai-editor.js:1
 #, js-format
-msgid "Save error: %s"
+msgid "%d minute"
+msgid_plural "%d minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: assets/dist/ai-editor.js:1
+msgid "AI editing is unavailable"
 msgstr ""
 
-#: assets/dist/main.js:154
-#: assets/dist/main.js:157
-msgid "Setup failed."
+#: assets/dist/ai-editor.js:1
+msgid "Ask the site administrator to check the AI configuration."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Choose editor mode"
+#: assets/dist/ai-editor.js:1
+msgid "Connect an AI provider"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
+#: assets/dist/ai-editor.js:1
+msgid "Connect an AI provider before sending an edit."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Normal (HTML/CSS)"
+#: assets/dist/ai-editor.js:1
+msgid "Ask an administrator to configure an AI provider."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Edit HTML and CSS directly in the code editor."
+#: assets/dist/ai-editor.js:1
+msgid "The PHP mbstring extension is required for AI editing."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
+#: assets/dist/ai-editor.js:1
+msgid "The background job scheduler could not be loaded."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Back"
+#: assets/dist/ai-editor.js:1
+msgid "The WordPress AI Client could not be loaded."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Continue"
+#: assets/dist/ai-editor.js:1
+msgid "AI editing has been disabled by site policy."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Setup unavailable."
+#: assets/dist/ai-editor.js:1
+msgid "Open Connectors"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "wp.apiFetch is unavailable."
+#: assets/dist/ai-editor.js:1
+msgid "History could not be loaded."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Paste a complete HTML document."
+#: assets/dist/ai-editor.js:1
+msgid "AI response is missing its snapshot."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Could not parse the content as a complete HTML document."
+#: assets/dist/ai-editor.js:1
+msgid "The AI result could not be applied to the editor."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "head, body, style, and script sections are split and imported automatically."
+#: assets/dist/ai-editor.js:1
+msgid "The editor state is unavailable. The AI result was not applied."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Parse"
+#: assets/dist/ai-editor.js:1
+msgid "AI edit could not be scheduled."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Complete HTML detected"
+#: assets/dist/ai-editor.js:1
+msgid "AI edit timed out while waiting for its status."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "body content and body attributes"
+#: assets/dist/ai-editor.js:1
+msgid "Connection lost. Retrying the AI job status…"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "head additions"
+#: assets/dist/ai-editor.js:1
+msgid "The original AI input could not be recovered."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "style tags"
+#: assets/dist/ai-editor.js:1
+msgid "Editor state is unavailable."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "JS"
+#: assets/dist/ai-editor.js:1
+msgid "Cancel request failed."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "inline script tags"
+#: assets/dist/ai-editor.js:1
+msgid "Your current unsaved changes will be replaced. Continue?"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
+#: assets/dist/ai-editor.js:1
+msgid "The edit could not be restored because the editor rejected the snapshot."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "head HTML and JavaScript will not be imported because your account cannot edit them."
+#: assets/dist/ai-editor.js:1
+msgid "The editor was restored, but the edit history could not be updated."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Replace"
+#: assets/dist/ai-editor.js:1
+msgid "The edit could not be restored."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Skip"
+#: assets/dist/ai-editor.js:1
+msgid "This is the current state."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Paste as HTML"
+#: assets/dist/ai-editor.js:1
+msgid "Restore before changes"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Split and import"
+#: assets/dist/ai-editor.js:1
+msgid "Restore this result"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Theme template unavailable"
+#: assets/dist/ai-editor.js:1
+msgid "The retention period for these changes has ended."
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "This theme does not output \"the_content\", so the preview cannot be rendered. Kayzart will switch the template mode to Standalone."
+#: assets/dist/ai-editor.js:1
+msgid "Details"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "OK"
+#: assets/dist/ai-editor.js:1
+msgid "Model"
 msgstr ""
 
-#: assets/dist/main.js:154
-msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
+#: assets/dist/ai-editor.js:1
+msgid "Input"
 msgstr ""
 
-#: assets/dist/main.js:154
-#: assets/dist/main.js:157
-msgid "Settings unavailable."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Toggle HTML word wrap"
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Wrap: On"
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Loading editor..."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "You may have unsaved changes."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Media library is unavailable."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Select media to insert into HTML."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Insert into HTML"
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "The selected media has no URL and was not inserted."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Could not find the selected element HTML."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Could not copy HTML to the clipboard."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Element HTML copied."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Could not find the selected element range."
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Delete the selected element?"
-msgstr ""
-
-#: assets/dist/main.js:157
-msgid "Element deleted."
-msgstr ""
-
-#. translators: %s: original post title.
-#: includes/class-kayzart-admin.php:345
-#, php-format
-msgid "%s (copy)"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:428
-msgid "Landing page duplicated. The copy was saved as a draft."
-msgstr ""
-
-#: includes/class-kayzart-post-type.php:359
-msgid "Duplicate landing page"
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-revisions.php
-#: assets/dist/main.js
-msgid "Full-page revisions require WordPress 6.4 or later."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-revisions.php
-msgid "Revision not found."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-revisions.php
-msgid "Unknown user"
-msgstr ""
-
-#: assets/dist/main.js
-msgid "History"
-msgstr ""
-
-#: assets/dist/main.js
+#: assets/dist/ai-editor.js:1
 #, js-format
-msgid "This site is running WordPress %s."
+msgid "%s tokens"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Update WordPress"
+#: assets/dist/ai-editor.js:1
+msgid "Output"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Contact a site administrator to update WordPress."
+#: assets/dist/ai-editor.js:1
+msgid "Duration"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Revisions are disabled for this site."
+#: assets/dist/ai-editor.js:1
+msgid "Run again"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Enable WordPress revisions to keep full-page history."
+#: assets/dist/ai-editor.js:1
+msgid "Return to input"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "You can view history, but loading a complete version requires unfiltered HTML permission."
+#: assets/dist/ai-editor.js:1
+msgid "The editor changed while the AI edit was running."
 msgstr ""
 
-#: assets/dist/main.js
-msgid "No full-page revisions yet."
+#: assets/dist/ai-editor.js:1
+msgid "Choose whether to keep the current editor content or replace it with the completed AI result."
 msgstr ""
 
-#: assets/dist/main.js
-msgid "First snapshot"
+#: assets/dist/ai-editor.js:1
+msgid "Keep current content"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Load this version"
+#: assets/dist/ai-editor.js:1
+msgid "Applying…"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Load more"
+#: assets/dist/ai-editor.js:1
+msgid "Replace with AI result"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Loading..."
+#: assets/dist/ai-editor.js:1
+msgid "Loading…"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Loading this version will discard your current unsaved changes. Continue?"
+#: assets/dist/ai-editor.js:1
+msgid "Load earlier history"
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Failed to load history."
+#: assets/dist/ai-editor.js:1
+msgid "Describe the landing page change you want."
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Failed to load revision."
+#: assets/dist/ai-editor.js:1
+msgid "Changes saved · "
 msgstr ""
 
-#: assets/dist/main.js
-msgid "Unknown"
+#: assets/dist/ai-editor.js:1
+#, js-format
+msgid "Revision #%d"
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php
-msgid "The saved page did not match the requested snapshot."
+#: assets/dist/ai-editor.js:1
+msgid "Revision was deleted."
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+#, js-format
+msgid "Restored edit #%d to its previous state."
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+#, js-format
+msgid "Restored the result of edit #%d."
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "Remove context"
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "Example: Make the hero clearer and improve the primary button."
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "Canceling…"
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "Stop"
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "Send"
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "AI Edit"
+msgstr ""
+
+#: assets/dist/ai-editor.js:1
+msgid "Edit with AI"
 msgstr ""

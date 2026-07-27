@@ -1,5 +1,5 @@
 import { createElement, createRoot, Fragment, useEffect, useMemo, useRef, useState } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import type {
   ActiveJobRecord, AiAvailability, AiJobEvent, AiJobStatus, AiJobStatusResponse, AiTimelineItem,
   EditorSnapshot, SelectedElementContext,
@@ -76,8 +76,14 @@ function openAi(includeContext = false) {
 }
 function eventLabel(event: AiJobEvent) {
   if (event.event === 'progress') return event.message || __('Working…', 'kayzart-live-code-editor');
-  if (event.event === 'tool_start') return sprintf(__('Running %s', 'kayzart-live-code-editor'), event.toolName || __('tool', 'kayzart-live-code-editor'));
-  if (event.event === 'tool_end') return sprintf(__('Finished %s', 'kayzart-live-code-editor'), event.toolName || __('tool', 'kayzart-live-code-editor'));
+  if (event.event === 'tool_start') return sprintf(
+    /* translators: %s: AI tool name. */
+    __('Running %s', 'kayzart-live-code-editor'), event.toolName || __('tool', 'kayzart-live-code-editor'),
+  );
+  if (event.event === 'tool_end') return sprintf(
+    /* translators: %s: AI tool name. */
+    __('Finished %s', 'kayzart-live-code-editor'), event.toolName || __('tool', 'kayzart-live-code-editor'),
+  );
   if (event.event === 'final') return __('Changes are ready.', 'kayzart-live-code-editor');
   return event.message || event.event;
 }
@@ -86,20 +92,32 @@ function formatDate(value: string) {
   catch { return value; }
 }
 function statusLabel(item: AiTimelineItem, status = item.executionStatus) {
-  if (status === 'pending') return 'AI編集を待機中です';
-  if (status === 'running') return '変更を適用中です';
-  if (status === 'completed' && item.applicationStatus === 'applied') return '変更を適用しました';
-  if (status === 'completed' && item.applicationStatus === 'reverted') return '変更を元に戻しました';
-  if (status === 'completed') return '変更が完了しました';
-  if (status === 'canceled') return 'AI編集をキャンセルしました';
-  if (status === 'timed_out') return 'AI編集がタイムアウトしました';
-  return 'AI編集に失敗しました';
+  if (status === 'pending') return __('AI edit is waiting.', 'kayzart-live-code-editor');
+  if (status === 'running') return __('Applying changes.', 'kayzart-live-code-editor');
+  if (status === 'completed' && item.applicationStatus === 'applied') return __('Changes were applied.', 'kayzart-live-code-editor');
+  if (status === 'completed' && item.applicationStatus === 'reverted') return __('Changes were reverted.', 'kayzart-live-code-editor');
+  if (status === 'completed') return __('Changes are ready.', 'kayzart-live-code-editor');
+  if (status === 'canceled') return __('AI edit was canceled.', 'kayzart-live-code-editor');
+  if (status === 'timed_out') return __('AI edit timed out.', 'kayzart-live-code-editor');
+  return __('AI edit failed.', 'kayzart-live-code-editor');
 }
 
 function formatDuration(seconds: number) {
-  if (seconds < 60) return `${seconds}秒`;
+  if (seconds < 60) return sprintf(
+    /* translators: %d: number of seconds. */
+    _n('%d second', '%d seconds', seconds, 'kayzart-live-code-editor'), seconds,
+  );
   const minutes = Math.floor(seconds / 60); const remainder = seconds % 60;
-  return remainder ? `${minutes}分${remainder}秒` : `${minutes}分`;
+  if (!remainder) return sprintf(
+    /* translators: %d: number of minutes. */
+    _n('%d minute', '%d minutes', minutes, 'kayzart-live-code-editor'), minutes,
+  );
+  return sprintf(
+    /* translators: 1: minutes, 2: seconds. */
+    __('%1$d minutes %2$d seconds', 'kayzart-live-code-editor'),
+    minutes,
+    remainder,
+  );
 }
 
 function AiIcon() {
@@ -412,7 +430,7 @@ export function AiEditorPanel() {
     const current = host()?.getEditorSnapshot?.();
     const position = snapshotPosition(item, current ? { baseHash: current.baseHash, jsMode: current.jsMode } : null);
     if (position === target) return;
-    if (position === 'other' && !window.confirm('現在の未保存変更が置き換えられます。続行しますか？')) return;
+    if (position === 'other' && !window.confirm(__('Your current unsaved changes will be replaced. Continue?', 'kayzart-live-code-editor'))) return;
     try {
       const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, target);
       const snapshot = normalizeSnapshot(result.snapshot);
@@ -450,15 +468,21 @@ export function AiEditorPanel() {
         })}</div> : null}
         {isLive && running && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
         {executionStatus === 'completed' && item.detailsAvailable ? <div className="kayzart-ai-result-actions">
-          <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? '現在この状態です' : undefined} onClick={() => void restore(item, 'before')}>変更前に戻す</button>
-          <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? '現在この状態です' : undefined} onClick={() => void restore(item, 'after')}>この結果を復元</button>
+          <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'before')}>{__('Restore before changes', 'kayzart-live-code-editor')}</button>
+          <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'after')}>{__('Restore this result', 'kayzart-live-code-editor')}</button>
         </div> : null}
-        {executionStatus === 'completed' && !item.detailsAvailable ? <p className="kayzart-ai-expired">変更内容の保持期間が終了しました。</p> : null}
-        {executionStatus === 'completed' && (item.model || item.inputTokens !== null || item.outputTokens !== null || item.durationSeconds !== null) ? <details className="kayzart-ai-details"><summary>詳細</summary><dl>
-          {item.model ? <><dt>モデル</dt><dd>{item.model}</dd></> : null}
-          {item.inputTokens !== null ? <><dt>入力</dt><dd>{item.inputTokens.toLocaleString()} トークン</dd></> : null}
-          {item.outputTokens !== null ? <><dt>出力</dt><dd>{item.outputTokens.toLocaleString()} トークン</dd></> : null}
-          {item.durationSeconds !== null ? <><dt>処理時間</dt><dd>{formatDuration(item.durationSeconds)}</dd></> : null}
+        {executionStatus === 'completed' && !item.detailsAvailable ? <p className="kayzart-ai-expired">{__('The retention period for these changes has ended.', 'kayzart-live-code-editor')}</p> : null}
+        {executionStatus === 'completed' && (item.model || item.inputTokens !== null || item.outputTokens !== null || item.durationSeconds !== null) ? <details className="kayzart-ai-details"><summary>{__('Details', 'kayzart-live-code-editor')}</summary><dl>
+          {item.model ? <><dt>{__('Model', 'kayzart-live-code-editor')}</dt><dd>{item.model}</dd></> : null}
+          {item.inputTokens !== null ? <><dt>{__('Input', 'kayzart-live-code-editor')}</dt><dd>{sprintf(
+            /* translators: %s: formatted token count. */
+            __('%s tokens', 'kayzart-live-code-editor'), item.inputTokens.toLocaleString(),
+          )}</dd></> : null}
+          {item.outputTokens !== null ? <><dt>{__('Output', 'kayzart-live-code-editor')}</dt><dd>{sprintf(
+            /* translators: %s: formatted token count. */
+            __('%s tokens', 'kayzart-live-code-editor'), item.outputTokens.toLocaleString(),
+          )}</dd></> : null}
+          {item.durationSeconds !== null ? <><dt>{__('Duration', 'kayzart-live-code-editor')}</dt><dd>{formatDuration(item.durationSeconds)}</dd></> : null}
         </dl></details> : null}
         {failed ? <div className="kayzart-ai-result-actions"><button type="button" disabled={running} onClick={() => void send({ prompt: item.prompt || '', contexts: item.contexts as SelectedElementContext[] })}>{__('Run again', 'kayzart-live-code-editor')}</button><button type="button" onClick={() => { setPrompt(item.prompt || ''); promptRef.current?.focus(); }}>{__('Return to input', 'kayzart-live-code-editor')}</button></div> : null}
       </div>
@@ -480,13 +504,23 @@ export function AiEditorPanel() {
       {hasMore ? <button className="kayzart-ai-load-more" type="button" disabled={loading} onClick={() => void loadOlder()}>{loading ? __('Loading…', 'kayzart-live-code-editor') : __('Load earlier history', 'kayzart-live-code-editor')}</button> : null}
       {!loading && !items.length && !optimistic ? <p className="kayzart-ai-empty">{__('Describe the landing page change you want.', 'kayzart-live-code-editor')}</p> : null}
       {items.map((item) => item.type === 'ai_edit' ? renderAi(item) : item.type === 'save' ? <div className="kayzart-ai-save-divider" key={item.activityId}>
-        <span>変更を保存しました・</span>{item.revisionAvailable ? <button type="button" onClick={() => host()?.openSettingsTab?.('history')}>Revision #{item.revisionId}</button> : <><span>Revision #{item.revisionId}</span><em>Revisionは削除済みです</em></>}
+        <span>{__('Changes saved · ', 'kayzart-live-code-editor')}</span>{item.revisionAvailable ? <button type="button" onClick={() => host()?.openSettingsTab?.('history')}>{sprintf(
+          /* translators: %d: revision ID. */
+          __('Revision #%d', 'kayzart-live-code-editor'), item.revisionId || 0,
+        )}</button> : <><span>{sprintf(
+          /* translators: %d: revision ID. */
+          __('Revision #%d', 'kayzart-live-code-editor'), item.revisionId || 0,
+        )}</span><em>{__('Revision was deleted.', 'kayzart-live-code-editor')}</em></>}
       </div> : <div className={`kayzart-ai-system is-${item.restoreTarget === 'before' ? 'before' : 'after'}`} key={item.activityId}>
-        <RestoreIcon /><strong>{sprintf(item.restoreTarget === 'before' ? '編集 #%d の変更前に戻しました' : '編集 #%d の結果を復元しました', item.sourceActivityId || 0)}</strong><small>{item.author.name} · {formatDate(item.createdAt)}</small>
+        <RestoreIcon /><strong>{sprintf(item.restoreTarget === 'before'
+          /* translators: %d: source AI edit activity ID. */
+          ? __('Restored edit #%d to its previous state.', 'kayzart-live-code-editor')
+          /* translators: %d: source AI edit activity ID. */
+          : __('Restored the result of edit #%d.', 'kayzart-live-code-editor'), item.sourceActivityId || 0)}</strong><small>{item.author.name} · {formatDate(item.createdAt)}</small>
       </div>)}
       {optimistic && !items.some((item) => item.requestId === optimistic.requestId) ? <div className="kayzart-ai-exchange">
         <div className="kayzart-ai-message kayzart-ai-message-user"><p>{optimistic.prompt}</p><small>{optimistic.contexts.map(contextLabel).join(', ')}</small></div>
-        <div className={`kayzart-ai-result is-${liveJob?.requestId === optimistic.requestId ? liveJob.status : 'pending'}`}><div className="kayzart-ai-result-heading"><AiIcon /><strong>{liveJob?.requestId === optimistic.requestId && liveJob.status === 'running' ? '変更を適用中です' : 'AI編集を待機中です'}</strong></div>
+        <div className={`kayzart-ai-result is-${liveJob?.requestId === optimistic.requestId ? liveJob.status : 'pending'}`}><div className="kayzart-ai-result-heading"><AiIcon /><strong>{liveJob?.requestId === optimistic.requestId && liveJob.status === 'running' ? __('Applying changes.', 'kayzart-live-code-editor') : __('AI edit is waiting.', 'kayzart-live-code-editor')}</strong></div>
           {liveJob?.requestId === optimistic.requestId && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
         </div>
       </div> : null}

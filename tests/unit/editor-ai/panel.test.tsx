@@ -98,9 +98,9 @@ describe('AiEditorPanel', () => {
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ post_id: 7, prompt: 'Improve the hero', html: '<main>Before</main>' });
     await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
     expect(container.textContent).not.toContain('Updated hero');
-    expect(container.textContent).toContain('変更を適用しました');
+    expect(container.textContent).toContain('Changes were applied.');
     expect(container.textContent).toContain('HTML+2−1');
-    expect(container.textContent).toContain('詳細');
+    expect(container.textContent).toContain('Details');
     const details = container.querySelector('details') as HTMLDetailsElement;
     expect(details.open).toBe(false);
     (container.querySelector('summary') as HTMLElement).click();
@@ -200,7 +200,7 @@ describe('AiEditorPanel', () => {
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
     await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
-    expect(container.textContent).toContain('変更を適用しました');
+    expect(container.textContent).toContain('Changes were applied.');
     await act(async () => root.unmount());
   });
 
@@ -418,7 +418,7 @@ describe('AiEditorPanel', () => {
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
-    await vi.waitFor(() => expect(container.textContent).toContain('変更前に戻す'));
+    await vi.waitFor(() => expect(container.textContent).toContain('Restore before changes'));
     const actions = () => Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-result-actions button'));
     expect(actions()).toHaveLength(2);
     expect(actions()[0].disabled).toBe(false);
@@ -447,7 +447,7 @@ describe('AiEditorPanel', () => {
     await act(async () => actions()[1].click());
     await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenLastCalledWith(afterSnapshot));
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/restore'))).toHaveLength(2);
-    expect(container.textContent).not.toContain('変更内容を確認');
+    expect(container.textContent).not.toContain('Your current unsaved changes will be replaced. Continue?');
     await act(async () => root.unmount());
   });
 
@@ -469,7 +469,7 @@ describe('AiEditorPanel', () => {
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
-    await vi.waitFor(() => expect(container.textContent).toContain('変更前に戻す'));
+    await vi.waitFor(() => expect(container.textContent).toContain('Restore before changes'));
     const restoreBefore = container.querySelector<HTMLButtonElement>('.is-restore-before') as HTMLButtonElement;
     await act(async () => restoreBefore.click());
 
@@ -499,7 +499,7 @@ describe('AiEditorPanel', () => {
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
-    await vi.waitFor(() => expect(container.textContent).toContain('変更前に戻す'));
+    await vi.waitFor(() => expect(container.textContent).toContain('Restore before changes'));
     const restoreBefore = container.querySelector<HTMLButtonElement>('.is-restore-before') as HTMLButtonElement;
     await act(async () => restoreBefore.click());
 
@@ -540,7 +540,7 @@ describe('AiEditorPanel', () => {
     await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
 
     await vi.waitFor(() => expect(container.textContent).toContain('Generating the update'));
-    expect(container.textContent).toContain('変更を適用中です');
+    expect(container.textContent).toContain('Applying changes.');
     await act(async () => root.unmount());
   });
 

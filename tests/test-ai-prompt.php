@@ -37,12 +37,13 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	public function test_build_user_prompt_normal_mode(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
 			array(
-				'editorMode' => 'normal',
-				'prompt'     => 'make the heading blue',
-				'html'       => '<h1>Hi</h1>',
-				'customHead' => '',
-				'css'        => '',
-				'js'         => '',
+				'editorMode'  => 'normal',
+				'prompt'      => 'make the heading blue',
+				'canEditHead' => true,
+				'html'        => '<h1>Hi</h1>',
+				'customHead'  => '',
+				'css'         => '',
+				'js'          => '',
 			)
 		);
 
@@ -61,9 +62,10 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	public function test_build_user_prompt_tailwind_mode(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
 			array(
-				'editorMode' => 'tailwind',
-				'prompt'     => 'make the hero taller',
-				'html'       => '<section></section>',
+				'editorMode'  => 'tailwind',
+				'prompt'      => 'make the hero taller',
+				'canEditHead' => true,
+				'html'        => '<section></section>',
 			)
 		);
 

@@ -27,6 +27,10 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		if ( $administrator ) {
 			$administrator->remove_cap( Ai_Setup::CAPABILITY );
 		}
+		$editor = get_role( 'editor' );
+		if ( $editor ) {
+			$editor->remove_cap( Ai_Setup::CAPABILITY );
+		}
 	}
 
 	/**
@@ -38,9 +42,9 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Activation installs the complete schema and administrator capability.
+	 * Activation installs the complete schema and default AI editing capabilities.
 	 */
-	public function test_activation_creates_schema_and_grants_only_administrators(): void {
+	public function test_activation_creates_schema_and_grants_administrators_and_editors(): void {
 		global $wpdb;
 
 		Ai_Setup::activate();
@@ -103,7 +107,8 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$this->assertContains( 'post_id_id', $timeline_indexes );
 
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
-		$this->assertFalse( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
+		$this->assertTrue( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
+		$this->assertFalse( get_role( 'author' )->has_cap( Ai_Setup::CAPABILITY ) );
 	}
 
 	/**
@@ -116,13 +121,28 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 		$table_name = Ai_Setup::get_jobs_table_name();
 		$this->assertSame( $table_name, $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) );
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
+		$this->assertTrue( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
 
 		get_role( 'administrator' )->remove_cap( Ai_Setup::CAPABILITY );
+		get_role( 'editor' )->remove_cap( Ai_Setup::CAPABILITY );
 		Ai_Setup::maybe_upgrade();
 		$this->assertFalse(
 			get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ),
 			'A matching schema version must not perform upgrade writes on normal requests.'
 		);
+		$this->assertFalse( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
+	}
+
+	/** A prior schema version receives the editor default capability once. */
+	public function test_upgrade_from_previous_version_grants_editor_capability(): void {
+		Ai_Setup::activate();
+		get_role( 'editor' )->remove_cap( Ai_Setup::CAPABILITY );
+		update_option( Ai_Setup::DB_VERSION_OPTION, '5', false );
+
+		Ai_Setup::maybe_upgrade();
+
+		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
+		$this->assertTrue( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
 	}
 
 	/**
@@ -134,6 +154,7 @@ class Test_Kayzart_Ai_Setup extends WP_UnitTestCase {
 
 		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
 		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
+		$this->assertTrue( get_role( 'editor' )->has_cap( Ai_Setup::CAPABILITY ) );
 	}
 
 	/**

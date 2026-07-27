@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ai_Setup {
 	const CAPABILITY            = 'kayzart_ai_edit';
-	const DB_VERSION            = '5';
+	const DB_VERSION            = '6';
 	const DB_VERSION_OPTION     = 'kayzart_ai_db_version';
 	const JOBS_TABLE_SUFFIX     = 'kayzart_ai_jobs';
 	const TIMELINE_TABLE_SUFFIX = 'kayzart_ai_timeline';
@@ -153,12 +153,14 @@ class Ai_Setup {
 	}
 
 	/**
-	 * Grant AI editing to administrators by default.
+	 * Grant AI editing to administrators and editors by default.
 	 */
 	private static function grant_default_capability(): void {
-		$role = get_role( 'administrator' );
-		if ( $role && ! $role->has_cap( self::CAPABILITY ) ) {
-			$role->add_cap( self::CAPABILITY );
+		foreach ( array( 'administrator', 'editor' ) as $role_name ) {
+			$role = get_role( $role_name );
+			if ( $role && ! $role->has_cap( self::CAPABILITY ) ) {
+				$role->add_cap( self::CAPABILITY );
+			}
 		}
 	}
 }

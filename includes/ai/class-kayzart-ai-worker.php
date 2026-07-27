@@ -35,6 +35,10 @@ class Ai_Worker {
 		add_action( self::CLEANUP_HOOK, array( __CLASS__, 'cleanup' ) );
 		add_action( self::RECOVERY_HOOK, array( __CLASS__, 'recover_steps' ) );
 		add_action( 'action_scheduler_init', array( __CLASS__, 'ensure_cleanup' ) );
+		add_action( 'action_scheduler_ensure_recurring_actions', array( __CLASS__, 'ensure_cleanup' ) );
+		if ( did_action( 'action_scheduler_init' ) ) {
+			self::ensure_cleanup();
+		}
 		add_action( 'action_scheduler_failed_execution', array( __CLASS__, 'handle_failed_execution' ), 10, 3 );
 		add_action( 'action_scheduler_failed_action', array( __CLASS__, 'handle_failed_action' ), 10, 2 );
 		add_action( 'action_scheduler_before_execute', array( __CLASS__, 'track_current_action' ), 1, 1 );

@@ -10,6 +10,7 @@ use KayzArt\Ai_Job_Store;
 use KayzArt\Ai_Message;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
+use KayzArt\Post_Type;
 
 require_once dirname( __DIR__ ) . '/includes/ai/class-kayzart-ai-client-fake.php';
 
@@ -160,14 +161,38 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 
 	/** Permanent post deletion settles its job and removes queued actions. */
 	public function test_post_deletion_cancels_and_unschedules_the_active_job(): void {
-		$uuid    = $this->create_job( 'worker-delete-post', 25 );
+		$post_id = self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'publish',
+			)
+		);
+		$uuid    = $this->create_job( 'worker-delete-post', $post_id );
 		$actions = Ai_Worker::enqueue( $uuid );
 
-		do_action( 'before_delete_post', 25 );
+		wp_delete_post( $post_id, true );
 
 		$this->assertSame( 'canceled', $this->store->get( $uuid )['status'] );
 		$this->assertSame( \ActionScheduler_Store::STATUS_CANCELED, ActionScheduler::store()->get_status( $actions['run_action_id'] ) );
 		$this->assertSame( \ActionScheduler_Store::STATUS_CANCELED, ActionScheduler::store()->get_status( $actions['timeout_action_id'] ) );
+	}
+
+	/** Maintenance actions are registered even when Action Scheduler is already ready. */
+	public function test_worker_init_registers_maintenance_after_scheduler_initialization(): void {
+		Ai_Worker::deactivate();
+		Ai_Worker::init();
+
+		$this->assertNotFalse( as_has_scheduled_action( Ai_Worker::CLEANUP_HOOK, null, Ai_Worker::GROUP ) );
+		$this->assertNotFalse( as_has_scheduled_action( Ai_Worker::RECOVERY_HOOK, null, Ai_Worker::GROUP ) );
+	}
+
+	/** The Action Scheduler recurring-action check restores missing maintenance actions. */
+	public function test_recurring_maintenance_check_restores_missing_actions(): void {
+		Ai_Worker::deactivate();
+		do_action( 'action_scheduler_ensure_recurring_actions' );
+
+		$this->assertNotFalse( as_has_scheduled_action( Ai_Worker::CLEANUP_HOOK, null, Ai_Worker::GROUP ) );
+		$this->assertNotFalse( as_has_scheduled_action( Ai_Worker::RECOVERY_HOOK, null, Ai_Worker::GROUP ) );
 	}
 
 	/** Step actions persist checkpoints and stale versions cannot call the model twice. */

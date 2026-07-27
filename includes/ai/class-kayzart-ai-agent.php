@@ -204,7 +204,8 @@ class Ai_Agent {
 
 		$edit_policy           = Ai_Tool_Schema::resolve_edit_policy(
 			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
-			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : ''
+			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '',
+			! empty( $payload['canEditHead'] )
 		);
 		$editable_targets      = $edit_policy['editableTargets'];
 		$has_history_tool      = ! empty( $payload['historyTool'] );
@@ -519,8 +520,12 @@ class Ai_Agent {
 	 * @throws Ai_Agent_Error When the final snapshot violates the server policy.
 	 */
 	private function completed_step( array $payload, array $state, array $snapshot, string $summary, array $usage, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
+		$initial_snapshot = $this->initial_snapshot( $payload );
+		if ( empty( $payload['canEditHead'] ) && ( isset( $snapshot['customHead'] ) ? (string) $snapshot['customHead'] : '' ) !== $initial_snapshot['customHead'] ) {
+			throw new Ai_Agent_Error( 'The completed AI edit modifies the custom head without permission.', false );
+		}
 		try {
-			Ai_Output_Policy::assert_safe_transition( $this->initial_snapshot( $payload ), $snapshot );
+			Ai_Output_Policy::assert_safe_transition( $initial_snapshot, $snapshot );
 		} catch ( Ai_Tool_Error $error ) {
 			throw new Ai_Agent_Error( 'The completed AI edit violates the server safety policy: ' . $error->getMessage(), false );
 		}

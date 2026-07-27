@@ -47,7 +47,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 * Normal mode exposes every target and treats CSS as requested.
 	 */
 	public function test_resolve_edit_policy_normal_mode(): void {
-		$policy = Ai_Tool_Schema::resolve_edit_policy( 'normal', 'make the background red' );
+		$policy = Ai_Tool_Schema::resolve_edit_policy( 'normal', 'make the background red', true );
 		$this->assertSame( array( 'html', 'head', 'css' ), $policy['editableTargets'] );
 		$this->assertTrue( $policy['cssExplicitlyRequested'] );
 	}
@@ -56,7 +56,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 * Tailwind mode without CSS intent excludes the CSS target.
 	 */
 	public function test_resolve_edit_policy_tailwind_without_css_intent(): void {
-		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger' );
+		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', true );
 		$this->assertSame( array( 'html', 'head' ), $policy['editableTargets'] );
 		$this->assertFalse( $policy['cssExplicitlyRequested'] );
 	}
@@ -65,9 +65,22 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 * Tailwind mode with explicit CSS intent unlocks the CSS target.
 	 */
 	public function test_resolve_edit_policy_tailwind_with_css_intent(): void {
-		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'edit the stylesheet spacing' );
+		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'edit the stylesheet spacing', true );
 		$this->assertSame( array( 'html', 'head', 'css' ), $policy['editableTargets'] );
 		$this->assertTrue( $policy['cssExplicitlyRequested'] );
+	}
+
+	/** Users who cannot persist custom-head content must never receive head tools. */
+	public function test_resolve_edit_policy_excludes_head_without_permission(): void {
+		$policy = Ai_Tool_Schema::resolve_edit_policy( 'normal', 'add a meta tag', false );
+		$this->assertSame( array( 'html', 'css' ), $policy['editableTargets'] );
+
+		$tools = Ai_Tool_Schema::build_tool_definitions( $policy['editableTargets'] );
+		$this->assertNotContains( 'head', $this->find_tool( $tools, 'replace_string' )['parameters']['properties']['target']['enum'] );
+		$this->assertNotContains( 'head', $this->find_tool( $tools, 'replace_many' )['parameters']['properties']['target']['enum'] );
+
+		$tailwind_policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', false );
+		$this->assertSame( array( 'html' ), $tailwind_policy['editableTargets'] );
 	}
 
 	/**

@@ -26,13 +26,14 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	 */
 	private function payload( string $html = '<main>Hello</main>' ): array {
 		return array(
-			'editorMode' => 'normal',
-			'prompt'     => 'change greeting',
-			'html'       => $html,
-			'customHead' => '',
-			'css'        => '',
-			'js'         => '',
-			'jsMode'     => 'classic',
+			'editorMode'  => 'normal',
+			'prompt'      => 'change greeting',
+			'canEditHead' => true,
+			'html'        => $html,
+			'customHead'  => '',
+			'css'         => '',
+			'js'          => '',
+			'jsMode'      => 'classic',
 		);
 	}
 
@@ -187,6 +188,19 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->expectException( Ai_Agent_Error::class );
 		$this->expectExceptionMessage( 'server safety policy' );
 		$agent->advance( $input, $state );
+	}
+
+	/** A corrupted worker state cannot bypass the creator's head-edit permission. */
+	public function test_completed_snapshot_rejects_unauthorized_head_change(): void {
+		$agent                  = new Ai_Agent( new Ai_Client_Fake() );
+		$payload                = $this->payload();
+		$payload['canEditHead'] = false;
+		$snapshot               = $this->invoke_agent_helper( $agent, 'initial_snapshot', array( $payload ) );
+		$snapshot['customHead'] = '<meta name="robots" content="noindex">';
+
+		$this->expectException( Ai_Agent_Error::class );
+		$this->expectExceptionMessage( 'custom head without permission' );
+		$this->invoke_agent_helper( $agent, 'completed_step', array( $payload, array(), $snapshot, 'Changed head.', array(), 'agent', 1, 0.0, 0.0 ) );
 	}
 
 	/** A finish-only turn is accepted after a prior successful edit. */

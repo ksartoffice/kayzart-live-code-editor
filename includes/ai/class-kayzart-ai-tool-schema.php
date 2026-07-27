@@ -76,23 +76,28 @@ class Ai_Tool_Schema {
 	/**
 	 * Resolve which targets are editable for a request.
 	 *
-	 * @param string $editor_mode Editor mode ('normal' or 'tailwind').
-	 * @param string $prompt      User prompt.
+	 * @param string $editor_mode   Editor mode ('normal' or 'tailwind').
+	 * @param string $prompt        User prompt.
+	 * @param bool   $can_edit_head Whether the job creator may persist custom-head edits.
 	 * @return array{editableTargets:array<int,string>,cssExplicitlyRequested:bool}
 	 */
-	public static function resolve_edit_policy( string $editor_mode, string $prompt ): array {
+	public static function resolve_edit_policy( string $editor_mode, string $prompt, bool $can_edit_head ): array {
 		if ( 'normal' === $editor_mode ) {
-			return array(
-				'editableTargets'        => self::ALL_EDITABLE_TARGETS,
-				'cssExplicitlyRequested' => true,
-			);
+			$editable_targets         = self::ALL_EDITABLE_TARGETS;
+			$css_explicitly_requested = true;
+		} else {
+			$css_explicitly_requested = self::has_explicit_css_edit_intent( $prompt );
+			$editable_targets         = $css_explicitly_requested
+				? self::ALL_EDITABLE_TARGETS
+				: self::TAILWIND_DEFAULT_EDITABLE_TARGETS;
 		}
 
-		$css_explicitly_requested = self::has_explicit_css_edit_intent( $prompt );
+		if ( ! $can_edit_head ) {
+			$editable_targets = array_values( array_diff( $editable_targets, array( 'head' ) ) );
+		}
+
 		return array(
-			'editableTargets'        => $css_explicitly_requested
-				? self::ALL_EDITABLE_TARGETS
-				: self::TAILWIND_DEFAULT_EDITABLE_TARGETS,
+			'editableTargets'        => $editable_targets,
 			'cssExplicitlyRequested' => $css_explicitly_requested,
 		);
 	}

@@ -61,7 +61,7 @@ describe('AiEditorPanel', () => {
       jobsUrl: '/jobs', jobsBaseUrl: '/jobs/', timelineUrl: '/timeline', timelineBaseUrl: '/timeline/', connectorsUrl: '/connectors', canManageConnectors: true,
     } };
   });
-  afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; });
 
   it('persists the prompt timeline, hides summary, and applies the completed snapshot', async () => {
     const replaceEditorSnapshot = vi.fn(() => true); const setEditorLock = vi.fn();
@@ -343,7 +343,10 @@ describe('AiEditorPanel', () => {
   });
 
   it('stops retrying transient status failures at the client deadline', async () => {
-    const pendingItem = { ...timelineItem, executionStatus: 'running' as const, applicationStatus: 'not_applied' as const, createdAt: new Date().toISOString(), timeoutMs: 30 };
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T00:00:00Z'));
+    const startedAt = Date.now();
+    const pendingItem = { ...timelineItem, executionStatus: 'running' as const, applicationStatus: 'not_applied' as const, createdAt: new Date(startedAt).toISOString(), timeoutMs: 30 };
     const setEditorLock = vi.fn();
     (window as any).KAYZART_EXTENSION_API = {
       registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
@@ -360,12 +363,12 @@ describe('AiEditorPanel', () => {
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
     sessionStorage.setItem('kayzart.ai.activeJob.7', JSON.stringify({
       version: 1, postId: 7, jobId: 'job-1', requestId: 'request-1', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel',
-      pollIntervalMs: 1, timeoutMs: 30, startedAt: Date.now(), prompt: 'Improve', contexts: [], inputSnapshot: beforeSnapshot, activityId: 12,
+      pollIntervalMs: 1, timeoutMs: 30, startedAt, prompt: 'Improve', contexts: [], inputSnapshot: beforeSnapshot, activityId: 12,
     }));
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
-    await act(async () => root.render(<AiEditorPanel />));
+    await act(async () => { root.render(<AiEditorPanel />); await Promise.resolve(); });
     await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 60));
+      await vi.advanceTimersByTimeAsync(30);
     });
     expect(container.textContent).toContain('AI edit timed out while waiting for its status.');
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/jobs/job-1')).length).toBeGreaterThan(1);
@@ -376,6 +379,9 @@ describe('AiEditorPanel', () => {
   });
 
   it('aborts a hanging status request at the client deadline', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-15T00:00:00Z'));
+    const startedAt = Date.now();
     const setEditorLock = vi.fn();
     (window as any).KAYZART_EXTENSION_API = {
       registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
@@ -394,11 +400,11 @@ describe('AiEditorPanel', () => {
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
     sessionStorage.setItem('kayzart.ai.activeJob.7', JSON.stringify({
       version: 1, postId: 7, jobId: 'job-1', requestId: 'request-1', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel',
-      pollIntervalMs: 1, timeoutMs: 30, startedAt: Date.now(), prompt: 'Improve', contexts: [], inputSnapshot: beforeSnapshot, activityId: 12,
+      pollIntervalMs: 1, timeoutMs: 30, startedAt, prompt: 'Improve', contexts: [], inputSnapshot: beforeSnapshot, activityId: 12,
     }));
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
-    await act(async () => root.render(<AiEditorPanel />));
-    await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 60)); });
+    await act(async () => { root.render(<AiEditorPanel />); await Promise.resolve(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(30); });
     expect(container.textContent).toContain('AI edit timed out while waiting for its status.');
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/jobs/job-1'))).toHaveLength(1);
     expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).toBeNull();

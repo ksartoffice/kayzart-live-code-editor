@@ -120,7 +120,7 @@ PROMPT;
 	public static function debug_input_parts( array $payload ): array {
 		$editor_mode = isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '';
 		$prompt      = isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '';
-		$edit_policy = Ai_Tool_Schema::resolve_edit_policy( $editor_mode, $prompt );
+		$edit_policy = Ai_Tool_Schema::resolve_edit_policy( $editor_mode, $prompt, ! empty( $payload['canEditHead'] ) );
 
 		$mode_text             = 'Editor mode: ' . $editor_mode;
 		$editable_targets_text = 'Editable targets for this request: ' . implode( ', ', $edit_policy['editableTargets'] );

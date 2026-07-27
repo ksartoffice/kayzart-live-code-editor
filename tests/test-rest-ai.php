@@ -83,6 +83,26 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 1, $this->immediate_dispatches );
 	}
 
+	/** The server, rather than an untrusted browser field, fixes head-edit permission into each job. */
+	public function test_create_captures_head_edit_permission_in_job_payload(): void {
+		$deny_unfiltered_html = static function ( array $allcaps, array $caps, array $args ): array {
+			if ( isset( $args[0] ) && 'unfiltered_html' === $args[0] ) {
+				$allcaps['unfiltered_html'] = false;
+			}
+			return $allcaps;
+		};
+		add_filter( 'user_has_cap', $deny_unfiltered_html, 10, 3 );
+		$payload                = $this->payload( 'rest-head-permission' );
+		$payload['canEditHead'] = true;
+		$response               = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+		remove_filter( 'user_has_cap', $deny_unfiltered_html, 10 );
+
+		$this->assertSame( 202, $response->get_status() );
+		$job    = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
+		$this->assertFalse( $stored['canEditHead'] );
+	}
+
 	/** DOM/libxml support is required before a job can be accepted. */
 	public function test_create_returns_unavailable_when_dom_support_is_missing(): void {
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );

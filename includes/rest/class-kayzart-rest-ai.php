@@ -70,7 +70,11 @@ class Rest_Ai {
 			return $payload;
 		}
 
+		// This is derived at creation time so asynchronous workers never depend on
+		// whichever user happens to run them.
+		$can_edit_head                                = current_user_can( 'unfiltered_html' );
 		$store                                        = new Ai_Job_Store();
+		$payload['agentPayload']['canEditHead']       = $can_edit_head;
 		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'] );
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
 		$result                                       = $store->create( get_current_user_id(), $payload['postId'], $payload['requestId'], $payload['agentPayload'] );

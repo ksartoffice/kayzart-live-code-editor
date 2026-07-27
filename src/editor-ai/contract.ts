@@ -20,6 +20,7 @@ export type AiAvailability = {
   sdkPresent: boolean;
   providerConfigured: boolean;
   schedulerPresent: boolean;
+  mbstringPresent: boolean;
   canEdit: boolean;
   jobsUrl: string;
   jobsBaseUrl: string;
@@ -90,6 +91,8 @@ export type AiTimelineItem = {
   outputTokens: number | null;
   beforeHash: string | null;
   afterHash: string | null;
+  beforeJsMode: 'classic' | 'module' | null;
+  afterJsMode: 'classic' | 'module' | null;
   revisionId: number | null;
   sourceActivityId: number | null;
   sourcePrompt: string | null;

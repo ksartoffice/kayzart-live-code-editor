@@ -51,6 +51,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10, 3 );
 	}
 
@@ -59,6 +60,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10 );
 		Ai_Worker::deactivate();
 		wp_set_current_user( 0 );

@@ -266,6 +266,7 @@ class Ai_Timeline_Store {
 		$change_stats       = $this->change_stats_from_retained_job( $row );
 		$duration_seconds   = $this->duration_from_retained_job( $row );
 		$timeout_ms         = $this->timeout_from_retained_job( $row );
+		$snapshot_modes     = $this->snapshot_modes_from_retained_job( $row );
 		return array(
 			'id'                => (int) $row['id'],
 			'activityId'        => (string) $row['activity_uuid'],
@@ -285,6 +286,8 @@ class Ai_Timeline_Store {
 			'outputTokens'      => isset( $row['output_tokens'] ) && null !== $row['output_tokens'] ? (int) $row['output_tokens'] : null,
 			'beforeHash'        => $row['before_hash'] ? (string) $row['before_hash'] : null,
 			'afterHash'         => $row['after_hash'] ? (string) $row['after_hash'] : null,
+			'beforeJsMode'      => $snapshot_modes['before'],
+			'afterJsMode'       => $snapshot_modes['after'],
 			'revisionId'        => $row['revision_id'] ? (int) $row['revision_id'] : null,
 			'sourceActivityId'  => $source ? (int) $source['id'] : null,
 			'sourcePrompt'      => $source && $source['prompt'] ? (string) $source['prompt'] : null,
@@ -300,6 +303,23 @@ class Ai_Timeline_Store {
 			),
 			'createdAt'         => self::iso_time( $row['created_at'] ),
 			'updatedAt'         => self::iso_time( $row['updated_at'] ),
+		);
+	}
+
+	/** Return the before/after JavaScript modes while snapshots are retained. */
+	private function snapshot_modes_from_retained_job( array $row ): array {
+		$payload_json  = isset( $row['retained_payload_json'] ) ? (string) $row['retained_payload_json'] : '';
+		$snapshot_json = isset( $row['retained_snapshot_json'] ) ? (string) $row['retained_snapshot_json'] : '';
+		if ( '' === $payload_json && ! empty( $row['job_uuid'] ) ) {
+			$job           = ( new Ai_Job_Store() )->get( (string) $row['job_uuid'] );
+			$payload_json  = is_array( $job ) ? (string) $job['payload_json'] : '';
+			$snapshot_json = is_array( $job ) ? (string) $job['snapshot_json'] : '';
+		}
+		$before = json_decode( $payload_json, true );
+		$after  = json_decode( $snapshot_json, true );
+		return array(
+			'before' => is_array( $before ) ? self::snapshot_from_payload( $before )['jsMode'] : null,
+			'after'  => is_array( $after ) ? self::snapshot_from_payload( $after )['jsMode'] : null,
 		);
 	}
 

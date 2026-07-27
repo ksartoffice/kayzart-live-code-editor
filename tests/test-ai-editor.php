@@ -20,6 +20,7 @@ class Test_Kayzart_Ai_Editor extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		wp_set_current_user( 0 );
 		parent::tearDown();
 	}
@@ -51,6 +52,7 @@ class Test_Kayzart_Ai_Editor extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 
 		$payload = Ai_Editor::filter_preview_payload( array(), 1 );
 		$this->assertSame( Ai_Editor::PREVIEW_ACTION_ID, $payload['overlayAction']['actionId'] );

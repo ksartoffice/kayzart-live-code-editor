@@ -94,22 +94,44 @@ class Ai_Availability {
 	}
 
 	/**
+	 * Whether the multibyte functions required by AI editing are available.
+	 *
+	 * @return bool
+	 */
+	public static function is_mbstring_present(): bool {
+		$present = function_exists( 'mb_check_encoding' )
+			&& function_exists( 'mb_convert_encoding' )
+			&& function_exists( 'mb_strlen' )
+			&& function_exists( 'mb_strpos' )
+			&& function_exists( 'mb_substr' );
+
+		/**
+		 * Filter mbstring availability for AI editing.
+		 *
+		 * @param bool $present Whether all required multibyte functions are available.
+		 */
+		return (bool) apply_filters( 'kayzart_ai_mbstring_present', $present );
+	}
+
+	/**
 	 * Return all AI availability checks and their combined result.
 	 *
-	 * @return array{feature_enabled:bool,sdk_present:bool,provider_configured:bool,scheduler_present:bool,available:bool}
+	 * @return array{feature_enabled:bool,sdk_present:bool,provider_configured:bool,scheduler_present:bool,mbstring_present:bool,available:bool}
 	 */
 	public static function get_status(): array {
 		$feature_enabled     = self::is_feature_enabled();
 		$sdk_present         = self::is_sdk_present();
 		$provider_configured = self::is_provider_configured();
 		$scheduler_present   = self::is_scheduler_present();
+		$mbstring_present    = self::is_mbstring_present();
 
 		return array(
 			'feature_enabled'     => $feature_enabled,
 			'sdk_present'         => $sdk_present,
 			'provider_configured' => $provider_configured,
 			'scheduler_present'   => $scheduler_present,
-			'available'           => $feature_enabled && $sdk_present && $provider_configured && $scheduler_present,
+			'mbstring_present'    => $mbstring_present,
+			'available'           => $feature_enabled && $sdk_present && $provider_configured && $scheduler_present && $mbstring_present,
 		);
 	}
 

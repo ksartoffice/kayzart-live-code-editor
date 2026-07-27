@@ -116,6 +116,7 @@ function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   if (!ai.featureEnabled) message = __('AI editing has been disabled by site policy.', 'kayzart-live-code-editor');
   else if (!ai.sdkPresent) message = __('The WordPress AI Client could not be loaded.', 'kayzart-live-code-editor');
   else if (!ai.schedulerPresent) message = __('The background job scheduler could not be loaded.', 'kayzart-live-code-editor');
+  else if (!ai.mbstringPresent) message = __('The PHP mbstring extension is required for AI editing.', 'kayzart-live-code-editor');
   else if (!ai.providerConfigured) {
     title = __('Connect an AI provider', 'kayzart-live-code-editor');
     message = ai.canManageConnectors ? __('Connect an AI provider before sending an edit.', 'kayzart-live-code-editor') : __('Ask an administrator to configure an AI provider.', 'kayzart-live-code-editor');
@@ -149,7 +150,10 @@ export function AiEditorPanel() {
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
-  const [editorHash, setEditorHash] = useState(() => host()?.getEditorSnapshot?.()?.baseHash || '');
+  const [editorIdentity, setEditorIdentity] = useState<Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null>(() => {
+    const snapshot = host()?.getEditorSnapshot?.();
+    return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
+  });
 
   const setPrompt = (value: string) => { draftState.prompt = value; setPromptState(value); };
   const setContexts = (value: SelectedElementContext[]) => { draftState.contexts = value; setContextsState(value); };
@@ -178,7 +182,7 @@ export function AiEditorPanel() {
     const output = normalizeSnapshot(status.snapshot);
     const current = host()?.getEditorSnapshot?.();
     if (current && sameSnapshotIdentity(current, output)) {
-      setEditorHash(output.baseHash);
+      setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
       await markApplied(active.activityId);
       finish();
       return;
@@ -194,7 +198,7 @@ export function AiEditorPanel() {
       finish();
       return;
     }
-    setEditorHash(output.baseHash);
+    setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
     await markApplied(active.activityId);
     finish();
   };
@@ -215,7 +219,7 @@ export function AiEditorPanel() {
       setResolvingConflict(false);
       return;
     }
-    setEditorHash(pendingConflict.output.baseHash);
+    setEditorIdentity({ baseHash: pendingConflict.output.baseHash, jsMode: pendingConflict.output.jsMode });
     await markApplied(pendingConflict.activityId);
     setPendingConflict(null); setResolvingConflict(false); void refresh();
   };
@@ -321,9 +325,12 @@ export function AiEditorPanel() {
   }, []);
 
   useEffect(() => {
-    const syncEditorHash = () => setEditorHash(host()?.getEditorSnapshot?.()?.baseHash || '');
-    syncEditorHash();
-    return host()?.subscribeEditorSnapshot?.(syncEditorHash);
+    const syncEditorIdentity = () => {
+      const snapshot = host()?.getEditorSnapshot?.();
+      setEditorIdentity(snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null);
+    };
+    syncEditorIdentity();
+    return host()?.subscribeEditorSnapshot?.(syncEditorIdentity);
   }, []);
 
   useEffect(() => {
@@ -392,9 +399,9 @@ export function AiEditorPanel() {
     try { const status = await cancelJob(active.cancelUrl, nonce); if (isTerminalStatus(status.status)) terminal(status, active); }
     catch (caught) { setError(caught instanceof Error ? caught.message : __('Cancel request failed.', 'kayzart-live-code-editor')); setCanceling(false); }
   };
-  const snapshotPosition = (item: AiTimelineItem, hash: string): 'before' | 'after' | 'other' => {
-    const matchesBefore = Boolean(hash && item.beforeHash && hash === item.beforeHash);
-    const matchesAfter = Boolean(hash && item.afterHash && hash === item.afterHash);
+  const snapshotPosition = (item: AiTimelineItem, current: Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null): 'before' | 'after' | 'other' => {
+    const matchesBefore = Boolean(current && item.beforeHash && item.beforeJsMode && current.baseHash === item.beforeHash && current.jsMode === item.beforeJsMode);
+    const matchesAfter = Boolean(current && item.afterHash && item.afterJsMode && current.baseHash === item.afterHash && current.jsMode === item.afterJsMode);
     if (matchesBefore && !matchesAfter) return 'before';
     if (matchesAfter && !matchesBefore) return 'after';
     if (matchesBefore && matchesAfter) return item.applicationStatus === 'reverted' ? 'before' : 'after';
@@ -402,15 +409,15 @@ export function AiEditorPanel() {
   };
   const restore = async (item: AiTimelineItem, target: 'before' | 'after') => {
     if (!ai) return;
-    const currentHash = host()?.getEditorSnapshot?.()?.baseHash || '';
-    const position = snapshotPosition(item, currentHash);
+    const current = host()?.getEditorSnapshot?.();
+    const position = snapshotPosition(item, current ? { baseHash: current.baseHash, jsMode: current.jsMode } : null);
     if (position === target) return;
     if (position === 'other' && !window.confirm('現在の未保存変更が置き換えられます。続行しますか？')) return;
     try {
       const result = await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target);
       const snapshot = normalizeSnapshot(result.snapshot);
       host()?.replaceEditorSnapshot?.(snapshot);
-      setEditorHash(snapshot.baseHash);
+      setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
       await refresh();
     } catch (caught) { setError(caught instanceof Error ? caught.message : __('The edit could not be restored.', 'kayzart-live-code-editor')); }
   };
@@ -419,7 +426,7 @@ export function AiEditorPanel() {
     const isLive = liveJob?.requestId === item.requestId;
     const executionStatus = isLive ? liveJob.status : item.executionStatus;
     const failed = executionStatus && ['error', 'canceled', 'timed_out', 'enqueue_failed'].includes(executionStatus);
-    const position = snapshotPosition(item, editorHash);
+    const position = snapshotPosition(item, editorIdentity);
     return <div className="kayzart-ai-exchange" key={item.activityId}>
       <div className="kayzart-ai-message kayzart-ai-message-user"><p>{item.prompt}</p>
         {item.contexts.length ? <small>{item.contexts.map(contextLabel).join(', ')}</small> : null}

@@ -8,7 +8,7 @@ Stable tag: 3.0.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Build clean, theme-independent landing pages with a live HTML/CSS/JS editor — now with built-in AI editing. No page builder, no build pipeline.
+Build clean, theme-independent landing pages with a live HTML/CSS/JS editor — now with built-in AI editing (bring your own AI key). No page builder.
 
 == Description ==
 Kayzart turns custom HTML, CSS, and JavaScript into a real, publishable WordPress landing page — rendered live as you edit, kept clean and independent from your active theme, with no page builder and no build tooling to set up. And now AI can edit that page for you, right inside WordPress.

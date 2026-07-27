@@ -158,6 +158,18 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 		$this->assertSame( Ai_Worker::RUN_HOOK, ActionScheduler::store()->fetch_action( $legacy_action['run_action_id'] )->get_hook() );
 	}
 
+	/** Permanent post deletion settles its job and removes queued actions. */
+	public function test_post_deletion_cancels_and_unschedules_the_active_job(): void {
+		$uuid    = $this->create_job( 'worker-delete-post', 25 );
+		$actions = Ai_Worker::enqueue( $uuid );
+
+		do_action( 'before_delete_post', 25 );
+
+		$this->assertSame( 'canceled', $this->store->get( $uuid )['status'] );
+		$this->assertSame( \ActionScheduler_Store::STATUS_CANCELED, ActionScheduler::store()->get_status( $actions['run_action_id'] ) );
+		$this->assertSame( \ActionScheduler_Store::STATUS_CANCELED, ActionScheduler::store()->get_status( $actions['timeout_action_id'] ) );
+	}
+
 	/** Step actions persist checkpoints and stale versions cannot call the model twice. */
 	public function test_step_worker_completes_across_actions_and_rejects_stale_version(): void {
 		$fake = new Ai_Client_Fake(

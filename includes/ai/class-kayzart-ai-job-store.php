@@ -127,6 +127,21 @@ class Ai_Job_Store {
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Ai_Setup::get_jobs_table_name() . ' WHERE lock_key = %s', 'post:' . $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
+	/**
+	 * Cancel the active job holding a post lock during permanent post deletion.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string|null Canceled job UUID, if an active job was found.
+	 */
+	public function cancel_active_for_post( int $post_id ) {
+		$job = $this->get_active_for_post( $post_id );
+		if ( ! $job || empty( $job['job_uuid'] ) ) {
+			return null;
+		}
+		$this->mark_canceled( (string) $job['job_uuid'] );
+		return (string) $job['job_uuid'];
+	}
+
 	/** Whether any AI job is currently executing on this site. */
 	public function has_running_job(): bool {
 		global $wpdb;

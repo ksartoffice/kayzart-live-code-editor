@@ -36,6 +36,7 @@ export type AppConfig = {
     sdkPresent: boolean;
     providerConfigured: boolean;
     schedulerPresent: boolean;
+    mbstringPresent: boolean;
     canEdit: boolean;
     jobsUrl: string;
     jobsBaseUrl: string;

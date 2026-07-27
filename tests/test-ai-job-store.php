@@ -60,6 +60,19 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 		$this->assertNotNull( $job['finished_at'] );
 	}
 
+	/** Permanent post deletion can settle the active job before its scheduler actions are removed. */
+	public function test_cancel_active_for_post_marks_the_locked_job_canceled(): void {
+		$created = $this->store->create( 10, 20, 'request-delete-post', $this->payload() );
+		$uuid    = $created['job']['job_uuid'];
+
+		$this->assertSame( $uuid, $this->store->cancel_active_for_post( 20 ) );
+		$job = $this->store->get( $uuid );
+		$this->assertSame( 'canceled', $job['status'] );
+		$this->assertSame( '1', (string) $job['cancel_requested'] );
+		$this->assertNull( $job['lock_key'] );
+		$this->assertNull( $this->store->get_active_for_post( 20 ) );
+	}
+
 	/** Events retain only the newest 300 entries and carry request IDs. */
 	public function test_events_are_correlated_and_capped_at_three_hundred(): void {
 		$created = $this->store->create( 10, 20, 'request-events', $this->payload() );

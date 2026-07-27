@@ -67,6 +67,24 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertSame( 567, $item['outputTokens'] );
 	}
 
+	/** Retained snapshots expose JavaScript modes for browser identity checks. */
+	public function test_retained_job_exposes_snapshot_js_modes_only_while_available(): void {
+		$before          = $this->payload( 'Change the module mode.' );
+		$after           = $before;
+		$after['jsMode'] = 'module';
+		$job             = $this->complete_retained_edit( 'request-snapshot-modes', $before, $after );
+
+		$item = $this->store->list_for_post( 42 )['items'][0];
+		$this->assertSame( 'classic', $item['beforeJsMode'] );
+		$this->assertSame( 'module', $item['afterJsMode'] );
+
+		global $wpdb;
+		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $job['job_uuid'] ), array( '%s' ) );
+		$expired = $this->store->list_for_post( 42 )['items'][0];
+		$this->assertNull( $expired['beforeJsMode'] );
+		$this->assertNull( $expired['afterJsMode'] );
+	}
+
 	/** Completing without usage leaves model null and tokens zero. */
 	public function test_complete_without_usage_defaults_model_null(): void {
 		$job     = $this->job( 'request-no-usage' );

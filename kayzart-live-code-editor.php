@@ -102,6 +102,10 @@ add_action(
 		add_action(
 			'before_delete_post',
 			static function ( $post_id ) {
+				$job_uuid = ( new \KayzArt\Ai_Job_Store() )->cancel_active_for_post( (int) $post_id );
+				if ( $job_uuid ) {
+					\KayzArt\Ai_Worker::unschedule_job( $job_uuid );
+				}
 				( new \KayzArt\Ai_Timeline_Store() )->delete_for_post( (int) $post_id );
 			}
 		);

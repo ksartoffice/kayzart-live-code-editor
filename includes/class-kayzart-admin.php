@@ -1334,6 +1334,7 @@ class Admin {
 				'sdkPresent'          => $ai_status['sdk_present'],
 				'providerConfigured'  => $ai_status['provider_configured'],
 				'schedulerPresent'    => $ai_status['scheduler_present'],
+				'mbstringPresent'     => $ai_status['mbstring_present'],
 				'canEdit'             => current_user_can( Ai_Setup::CAPABILITY ),
 				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
 				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),

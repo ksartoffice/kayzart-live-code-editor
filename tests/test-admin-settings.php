@@ -520,6 +520,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
 
 		wp_dequeue_script( 'kayzart-admin' );
@@ -534,6 +535,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 
 		$registered    = wp_scripts()->registered['kayzart-admin'] ?? null;
 		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
@@ -548,6 +550,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'sdkPresent'          => true,
 				'providerConfigured'  => true,
 				'schedulerPresent'    => true,
+				'mbstringPresent'     => true,
 				'canEdit'             => true,
 				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
 				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),

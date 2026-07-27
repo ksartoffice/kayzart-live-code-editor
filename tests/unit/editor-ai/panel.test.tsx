@@ -8,7 +8,7 @@ const beforeSnapshot = { html: '<main>Before</main>', customHead: '', css: '', j
 const afterSnapshot = { html: '<main>After</main>', customHead: '', css: 'main{}', js: '', jsMode: 'classic' as const, baseHash: 'after' };
 const timelineItem = {
   id: 12, activityId: 'activity-12', type: 'ai_edit', jobId: 'job-1', requestId: 'request-1', prompt: 'Improve the hero', contexts: [],
-  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], changeStats: { html: { added: 2, removed: 1 }, css: { added: 1, removed: 0 } }, durationSeconds: 18, timeoutMs: 600000, model: 'gpt-4o', inputTokens: 1234, outputTokens: 567, beforeHash: 'before', afterHash: 'after',
+  executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], changeStats: { html: { added: 2, removed: 1 }, css: { added: 1, removed: 0 } }, durationSeconds: 18, timeoutMs: 600000, model: 'gpt-4o', inputTokens: 1234, outputTokens: 567, beforeHash: 'before', afterHash: 'after', beforeJsMode: 'classic' as const, afterJsMode: 'classic' as const,
   revisionId: null, sourceActivityId: null, sourcePrompt: null, restoreTarget: null, detailsAvailable: true, canPoll: true,
   revisionAvailable: false, author: { id: 1, name: 'Editor' }, createdAt: '2026-07-15T00:00:00Z', updatedAt: '2026-07-15T00:00:01Z',
 };
@@ -57,7 +57,7 @@ describe('AiEditorPanel', () => {
   beforeEach(() => {
     vi.resetModules(); sessionStorage.clear(); document.body.innerHTML = '';
     (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
-      available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, canEdit: true,
+      available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, mbstringPresent: true, canEdit: true,
       jobsUrl: '/jobs', jobsBaseUrl: '/jobs/', timelineUrl: '/timeline', timelineBaseUrl: '/timeline/', connectorsUrl: '/connectors', canManageConnectors: true,
     } };
   });
@@ -418,6 +418,12 @@ describe('AiEditorPanel', () => {
     expect(actions()).toHaveLength(2);
     expect(actions()[0].disabled).toBe(false);
     expect(actions()[1].disabled).toBe(true);
+
+    currentSnapshot = { ...afterSnapshot, jsMode: 'module' };
+    await act(async () => onSnapshotChange?.());
+    expect(actions()[1].disabled).toBe(false);
+    currentSnapshot = afterSnapshot;
+    await act(async () => onSnapshotChange?.());
 
     await act(async () => actions()[0].click());
     await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenCalledWith(beforeSnapshot));

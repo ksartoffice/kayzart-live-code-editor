@@ -1,4 +1,4 @@
-import { createElement, createRoot, Fragment, useEffect, useMemo, useRef, useState } from '@wordpress/element';
+import { createElement, Fragment, useEffect, useMemo, useRef, useState } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import type {
   ActiveJobRecord, AiAvailability, AiJobEvent, AiJobStatus, AiJobStatusResponse, AiTimelineItem,
@@ -28,13 +28,6 @@ type PendingConflict = {
   output: EditorSnapshot;
   activityId?: number;
 };
-
-declare global {
-  interface Window {
-    __KAYZART_AI_TAB_UNREGISTER__?: () => void;
-    __KAYZART_AI_TOOLBAR_UNREGISTER__?: () => void;
-  }
-}
 
 const draftState = { prompt: '', contexts: [] as SelectedElementContext[] };
 const pendingContexts = new Map<string, SelectedElementContext>();
@@ -537,18 +530,11 @@ export function AiEditorPanel() {
   </div>;
 }
 
-function registerTab() {
-  const tab = { id: AI_TAB_ID, label: __('AI Edit', 'kayzart-live-code-editor'), order: 10, mount: (container: HTMLElement) => { const root = createRoot(container); root.render(<AiEditorPanel />); return () => root.unmount(); } };
-  const register = host()?.registerSettingsTab;
-  if (typeof register === 'function') window.__KAYZART_AI_TAB_UNREGISTER__ = register(tab);
-  else { const queue = Array.isArray(window.KAYZART_SETTINGS_TAB_QUEUE) ? window.KAYZART_SETTINGS_TAB_QUEUE : []; queue.push(tab); window.KAYZART_SETTINGS_TAB_QUEUE = queue; }
-}
 function registerToolbar() {
   const action = { id: TOOLBAR_ACTION_ID, label: __('AI Edit', 'kayzart-live-code-editor'), tooltip: __('Edit with AI', 'kayzart-live-code-editor'), order: 10, placement: 'before-settings' as const,
     icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 10 8.5l1.5-6.1a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.5 1.5l6.1 1.5a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.5 1.5l-1.5 6.1a.5.5 0 0 1-1 0z"/></svg>', onClick: () => openAi(false) };
   const register = host()?.registerToolbarAction;
-  if (typeof register === 'function') window.__KAYZART_AI_TOOLBAR_UNREGISTER__ = register(action);
-  else { const queue = Array.isArray(window.KAYZART_TOOLBAR_ACTION_QUEUE) ? window.KAYZART_TOOLBAR_ACTION_QUEUE : []; queue.push(action); window.KAYZART_TOOLBAR_ACTION_QUEUE = queue; }
+  if (typeof register === 'function') register(action);
 }
 function installContextEntrypoints() {
   window.addEventListener(PREVIEW_ACTION_EVENT, (raw) => { const event = raw as CustomEvent<{ actionId?: string }>; if (event.detail?.actionId === PREVIEW_ACTION_ID) openAi(true); });
@@ -556,15 +542,30 @@ function installContextEntrypoints() {
   new MutationObserver(refresh).observe(document.body, { childList: true, subtree: true }); refresh();
 }
 
-registerTab(); registerToolbar(); installContextEntrypoints();
-const restored = loadActiveJob(Number(window.KAYZART.post_id || 0));
-if (restored) { host()?.setEditorLock?.(true); window.requestAnimationFrame(() => openAi(false)); }
-else {
-  const ai = config(); const postId = Number(window.KAYZART.post_id || 0);
+let initialized = false;
+
+export function initAiEditorIntegration() {
+  if (initialized) return;
+  initialized = true;
+  registerToolbar();
+  installContextEntrypoints();
+
+  const restored = loadActiveJob(Number(window.KAYZART.post_id || 0));
+  if (restored) {
+    host()?.setEditorLock?.(true);
+    window.requestAnimationFrame(() => openAi(false));
+    return;
+  }
+
+  const ai = config();
+  const postId = Number(window.KAYZART.post_id || 0);
   if (ai?.timelineUrl && postId > 0) {
     void getTimeline(ai.timelineUrl, window.KAYZART.restNonce || '', postId).then((page) => {
       const active = page.items.some((item) => item.type === 'ai_edit' && item.canPoll && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
-      if (active) { host()?.setEditorLock?.(true); window.requestAnimationFrame(() => openAi(false)); }
+      if (active) {
+        host()?.setEditorLock?.(true);
+        window.requestAnimationFrame(() => openAi(false));
+      }
     }).catch(() => { /* Availability UI reports recoverable REST failures when opened. */ });
   }
 }

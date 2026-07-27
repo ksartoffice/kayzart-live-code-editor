@@ -1,6 +1,6 @@
 <?php
 /**
- * Editor assets and preview integration for the free AI editing UI.
+ * Preview integration for the free AI editing UI.
  *
  * @package KayzArt
  */
@@ -11,49 +11,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Connects the AI UI to the existing editor extension points. */
+/** Connects the AI preview actions to the editor. */
 class Ai_Editor {
-	const SCRIPT_HANDLE     = 'kayzart-ai-editor';
-	const STYLE_HANDLE      = 'kayzart-ai-editor';
 	const PREVIEW_ACTION_ID = 'kayzart-ai-edit-context';
 
 	/** Register editor and preview hooks. */
 	public static function init(): void {
-		add_action( 'kayzart_editor_enqueue_assets', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'kayzart_preview_payload', array( __CLASS__, 'filter_preview_payload' ), 10, 2 );
-	}
-
-	/**
-	 * Enqueue the AI bundle only for users granted AI editing.
-	 *
-	 * @param array $context Editor asset context.
-	 */
-	public static function enqueue_assets( array $context ): void {
-		if ( ! current_user_can( Ai_Setup::CAPABILITY ) ) {
-			return;
-		}
-		$script_path = KAYZART_PATH . 'assets/dist/ai-editor.js';
-		$style_path  = KAYZART_PATH . 'assets/dist/ai-editor.css';
-		if ( ! file_exists( $script_path ) ) {
-			return;
-		}
-		$admin_handle = isset( $context['admin_script_handle'] ) ? (string) $context['admin_script_handle'] : 'kayzart-admin';
-		wp_enqueue_script(
-			self::SCRIPT_HANDLE,
-			KAYZART_URL . 'assets/dist/ai-editor.js',
-			array( $admin_handle, 'wp-element', 'wp-i18n' ),
-			(string) filemtime( $script_path ),
-			true
-		);
-		wp_set_script_translations( self::SCRIPT_HANDLE, 'kayzart-live-code-editor', KAYZART_PATH . 'languages' );
-		if ( file_exists( $style_path ) ) {
-			wp_enqueue_style(
-				self::STYLE_HANDLE,
-				KAYZART_URL . 'assets/dist/ai-editor.css',
-				array(),
-				(string) filemtime( $style_path )
-			);
-		}
 	}
 
 	/**

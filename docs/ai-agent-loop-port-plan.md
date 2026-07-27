@@ -101,7 +101,7 @@
 ### Phase 4: フロントエンドUI（完了）
 
 - `src/editor-ai/`: 無料版専用のREST契約、APIエラー処理、ポーリング、実行中ジョブ復元、AI編集React UIを実装。ライセンス、credits、model、サーバー履歴、バージョンDBへの依存は持たない。
-- `vite.config.ai.ts`: `@wordpress/element` と `@wordpress/i18n` を外部依存にし、`assets/dist/ai-editor.js` と `ai-editor.css` を通常管理画面バンドルの後に生成する。
+- `src/editor-ai/`: AIパネルはコア管理画面バンドルから組み込みタブとして利用し、`@wordpress/element` と `@wordpress/i18n` は外部依存のままにする。
 - AIタブ、ツールバー、Elementsパネル、プレビュー選択操作を追加。promptは8KB、選択コンテキストは20件、画面内メッセージは100件、戻す／再適用用snapshotは20組を上限とする。
 - 実行中はエディタをロックしてイベントを表示し、キャンセルと全終端状態を処理する。完了snapshotは自動反映するが投稿は自動保存せず、既存の保存操作へ委ねる。
 - 会話履歴と完了結果はページ再読み込みで破棄する。実行中ジョブだけを `sessionStorage` の `kayzart.ai.activeJob.{postId}` に保存し、再読み込みまたはAIタブ再表示時にポーリングを再開する。

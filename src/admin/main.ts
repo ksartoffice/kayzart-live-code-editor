@@ -69,6 +69,7 @@ import type {
   SelectedElementContext,
 } from './extensions/settings-tab-registry';
 import { __, sprintf } from '@wordpress/i18n';
+import { initAiEditorIntegration } from '../editor-ai/main';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
 declare const wp: any;
@@ -247,8 +248,9 @@ async function main() {
   let cssEditor: CodeEditorInstance;
   let jsEditor: CodeEditorInstance;
   let tailwindCss = '';
-  let settingsOpen = false;
-  let activeSettingsTab = 'settings';
+  const canEditAi = Boolean(cfg.ai?.canEdit);
+  let settingsOpen = true;
+  let activeSettingsTab = canEditAi ? 'kayzart-ai' : 'elements';
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
@@ -1939,6 +1941,7 @@ async function main() {
     container: ui.settingsBody,
     header: ui.settingsHeader,
     data: initialState.settingsData,
+    aiEnabled: canEditAi,
     postId,
     apiFetch: wp.apiFetch,
     revisionsRestUrl: cfg.revisionsRestUrl,
@@ -1971,6 +1974,10 @@ async function main() {
     elementsApi,
   });
   publishExtensionApi();
+  setSettingsOpen(true);
+  if (canEditAi) {
+    initAiEditorIntegration();
+  }
 
   const handleViewportResize = debounce(() => {
     editorUiController?.updateCompactEditorMode();

@@ -731,7 +731,7 @@ class Admin {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => array( __CLASS__, 'sanitize_default_editor_layout' ),
-				'default'           => 'code_visible',
+				'default'           => 'code_hidden',
 			)
 		);
 
@@ -879,7 +879,7 @@ class Admin {
 
 		$layout = is_string( $value ) ? sanitize_key( $value ) : '';
 		$valid  = array( 'code_visible', 'code_hidden' );
-		return in_array( $layout, $valid, true ) ? $layout : 'code_visible';
+		return in_array( $layout, $valid, true ) ? $layout : 'code_hidden';
 	}
 
 	/**
@@ -1033,7 +1033,7 @@ class Admin {
 	 */
 	public static function render_default_editor_layout_field(): void {
 
-		$value   = get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' );
+		$value   = get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' );
 		$value   = self::sanitize_default_editor_layout( $value );
 		$layouts = array(
 			'code_visible' => __( 'Show code', 'kayzart-live-code-editor' ),
@@ -1318,7 +1318,7 @@ class Admin {
 			'settingsRestUrl'        => rest_url( 'kayzart/v1/settings' ),
 			'settingsData'           => Rest::build_settings_payload( $post_id ),
 			'defaultEditorLayout'    => self::sanitize_default_editor_layout(
-				get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' )
+				get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' )
 			),
 			'tailwindEnabled'        => (bool) get_post_meta( $post_id, '_kayzart_tailwind', true ),
 			'setupRequired'          => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',

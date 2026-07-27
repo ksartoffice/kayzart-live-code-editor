@@ -16,12 +16,13 @@ describe('free AI editor registration', () => {
     };
   });
 
-  it('registers one core tab and toolbar action', async () => {
+  it('registers only the toolbar action because the AI tab is built in', async () => {
     const registerSettingsTab = vi.fn(() => vi.fn());
     const registerToolbarAction = vi.fn(() => vi.fn());
     (window as any).KAYZART_EXTENSION_API = { registerSettingsTab, registerToolbarAction };
-    await import('../../../src/editor-ai/main');
-    expect(registerSettingsTab.mock.calls[0][0]).toMatchObject({ id: 'kayzart-ai', label: 'AI Edit' });
+    const { initAiEditorIntegration } = await import('../../../src/editor-ai/main');
+    initAiEditorIntegration();
+    expect(registerSettingsTab).not.toHaveBeenCalled();
     expect(registerToolbarAction.mock.calls[0][0]).toMatchObject({ id: 'kayzart-toolbar-ai-edit' });
   });
 });

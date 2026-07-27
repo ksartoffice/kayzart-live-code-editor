@@ -31,7 +31,7 @@ async function openEditor(page: Page) {
   await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
 }
 
-test('loads one free AI entry point and the Phase 3 REST configuration', async ({ page }) => {
+test('loads the built-in AI panel and the Phase 3 REST configuration', async ({ page }) => {
   await openEditor(page);
 
   const ai = await page.evaluate(() => (window as any).KAYZART?.ai);
@@ -46,10 +46,14 @@ test('loads one free AI entry point and the Phase 3 REST configuration', async (
     domPresent: true,
   });
   expect(ai.jobsUrl).toContain('/wp-json/kayzart/v1/ai/jobs');
-  await expect(page.locator('script[src*="/assets/dist/ai-editor.js"]')).toHaveCount(1);
+  await expect(page.locator('script[src*="/assets/dist/ai-editor.js"]')).toHaveCount(0);
 
   const toolbarButton = page.getByRole('button', { name: 'AI Edit', exact: true }).first();
   await expect(toolbarButton).toBeVisible();
+  await expect(page.locator('.kayzart-app')).toHaveClass(/is-settings-open/);
+  await expect(page.locator('.kayzart-app')).toHaveClass(/is-editor-collapsed/);
+  await expect(page.locator('.kayzart-settingsTab').first()).toHaveText('AI Edit');
+  await expect(page.locator('.kayzart-settingsTab').first()).toHaveAttribute('aria-selected', 'true');
   await toolbarButton.click();
   await expect(page.locator('.kayzart-settingsTab').filter({ hasText: 'AI Edit' })).toHaveCount(1);
   await expect(page.locator('.kayzart-ai-panel')).toBeVisible();

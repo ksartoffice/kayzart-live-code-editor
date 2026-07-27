@@ -71,9 +71,9 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 	public function test_sanitize_default_editor_layout_allows_known_values_only(): void {
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'code_visible' ) );
 		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( 'code_hidden' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'hidden' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( '' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( array() ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( 'hidden' ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( '' ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( array() ) );
 	}
 
 	public function test_sanitize_ai_default_model_validates_against_discovered_models(): void {

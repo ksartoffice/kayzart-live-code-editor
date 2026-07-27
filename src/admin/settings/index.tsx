@@ -15,6 +15,7 @@ import { renderLucideIcon } from '../lucide-icons';
 import { SettingsPanel } from './settings-panel';
 import { ElementPanel, type ElementPanelApi } from './element-panel';
 import { HistoryPanel } from './history-panel';
+import { AiEditorPanel } from '../../editor-ai/main';
 import type { EditorSnapshot } from '../extensions/settings-tab-registry';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from '../logic/template-mode';
 import {
@@ -60,6 +61,7 @@ type SettingsConfig = {
   onClosePanel?: () => void;
   elementsApi?: ElementPanelApi;
   onApiReady?: (api: SettingsApi) => void;
+  aiEnabled: boolean;
 };
 
 type SettingsTab = string;
@@ -74,6 +76,26 @@ const CLOSE_ICON = renderLucideIcon(X, {
   class: 'lucide lucide-x-icon lucide-x',
 });
 
+export function getCoreSettingsTabs(aiEnabled: boolean) {
+  return [
+    ...(aiEnabled
+      ? [{ id: 'kayzart-ai', label: __( 'AI Edit', 'kayzart-live-code-editor' ) }]
+      : []),
+    {
+      id: 'elements',
+      label: __( 'Elements', 'kayzart-live-code-editor'),
+    },
+    {
+      id: 'history',
+      label: __( 'History', 'kayzart-live-code-editor'),
+    },
+    {
+      id: 'settings',
+      label: __( 'Settings', 'kayzart-live-code-editor'),
+    },
+  ];
+}
+
 function SettingsSidebar({
   data,
   postId,
@@ -85,6 +107,7 @@ function SettingsSidebar({
   onClosePanel,
   elementsApi,
   onApiReady,
+  aiEnabled,
   apiFetch,
   revisionsRestUrl,
   revisionsSupported,
@@ -96,7 +119,7 @@ function SettingsSidebar({
 }: SettingsConfig) {
   const settingsRef = useRef<SettingsData>({ ...data });
   const [settings, setSettings] = useState<SettingsData>({ ...data });
-  const [activeTab, setActiveTab] = useState<SettingsTab>('settings');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(aiEnabled ? 'kayzart-ai' : 'elements');
   const [externalTabs, setExternalTabs] = useState<ResolvedExternalSettingsTab[]>(() =>
     getExternalSettingsTabs()
   );
@@ -149,31 +172,20 @@ function SettingsSidebar({
 
   const tabItems = useMemo(
     () => [
-      {
-        id: 'settings',
-        label: __( 'Settings', 'kayzart-live-code-editor'),
-      },
-      {
-        id: 'elements',
-        label: __( 'Elements', 'kayzart-live-code-editor'),
-      },
-      {
-        id: 'history',
-        label: __( 'History', 'kayzart-live-code-editor'),
-      },
+      ...getCoreSettingsTabs(aiEnabled),
       ...externalTabs.map((tab) => ({
         id: tab.id,
         label: tab.label,
       })),
     ],
-    [externalTabs]
+    [aiEnabled, externalTabs]
   );
 
   useEffect(() => {
     if (!tabItems.some((tab) => tab.id === activeTab)) {
-      setActiveTab('settings');
+      setActiveTab(aiEnabled ? 'kayzart-ai' : 'elements');
     }
-  }, [activeTab, tabItems]);
+  }, [activeTab, aiEnabled, tabItems]);
 
   const activeExternalTab = useMemo(
     () => externalTabs.find((tab) => tab.id === activeTab) || null,
@@ -312,6 +324,8 @@ function SettingsSidebar({
   return (
     <Fragment>
       {tabsNode}
+
+      {aiEnabled && activeTab === 'kayzart-ai' ? <AiEditorPanel /> : null}
 
       {activeTab === 'settings' ? (
         <SettingsPanel

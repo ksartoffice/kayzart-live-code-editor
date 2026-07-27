@@ -414,11 +414,21 @@ export function AiEditorPanel() {
     if (position === target) return;
     if (position === 'other' && !window.confirm('現在の未保存変更が置き換えられます。続行しますか？')) return;
     try {
-      const result = await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target);
+      const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, target);
       const snapshot = normalizeSnapshot(result.snapshot);
-      host()?.replaceEditorSnapshot?.(snapshot);
+      const replace = host()?.replaceEditorSnapshot;
+      if (typeof replace !== 'function' || !replace(snapshot)) {
+        setError(__('The edit could not be restored because the editor rejected the snapshot.', 'kayzart-live-code-editor'));
+        return;
+      }
       setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
-      await refresh();
+      try {
+        await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target);
+        await refresh();
+      } catch (_caught) {
+        await refresh();
+        setError(__('The editor was restored, but the edit history could not be updated.', 'kayzart-live-code-editor'));
+      }
     } catch (caught) { setError(caught instanceof Error ? caught.message : __('The edit could not be restored.', 'kayzart-live-code-editor')); }
   };
 

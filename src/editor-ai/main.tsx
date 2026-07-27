@@ -135,6 +135,7 @@ function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   else if (!ai.sdkPresent) message = __('The WordPress AI Client could not be loaded.', 'kayzart-live-code-editor');
   else if (!ai.schedulerPresent) message = __('The background job scheduler could not be loaded.', 'kayzart-live-code-editor');
   else if (!ai.mbstringPresent) message = __('The PHP mbstring extension is required for AI editing.', 'kayzart-live-code-editor');
+  else if (!ai.domPresent) message = __('The PHP DOM extension is required for AI editing.', 'kayzart-live-code-editor');
   else if (!ai.providerConfigured) {
     title = __('Connect an AI provider', 'kayzart-live-code-editor');
     message = ai.canManageConnectors ? __('Connect an AI provider before sending an edit.', 'kayzart-live-code-editor') : __('Ask an administrator to configure an AI provider.', 'kayzart-live-code-editor');

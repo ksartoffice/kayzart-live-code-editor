@@ -722,13 +722,15 @@ class Ai_Timeline_Store {
 
 	/** Normalize the editable snapshot fields from an agent payload. */
 	private static function snapshot_from_payload( array $payload ): array {
-		return array(
+		$snapshot             = array(
 			'html'       => isset( $payload['html'] ) ? (string) $payload['html'] : '',
 			'customHead' => isset( $payload['customHead'] ) ? (string) $payload['customHead'] : '',
 			'css'        => isset( $payload['css'] ) ? (string) $payload['css'] : '',
 			'js'         => isset( $payload['js'] ) ? (string) $payload['js'] : '',
 			'jsMode'     => isset( $payload['jsMode'] ) && 'module' === $payload['jsMode'] ? 'module' : 'classic',
 		);
+		$snapshot['baseHash'] = self::editor_hash( $snapshot );
+		return $snapshot;
 	}
 
 	/** Keep only small context labels permanently. */

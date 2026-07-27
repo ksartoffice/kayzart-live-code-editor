@@ -21,6 +21,7 @@ class Test_Kayzart_Ai_Availability extends WP_UnitTestCase {
 		remove_all_filters( 'kayzart_ai_provider_configured' );
 		remove_all_filters( 'kayzart_ai_scheduler_present' );
 		remove_all_filters( 'kayzart_ai_mbstring_present' );
+		remove_all_filters( 'kayzart_ai_dom_present' );
 		parent::tearDown();
 	}
 
@@ -37,6 +38,7 @@ class Test_Kayzart_Ai_Availability extends WP_UnitTestCase {
 				'provider_configured' => true,
 				'scheduler_present'   => true,
 				'mbstring_present'    => true,
+				'dom_present'         => true,
 				'available'           => true,
 			),
 			Ai_Availability::get_status()
@@ -54,6 +56,7 @@ class Test_Kayzart_Ai_Availability extends WP_UnitTestCase {
 			'kayzart_ai_provider_configured',
 			'kayzart_ai_scheduler_present',
 			'kayzart_ai_mbstring_present',
+			'kayzart_ai_dom_present',
 		);
 
 		foreach ( $filters as $failed_filter ) {
@@ -85,6 +88,7 @@ class Test_Kayzart_Ai_Availability extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_provider_configured', $callback );
 		add_filter( 'kayzart_ai_scheduler_present', $callback );
 		add_filter( 'kayzart_ai_mbstring_present', $callback );
+		add_filter( 'kayzart_ai_dom_present', $callback );
 	}
 
 	/**
@@ -96,5 +100,6 @@ class Test_Kayzart_Ai_Availability extends WP_UnitTestCase {
 		remove_all_filters( 'kayzart_ai_provider_configured' );
 		remove_all_filters( 'kayzart_ai_scheduler_present' );
 		remove_all_filters( 'kayzart_ai_mbstring_present' );
+		remove_all_filters( 'kayzart_ai_dom_present' );
 	}
 }

@@ -52,6 +52,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
 		add_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10, 3 );
 	}
 
@@ -61,6 +62,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
 		remove_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10 );
 		Ai_Worker::deactivate();
 		wp_set_current_user( 0 );
@@ -79,6 +81,19 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 200, $again->get_status() );
 		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
 		$this->assertSame( 1, $this->immediate_dispatches );
+	}
+
+	/** DOM/libxml support is required before a job can be accepted. */
+	public function test_create_returns_unavailable_when_dom_support_is_missing(): void {
+		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_false' );
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-dom-unavailable' ) );
+
+		$this->assertSame( 503, $response->get_status() );
+		$this->assertFalse( $response->get_data()['data']['availability']['dom_present'] );
+		remove_filter( 'kayzart_ai_dom_present', '__return_false' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
 	}
 
 	/** Capture the non-blocking internal request without performing network I/O.
@@ -161,6 +176,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 		$snapshot = $this->dispatch_json( 'GET', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/snapshot', array( 'target' => 'before' ) );
 		$this->assertSame( 200, $snapshot->get_status() );
+		$this->assertNotEmpty( $snapshot->get_data()['snapshot']['baseHash'] );
 		global $wpdb;
 		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $created->get_data()['jobId'] ) );
 		$expired = $this->dispatch_json( 'GET', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/snapshot', array( 'target' => 'before' ) );

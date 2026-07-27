@@ -57,7 +57,7 @@ describe('AiEditorPanel', () => {
   beforeEach(() => {
     vi.resetModules(); sessionStorage.clear(); document.body.innerHTML = '';
     (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
-      available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, mbstringPresent: true, canEdit: true,
+      available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, mbstringPresent: true, domPresent: true, canEdit: true,
       jobsUrl: '/jobs', jobsBaseUrl: '/jobs/', timelineUrl: '/timeline', timelineBaseUrl: '/timeline/', connectorsUrl: '/connectors', canManageConnectors: true,
     } };
   });
@@ -167,6 +167,22 @@ describe('AiEditorPanel', () => {
     expect(result.replaceEditorSnapshot).not.toHaveBeenCalled();
     expect(result.container.textContent).not.toContain('The editor changed while the AI edit was running.');
     await act(async () => result.root.unmount());
+  });
+
+  it('explains that DOM support is required when that availability gate fails', async () => {
+    (window as any).KAYZART.ai = { ...(window as any).KAYZART.ai, available: false, domPresent: false };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ ok: true, items: [], hasMore: false, nextCursor: null }), { status: 200, headers: { 'Content-Type': 'application/json' } })));
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+
+    await vi.waitFor(() => expect(container.textContent).toContain('The PHP DOM extension is required for AI editing.'));
+    await act(async () => root.unmount());
   });
 
   it('keeps the conflict recoverable when the editor is unavailable or rejects replacement', async () => {

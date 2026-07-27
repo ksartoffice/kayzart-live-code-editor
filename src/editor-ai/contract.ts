@@ -21,6 +21,7 @@ export type AiAvailability = {
   providerConfigured: boolean;
   schedulerPresent: boolean;
   mbstringPresent: boolean;
+  domPresent: boolean;
   canEdit: boolean;
   jobsUrl: string;
   jobsBaseUrl: string;

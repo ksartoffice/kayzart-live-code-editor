@@ -10,7 +10,7 @@ describe('free AI editor registration', () => {
       restNonce: 'nonce',
       ai: {
         available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true,
-        schedulerPresent: true, mbstringPresent: true, canEdit: true, jobsUrl: '/jobs', jobsBaseUrl: '/jobs/',
+        schedulerPresent: true, mbstringPresent: true, domPresent: true, canEdit: true, jobsUrl: '/jobs', jobsBaseUrl: '/jobs/',
         connectorsUrl: '/connectors', canManageConnectors: true,
       },
     };

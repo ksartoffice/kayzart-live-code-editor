@@ -8,6 +8,7 @@
 use KayzArt\Ai_Job_Store;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Timeline_Store;
+use KayzArt\Ai_Tools;
 
 /** Exercises durable activities, paging, context, and snapshot expiry. */
 class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
@@ -83,6 +84,18 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$expired = $this->store->list_for_post( 42 )['items'][0];
 		$this->assertNull( $expired['beforeJsMode'] );
 		$this->assertNull( $expired['afterJsMode'] );
+	}
+
+	/** Retained input snapshots recompute their browser identity hash. */
+	public function test_retained_before_snapshot_includes_computed_base_hash(): void {
+		$before             = $this->payload( 'Keep this input identity.' );
+		$before['baseHash'] = 'stale-client-value';
+		$job                = $this->complete_retained_edit( 'request-before-hash', $before, $before );
+		$activity           = $this->store->get_by_job( $job['job_uuid'] );
+		$snapshot           = $this->store->get_snapshot( $activity, 'before' );
+
+		$this->assertSame( Ai_Tools::compute_base_hash( $before['html'], $before['customHead'], $before['css'], $before['js'] ), $snapshot['baseHash'] );
+		$this->assertNotSame( 'stale-client-value', $snapshot['baseHash'] );
 	}
 
 	/** Completing without usage leaves model null and tokens zero. */

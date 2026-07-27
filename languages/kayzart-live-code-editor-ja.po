@@ -159,8 +159,8 @@ msgstr "既存の投稿は「ランディングページに変換」を選択す
 msgid "基本設定"
 msgstr "基本設定"
 
-#: includes/class-kayzart-admin.php:1455
-#: includes/class-kayzart-admin.php:1463
+#: includes/class-kayzart-admin.php:1456
+#: includes/class-kayzart-admin.php:1464
 msgid "Posts"
 msgstr "投稿"
 
@@ -836,3 +836,7 @@ msgstr "AI編集"
 #: assets/dist/ai-editor.js:1
 msgid "Edit with AI"
 msgstr "AIで編集"
+
+#: assets/dist/ai-editor.js:1
+msgid "The PHP DOM extension is required for AI editing."
+msgstr "AI編集にPHPのDOM拡張機能が必要です。"

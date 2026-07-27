@@ -43,6 +43,7 @@ test('loads one free AI entry point and the Phase 3 REST configuration', async (
     providerConfigured: true,
     schedulerPresent: true,
     mbstringPresent: true,
+    domPresent: true,
   });
   expect(ai.jobsUrl).toContain('/wp-json/kayzart/v1/ai/jobs');
   await expect(page.locator('script[src*="/assets/dist/ai-editor.js"]')).toHaveCount(1);

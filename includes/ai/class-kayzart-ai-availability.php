@@ -114,9 +114,27 @@ class Ai_Availability {
 	}
 
 	/**
+	 * Whether the DOM and libxml APIs required by AI output policy checks are available.
+	 *
+	 * @return bool
+	 */
+	public static function is_dom_present(): bool {
+		$present = class_exists( '\\DOMDocument' )
+			&& function_exists( 'libxml_use_internal_errors' )
+			&& function_exists( 'libxml_clear_errors' );
+
+		/**
+		 * Filter DOM/libxml availability for AI editing.
+		 *
+		 * @param bool $present Whether the DOM and libxml APIs are available.
+		 */
+		return (bool) apply_filters( 'kayzart_ai_dom_present', $present );
+	}
+
+	/**
 	 * Return all AI availability checks and their combined result.
 	 *
-	 * @return array{feature_enabled:bool,sdk_present:bool,provider_configured:bool,scheduler_present:bool,mbstring_present:bool,available:bool}
+	 * @return array{feature_enabled:bool,sdk_present:bool,provider_configured:bool,scheduler_present:bool,mbstring_present:bool,dom_present:bool,available:bool}
 	 */
 	public static function get_status(): array {
 		$feature_enabled     = self::is_feature_enabled();
@@ -124,6 +142,7 @@ class Ai_Availability {
 		$provider_configured = self::is_provider_configured();
 		$scheduler_present   = self::is_scheduler_present();
 		$mbstring_present    = self::is_mbstring_present();
+		$dom_present         = self::is_dom_present();
 
 		return array(
 			'feature_enabled'     => $feature_enabled,
@@ -131,7 +150,8 @@ class Ai_Availability {
 			'provider_configured' => $provider_configured,
 			'scheduler_present'   => $scheduler_present,
 			'mbstring_present'    => $mbstring_present,
-			'available'           => $feature_enabled && $sdk_present && $provider_configured && $scheduler_present && $mbstring_present,
+			'dom_present'         => $dom_present,
+			'available'           => $feature_enabled && $sdk_present && $provider_configured && $scheduler_present && $mbstring_present && $dom_present,
 		);
 	}
 

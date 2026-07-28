@@ -40,6 +40,7 @@ class Rest_Save {
 		$has_js           = $request->has_param( 'js' );
 		$has_js_mode      = $request->has_param( 'jsMode' );
 		$tailwind_enabled = rest_sanitize_boolean( $request->get_param( 'tailwindEnabled' ) );
+		$has_mode_payload = $request->has_param( 'editorMode' ) || $request->has_param( 'cssByMode' );
 		$settings_updates = $request->get_param( 'settingsUpdates' );
 		$has_settings     = $request->has_param( 'settingsUpdates' );
 		$prepared_updates = null;
@@ -111,8 +112,66 @@ class Rest_Save {
 		$tailwind_meta   = get_post_meta( $post_id, '_kayzart_tailwind', true );
 		$tailwind_locked = '1' === get_post_meta( $post_id, '_kayzart_tailwind_locked', true );
 		$has_tailwind    = '' !== $tailwind_meta;
-		if ( $tailwind_locked || $has_tailwind ) {
+		$editor_mode     = '1' === $tailwind_meta ? 'tailwind' : 'normal';
+		$stored_css      = (string) get_post_meta( $post_id, '_kayzart_css', true );
+		$normal_css      = metadata_exists( 'post', $post_id, '_kayzart_normal_css' )
+			? (string) get_post_meta( $post_id, '_kayzart_normal_css', true )
+			: ( 'normal' === $editor_mode ? $stored_css : null );
+		$tailwind_css    = metadata_exists( 'post', $post_id, '_kayzart_tailwind_css' )
+			? (string) get_post_meta( $post_id, '_kayzart_tailwind_css', true )
+			: ( 'tailwind' === $editor_mode ? $stored_css : null );
+
+		if ( $has_mode_payload ) {
+			$requested_mode = sanitize_key( (string) $request->get_param( 'editorMode' ) );
+			$requested_css  = $request->get_param( 'cssByMode' );
+			if (
+				! in_array( $requested_mode, array( 'normal', 'tailwind' ), true )
+				|| ! is_array( $requested_css )
+				|| ! array_key_exists( 'normal', $requested_css )
+				|| ! array_key_exists( 'tailwind', $requested_css )
+				|| ( null !== $requested_css['normal'] && ! is_string( $requested_css['normal'] ) )
+				|| ( null !== $requested_css['tailwind'] && ! is_string( $requested_css['tailwind'] ) )
+			) {
+				return new \WP_REST_Response(
+					array(
+						'ok'    => false,
+						'error' => __( 'Invalid editor mode payload.', 'kayzart-live-code-editor' ),
+					),
+					400
+				);
+			}
+
+			$editor_mode      = $requested_mode;
+			$tailwind_enabled = 'tailwind' === $editor_mode;
+			if ( is_string( $requested_css['normal'] ) ) {
+				$normal_css = self::sanitize_css_input( $requested_css['normal'] );
+			}
+			if ( is_string( $requested_css['tailwind'] ) ) {
+				$tailwind_css = self::sanitize_css_input( $requested_css['tailwind'] );
+			}
+
+			// The top-level CSS remains the compatibility representation of the
+			// active mode. It is authoritative for the active draft.
+			if ( $tailwind_enabled ) {
+				$tailwind_css = $css_input;
+			} else {
+				$normal_css = $css_input;
+			}
+		} elseif ( $tailwind_locked || $has_tailwind ) {
 			$tailwind_enabled = '1' === $tailwind_meta;
+			$editor_mode      = $tailwind_enabled ? 'tailwind' : 'normal';
+			if ( $tailwind_enabled ) {
+				$tailwind_css = $css_input;
+			} else {
+				$normal_css = $css_input;
+			}
+		} else {
+			$editor_mode = $tailwind_enabled ? 'tailwind' : 'normal';
+			if ( $tailwind_enabled ) {
+				$tailwind_css = $css_input;
+			} else {
+				$normal_css = $css_input;
+			}
 		}
 
 		if ( $tailwind_enabled ) {
@@ -159,8 +218,17 @@ class Rest_Save {
 				'html'       => Html_Document::build_editor_html( $content_html, $body_attrs ),
 				'customHead' => $custom_head_result['html'],
 				'css'        => $css_input,
-				'js'         => $has_js ? $js_input : (string) get_post_meta( $post_id, '_kayzart_js', true ),
+				'js'         => $has_js ? $js_input : (string) get_post_meta(
+					$post_id,
+					'_kayzart_js',
+					true
+				),
 				'jsMode'     => $js_mode,
+				'editorMode' => $editor_mode,
+				'cssByMode'  => array(
+					'normal'   => $normal_css,
+					'tailwind' => $tailwind_css,
+				),
 			)
 		);
 		$snapshot_changed             = is_array( $before_snapshot )
@@ -203,6 +271,12 @@ class Rest_Save {
 			}
 			$custom_head_result = Custom_Head::save( $post_id, $custom_head );
 			update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
+			if ( null !== $normal_css ) {
+				update_post_meta( $post_id, '_kayzart_normal_css', wp_slash( $normal_css ) );
+			}
+			if ( null !== $tailwind_css ) {
+				update_post_meta( $post_id, '_kayzart_tailwind_css', wp_slash( $tailwind_css ) );
+			}
 			if ( $has_js ) {
 				update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );
 			}
@@ -267,6 +341,11 @@ class Rest_Save {
 				'revisionsSupported'    => Snapshot::is_supported(),
 				'revisionsEnabled'      => Snapshot::revisions_enabled( $post_id ),
 				'revision'              => $revision_summary,
+				'editorMode'            => $editor_mode,
+				'cssByMode'             => array(
+					'normal'   => $normal_css,
+					'tailwind' => $tailwind_css,
+				),
 			),
 			200
 		);

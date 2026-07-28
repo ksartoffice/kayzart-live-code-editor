@@ -23,6 +23,7 @@ import {
   subscribeExternalSettingsTabs,
   type ResolvedExternalSettingsTab,
 } from '../extensions/settings-tab-registry';
+import type { EditorCssMode } from '../types/css-mode';
 
 export type SettingsData = {
   title: string;
@@ -55,6 +56,8 @@ type SettingsConfig = {
   hasUnsavedChanges: () => boolean;
   onLoadSnapshot: (snapshot: EditorSnapshot) => boolean;
   onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
+  editorMode: EditorCssMode;
+  onEditorModeChange?: (mode: EditorCssMode) => void;
   onLiveHighlightToggle?: (enabled: boolean) => void;
   onTabChange?: (tab: SettingsTab) => void;
   onPendingUpdatesChange?: (state: PendingSettingsState) => void;
@@ -70,6 +73,7 @@ export type SettingsApi = {
   applySettings: (next: Partial<SettingsData>) => void;
   openTab: (tab: SettingsTab) => void;
   refreshHistory: () => void;
+  setEditorModeState: (mode: EditorCssMode, disabled: boolean) => void;
 };
 
 const CLOSE_ICON = renderLucideIcon(X, {
@@ -101,6 +105,8 @@ function SettingsSidebar({
   postId,
   header,
   onTemplateModeChange,
+  editorMode: initialEditorMode,
+  onEditorModeChange,
   onLiveHighlightToggle,
   onTabChange,
   onPendingUpdatesChange,
@@ -124,6 +130,8 @@ function SettingsSidebar({
     getExternalSettingsTabs()
   );
   const [historyRefreshToken, setHistoryRefreshToken] = useState(0);
+  const [editorMode, setEditorMode] = useState<EditorCssMode>(initialEditorMode);
+  const [editorModeDisabled, setEditorModeDisabled] = useState(false);
   const externalTabHostRef = useRef<HTMLDivElement | null>(null);
   const externalTabCleanupRef = useRef<(() => void) | null>(null);
   const resolveLiveHighlightEnabled = (value?: boolean) =>
@@ -158,6 +166,10 @@ function SettingsSidebar({
         setActiveTab(tab);
       },
       refreshHistory: () => setHistoryRefreshToken((current) => current + 1),
+      setEditorModeState: (mode: EditorCssMode, disabled: boolean) => {
+        setEditorMode(mode);
+        setEditorModeDisabled(disabled);
+      },
     });
   }, [onApiReady]);
 
@@ -335,6 +347,9 @@ function SettingsSidebar({
           onChangeTemplateMode={handleTemplateModeChange}
           liveHighlightEnabled={liveHighlightEnabled}
           onToggleLiveHighlight={handleLiveHighlightToggle}
+          editorMode={editorMode}
+          onChangeEditorMode={(mode) => onEditorModeChange?.(mode)}
+          editorModeDisabled={editorModeDisabled}
           disabled={!canEditJs}
         />
       ) : null}
@@ -368,6 +383,7 @@ export function initSettings(config: SettingsConfig) {
   let applySettingsImpl: (next: Partial<SettingsData>) => void = () => {};
   let openTabImpl: (tab: SettingsTab) => void = () => {};
   let refreshHistoryImpl: () => void = () => {};
+  let setEditorModeStateImpl: (mode: EditorCssMode, disabled: boolean) => void = () => {};
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
@@ -377,6 +393,9 @@ export function initSettings(config: SettingsConfig) {
     },
     refreshHistory() {
       refreshHistoryImpl();
+    },
+    setEditorModeState(mode: EditorCssMode, disabled: boolean) {
+      setEditorModeStateImpl(mode, disabled);
     },
   };
 
@@ -388,6 +407,7 @@ export function initSettings(config: SettingsConfig) {
         applySettingsImpl = nextApi.applySettings;
         openTabImpl = nextApi.openTab;
         refreshHistoryImpl = nextApi.refreshHistory;
+        setEditorModeStateImpl = nextApi.setEditorModeState;
       }}
     />
   );

@@ -7,6 +7,8 @@
 
 namespace KayzArt;
 
+use TailwindPHP\tw;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -16,10 +18,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Snapshot {
 
-	public const MINIMUM_WP_VERSION = '6.4';
-	public const SCHEMA_VERSION     = '1';
-	public const SCHEMA_META_KEY    = '_kayzart_snapshot_schema';
-	public const HASH_META_KEY      = '_kayzart_snapshot_hash';
+	public const MINIMUM_WP_VERSION     = '6.4';
+	public const SCHEMA_VERSION         = '2';
+	private const LEGACY_SCHEMA_VERSION = '1';
+	public const SCHEMA_META_KEY        = '_kayzart_snapshot_schema';
+	public const HASH_META_KEY          = '_kayzart_snapshot_hash';
 
 	/**
 	 * Metadata included in a complete snapshot.
@@ -30,6 +33,9 @@ class Snapshot {
 		Html_Document::BODY_ATTRS_META_KEY,
 		Custom_Head::META_KEY,
 		'_kayzart_css',
+		'_kayzart_normal_css',
+		'_kayzart_tailwind_css',
+		'_kayzart_tailwind',
 		'_kayzart_js',
 		'_kayzart_js_mode',
 		self::SCHEMA_META_KEY,
@@ -41,6 +47,38 @@ class Snapshot {
 	 */
 	public static function init(): void {
 		add_action( 'init', array( __CLASS__, 'register_revision_support' ), 100 );
+		add_action( 'wp_restore_post_revision', array( __CLASS__, 'sync_generated_css_after_restore' ), 20, 2 );
+	}
+
+	/**
+	 * Rebuild derived Tailwind output after WordPress restores revisioned meta.
+	 *
+	 * @param int $post_id     Restored post ID.
+	 * @param int $revision_id Revision ID.
+	 */
+	public static function sync_generated_css_after_restore( int $post_id, int $revision_id ): void {
+		unset( $revision_id );
+		if ( '1' !== get_post_meta( $post_id, '_kayzart_tailwind', true ) ) {
+			delete_post_meta( $post_id, '_kayzart_generated_css' );
+			return;
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post ) {
+			return;
+		}
+
+		try {
+			$generated_css = tw::generate(
+				array(
+					'content' => (string) $post->post_content,
+					'css'     => (string) get_post_meta( $post_id, '_kayzart_css', true ),
+				)
+			);
+			update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $generated_css ) );
+		} catch ( \Throwable $e ) {
+			delete_post_meta( $post_id, '_kayzart_generated_css' );
+		}
 	}
 
 	/**
@@ -93,20 +131,39 @@ class Snapshot {
 	 * Read the current saved snapshot for a post.
 	 *
 	 * @param int $post_id Post ID.
-	 * @return array{html:string,customHead:string,css:string,js:string,jsMode:string}
+	 * @return array<string,mixed>
 	 */
 	public static function for_post( int $post_id ): array {
 		$post       = get_post( $post_id );
 		$content    = $post instanceof \WP_Post ? (string) $post->post_content : '';
 		$body_attrs = (string) get_post_meta( $post_id, Html_Document::BODY_ATTRS_META_KEY, true );
 
+		$css          = (string) get_post_meta( $post_id, '_kayzart_css', true );
+		$editor_mode  = '1' === get_post_meta( $post_id, '_kayzart_tailwind', true ) ? 'tailwind' : 'normal';
+		$normal_css   = get_post_meta( $post_id, '_kayzart_normal_css', true );
+		$tailwind_css = get_post_meta( $post_id, '_kayzart_tailwind_css', true );
+		$has_normal   = metadata_exists( 'post', $post_id, '_kayzart_normal_css' );
+		$has_tailwind = metadata_exists( 'post', $post_id, '_kayzart_tailwind_css' );
+
+		if ( ! $has_normal && 'normal' === $editor_mode ) {
+			$normal_css = $css;
+		}
+		if ( ! $has_tailwind && 'tailwind' === $editor_mode ) {
+			$tailwind_css = $css;
+		}
+
 		return self::normalize(
 			array(
 				'html'       => Html_Document::build_editor_html( $content, $body_attrs ),
 				'customHead' => Custom_Head::get_for_post( $post_id ),
-				'css'        => (string) get_post_meta( $post_id, '_kayzart_css', true ),
+				'css'        => $css,
 				'js'         => (string) get_post_meta( $post_id, '_kayzart_js', true ),
 				'jsMode'     => (string) get_post_meta( $post_id, '_kayzart_js_mode', true ),
+				'editorMode' => $editor_mode,
+				'cssByMode'  => array(
+					'normal'   => $has_normal || 'normal' === $editor_mode ? (string) $normal_css : null,
+					'tailwind' => $has_tailwind || 'tailwind' === $editor_mode ? (string) $tailwind_css : null,
+				),
 			)
 		);
 	}
@@ -115,10 +172,14 @@ class Snapshot {
 	 * Read a snapshot stored on a WordPress revision.
 	 *
 	 * @param int $revision_id Revision ID.
-	 * @return array{html:string,customHead:string,css:string,js:string,jsMode:string}|null
+	 * @return array<string,mixed>|null
 	 */
 	public static function for_revision( int $revision_id ): ?array {
-		if ( ! self::is_supported() || self::SCHEMA_VERSION !== (string) get_metadata( 'post', $revision_id, self::SCHEMA_META_KEY, true ) ) {
+		if ( ! self::is_supported() ) {
+			return null;
+		}
+		$schema_version = (string) get_metadata( 'post', $revision_id, self::SCHEMA_META_KEY, true );
+		if ( self::SCHEMA_VERSION !== $schema_version && self::LEGACY_SCHEMA_VERSION !== $schema_version ) {
 			return null;
 		}
 
@@ -128,16 +189,35 @@ class Snapshot {
 		}
 
 		$body_attrs  = (string) get_metadata( 'post', $revision_id, Html_Document::BODY_ATTRS_META_KEY, true );
-		$snapshot    = self::normalize(
-			array(
-				'html'       => Html_Document::build_editor_html( (string) $revision->post_content, $body_attrs ),
-				'customHead' => (string) get_metadata( 'post', $revision_id, Custom_Head::META_KEY, true ),
-				'css'        => (string) get_metadata( 'post', $revision_id, '_kayzart_css', true ),
-				'js'         => (string) get_metadata( 'post', $revision_id, '_kayzart_js', true ),
-				'jsMode'     => (string) get_metadata( 'post', $revision_id, '_kayzart_js_mode', true ),
-			)
+		$raw         = array(
+			'html'       => Html_Document::build_editor_html( (string) $revision->post_content, $body_attrs ),
+			'customHead' => (string) get_metadata( 'post', $revision_id, Custom_Head::META_KEY, true ),
+			'css'        => (string) get_metadata( 'post', $revision_id, '_kayzart_css', true ),
+			'js'         => (string) get_metadata( 'post', $revision_id, '_kayzart_js', true ),
+			'jsMode'     => (string) get_metadata( 'post', $revision_id, '_kayzart_js_mode', true ),
 		);
 		$stored_hash = (string) get_metadata( 'post', $revision_id, self::HASH_META_KEY, true );
+
+		if ( self::LEGACY_SCHEMA_VERSION === $schema_version ) {
+			if ( '' === $stored_hash || ! hash_equals( $stored_hash, self::legacy_hash( $raw ) ) ) {
+				return null;
+			}
+			// Version 1 did not record a mode. Omitting it tells the client to
+			// retain the current mode when this historical revision is loaded.
+			return self::normalize_legacy( $raw );
+		}
+
+		$editor_mode       = '1' === (string) get_metadata( 'post', $revision_id, '_kayzart_tailwind', true ) ? 'tailwind' : 'normal';
+		$raw['editorMode'] = $editor_mode;
+		$raw['cssByMode']  = array(
+			'normal'   => metadata_exists( 'post', $revision_id, '_kayzart_normal_css' )
+				? (string) get_metadata( 'post', $revision_id, '_kayzart_normal_css', true )
+				: ( 'normal' === $editor_mode ? $raw['css'] : null ),
+			'tailwind' => metadata_exists( 'post', $revision_id, '_kayzart_tailwind_css' )
+				? (string) get_metadata( 'post', $revision_id, '_kayzart_tailwind_css', true )
+				: ( 'tailwind' === $editor_mode ? $raw['css'] : null ),
+		);
+		$snapshot          = self::normalize( $raw );
 		if ( '' === $stored_hash || ! hash_equals( $stored_hash, self::hash( $snapshot ) ) ) {
 			return null;
 		}
@@ -148,9 +228,42 @@ class Snapshot {
 	 * Normalize a snapshot to its canonical public shape.
 	 *
 	 * @param array<string,mixed> $snapshot Raw snapshot.
-	 * @return array{html:string,customHead:string,css:string,js:string,jsMode:string}
+	 * @return array<string,mixed>
 	 */
 	public static function normalize( array $snapshot ): array {
+		$editor_mode  = isset( $snapshot['editorMode'] ) && 'tailwind' === $snapshot['editorMode'] ? 'tailwind' : 'normal';
+		$css          = isset( $snapshot['css'] ) ? (string) $snapshot['css'] : '';
+		$css_by_mode  = isset( $snapshot['cssByMode'] ) && is_array( $snapshot['cssByMode'] )
+			? $snapshot['cssByMode']
+			: array();
+		$normal_css   = array_key_exists( 'normal', $css_by_mode ) && null !== $css_by_mode['normal']
+			? (string) $css_by_mode['normal']
+			: ( 'normal' === $editor_mode ? $css : null );
+		$tailwind_css = array_key_exists( 'tailwind', $css_by_mode ) && null !== $css_by_mode['tailwind']
+			? (string) $css_by_mode['tailwind']
+			: ( 'tailwind' === $editor_mode ? $css : null );
+
+		return array(
+			'html'       => isset( $snapshot['html'] ) ? (string) $snapshot['html'] : '',
+			'customHead' => isset( $snapshot['customHead'] ) ? (string) $snapshot['customHead'] : '',
+			'css'        => $css,
+			'js'         => isset( $snapshot['js'] ) ? (string) $snapshot['js'] : '',
+			'jsMode'     => Rest_Save::normalize_js_mode( isset( $snapshot['jsMode'] ) ? $snapshot['jsMode'] : '' ),
+			'editorMode' => $editor_mode,
+			'cssByMode'  => array(
+				'normal'   => $normal_css,
+				'tailwind' => $tailwind_css,
+			),
+		);
+	}
+
+	/**
+	 * Normalize the version 1 snapshot shape without adding mode fields.
+	 *
+	 * @param array<string,mixed> $snapshot Raw snapshot.
+	 * @return array<string,string>
+	 */
+	private static function normalize_legacy( array $snapshot ): array {
 		return array(
 			'html'       => isset( $snapshot['html'] ) ? (string) $snapshot['html'] : '',
 			'customHead' => isset( $snapshot['customHead'] ) ? (string) $snapshot['customHead'] : '',
@@ -158,6 +271,16 @@ class Snapshot {
 			'js'         => isset( $snapshot['js'] ) ? (string) $snapshot['js'] : '',
 			'jsMode'     => Rest_Save::normalize_js_mode( isset( $snapshot['jsMode'] ) ? $snapshot['jsMode'] : '' ),
 		);
+	}
+
+	/**
+	 * Compute a version 1 snapshot hash.
+	 *
+	 * @param array<string,mixed> $snapshot Raw snapshot.
+	 */
+	private static function legacy_hash( array $snapshot ): string {
+		$encoded = wp_json_encode( self::normalize_legacy( $snapshot ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return hash( 'sha256', false === $encoded ? '' : $encoded );
 	}
 
 	/**

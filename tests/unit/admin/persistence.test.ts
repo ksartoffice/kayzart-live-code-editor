@@ -9,6 +9,11 @@ const createSaveParams = (overrides: Record<string, unknown> = {}) => ({
   customHead: '<script>alert(1)</script>',
   css: '.hello { color: red; }',
   tailwindEnabled: false,
+  editorMode: 'normal' as const,
+  cssByMode: {
+    normal: '.hello { color: red; }',
+    tailwind: null,
+  },
   canEditJs: true,
   js: 'console.log("hello");',
   jsMode: 'module' as const,
@@ -37,6 +42,11 @@ describe('saveKayzArt', () => {
           html: '<p>Hello</p>',
           css: '.hello { color: red; }',
           tailwindEnabled: false,
+          editorMode: 'normal',
+          cssByMode: {
+            normal: '.hello { color: red; }',
+            tailwind: null,
+          },
         }),
       })
     );

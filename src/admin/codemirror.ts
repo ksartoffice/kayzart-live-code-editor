@@ -125,6 +125,7 @@ export type EditorModel = {
       | EditorSelection[]
       | null
   ) => EditorSelection[] | null;
+  resetValue: (value: string) => void;
   deltaDecorations: (oldDecorationIds: string[], decorations: EditorDecoration[]) => string[];
   setUnsavedChangeLines: (lineNumbers: number[]) => void;
   setUnsavedDeletionLines: (lineNumbers: number[]) => void;
@@ -585,7 +586,6 @@ const baseEditorSetup: Extension = [
   unsavedChangeGutter,
   highlightActiveLineGutter(),
   highlightSpecialChars(),
-  history(),
   foldGutter(),
   drawSelection(),
   dropCursor(),
@@ -752,6 +752,7 @@ const createEditorWrapper = (options: {
   const editableCompartment = new Compartment();
   const readOnlyCompartment = new Compartment();
   const actionKeymapCompartment = new Compartment();
+  const historyCompartment = new Compartment();
   const changeListeners = new Set<() => void>();
   const focusListeners = new Set<() => void>();
   const actionKeymaps: KeyBinding[] = [];
@@ -842,6 +843,7 @@ const createEditorWrapper = (options: {
     editableCompartment.of(EditorView.editable.of(!options.readOnly)),
     readOnlyCompartment.of(EditorState.readOnly.of(baseReadOnly)),
     actionKeymapCompartment.of(keymap.of(actionKeymaps)),
+    historyCompartment.of(history()),
     options.language,
     decorationField,
     clearDecorationsOnUserInteraction,
@@ -951,6 +953,23 @@ const createEditorWrapper = (options: {
       }
 
       return nextSelections;
+    },
+    resetValue: (value) => {
+      view.dispatch({
+        effects: historyCompartment.reconfigure([]),
+      });
+      if (view.state.doc.toString() !== value) {
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: value,
+          },
+        });
+      }
+      view.dispatch({
+        effects: historyCompartment.reconfigure(history()),
+      });
     },
     deltaDecorations: (oldDecorationIds, decorations) => {
       oldDecorationIds.forEach((id) => {

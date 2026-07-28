@@ -56,6 +56,11 @@ describe('save copy controller', () => {
       getJsModel: () => jsModel,
       getJsMode: () => 'module',
       getTailwindEnabled: () => false,
+      getEditorMode: () => 'normal',
+      getCssByMode: () => ({
+        normal: cssModel.getValue(),
+        tailwind: null,
+      }),
       getPendingSettingsState: () => ({
         pendingSettingsUpdates: {},
         hasUnsavedSettings: false,
@@ -257,8 +262,36 @@ describe('save copy controller', () => {
     expect(result.ok).toBe(true);
     expect(onSaveSuccess).toHaveBeenCalledTimes(1);
     expect(saveKayzArt).toHaveBeenCalledWith(
-      expect.objectContaining({ jsMode: 'classic', tailwindEnabled: false })
+      expect.objectContaining({
+        jsMode: 'classic',
+        tailwindEnabled: false,
+        editorMode: 'normal',
+        cssByMode: {
+          normal: '.hello { color: red; }',
+          tailwind: null,
+        },
+      })
     );
+  });
+
+  it('treats an editor mode-only change as unsaved CSS', () => {
+    let mode: 'normal' | 'tailwind' = 'normal';
+    const cssByMode = {
+      normal: '.hello { color: red; }',
+      tailwind: '@import "tailwindcss";',
+    };
+    const { controller } = createController({
+      getEditorMode: () => mode,
+      getCssByMode: () => ({ ...cssByMode }),
+    });
+
+    controller.markSavedState();
+    mode = 'tailwind';
+
+    expect(controller.getUnsavedFlags()).toMatchObject({
+      css: true,
+      hasAny: true,
+    });
   });
 
   it('removes unsupported custom head tags before saving', async () => {

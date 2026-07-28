@@ -1884,11 +1884,11 @@ async function main() {
     return true;
   };
 
-  const getSelectedContext = (): SelectedElementContext | null => {
-    if (!selectedLcId) {
+  const getElementContextById = (lcId: string): SelectedElementContext | null => {
+    if (!lcId) {
       return null;
     }
-    const context = getElementContext(htmlModel.getValue(), selectedLcId);
+    const context = getElementContext(htmlModel.getValue(), lcId);
     if (!context) {
       return null;
     }
@@ -1909,6 +1909,8 @@ async function main() {
         : undefined,
     };
   };
+
+  const getSelectedContext = (): SelectedElementContext | null => getElementContextById(selectedLcId || '');
 
   const openSettingsTab = (tabId: string) => {
     if (!settingsOpen) {
@@ -1932,6 +1934,7 @@ async function main() {
       reloadPreview: reloadPreviewPreservingScroll,
       getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
       getSelectedContext,
+      getElementContext: getElementContextById,
       setEditorLock,
       isEditorLocked: () => extensionEditorLock,
     };

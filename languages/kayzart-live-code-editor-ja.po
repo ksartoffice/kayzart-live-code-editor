@@ -49,7 +49,7 @@ msgstr "無題"
 #: includes/class-kayzart-rest.php:170
 #: includes/class-kayzart-rest.php:178
 #: includes/rest/class-kayzart-rest-ai-timeline.php:159
-#: includes/rest/class-kayzart-rest-ai.php:189
+#: includes/rest/class-kayzart-rest-ai.php:193
 #: includes/rest/class-kayzart-rest-revisions.php:88
 #: includes/rest/class-kayzart-rest-save.php:62
 #: includes/rest/class-kayzart-rest-settings.php:171
@@ -371,25 +371,25 @@ msgstr ""
 msgid "The AI edit job could not be created."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:341
+#: includes/ai/class-kayzart-ai-job-store.php:345
 msgid "The AI edit job was canceled."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:349
-#: includes/ai/class-kayzart-ai-job-store.php:379
+#: includes/ai/class-kayzart-ai-job-store.php:353
+#: includes/ai/class-kayzart-ai-job-store.php:383
 msgid "The AI edit job timed out."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:357
-#: includes/rest/class-kayzart-rest-ai.php:96
+#: includes/ai/class-kayzart-ai-job-store.php:361
+#: includes/rest/class-kayzart-rest-ai.php:100
 msgid "The AI edit job could not be scheduled."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:410
+#: includes/ai/class-kayzart-ai-job-store.php:414
 msgid "The plugin was deactivated."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:477
+#: includes/ai/class-kayzart-ai-job-store.php:481
 msgid "This request ID was already used for different input."
 msgstr ""
 
@@ -403,24 +403,24 @@ msgid "The AI job payload is invalid."
 msgstr ""
 
 #: includes/ai/class-kayzart-ai-worker.php:145
-#: includes/ai/class-kayzart-ai-worker.php:358
+#: includes/ai/class-kayzart-ai-worker.php:363
 msgid "The AI provider request failed."
 msgstr ""
 
 #: includes/ai/class-kayzart-ai-worker.php:150
-#: includes/ai/class-kayzart-ai-worker.php:382
+#: includes/ai/class-kayzart-ai-worker.php:387
 msgid "The AI edit job failed unexpectedly."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:249
+#: includes/ai/class-kayzart-ai-worker.php:254
 msgid "The AI provider request failed after retries."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:434
+#: includes/ai/class-kayzart-ai-worker.php:439
 msgid "The AI step failed repeatedly before it could save progress."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:553
+#: includes/ai/class-kayzart-ai-worker.php:558
 msgid "The scheduled AI worker failed."
 msgstr ""
 
@@ -493,47 +493,47 @@ msgstr ""
 msgid "AI editing is not currently available."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:86
-#: includes/rest/class-kayzart-rest-ai.php:87
+#: includes/rest/class-kayzart-rest-ai.php:90
+#: includes/rest/class-kayzart-rest-ai.php:91
 msgid "The AI edit history could not be created."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:174
+#: includes/rest/class-kayzart-rest-ai.php:178
 msgid "AI edit job not found."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:201
+#: includes/rest/class-kayzart-rest-ai.php:205
 msgid "A JSON request body is required."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:205
+#: includes/rest/class-kayzart-rest-ai.php:209
 msgid "requestId is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:209
+#: includes/rest/class-kayzart-rest-ai.php:213
 msgid "post_id is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:213
+#: includes/rest/class-kayzart-rest-ai.php:217
 msgid "editorMode is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:217
+#: includes/rest/class-kayzart-rest-ai.php:221
 msgid "prompt is empty or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:227
+#: includes/rest/class-kayzart-rest-ai.php:231
 msgid "A code field is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:237
+#: includes/rest/class-kayzart-rest-ai.php:241
 msgid "selectedContexts is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:241
+#: includes/rest/class-kayzart-rest-ai.php:245
 msgid "A selected context is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:247
+#: includes/rest/class-kayzart-rest-ai.php:251
 msgid "selectedContext is invalid."
 msgstr ""

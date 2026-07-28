@@ -329,6 +329,10 @@ class Ai_Job_Store {
 			}
 		} else {
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . Ai_Setup::get_jobs_table_name() . ' SET cancel_requested = 1, updated_at = %s WHERE job_uuid = %s AND status = %s', $now, $job_uuid, 'running' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$job = $this->get( $job_uuid );
+			if ( $job && 'stepwise' === self::row_execution_mode( $job ) && ( empty( $job['step_lease_token'] ) || empty( $job['step_lease_expires_at'] ) || 0 < strcmp( $now, (string) $job['step_lease_expires_at'] ) ) ) {
+				$this->mark_canceled( $job_uuid );
+			}
 		}
 		return $this->get( $job_uuid );
 	}

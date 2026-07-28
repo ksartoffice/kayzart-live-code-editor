@@ -241,6 +241,11 @@ class Ai_Worker {
 			$lease_token = wp_generate_uuid4();
 			$leased      = $store->acquire_step_lease( $job_uuid, $expected_version, $lease_token );
 			if ( ! $leased ) {
+				$current = $store->get( $job_uuid );
+				if ( $current && 'running' === $current['status'] && ! empty( $current['cancel_requested'] ) ) {
+					$store->mark_canceled( $job_uuid );
+					self::finish_job_actions( $job_uuid );
+				}
 				return;
 			}
 			$job     = $leased;

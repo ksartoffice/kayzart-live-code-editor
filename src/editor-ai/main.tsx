@@ -405,6 +405,19 @@ export function AiEditorPanel() {
       setPrompt(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
     }
   };
+  const rerun = (item: AiTimelineItem) => {
+    const resolver = host()?.getElementContext;
+    const retryContexts: SelectedElementContext[] = [];
+    for (const context of item.contexts) {
+      const resolved = context.lcId ? resolver?.(context.lcId) : null;
+      if (!resolved) {
+        setError(__('The selected element is no longer available. Select it again before running the edit.', 'kayzart-live-code-editor'));
+        return;
+      }
+      retryContexts.push(resolved);
+    }
+    void send({ prompt: item.prompt || '', contexts: retryContexts });
+  };
   const stop = async () => {
     const active = loadActiveJob(postId); if (!active || canceling) return;
     setCanceling(true);
@@ -478,7 +491,7 @@ export function AiEditorPanel() {
           )}</dd></> : null}
           {item.durationSeconds !== null ? <><dt>{__('Duration', 'kayzart-live-code-editor')}</dt><dd>{formatDuration(item.durationSeconds)}</dd></> : null}
         </dl></details> : null}
-        {failed ? <div className="kayzart-ai-result-actions"><button type="button" disabled={running} onClick={() => void send({ prompt: item.prompt || '', contexts: item.contexts as SelectedElementContext[] })}>{__('Run again', 'kayzart-live-code-editor')}</button><button type="button" onClick={() => { setPrompt(item.prompt || ''); promptRef.current?.focus(); }}>{__('Return to input', 'kayzart-live-code-editor')}</button></div> : null}
+        {failed ? <div className="kayzart-ai-result-actions"><button type="button" disabled={running} onClick={() => rerun(item)}>{__('Run again', 'kayzart-live-code-editor')}</button><button type="button" onClick={() => { setPrompt(item.prompt || ''); promptRef.current?.focus(); }}>{__('Return to input', 'kayzart-live-code-editor')}</button></div> : null}
       </div>
     </div>;
   };

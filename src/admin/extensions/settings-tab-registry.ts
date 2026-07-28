@@ -70,6 +70,7 @@ export type KayzArtExtensionApi = {
   reloadPreview?: () => void;
   getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;
+  getElementContext?: (lcId: string) => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;
   isEditorLocked?: () => boolean;
 };

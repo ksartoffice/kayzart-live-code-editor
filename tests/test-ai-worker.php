@@ -121,6 +121,41 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 		$this->assertSame( 'canceled', $this->store->get( $uuid )['status'] );
 	}
 
+	/** A canceled stepwise job without a lease is terminal immediately. */
+	public function test_canceling_unleased_running_stepwise_job_releases_the_post_lock(): void {
+		$uuid = $this->create_job( 'worker-cancel-unleased' );
+		$this->assertTrue( $this->store->claim( $uuid ) );
+
+		$job = $this->store->request_cancel( $uuid );
+
+		$this->assertSame( 'canceled', $job['status'] );
+		$this->assertSame( '1', (string) $job['cancel_requested'] );
+		$this->assertNull( $job['lock_key'] );
+	}
+
+	/** A cancellation that races a released step lease is settled before another provider call. */
+	public function test_step_worker_settles_cancellation_after_lease_acquisition_fails(): void {
+		$fake = new Ai_Client_Fake();
+		add_filter(
+			'kayzart_ai_client',
+			static function () use ( $fake ) {
+				return $fake;
+			}
+		);
+		$uuid = $this->create_job( 'worker-cancel-after-lease' );
+		$this->assertTrue( $this->store->claim( $uuid ) );
+		$this->assertNotFalse( $this->store->acquire_step_lease( $uuid, 0, 'held-lease' ) );
+		$this->assertSame( 'running', $this->store->request_cancel( $uuid )['status'] );
+		$this->assertTrue( $this->store->release_step_lease( $uuid, 0, 'held-lease' ) );
+
+		Ai_Worker::run_step( $uuid, 0, 'retry-after-cancel' );
+
+		$job = $this->store->get( $uuid );
+		$this->assertSame( 'canceled', $job['status'] );
+		$this->assertNull( $job['lock_key'] );
+		$this->assertCount( 0, $fake->calls() );
+	}
+
 	/** Action Scheduler failures become errors without leaving the post locked. */
 	public function test_action_scheduler_failure_marks_job_error(): void {
 		$uuid      = $this->create_job( 'worker-scheduler-failure' );

@@ -412,6 +412,66 @@ describe('AiEditorPanel', () => {
     await act(async () => root.unmount());
   });
 
+  it('re-resolves timeline selections before rerunning a failed edit', async () => {
+    const failedItem = { ...timelineItem, executionStatus: 'error' as const, applicationStatus: 'not_applied' as const, contexts: [{ lcId: 'hero', tagName: 'section', text: 'Hero' }] };
+    const resolvedContext = { lcId: 'hero', tagName: 'section', attributes: [{ name: 'class', value: 'hero' }], text: 'Hero', outerHTML: '<section class="hero">Hero</section>', sourceRange: { startOffset: 0, endOffset: 37 } };
+    const getElementContext = vi.fn(() => resolvedContext);
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getElementContext,
+    };
+    const json = (value: unknown) => Promise.resolve(new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    let submitted: any;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: [failedItem], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') {
+        submitted = JSON.parse(String(init?.body));
+        return json({ ok: true, jobId: 'job-2', requestId: 'request-2', status: 'error', statusUrl: '/jobs/job-2', cancelUrl: '/jobs/job-2/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: failedItem });
+      }
+      if (url.includes('/jobs/job-2')) return json({ ok: true, jobId: 'job-2', requestId: 'request-2', status: 'error', events: [], snapshot: null, error: { message: 'Failed' }, usage: null, cancelRequested: false, createdAt: failedItem.createdAt, updatedAt: failedItem.updatedAt, startedAt: failedItem.createdAt, finishedAt: failedItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000 });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Run again'));
+    const rerun = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Run again') as HTMLButtonElement;
+    await act(async () => rerun.click());
+
+    await vi.waitFor(() => expect(submitted).toBeDefined());
+    expect(getElementContext).toHaveBeenCalledWith('hero');
+    expect(submitted.selectedContexts).toEqual([resolvedContext]);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/jobs')).toHaveLength(1);
+    await act(async () => root.unmount());
+  });
+
+  it('does not rerun a selected edit when its timeline element no longer exists', async () => {
+    const failedItem = { ...timelineItem, executionStatus: 'error' as const, applicationStatus: 'not_applied' as const, contexts: [{ lcId: 'removed-hero', tagName: 'section', text: 'Hero' }] };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getElementContext: vi.fn(() => null),
+    };
+    const json = (value: unknown) => Promise.resolve(new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: [failedItem], hasMore: false, nextCursor: null });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Run again'));
+    const rerun = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Run again') as HTMLButtonElement;
+    await act(async () => rerun.click());
+
+    expect(container.textContent).toContain('The selected element is no longer available. Select it again before running the edit.');
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === '/jobs')).toBe(false);
+    await act(async () => root.unmount());
+  });
+
   it('shows both snapshot actions and confirms only before replacing divergent edits', async () => {
     let currentSnapshot = afterSnapshot;
     let onSnapshotChange: (() => void) | undefined;

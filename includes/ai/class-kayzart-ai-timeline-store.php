@@ -128,8 +128,8 @@ class Ai_Timeline_Store {
 	/** Record an explicit restoration of a retained edit snapshot. */
 	public function record_restore( array $source, int $user_id, string $target ) {
 		global $wpdb;
-		$now = self::now();
-		$wpdb->insert(
+		$now      = self::now();
+		$inserted = $wpdb->insert(
 			Ai_Setup::get_timeline_table_name(),
 			array(
 				'activity_uuid'      => wp_generate_uuid4(),
@@ -144,6 +144,9 @@ class Ai_Timeline_Store {
 			),
 			array( '%s', '%d', '%d', '%s', '%d', '%s', '%s', '%s', '%s' )
 		);
+		if ( false === $inserted ) {
+			return false;
+		}
 		return $this->get( (int) $wpdb->insert_id );
 	}
 

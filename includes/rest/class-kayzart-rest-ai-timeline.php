@@ -116,13 +116,18 @@ class Rest_Ai_Timeline {
 		if ( ! $snapshot ) {
 			return new \WP_Error( 'kayzart_ai_snapshot_expired', __( 'The AI edit snapshot is no longer available.', 'kayzart-live-code-editor' ), array( 'status' => 410 ) );
 		}
-		$store->update_application( (int) $activity['id'], 'after' === $target ? 'applied' : 'reverted' );
+		if ( ! $store->update_application( (int) $activity['id'], 'after' === $target ? 'applied' : 'reverted' ) ) {
+			return new \WP_Error( 'kayzart_ai_application_failed', __( 'The AI edit application state could not be saved.', 'kayzart-live-code-editor' ), array( 'status' => 500 ) );
+		}
 		$record = $store->record_restore( $activity, get_current_user_id(), $target );
+		if ( ! $record ) {
+			return new \WP_Error( 'kayzart_ai_restore_history_failed', __( 'The AI edit restore history could not be saved.', 'kayzart-live-code-editor' ), array( 'status' => 500 ) );
+		}
 		return rest_ensure_response(
 			array(
 				'ok'       => true,
 				'snapshot' => $snapshot,
-				'item'     => $record ? $store->to_response( $record ) : null,
+				'item'     => $store->to_response( $record ),
 			)
 		);
 	}

@@ -31,6 +31,12 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	 */
 	private $immediate_dispatches = 0;
 
+	/** Timeline write type to make fail for a REST error-path test.
+	 *
+	 * @var string
+	 */
+	private $timeline_write_failure = '';
+
 	/** Prepare REST routes, permissions, and an empty table. */
 	protected function setUp(): void {
 		parent::setUp();
@@ -54,6 +60,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );
 		add_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10, 3 );
+		add_filter( 'query', array( $this, 'fail_timeline_write' ) );
 	}
 
 	/** Restore global filters, actions, and user state. */
@@ -64,6 +71,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
 		remove_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10 );
+		remove_filter( 'query', array( $this, 'fail_timeline_write' ) );
 		Ai_Worker::deactivate();
 		wp_set_current_user( 0 );
 		parent::tearDown();
@@ -140,6 +148,23 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		);
 	}
 
+	/** Transform the selected timeline write into invalid SQL to exercise database failures.
+	 *
+	 * @param string $query Database query.
+	 */
+	public function fail_timeline_write( string $query ): string {
+		if ( '' === $this->timeline_write_failure || false === strpos( $query, Ai_Setup::get_timeline_table_name() ) ) {
+			return $query;
+		}
+		if ( 'update' === $this->timeline_write_failure && preg_match( '/^\\s*UPDATE\\s/i', $query ) ) {
+			return 'INVALID KAYZART TIMELINE UPDATE';
+		}
+		if ( 'insert' === $this->timeline_write_failure && preg_match( '/^\\s*INSERT\\s/i', $query ) ) {
+			return 'INVALID KAYZART TIMELINE INSERT';
+		}
+		return $query;
+	}
+
 	/** Invalid sizes return 400 and an occupied post returns 409. */
 	public function test_create_validates_size_and_reports_post_lock(): void {
 		$invalid           = $this->payload( 'rest-large' );
@@ -201,6 +226,40 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $created->get_data()['jobId'] ) );
 		$expired = $this->dispatch_json( 'GET', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/snapshot', array( 'target' => 'before' ) );
 		$this->assertSame( 410, $expired->get_status() );
+	}
+
+	/** Restore reports an application-state persistence failure instead of returning success. */
+	public function test_restore_returns_500_when_application_state_cannot_be_saved(): void {
+		$created  = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-restore-update-failure' ) );
+		$activity = $created->get_data()['timelineItem'];
+		global $wpdb;
+		$previous_suppression         = $wpdb->suppress_errors( true );
+		$this->timeline_write_failure = 'update';
+		$response                     = $this->dispatch_json( 'POST', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/restore', array( 'target' => 'before' ) );
+		$this->timeline_write_failure = '';
+		$wpdb->suppress_errors( $previous_suppression );
+
+		$this->assertSame( 500, $response->get_status() );
+		$this->assertSame( 'kayzart_ai_application_failed', $response->get_data()['code'] );
+		$this->assertCount( 1, ( new \KayzArt\Ai_Timeline_Store() )->list_for_post( $this->post_id )['items'] );
+	}
+
+	/** Restore reports a history INSERT failure after successfully updating the editor state. */
+	public function test_restore_returns_500_when_history_cannot_be_saved(): void {
+		$created  = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-restore-insert-failure' ) );
+		$activity = $created->get_data()['timelineItem'];
+		global $wpdb;
+		$previous_suppression         = $wpdb->suppress_errors( true );
+		$this->timeline_write_failure = 'insert';
+		$response                     = $this->dispatch_json( 'POST', '/kayzart/v1/ai/timeline/' . $activity['id'] . '/restore', array( 'target' => 'before' ) );
+		$this->timeline_write_failure = '';
+		$wpdb->suppress_errors( $previous_suppression );
+
+		$this->assertSame( 500, $response->get_status() );
+		$this->assertSame( 'kayzart_ai_restore_history_failed', $response->get_data()['code'] );
+		$items = ( new \KayzArt\Ai_Timeline_Store() )->list_for_post( $this->post_id )['items'];
+		$this->assertCount( 1, $items );
+		$this->assertSame( 'reverted', $items[0]['applicationStatus'] );
 	}
 
 	/** Rich selected HTML is stored as a compact descriptor plus an offset record. */

@@ -48,7 +48,7 @@ msgstr "無題"
 #: includes/class-kayzart-preview.php:171
 #: includes/class-kayzart-rest.php:170
 #: includes/class-kayzart-rest.php:178
-#: includes/rest/class-kayzart-rest-ai-timeline.php:159
+#: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:193
 #: includes/rest/class-kayzart-rest-revisions.php:88
 #: includes/rest/class-kayzart-rest-save.php:62
@@ -393,7 +393,7 @@ msgstr ""
 msgid "This request ID was already used for different input."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-timeline-store.php:302
+#: includes/ai/class-kayzart-ai-timeline-store.php:305
 msgid "Deleted user"
 msgstr ""
 
@@ -478,14 +478,15 @@ msgid "The AI edit application state is invalid."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-ai-timeline.php:97
+#: includes/rest/class-kayzart-rest-ai-timeline.php:120
 msgid "The AI edit application state could not be saved."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai-timeline.php:147
+#: includes/rest/class-kayzart-rest-ai-timeline.php:152
 msgid "AI edit history not found."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai-timeline.php:174
+#: includes/rest/class-kayzart-rest-ai-timeline.php:179
 msgid "The AI edit restore target is invalid."
 msgstr ""
 
@@ -536,4 +537,8 @@ msgstr ""
 
 #: includes/rest/class-kayzart-rest-ai.php:251
 msgid "selectedContext is invalid."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-timeline.php:124
+msgid "The AI edit restore history could not be saved."
 msgstr ""

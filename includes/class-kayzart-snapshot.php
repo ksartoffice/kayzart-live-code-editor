@@ -43,11 +43,71 @@ class Snapshot {
 	);
 
 	/**
+	 * Whether a schema-1 revision is currently being restored.
+	 *
+	 * @var bool
+	 */
+	private static $preserving_legacy_mode_meta = false;
+
+	/**
 	 * Register WordPress hooks.
 	 */
 	public static function init(): void {
 		add_action( 'init', array( __CLASS__, 'register_revision_support' ), 100 );
+		add_action( 'wp_restore_post_revision', array( __CLASS__, 'begin_legacy_revision_restore' ), 9, 2 );
+		add_filter( 'wp_post_revision_meta_keys', array( __CLASS__, 'filter_revision_meta_keys_for_legacy_restore' ), 10, 2 );
+		add_action( 'wp_restore_post_revision', array( __CLASS__, 'finish_legacy_revision_restore' ), 11, 2 );
 		add_action( 'wp_restore_post_revision', array( __CLASS__, 'sync_generated_css_after_restore' ), 20, 2 );
+	}
+
+	/**
+	 * Keep mode metadata when restoring a revision created before schema 2.
+	 *
+	 * WordPress clears every registered revisioned key before copying the
+	 * revision values. Schema 1 has no mode-specific metadata to copy.
+	 *
+	 * @param int $post_id     Restored post ID.
+	 * @param int $revision_id Revision ID.
+	 */
+	public static function begin_legacy_revision_restore( int $post_id, int $revision_id ): void {
+		unset( $post_id );
+		self::$preserving_legacy_mode_meta = self::LEGACY_SCHEMA_VERSION === (string) get_metadata( 'post', $revision_id, self::SCHEMA_META_KEY, true );
+	}
+
+	/**
+	 * Exclude schema-2-only mode metadata from a legacy revision restore.
+	 *
+	 * @param array<int,string> $meta_keys Registered revisioned metadata keys.
+	 * @param string            $post_type Post type being restored.
+	 * @return array<int,string>
+	 */
+	public static function filter_revision_meta_keys_for_legacy_restore( array $meta_keys, string $post_type ): array {
+		unset( $post_type );
+		if ( ! self::$preserving_legacy_mode_meta ) {
+			return $meta_keys;
+		}
+
+		return array_values(
+			array_diff(
+				$meta_keys,
+				array(
+					'_kayzart_normal_css',
+					'_kayzart_tailwind_css',
+					'_kayzart_tailwind',
+				)
+			)
+		);
+	}
+
+	/**
+	 * Clear the temporary legacy restore state after core restores metadata.
+	 *
+	 * @param int $post_id     Restored post ID.
+	 * @param int $revision_id Revision ID.
+	 */
+	public static function finish_legacy_revision_restore( int $post_id, int $revision_id ): void {
+		unset( $post_id, $revision_id );
+		self::$preserving_legacy_mode_meta = false;
 	}
 
 	/**

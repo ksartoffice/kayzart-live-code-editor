@@ -176,6 +176,70 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Native restoration of a schema-1 revision keeps the current CSS mode data.
+	 */
+	public function test_native_restore_of_legacy_revision_preserves_css_mode_meta(): void {
+		$this->require_snapshot_support();
+		$page = $this->create_page();
+
+		update_post_meta( $page['post_id'], '_kayzart_css', '.legacy{}' );
+		update_post_meta( $page['post_id'], Snapshot::SCHEMA_META_KEY, '1' );
+		update_post_meta( $page['post_id'], Snapshot::HASH_META_KEY, 'legacy-hash' );
+		$revision_id = wp_save_post_revision( $page['post_id'] );
+		$this->assertIsInt( $revision_id );
+
+		wp_update_post(
+			array(
+				'ID'           => $page['post_id'],
+				'post_content' => '<main>Current</main>',
+			)
+		);
+		update_post_meta( $page['post_id'], '_kayzart_tailwind', '0' );
+		update_post_meta( $page['post_id'], '_kayzart_normal_css', '.current-normal{}' );
+		update_post_meta( $page['post_id'], '_kayzart_tailwind_css', '@import "tailwindcss";' );
+		update_post_meta( $page['post_id'], '_kayzart_generated_css', '.stale-generated{}' );
+
+		$restored_post_id = wp_restore_post_revision( $revision_id );
+
+		$this->assertSame( $page['post_id'], $restored_post_id );
+		$this->assertSame( '<main>Before</main>', get_post( $page['post_id'] )->post_content );
+		$this->assertSame( '.legacy{}', get_post_meta( $page['post_id'], '_kayzart_css', true ) );
+		$this->assertSame( '0', get_post_meta( $page['post_id'], '_kayzart_tailwind', true ) );
+		$this->assertSame( '.current-normal{}', get_post_meta( $page['post_id'], '_kayzart_normal_css', true ) );
+		$this->assertSame( '@import "tailwindcss";', get_post_meta( $page['post_id'], '_kayzart_tailwind_css', true ) );
+		$this->assertFalse( metadata_exists( 'post', $page['post_id'], '_kayzart_generated_css' ) );
+	}
+
+	/**
+	 * Native restoration of a schema-2 revision restores CSS mode data.
+	 */
+	public function test_native_restore_of_current_revision_restores_css_mode_meta(): void {
+		$this->require_snapshot_support();
+		$page = $this->create_page();
+
+		update_post_meta( $page['post_id'], '_kayzart_css', '.revision{}' );
+		update_post_meta( $page['post_id'], '_kayzart_tailwind', '0' );
+		update_post_meta( $page['post_id'], '_kayzart_normal_css', '.revision-normal{}' );
+		update_post_meta( $page['post_id'], '_kayzart_tailwind_css', '@import "tailwindcss";' );
+		update_post_meta( $page['post_id'], Snapshot::SCHEMA_META_KEY, Snapshot::SCHEMA_VERSION );
+		update_post_meta( $page['post_id'], Snapshot::HASH_META_KEY, 'current-hash' );
+		$revision_id = wp_save_post_revision( $page['post_id'] );
+		$this->assertIsInt( $revision_id );
+
+		update_post_meta( $page['post_id'], '_kayzart_css', '.current{}' );
+		update_post_meta( $page['post_id'], '_kayzart_tailwind', '1' );
+		update_post_meta( $page['post_id'], '_kayzart_normal_css', '.current-normal{}' );
+		update_post_meta( $page['post_id'], '_kayzart_tailwind_css', '@theme {}' );
+
+		wp_restore_post_revision( $revision_id );
+
+		$this->assertSame( '.revision{}', get_post_meta( $page['post_id'], '_kayzart_css', true ) );
+		$this->assertSame( '0', get_post_meta( $page['post_id'], '_kayzart_tailwind', true ) );
+		$this->assertSame( '.revision-normal{}', get_post_meta( $page['post_id'], '_kayzart_normal_css', true ) );
+		$this->assertSame( '@import "tailwindcss";', get_post_meta( $page['post_id'], '_kayzart_tailwind_css', true ) );
+	}
+
+	/**
 	 * Derived Tailwind output is rebuilt after a native revision restore.
 	 */
 	public function test_rebuilds_generated_css_after_revision_restore(): void {

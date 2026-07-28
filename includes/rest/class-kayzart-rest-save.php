@@ -143,12 +143,12 @@ class Rest_Save {
 
 			$editor_mode      = $requested_mode;
 			$tailwind_enabled = 'tailwind' === $editor_mode;
-			if ( is_string( $requested_css['normal'] ) ) {
-				$normal_css = self::sanitize_css_input( $requested_css['normal'] );
-			}
-			if ( is_string( $requested_css['tailwind'] ) ) {
-				$tailwind_css = self::sanitize_css_input( $requested_css['tailwind'] );
-			}
+			$normal_css       = is_string( $requested_css['normal'] )
+				? self::sanitize_css_input( $requested_css['normal'] )
+				: null;
+			$tailwind_css     = is_string( $requested_css['tailwind'] )
+				? self::sanitize_css_input( $requested_css['tailwind'] )
+				: null;
 
 			// The top-level CSS remains the compatibility representation of the
 			// active mode. It is authoritative for the active draft.
@@ -273,9 +273,13 @@ class Rest_Save {
 			update_post_meta( $post_id, '_kayzart_css', wp_slash( $css_input ) );
 			if ( null !== $normal_css ) {
 				update_post_meta( $post_id, '_kayzart_normal_css', wp_slash( $normal_css ) );
+			} else {
+				delete_post_meta( $post_id, '_kayzart_normal_css' );
 			}
 			if ( null !== $tailwind_css ) {
 				update_post_meta( $post_id, '_kayzart_tailwind_css', wp_slash( $tailwind_css ) );
+			} else {
+				delete_post_meta( $post_id, '_kayzart_tailwind_css' );
 			}
 			if ( $has_js ) {
 				update_post_meta( $post_id, '_kayzart_js', wp_slash( $js_input ) );

@@ -22,6 +22,17 @@
       <property name="strict_class_file_names" value="false"/>
     </properties>
   </rule>
+
+  <!--
+    The AI service layer (includes/ai/) contains logic/service classes, not view
+    output. Their exception messages are internal diagnostics that are serialized
+    to JSON for the model or logged, never echoed as HTML, so the output-escaping
+    sniff does not apply. HTML/REST output lives in includes/rest/ and remains
+    covered by the sniff.
+  -->
+  <rule ref="WordPress.Security.EscapeOutput">
+    <exclude-pattern>includes/ai/*</exclude-pattern>
+  </rule>
 </ruleset>
 
 

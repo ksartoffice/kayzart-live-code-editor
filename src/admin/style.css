@@ -182,6 +182,19 @@ body.admin_page_kayzart #wpbody-content {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Keep right-side tooltips inside the editor viewport. An overflowing, hidden
+ * tooltip can make the app horizontally scroll when the AI composer focuses. */
+.kayzart-toolbarRight [data-tooltip]::after {
+  right: 0;
+  left: auto;
+  transform: translateY(-4px);
+}
+
+.kayzart-toolbarRight [data-tooltip]:hover::after,
+.kayzart-toolbarRight [data-tooltip]:focus-visible::after {
+  transform: translateY(0);
+}
+
 .kayzart-toolbarTitle {
   padding: 4px 8px;
   border-radius: 6px;

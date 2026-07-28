@@ -65,10 +65,12 @@ export type KayzArtExtensionApi = {
   registerToolbarAction?: RegisterToolbarAction;
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
+  subscribeEditorSnapshot?: (listener: () => void) => () => void;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
   reloadPreview?: () => void;
   getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;
+  getElementContext?: (lcId: string) => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;
   isEditorLocked?: () => boolean;
 };

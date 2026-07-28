@@ -254,6 +254,9 @@ class Rest_Save {
 		}
 		$revision_id      = is_int( $revision_result ) ? $revision_result : null;
 		$revision_summary = $revision_id ? Rest_Revisions::summary_for_revision( $post_id, $revision_id ) : null;
+		if ( $revision_id ) {
+			( new Ai_Timeline_Store() )->record_save( $post_id, get_current_user_id(), $revision_id );
+		}
 
 		return new \WP_REST_Response(
 			array(

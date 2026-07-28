@@ -5,6 +5,7 @@
  * @package KayzArt
  */
 
+use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
 class Test_Uninstall extends WP_UnitTestCase {
@@ -62,6 +63,43 @@ class Test_Uninstall extends WP_UnitTestCase {
 		$this->assertSame( '1', get_option( 'kayzart_flush_rewrite', '' ) );
 	}
 
+	/**
+	 * AI job data and its capability follow the plugin data-retention policy.
+	 */
+	public function test_uninstall_keeps_ai_jobs_schema_and_capability(): void {
+		global $wpdb;
+
+		Ai_Setup::activate();
+		$table_name = Ai_Setup::get_jobs_table_name();
+		$wpdb->insert(
+			$table_name,
+			array(
+				'job_uuid'    => wp_generate_uuid4(),
+				'post_id'     => 1,
+				'user_id'     => 1,
+				'request_id'  => 'request-uninstall-test',
+				'status'      => 'pending',
+				'payload_json' => '{}',
+				'events_json' => '[]',
+				'created_at'  => current_time( 'mysql', true ),
+				'updated_at'  => current_time( 'mysql', true ),
+				'deadline_at' => gmdate( 'Y-m-d H:i:s', time() + 600 ),
+			)
+		);
+
+		$this->run_uninstall_script();
+
+		$this->assertSame( Ai_Setup::DB_VERSION, get_option( Ai_Setup::DB_VERSION_OPTION ) );
+		$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $table_name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$this->assertTrue( get_role( 'administrator' )->has_cap( Ai_Setup::CAPABILITY ) );
+
+		$wpdb->delete(
+			$table_name,
+			array( 'request_id' => 'request-uninstall-test' ),
+			array( '%s' )
+		);
+	}
+
 	private function create_post( string $post_type ): int {
 		$author_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 
@@ -82,4 +120,3 @@ class Test_Uninstall extends WP_UnitTestCase {
 		require KAYZART_PATH . 'uninstall.php';
 	}
 }
-

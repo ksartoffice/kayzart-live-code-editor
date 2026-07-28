@@ -69,6 +69,7 @@ import type {
   SelectedElementContext,
 } from './extensions/settings-tab-registry';
 import { __, sprintf } from '@wordpress/i18n';
+import { initAiEditorIntegration } from '../editor-ai/main';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
 declare const wp: any;
@@ -247,8 +248,9 @@ async function main() {
   let cssEditor: CodeEditorInstance;
   let jsEditor: CodeEditorInstance;
   let tailwindCss = '';
-  let settingsOpen = false;
-  let activeSettingsTab = 'settings';
+  const canEditAi = Boolean(cfg.ai?.canEdit);
+  let settingsOpen = true;
+  let activeSettingsTab = canEditAi ? 'kayzart-ai' : 'elements';
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
@@ -295,6 +297,10 @@ async function main() {
   };
 
   const subscribeContentChange = (listener: () => void) => {
+    contentListeners.add(listener);
+    return () => contentListeners.delete(listener);
+  };
+  const subscribeEditorSnapshot = (listener: () => void) => {
     contentListeners.add(listener);
     return () => contentListeners.delete(listener);
   };
@@ -445,6 +451,7 @@ async function main() {
     onSaveSuccess: () => {
       requestPreviewReload();
       settingsApi?.refreshHistory();
+      window.dispatchEvent(new CustomEvent('kayzart-editor-saved'));
     },
   });
 
@@ -1782,6 +1789,7 @@ async function main() {
       return;
     }
     jsMode = normalized;
+    notifyContentChange();
     syncJsModeSelectors();
     syncUnsavedUi();
     setPendingPreviewReloadChanges(true);
@@ -1876,11 +1884,11 @@ async function main() {
     return true;
   };
 
-  const getSelectedContext = (): SelectedElementContext | null => {
-    if (!selectedLcId) {
+  const getElementContextById = (lcId: string): SelectedElementContext | null => {
+    if (!lcId) {
       return null;
     }
-    const context = getElementContext(htmlModel.getValue(), selectedLcId);
+    const context = getElementContext(htmlModel.getValue(), lcId);
     if (!context) {
       return null;
     }
@@ -1902,6 +1910,8 @@ async function main() {
     };
   };
 
+  const getSelectedContext = (): SelectedElementContext | null => getElementContextById(selectedLcId || '');
+
   const openSettingsTab = (tabId: string) => {
     if (!settingsOpen) {
       setSettingsOpen(true);
@@ -1919,10 +1929,12 @@ async function main() {
       registerSettingsTab,
       openSettingsTab,
       getEditorSnapshot,
+      subscribeEditorSnapshot,
       replaceEditorSnapshot,
       reloadPreview: reloadPreviewPreservingScroll,
       getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
       getSelectedContext,
+      getElementContext: getElementContextById,
       setEditorLock,
       isEditorLocked: () => extensionEditorLock,
     };
@@ -1932,6 +1944,7 @@ async function main() {
     container: ui.settingsBody,
     header: ui.settingsHeader,
     data: initialState.settingsData,
+    aiEnabled: canEditAi,
     postId,
     apiFetch: wp.apiFetch,
     revisionsRestUrl: cfg.revisionsRestUrl,
@@ -1964,6 +1977,10 @@ async function main() {
     elementsApi,
   });
   publishExtensionApi();
+  setSettingsOpen(true);
+  if (canEditAi) {
+    initAiEditorIntegration();
+  }
 
   const handleViewportResize = debounce(() => {
     editorUiController?.updateCompactEditorMode();
@@ -1996,6 +2013,7 @@ async function main() {
   customHeadModel.onDidChangeContent(() => {
     setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
+    notifyContentChange();
     syncUnsavedUi();
   });
   cssModel.onDidChangeContent(() => {
@@ -2008,12 +2026,14 @@ async function main() {
     preview?.clearSelectionHighlight();
     preview?.clearCssSelectionHighlight();
     updateUndoRedoState();
+    notifyContentChange();
     syncUnsavedUi();
   });
 
   jsModel.onDidChangeContent(() => {
     setPendingPreviewReloadChanges(true);
     updateUndoRedoState();
+    notifyContentChange();
     syncUnsavedUi();
   });
 

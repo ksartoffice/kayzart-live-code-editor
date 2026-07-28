@@ -262,7 +262,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'post_type', $args );
 	}
 
-	public function test_register_menu_adds_settings_under_kayzart_hub_not_options_or_legacy_cpt(): void {
+	public function test_register_menu_adds_settings_under_kayzart_not_options_or_legacy_cpt(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -271,12 +271,12 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$options_parent   = 'options-general.php';
 		$legacy_parent    = 'edit.php?post_type=' . Post_Type::POST_TYPE;
 		$submenu          = is_array( $submenu ) ? $submenu : array();
-		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ], $submenu[ Admin::HOME_SLUG ] );
+		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ], $submenu[ Admin::NEW_SLUG ] );
 
 		Admin::register_menu();
 
 		$hub_settings_cap = '';
-		foreach ( (array) ( $submenu[ Admin::HOME_SLUG ] ?? array() ) as $item ) {
+		foreach ( (array) ( $submenu[ Admin::NEW_SLUG ] ?? array() ) as $item ) {
 			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
 				$hub_settings_cap = (string) ( $item[1] ?? '' );
 				$this->assertSame( __( 'Settings', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
@@ -301,7 +301,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( array(), $stale_hits );
 	}
 
-	public function test_register_menu_adds_kayzart_hub_at_edit_posts(): void {
+	public function test_register_menu_adds_kayzart_top_level_at_edit_posts(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -310,20 +310,20 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$original_submenu = $submenu;
 		$menu             = is_array( $menu ) ? $menu : array();
 		$submenu          = is_array( $submenu ) ? $submenu : array();
-		unset( $submenu[ Admin::HOME_SLUG ] );
+		unset( $submenu[ Admin::NEW_SLUG ] );
 
 		Admin::register_menu();
 
 		$hub_cap = '';
 		foreach ( $menu as $item ) {
-			if ( Admin::HOME_SLUG === (string) ( $item[2] ?? '' ) ) {
+			if ( Admin::NEW_SLUG === (string) ( $item[2] ?? '' ) ) {
 				$hub_cap = (string) ( $item[1] ?? '' );
 				break;
 			}
 		}
 
 		$child_slugs = array();
-		foreach ( (array) ( $submenu[ Admin::HOME_SLUG ] ?? array() ) as $item ) {
+		foreach ( (array) ( $submenu[ Admin::NEW_SLUG ] ?? array() ) as $item ) {
 			$child_slugs[] = (string) ( $item[2] ?? '' );
 		}
 
@@ -332,9 +332,32 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertSame( 'edit_posts', $hub_cap );
 		$this->assertSame(
-			array( Admin::HOME_SLUG, Admin::NEW_SLUG, Admin::SETTINGS_SLUG ),
+			array( Admin::NEW_SLUG, Admin::SETTINGS_SLUG ),
 			$child_slugs,
-			'The hub must expose exactly Getting started, Add new, and Settings — no duplicate page list.'
+			'The menu must expose exactly Add new and Settings — no landing screen and no duplicate page list.'
+		);
+	}
+
+	public function test_render_ai_section_reports_ai_availability(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$unavailable = static function () {
+			return false;
+		};
+		add_filter( 'kayzart_ai_sdk_present', $unavailable );
+
+		ob_start();
+		Admin::render_ai_section();
+		$output = (string) ob_get_clean();
+
+		remove_filter( 'kayzart_ai_sdk_present', $unavailable );
+
+		$this->assertStringContainsString( __( 'AI Client SDK', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Action Scheduler', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString(
+			__( 'AI editing is unavailable until every requirement below is met.', 'kayzart-live-code-editor' ),
+			$output
 		);
 	}
 

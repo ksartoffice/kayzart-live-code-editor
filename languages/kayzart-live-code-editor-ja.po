@@ -539,23 +539,13 @@ msgstr ""
 msgid "The AI edit restore history could not be saved."
 msgstr ""
 
-msgid "Getting started"
-msgstr "はじめに"
 
 msgid "Add new"
 msgstr "新規作成"
 
-msgid "Start here"
-msgstr "ここから始める"
 
-msgid "Kayzart edits ordinary WordPress pages. Everything you create here appears in the normal Pages list."
-msgstr "Kayzart は通常の WordPress ページを編集します。ここで作成したものはすべて、通常の固定ページ一覧に表示されます。"
 
-msgid "create a page and open it in Kayzart."
-msgstr "ページを作成して Kayzart で開きます。"
 
-msgid "to edit an existing page, choose Edit with Kayzart in its row actions."
-msgstr "既存のページを編集するには、その行のアクションから「Kayzart で編集」を選びます。"
 
 msgid "AI editing is ready to use."
 msgstr "AI 編集を利用できます。"
@@ -638,5 +628,3 @@ msgstr "モード"
 msgid "Normal HTML/CSS"
 msgstr "通常の HTML/CSS"
 
-msgid "Pages"
-msgstr "固定ページ"

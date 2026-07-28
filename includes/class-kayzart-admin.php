@@ -17,7 +17,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Admin {
 
 	const MENU_SLUG                    = 'kayzart';
-	const HOME_SLUG                    = 'kayzart-home';
 	const NEW_SLUG                     = 'kayzart-new';
 	const NEW_TYPE_PARAM               = 'kayzart_post_type';
 	const CONVERT_SLUG                 = 'kayzart-convert';
@@ -780,29 +779,21 @@ class Admin {
 	 */
 	public static function register_menu(): void {
 
-		// Top-level hub. Kept at edit_posts so editors keep the create flow even
-		// though the settings child requires manage_options.
+		// The top-level menu opens the create screen directly. Kept at edit_posts
+		// so editors keep the create flow even though Settings needs manage_options.
 		add_menu_page(
 			__( 'Kayzart', 'kayzart-live-code-editor' ),
 			__( 'Kayzart', 'kayzart-live-code-editor' ),
 			'edit_posts',
-			self::HOME_SLUG,
-			array( __CLASS__, 'render_home_page' ),
+			self::NEW_SLUG,
+			array( __CLASS__, 'render_new_page' ),
 			'dashicons-editor-code',
 			21
 		);
 
+		// Renames the auto-generated first submenu item from "Kayzart" to "Add new".
 		add_submenu_page(
-			self::HOME_SLUG,
-			__( 'Getting started', 'kayzart-live-code-editor' ),
-			__( 'Getting started', 'kayzart-live-code-editor' ),
-			'edit_posts',
-			self::HOME_SLUG,
-			array( __CLASS__, 'render_home_page' )
-		);
-
-		add_submenu_page(
-			self::HOME_SLUG,
+			self::NEW_SLUG,
 			__( 'Add new', 'kayzart-live-code-editor' ),
 			__( 'Add new', 'kayzart-live-code-editor' ),
 			'edit_posts',
@@ -811,7 +802,7 @@ class Admin {
 		);
 
 		add_submenu_page(
-			self::HOME_SLUG,
+			self::NEW_SLUG,
 			__( 'Settings', 'kayzart-live-code-editor' ),
 			__( 'Settings', 'kayzart-live-code-editor' ),
 			'manage_options',
@@ -1233,6 +1224,7 @@ class Admin {
 	public static function render_ai_section(): void {
 
 		echo '<p>' . esc_html__( 'Choose which model AI editing uses. Auto lets the configured AI provider pick.', 'kayzart-live-code-editor' ) . '</p>';
+		self::render_ai_status_section();
 	}
 
 	/**
@@ -1269,40 +1261,6 @@ class Admin {
 	}
 
 	/**
-	 * Render the Kayzart hub landing screen.
-	 */
-	public static function render_home_page(): void {
-		if ( ! current_user_can( 'edit_posts' ) ) {
-			return;
-		}
-
-		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Kayzart', 'kayzart-live-code-editor' ) . '</h1>';
-
-		echo '<p>' . esc_html__( 'Kayzart edits ordinary WordPress pages. Everything you create here appears in the normal Pages list.', 'kayzart-live-code-editor' ) . '</p>';
-
-		echo '<h2>' . esc_html__( 'Start here', 'kayzart-live-code-editor' ) . '</h2>';
-		echo '<ul>';
-		printf(
-			'<li><a href="%s">%s</a> — %s</li>',
-			esc_url( self::get_new_screen_url() ),
-			esc_html__( 'Add new', 'kayzart-live-code-editor' ),
-			esc_html__( 'create a page and open it in Kayzart.', 'kayzart-live-code-editor' )
-		);
-		printf(
-			'<li><a href="%s">%s</a> — %s</li>',
-			esc_url( admin_url( 'edit.php?post_type=' . Post_Type::PAGE_TYPE ) ),
-			esc_html__( 'Pages', 'kayzart-live-code-editor' ),
-			esc_html__( 'to edit an existing page, choose Edit with Kayzart in its row actions.', 'kayzart-live-code-editor' )
-		);
-		echo '</ul>';
-
-		self::render_ai_status_section();
-
-		echo '</div>';
-	}
-
-	/**
 	 * Render the AI availability checklist.
 	 */
 	private static function render_ai_status_section(): void {
@@ -1310,8 +1268,8 @@ class Admin {
 			return;
 		}
 
-		// Ai_Availability::get_status() probes the configured provider, so call
-		// it once here and never on routine admin screens.
+		// Ai_Availability::get_status() probes the configured provider, so keep
+		// this on the settings screen only and never on routine admin screens.
 		$status = Ai_Availability::get_status();
 		$checks = array(
 			'sdk_present'         => array(

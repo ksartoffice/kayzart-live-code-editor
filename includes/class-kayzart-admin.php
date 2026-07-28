@@ -1526,7 +1526,6 @@ class Admin {
 				esc_html( $label )
 			);
 		}
-		echo '<p class="description">' . esc_html__( 'This cannot be changed after the page is created.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</fieldset></td></tr>';
 	}
 

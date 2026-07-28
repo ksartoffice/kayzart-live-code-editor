@@ -638,8 +638,5 @@ msgstr "モード"
 msgid "Normal HTML/CSS"
 msgstr "通常の HTML/CSS"
 
-msgid "This cannot be changed after the page is created."
-msgstr "ページの作成後は変更できません。"
-
 msgid "Pages"
 msgstr "固定ページ"

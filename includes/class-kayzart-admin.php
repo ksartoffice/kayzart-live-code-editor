@@ -17,6 +17,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Admin {
 
 	const MENU_SLUG                    = 'kayzart';
+	const HOME_SLUG                    = 'kayzart-home';
+	const NEW_SLUG                     = 'kayzart-new';
+	const NEW_TYPE_PARAM               = 'kayzart_post_type';
+	const CONVERT_SLUG                 = 'kayzart-convert';
 	const SETTINGS_SLUG                = 'kayzart-settings';
 	const SETTINGS_GROUP               = 'kayzart_settings';
 	const NEW_POST_ACTION              = 'kayzart_new';
@@ -47,6 +51,7 @@ class Admin {
 
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_init', array( __CLASS__, 'maybe_skip_convert_screen' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_filter( 'admin_title', array( __CLASS__, 'filter_admin_title' ), 10, 2 );
 		add_action( 'current_screen', array( __CLASS__, 'maybe_suppress_editor_notices' ) );
@@ -97,7 +102,7 @@ class Admin {
 		$suffix     = self::extract_admin_title_suffix( $admin_title, $title );
 
 		/* translators: %s: post title. */
-		$editor_title = sprintf( __( 'Kayzart Landing Page Editor: %s', 'kayzart-live-code-editor' ), $post_title );
+		$editor_title = sprintf( __( 'Kayzart: %s', 'kayzart-live-code-editor' ), $post_title );
 
 		if ( '' === $suffix ) {
 			return $editor_title;
@@ -260,7 +265,7 @@ class Admin {
 	 */
 	public static function action_create_new_post(): void {
 		self::verify_action_nonce( self::NEW_POST_NONCE_ACTION );
-		self::create_new_landing_page_post( Post_Type::POST_TYPE );
+		self::create_new_landing_page_post( Post_Type::POST_TYPE, self::read_requested_setup_mode(), self::read_requested_post_title() );
 	}
 
 	/**
@@ -268,9 +273,52 @@ class Admin {
 	 */
 	public static function action_create_new_page(): void {
 		self::verify_action_nonce( self::NEW_PAGE_NONCE_ACTION );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
-		$post_type = isset( $_GET['post_type'] ) ? sanitize_key( wp_unslash( (string) $_GET['post_type'] ) ) : Post_Type::PAGE_TYPE;
-		self::create_new_landing_page_post( $post_type );
+		$post_type = sanitize_key( self::read_request_value( 'post_type' ) );
+		if ( '' === $post_type ) {
+			$post_type = Post_Type::PAGE_TYPE;
+		}
+		self::create_new_landing_page_post( $post_type, self::read_requested_setup_mode(), self::read_requested_post_title() );
+	}
+
+	/**
+	 * Read the requested setup mode from a nonce-verified request.
+	 *
+	 * An empty string preserves the legacy behaviour of deferring the choice to
+	 * the in-editor setup wizard.
+	 *
+	 * @return string 'normal', 'tailwind', or an empty string.
+	 */
+	private static function read_requested_setup_mode(): string {
+		$mode = sanitize_key( self::read_request_value( 'mode' ) );
+		return in_array( $mode, array( 'normal', 'tailwind' ), true ) ? $mode : '';
+	}
+
+	/**
+	 * Read an optional post title from a nonce-verified request.
+	 *
+	 * @return string
+	 */
+	private static function read_requested_post_title(): string {
+		return trim( self::read_request_value( 'post_title' ) );
+	}
+
+	/**
+	 * Apply a setup mode to a post, or defer it to the in-editor wizard.
+	 *
+	 * Mirrors Rest_Setup::setup_mode() so both paths write identical meta.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $mode    'normal', 'tailwind', or an empty string to defer.
+	 */
+	private static function apply_setup_mode( int $post_id, string $mode ): void {
+		if ( 'normal' !== $mode && 'tailwind' !== $mode ) {
+			update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+			return;
+		}
+
+		update_post_meta( $post_id, '_kayzart_tailwind', 'tailwind' === $mode ? '1' : '0' );
+		update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
+		delete_post_meta( $post_id, '_kayzart_setup_required' );
 	}
 
 	/**
@@ -279,8 +327,8 @@ class Admin {
 	public static function action_convert_existing_post(): void {
 		self::verify_action_nonce( self::CONVERT_POST_NONCE_ACTION );
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified above via verify_action_nonce().
-		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		// POST-first: the confirmation screen submits a form, legacy links use GET.
+		$post_id = absint( self::read_request_value( 'post_id' ) );
 		if ( ! $post_id ) {
 			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
 		}
@@ -295,7 +343,7 @@ class Admin {
 
 		if ( ! Post_Type::is_kayzart_enabled_post( $post_id ) ) {
 			Post_Type::enable_for_post( $post_id );
-			update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+			self::apply_setup_mode( $post_id, self::read_requested_setup_mode() );
 		}
 
 		wp_safe_redirect( Post_Type::get_editor_url( $post_id ) );
@@ -468,18 +516,42 @@ class Admin {
 	 * @param string $nonce_action Nonce action.
 	 */
 	private static function verify_action_nonce( string $nonce_action ): void {
-		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, $nonce_action ) ) {
+		if ( ! wp_verify_nonce( self::read_request_value( '_wpnonce' ), $nonce_action ) ) {
 			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
 		}
+	}
+
+	/**
+	 * Read a raw request value, preferring POST over GET.
+	 *
+	 * Legacy entry points link with GET; the create and confirmation screens
+	 * submit a form with POST.
+	 *
+	 * @param string $key Request key.
+	 * @return string Unslashed, sanitized value.
+	 */
+	private static function read_request_value( string $key ): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification is the caller's responsibility; this is a raw accessor.
+		if ( isset( $_POST[ $key ] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
+			return sanitize_text_field( wp_unslash( (string) $_POST[ $key ] ) );
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
+		if ( isset( $_GET[ $key ] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
+			return sanitize_text_field( wp_unslash( (string) $_GET[ $key ] ) );
+		}
+		return '';
 	}
 
 	/**
 	 * Create a new KayzArt-managed draft.
 	 *
 	 * @param string $post_type Post type.
+	 * @param string $mode      Setup mode, or an empty string to defer to the editor wizard.
+	 * @param string $title     Optional post title.
 	 */
-	private static function create_new_landing_page_post( string $post_type ): void {
+	private static function create_new_landing_page_post( string $post_type, string $mode = '', string $title = '' ): void {
 		if ( ! Post_Type::is_post_type_enabled( $post_type ) ) {
 			wp_die( esc_html__( 'This post type is not enabled for Kayzart.', 'kayzart-live-code-editor' ) );
 		}
@@ -493,7 +565,7 @@ class Admin {
 			array(
 				'post_type'   => $post_type,
 				'post_status' => 'draft',
-				'post_title'  => __( 'Untitled landing page', 'kayzart-live-code-editor' ),
+				'post_title'  => '' !== $title ? $title : __( 'Untitled landing page', 'kayzart-live-code-editor' ),
 			),
 			true
 		);
@@ -502,7 +574,7 @@ class Admin {
 		}
 
 		Post_Type::enable_for_post( (int) $post_id );
-		update_post_meta( (int) $post_id, '_kayzart_setup_required', '1' );
+		self::apply_setup_mode( (int) $post_id, $mode );
 
 		wp_safe_redirect( Post_Type::get_editor_url( (int) $post_id ) );
 		exit;
@@ -526,6 +598,8 @@ class Admin {
 	/**
 	 * Build nonce-protected admin action URL for converting an existing post.
 	 *
+	 * This is the form target of the confirmation screen, not a link target.
+	 *
 	 * @param int $post_id Optional post ID.
 	 * @return string
 	 */
@@ -539,6 +613,25 @@ class Admin {
 		}
 
 		return add_query_arg( $args, admin_url( 'admin.php' ) );
+	}
+
+	/**
+	 * Build the confirmation screen URL for opening an unmanaged post in Kayzart.
+	 *
+	 * No nonce: this is a side-effect-free screen. The form it renders is
+	 * nonce-protected.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_convert_screen_url( int $post_id ): string {
+		return add_query_arg(
+			array(
+				'page'    => self::CONVERT_SLUG,
+				'post_id' => $post_id,
+			),
+			admin_url( 'admin.php' )
+		);
 	}
 
 	/**
@@ -618,7 +711,34 @@ class Admin {
 	}
 
 	/**
-	 * Build the landing page settings page URL.
+	 * Build the Kayzart create screen URL.
+	 *
+	 * No nonce: this is a side-effect-free screen. The form it renders is
+	 * nonce-protected.
+	 *
+	 * The post type is passed as kayzart_post_type, not post_type: a post_type
+	 * query arg makes WordPress set $typenow, which in turn makes admin.php
+	 * resolve this page's parent as "admin.php?post_type=..." instead of the
+	 * Kayzart menu, and the page then fails to load.
+	 *
+	 * @param string $post_type Post type.
+	 * @return string
+	 */
+	public static function get_new_screen_url( string $post_type = Post_Type::PAGE_TYPE ): string {
+		return add_query_arg(
+			array(
+				'page'               => self::NEW_SLUG,
+				self::NEW_TYPE_PARAM => sanitize_key( $post_type ),
+			),
+			admin_url( 'admin.php' )
+		);
+	}
+
+	/**
+	 * Build the Kayzart settings page URL.
+	 *
+	 * Single source of truth for the settings URL; kayzart-pro resolves its
+	 * license tab link through this method.
 	 *
 	 * @param string $tab Optional tab ID.
 	 * @return string
@@ -631,7 +751,7 @@ class Admin {
 			$args['tab'] = sanitize_key( $tab );
 		}
 
-		return add_query_arg( $args, admin_url( 'options-general.php' ) );
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
 	}
 
 	/**
@@ -660,8 +780,48 @@ class Admin {
 	 */
 	public static function register_menu(): void {
 
-		// Hidden admin page (no menu entry). Accessed via redirects only.
-		// Use admin.php as a virtual parent so WordPress can resolve a non-null page title.
+		// Top-level hub. Kept at edit_posts so editors keep the create flow even
+		// though the settings child requires manage_options.
+		add_menu_page(
+			__( 'Kayzart', 'kayzart-live-code-editor' ),
+			__( 'Kayzart', 'kayzart-live-code-editor' ),
+			'edit_posts',
+			self::HOME_SLUG,
+			array( __CLASS__, 'render_home_page' ),
+			'dashicons-editor-code',
+			21
+		);
+
+		add_submenu_page(
+			self::HOME_SLUG,
+			__( 'Getting started', 'kayzart-live-code-editor' ),
+			__( 'Getting started', 'kayzart-live-code-editor' ),
+			'edit_posts',
+			self::HOME_SLUG,
+			array( __CLASS__, 'render_home_page' )
+		);
+
+		add_submenu_page(
+			self::HOME_SLUG,
+			__( 'Add new', 'kayzart-live-code-editor' ),
+			__( 'Add new', 'kayzart-live-code-editor' ),
+			'edit_posts',
+			self::NEW_SLUG,
+			array( __CLASS__, 'render_new_page' )
+		);
+
+		add_submenu_page(
+			self::HOME_SLUG,
+			__( 'Settings', 'kayzart-live-code-editor' ),
+			__( 'Settings', 'kayzart-live-code-editor' ),
+			'manage_options',
+			self::SETTINGS_SLUG,
+			array( __CLASS__, 'render_settings_page' )
+		);
+
+		// Hidden admin pages (no menu entry). Accessed via redirects and row
+		// actions only. admin.php is a virtual parent so WordPress can resolve a
+		// non-null page title.
 		add_submenu_page(
 			self::HIDDEN_PARENT_SLUG,
 			__( 'Kayzart', 'kayzart-live-code-editor' ),
@@ -669,6 +829,15 @@ class Admin {
 			'edit_posts',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
+		);
+
+		add_submenu_page(
+			self::HIDDEN_PARENT_SLUG,
+			__( 'Edit with Kayzart', 'kayzart-live-code-editor' ),
+			__( 'Edit with Kayzart', 'kayzart-live-code-editor' ),
+			'edit_posts',
+			self::CONVERT_SLUG,
+			array( __CLASS__, 'render_convert_page' )
 		);
 
 		foreach ( Post_Type::get_enabled_post_types() as $post_type ) {
@@ -682,22 +851,14 @@ class Admin {
 
 			add_submenu_page(
 				self::get_post_type_menu_parent_slug( $post_type ),
-				__( 'Add landing page', 'kayzart-live-code-editor' ),
-				__( 'Add landing page', 'kayzart-live-code-editor' ),
+				__( 'Add with Kayzart', 'kayzart-live-code-editor' ),
+				__( 'Add with Kayzart', 'kayzart-live-code-editor' ),
 				(string) $post_type_object->cap->create_posts,
-				self::get_new_page_action_url( $post_type ),
+				self::get_new_screen_url( $post_type ),
 				'',
 				11
 			);
 		}
-
-		add_options_page(
-			__( 'Landing page settings', 'kayzart-live-code-editor' ),
-			__( 'Landing page settings', 'kayzart-live-code-editor' ),
-			'manage_options',
-			self::SETTINGS_SLUG,
-			array( __CLASS__, 'render_settings_page' )
-		);
 	}
 
 	/**
@@ -1063,7 +1224,7 @@ class Admin {
 			echo '</label>';
 		}
 
-		echo '<p class="description">' . esc_html__( 'Existing posts are converted only when you choose Convert to landing page or create one with Add landing page.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -1108,6 +1269,290 @@ class Admin {
 	}
 
 	/**
+	 * Render the Kayzart hub landing screen.
+	 */
+	public static function render_home_page(): void {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return;
+		}
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Kayzart', 'kayzart-live-code-editor' ) . '</h1>';
+
+		echo '<p>' . esc_html__( 'Kayzart edits ordinary WordPress pages. Everything you create here appears in the normal Pages list.', 'kayzart-live-code-editor' ) . '</p>';
+
+		echo '<h2>' . esc_html__( 'Start here', 'kayzart-live-code-editor' ) . '</h2>';
+		echo '<ul>';
+		printf(
+			'<li><a href="%s">%s</a> — %s</li>',
+			esc_url( self::get_new_screen_url() ),
+			esc_html__( 'Add new', 'kayzart-live-code-editor' ),
+			esc_html__( 'create a page and open it in Kayzart.', 'kayzart-live-code-editor' )
+		);
+		printf(
+			'<li><a href="%s">%s</a> — %s</li>',
+			esc_url( admin_url( 'edit.php?post_type=' . Post_Type::PAGE_TYPE ) ),
+			esc_html__( 'Pages', 'kayzart-live-code-editor' ),
+			esc_html__( 'to edit an existing page, choose Edit with Kayzart in its row actions.', 'kayzart-live-code-editor' )
+		);
+		echo '</ul>';
+
+		self::render_ai_status_section();
+
+		echo '</div>';
+	}
+
+	/**
+	 * Render the AI availability checklist.
+	 */
+	private static function render_ai_status_section(): void {
+		if ( ! class_exists( __NAMESPACE__ . '\\Ai_Availability' ) ) {
+			return;
+		}
+
+		// Ai_Availability::get_status() probes the configured provider, so call
+		// it once here and never on routine admin screens.
+		$status = Ai_Availability::get_status();
+		$checks = array(
+			'sdk_present'         => array(
+				__( 'AI Client SDK', 'kayzart-live-code-editor' ),
+				__( 'Requires a WordPress version that bundles the AI Client.', 'kayzart-live-code-editor' ),
+			),
+			'provider_configured' => array(
+				__( 'AI provider configured', 'kayzart-live-code-editor' ),
+				__( 'Connect an AI provider so Kayzart can send edit requests.', 'kayzart-live-code-editor' ),
+			),
+			'scheduler_present'   => array(
+				__( 'Action Scheduler', 'kayzart-live-code-editor' ),
+				__( 'Required to run AI edits in the background.', 'kayzart-live-code-editor' ),
+			),
+			'mbstring_present'    => array(
+				__( 'PHP mbstring extension', 'kayzart-live-code-editor' ),
+				__( 'Ask your host to enable the mbstring extension.', 'kayzart-live-code-editor' ),
+			),
+			'dom_present'         => array(
+				__( 'PHP DOM extension', 'kayzart-live-code-editor' ),
+				__( 'Ask your host to enable the DOM and libxml extensions.', 'kayzart-live-code-editor' ),
+			),
+			'feature_enabled'     => array(
+				__( 'AI editing enabled for this site', 'kayzart-live-code-editor' ),
+				__( 'AI editing was disabled by a site filter.', 'kayzart-live-code-editor' ),
+			),
+		);
+
+		echo '<h2>' . esc_html__( 'AI editing', 'kayzart-live-code-editor' ) . '</h2>';
+		if ( ! empty( $status['available'] ) ) {
+			echo '<p>' . esc_html__( 'AI editing is ready to use.', 'kayzart-live-code-editor' ) . '</p>';
+		} else {
+			echo '<p>' . esc_html__( 'AI editing is unavailable until every requirement below is met.', 'kayzart-live-code-editor' ) . '</p>';
+		}
+
+		echo '<table class="widefat striped" style="max-width:60em">';
+		echo '<tbody>';
+		foreach ( $checks as $key => $check ) {
+			$passed = ! empty( $status[ $key ] );
+			echo '<tr>';
+			echo '<td style="width:2em">' . ( $passed ? '<span aria-hidden="true">&#10003;</span>' : '<span aria-hidden="true">&#10007;</span>' ) . '</td>';
+			echo '<td>' . esc_html( $check[0] );
+			echo '<span class="screen-reader-text">' . ( $passed ? esc_html__( 'Available', 'kayzart-live-code-editor' ) : esc_html__( 'Unavailable', 'kayzart-live-code-editor' ) ) . '</span>';
+			if ( ! $passed ) {
+				echo '<p class="description">' . esc_html( $check[1] ) . '</p>';
+			}
+			echo '</td>';
+			echo '</tr>';
+		}
+		echo '</tbody>';
+		echo '</table>';
+	}
+
+	/**
+	 * Render the create screen.
+	 */
+	public static function render_new_page(): void {
+		$post_types = self::get_creatable_post_types();
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Add new', 'kayzart-live-code-editor' ) . '</h1>';
+
+		if ( 0 === count( $post_types ) ) {
+			echo '<p>' . esc_html__( 'You do not have permission to create Kayzart pages.', 'kayzart-live-code-editor' ) . '</p>';
+			echo '</div>';
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen preference, validated below.
+		$requested = isset( $_GET[ self::NEW_TYPE_PARAM ] ) ? sanitize_key( wp_unslash( (string) $_GET[ self::NEW_TYPE_PARAM ] ) ) : '';
+		$selected  = isset( $post_types[ $requested ] ) ? $requested : (string) array_key_first( $post_types );
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::NEW_PAGE_ACTION ) . '" />';
+		wp_nonce_field( self::NEW_PAGE_NONCE_ACTION );
+		echo '<table class="form-table" role="presentation"><tbody>';
+
+		echo '<tr><th scope="row">' . esc_html__( 'Title', 'kayzart-live-code-editor' ) . '</th><td>';
+		echo '<input type="text" class="regular-text" name="post_title" value="" />';
+		echo '<p class="description">' . esc_html__( 'Optional. You can rename the page later.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '</td></tr>';
+
+		echo '<tr><th scope="row">' . esc_html__( 'Create as', 'kayzart-live-code-editor' ) . '</th><td>';
+		if ( count( $post_types ) > 1 ) {
+			echo '<fieldset>';
+			foreach ( $post_types as $post_type => $label ) {
+				printf(
+					'<label style="display:block"><input type="radio" name="post_type" value="%s"%s /> %s</label>',
+					esc_attr( $post_type ),
+					checked( $post_type, $selected, false ),
+					esc_html( $label )
+				);
+			}
+			echo '</fieldset>';
+		} else {
+			echo '<input type="hidden" name="post_type" value="' . esc_attr( $selected ) . '" />';
+			printf(
+				'<p>%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: %s: post type label, e.g. Pages. */
+						__( 'This will be created as: %s', 'kayzart-live-code-editor' ),
+						$post_types[ $selected ]
+					)
+				)
+			);
+		}
+		echo '</td></tr>';
+
+		self::render_setup_mode_row();
+
+		echo '</tbody></table>';
+		submit_button( __( 'Create and open editor', 'kayzart-live-code-editor' ) );
+		echo '</form>';
+		echo '</div>';
+	}
+
+	/**
+	 * Send already-managed posts straight to the editor, before headers are sent.
+	 *
+	 * The confirmation screen only has something to confirm for posts Kayzart
+	 * does not manage yet.
+	 */
+	public static function maybe_skip_convert_screen(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing of a side-effect-free screen.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		if ( self::CONVERT_SLUG !== $page ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		if ( $post_id <= 0 || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) || ! Post_Type::is_kayzart_enabled_post( $post_id ) ) {
+			return;
+		}
+
+		wp_safe_redirect( Post_Type::get_editor_url( $post_id ) );
+		exit;
+	}
+
+	/**
+	 * Render the confirmation screen for opening an unmanaged post in Kayzart.
+	 */
+	public static function render_convert_page(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen; the form below is nonce-protected.
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		$post    = $post_id > 0 ? get_post( $post_id ) : null;
+
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' ) . '</h1>';
+
+		if ( ! $post instanceof \WP_Post || ! Post_Type::is_editor_enabled_post( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
+			echo '<p>' . esc_html__( 'This page cannot be opened in Kayzart.', 'kayzart-live-code-editor' ) . '</p>';
+			echo '</div>';
+			return;
+		}
+
+		// Already-managed posts are normally intercepted on admin_init; this is
+		// only reached if headers were already sent.
+		if ( Post_Type::is_kayzart_enabled_post( $post_id ) ) {
+			printf(
+				'<p><a href="%s">%s</a></p>',
+				esc_url( Post_Type::get_editor_url( $post_id ) ),
+				esc_html__( 'Open editor', 'kayzart-live-code-editor' )
+			);
+			echo '</div>';
+			return;
+		}
+
+		printf(
+			'<p>%s</p>',
+			esc_html(
+				sprintf(
+					/* translators: %s: post title. */
+					__( '"%s" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML.', 'kayzart-live-code-editor' ),
+					get_the_title( $post )
+				)
+			)
+		);
+
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="' . esc_attr( self::CONVERT_POST_ACTION ) . '" />';
+		echo '<input type="hidden" name="post_id" value="' . esc_attr( (string) $post_id ) . '" />';
+		wp_nonce_field( self::CONVERT_POST_NONCE_ACTION );
+		echo '<table class="form-table" role="presentation"><tbody>';
+		self::render_setup_mode_row();
+		echo '</tbody></table>';
+		submit_button( __( 'Open editor', 'kayzart-live-code-editor' ) );
+		echo '</form>';
+		echo '</div>';
+	}
+
+	/**
+	 * Render the shared Normal/Tailwind mode chooser row.
+	 */
+	private static function render_setup_mode_row(): void {
+		$default = 'tailwind' === get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'normal' ) ? 'tailwind' : 'normal';
+		$modes   = array(
+			'normal'   => __( 'Normal HTML/CSS', 'kayzart-live-code-editor' ),
+			'tailwind' => __( 'TailwindCSS', 'kayzart-live-code-editor' ),
+		);
+
+		echo '<tr><th scope="row">' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</th><td><fieldset>';
+		foreach ( $modes as $mode => $label ) {
+			printf(
+				'<label style="display:block"><input type="radio" name="mode" value="%s"%s /> %s</label>',
+				esc_attr( $mode ),
+				checked( $mode, $default, false ),
+				esc_html( $label )
+			);
+		}
+		echo '<p class="description">' . esc_html__( 'This cannot be changed after the page is created.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '</fieldset></td></tr>';
+	}
+
+	/**
+	 * Return enabled post types the current user may create, as slug => label.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function get_creatable_post_types(): array {
+		$post_types = array();
+		foreach ( Post_Type::get_enabled_post_types() as $post_type ) {
+			$post_type_object = get_post_type_object( $post_type );
+			if ( ! $post_type_object || empty( $post_type_object->cap->create_posts ) ) {
+				continue;
+			}
+			if ( ! current_user_can( $post_type_object->cap->create_posts ) ) {
+				continue;
+			}
+			$post_types[ $post_type ] = ! empty( $post_type_object->labels->name )
+				? (string) $post_type_object->labels->name
+				: $post_type;
+		}
+		return $post_types;
+	}
+
+	/**
 	 * Render settings page.
 	 */
 	public static function render_settings_page(): void {
@@ -1120,7 +1565,7 @@ class Admin {
 		$active_tab = self::get_active_settings_tab( $tabs );
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Landing page settings', 'kayzart-live-code-editor' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Settings', 'kayzart-live-code-editor' ) . '</h1>';
 		self::render_settings_tabs_nav( $tabs, $active_tab );
 		if ( 'basic' === $active_tab ) {
 			echo '<form action="options.php" method="post">';
@@ -1419,7 +1864,7 @@ class Admin {
 			$handle,
 			'window.KAYZART_POST_TYPE_LIST = ' . wp_json_encode(
 				array(
-					'createUrl' => self::get_new_page_action_url( $post_type ),
+					'createUrl' => self::get_new_screen_url( $post_type ),
 				)
 			) . ';',
 			'before'

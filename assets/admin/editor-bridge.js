@@ -15,7 +15,7 @@
 
   var data = window.KAYZART_EDITOR || {};
   var actionUrl = data.actionUrl || '';
-  var buttonLabel = __( 'Edit landing page', 'kayzart-live-code-editor');
+  var buttonLabel = __( 'Edit with Kayzart', 'kayzart-live-code-editor');
 
   var getPostIdFromBlock = function () {
     if (!wpRef.data || !wpRef.data.select) {

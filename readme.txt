@@ -49,11 +49,11 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 
 == Installation ==
 1. Install and activate Kayzart from Plugins.
-2. Go to Pages > Add landing page to create a new landing page, or open Pages and choose Convert to landing page for an existing page.
-3. Choose Normal or TailwindCSS mode.
+2. Go to Kayzart > Add new to create a new landing page, or open Pages and choose Edit with Kayzart for an existing page.
+3. Choose Normal or TailwindCSS mode, then create the page.
 4. Paste your HTML/CSS/JS from any source (or keep editing the existing page content), watch the live preview, and adjust.
 5. Publish or update. Use Standalone mode for a clean, theme-free landing page.
-6. Optional: Settings > Landing page settings to enable Kayzart for posts or custom post types.
+6. Optional: Kayzart > Settings to enable Kayzart for posts or custom post types.
 7. Optional: To use AI editing, run WordPress 7.0+ and configure an AI provider (your own API key) in Connectors, then open the AI tab in the editor. AI editing is available by default to administrators and editors.
 
 == Frequently Asked Questions ==
@@ -82,10 +82,10 @@ Basic familiarity with HTML/CSS helps when fine-tuning, and Kayzart gives you fu
 Yes. You can place WordPress shortcodes directly in the HTML editor. They are not expanded inside the live preview iframe, but they are processed normally on the published page or front-end view.
 
 = Can I duplicate an existing landing page? =
-Yes. From the Pages list, choose Duplicate landing page for a Kayzart-managed page. Kayzart creates a new draft copy with the page content, Kayzart settings, featured image, and taxonomy terms carried over.
+Yes. From the Pages list, choose Duplicate for a Kayzart-managed page. Kayzart creates a new draft copy with the page content, Kayzart settings, featured image, and taxonomy terms carried over.
 
 = Can I use TailwindCSS? =
-Yes. Choose TailwindCSS mode when creating or converting a page and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
+Yes. Choose TailwindCSS mode when you create a page, or when you first open an existing page with Kayzart, and Kayzart compiles utility classes automatically. It uses TailwindCSS v4, so the latest utility syntax works out of the box.
 
 = What is Standalone mode? =
 Standalone mode renders your landing page without the active theme's layout — the theme's header, footer, content template, styles, and scripts are not loaded, so your page isn't affected by theme CSS or JavaScript. Kayzart's own styles and scripts (and your page's CSS/JS) are still loaded, so the editor runtime and your page behave as expected. Use it when you want a clean, theme-independent landing page.
@@ -97,7 +97,7 @@ Theme mode renders your Kayzart content inside the active theme's template, so t
 HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, and other Kayzart settings are stored in post meta.
 
 == Screenshots ==
-1. Choose Normal HTML/CSS mode or TailwindCSS before editing the landing page.
+1. Choose Normal HTML/CSS mode or TailwindCSS when you create the landing page.
 2. Start from a clean split editor with HTML, CSS, JavaScript, and live preview panes.
 3. Open the full HTML import dialog for a complete HTML document.
 4. Paste a complete HTML document from any source — hand-written, a template, or an AI tool.
@@ -116,6 +116,10 @@ HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, an
 * Add: Bring your own AI provider through Connectors — no Kayzart account, no per-edit fee, and no external Kayzart server.
 * Security: Protect AI editing with a dedicated capability, available by default to administrators and editors.
 * Infrastructure: Require WordPress 7.0 and run AI editing on the WordPress-native AI Client with an Action Scheduler job runtime.
+* Add: A Kayzart menu in the admin sidebar with a getting-started screen that reports whether AI editing can run on your site.
+* Change: Creating a page no longer happens the instant you click a menu item. Pick the title and the Normal/TailwindCSS mode first, then create — so the editor opens ready to use and stray drafts are not left behind.
+* Change: Move Kayzart settings from Settings to the Kayzart menu.
+* Change: Rename the page list actions to Edit with Kayzart, Add with Kayzart, and Duplicate. Opening an existing page with Kayzart now shows a confirmation screen that states the page content is kept.
 
 = 2.3.0 =
 * Add: Keep full-page revision history for HTML, CSS, JavaScript, and page settings.

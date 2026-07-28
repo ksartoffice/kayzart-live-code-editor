@@ -330,7 +330,8 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
 		$this->assertFalse( $responses[0]['output']['ok'] );
 		$this->assertFalse( $responses[1]['output']['ok'] );
-		$this->assertStringContainsString( 'another tool failed', $responses[1]['output']['error']['message'] );
+		$this->assertTrue( $responses[0]['output']['error']['details']['transactionRolledBack'] );
+		$this->assertTrue( $responses[1]['output']['error']['details']['notExecuted'] );
 	}
 
 	/** An error after a successful edit blocks finish until another edit succeeds. */
@@ -366,7 +367,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		);
 		$fake->queue_tool_calls(
 			array(
-				$this->replace_call( 'e2', 'World', 'Done' ),
+				$this->replace_call( 'e2', 'Hello', 'Done' ),
 				$this->finish_call( 'f2', 'Completed after retry.' ),
 			)
 		);
@@ -375,7 +376,73 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
 		$this->assertSame( '<main>Done</main>', $result['snapshot']['html'] );
 		$this->assertFalse( $responses[1]['output']['ok'] );
-		$this->assertStringContainsString( 'another tool failed', $responses[2]['output']['error']['message'] );
+		$this->assertTrue( $responses[0]['output']['error']['details']['transactionRolledBack'] );
+		$this->assertTrue( $responses[2]['output']['error']['details']['notExecuted'] );
+	}
+
+	/** A failed turn restores both source and selection state, and skips later calls. */
+	public function test_failed_turn_rolls_back_snapshot_and_selection_records(): void {
+		$html    = '<main>Hello</main><p>Other</p>';
+		$payload = $this->payload( $html );
+		$payload['selectionRecords'] = array(
+			's1' => array(
+				'startOffset' => 0,
+				'endOffset'   => strlen( '<main>Hello</main>' ),
+				'contentHash' => hash( 'sha256', '<main>Hello</main>' ),
+				'resolvable'  => true,
+			),
+		);
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'good',
+					'replace_string',
+					array(
+						'target'      => 'html',
+						'selectionId' => 's1',
+						'from'        => 'Hello',
+						'to'          => 'World',
+					)
+				),
+				$this->replace_call( 'bad', 'Missing', 'X' ),
+				$this->replace_call( 'skipped', 'Other', 'Changed' ),
+			)
+		);
+
+		$agent = new Ai_Agent( $fake );
+		$state = $agent->create_state( $payload );
+		$step  = $agent->advance( $payload, $state );
+
+		$this->assertSame( 'continue', $step['status'] );
+		$this->assertSame( $html, $step['state']['snapshot']['html'] );
+		$this->assertSame( $state['selectionRecords'], $step['state']['selectionRecords'] );
+		$this->assertFalse( $step['state']['appliedEditOperation'] );
+		$this->assertFalse( $step['state']['finishReady'] );
+		$responses = $step['state']['messages'][2]['toolResponses'];
+		$this->assertSame( array( 'good', 'bad', 'skipped' ), array_column( $responses, 'callId' ) );
+		$this->assertTrue( $responses[0]['output']['error']['details']['originallySucceeded'] );
+		$this->assertTrue( $responses[1]['output']['error']['details']['basedOnRolledBackSnapshot'] );
+		$this->assertTrue( $responses[2]['output']['error']['details']['notExecuted'] );
+	}
+
+	/** An output-policy failure rolls back preceding staged edits. */
+	public function test_output_policy_failure_rolls_back_preceding_edit(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'good', 'Hello', 'World' ),
+				$this->replace_call( 'unsafe', '<main>World</main>', '<main>World</main><script>alert(1)</script>' ),
+			)
+		);
+		$agent = new Ai_Agent( $fake );
+		$state = $agent->create_state( $this->payload() );
+		$step  = $agent->advance( $this->payload(), $state );
+
+		$this->assertSame( '<main>Hello</main>', $step['state']['snapshot']['html'] );
+		$responses = $step['state']['messages'][2]['toolResponses'];
+		$this->assertTrue( $responses[0]['output']['error']['details']['transactionRolledBack'] );
+		$this->assertTrue( $responses[1]['output']['error']['details']['basedOnRolledBackSnapshot'] );
 	}
 
 	/** Finish before any successful edit is rejected and can be retried. */
@@ -406,6 +473,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		);
 		$fake->queue_tool_calls(
 			array(
+				$this->replace_call( 'e2', 'Hello', 'World' ),
 				$this->finish_call( 'f3', 'Valid finish.' ),
 			)
 		);
@@ -429,6 +497,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 			);
 			$fake->queue_tool_calls(
 				array(
+					$this->replace_call( 'e2', 'Hello', 'World' ),
 					$this->finish_call( 'f2', 'Valid.' ),
 				)
 			);

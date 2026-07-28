@@ -262,15 +262,25 @@ class Ai_Agent {
 			return $this->continued_step( $state, 'agent', $turn + 1, $provider_seconds, 0.0 );
 		}
 
-		$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
-		$tool_responses = array();
-		$finish_calls   = array();
-		$turn_had_error = false;
-		$turn_had_edit  = false;
+		$messages[]                   = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
+		$tool_responses               = array();
+		$tool_response_meta           = array();
+		$finish_calls                 = array();
+		$turn_had_error               = false;
+		$turn_had_edit                = false;
+		$turn_start_snapshot          = $snapshot;
+		$turn_start_selection_records = $selection_records;
+		$staged_snapshot              = $snapshot;
+		$staged_selection_records     = $selection_records;
+		$staged_edit_applied          = false;
+		$failed_tool_index            = null;
+		$failed_tool_name             = '';
+		$failed_response_index        = null;
+		$failure_after_staged_edit    = false;
 
 		$remaining_read_budget = self::READ_BUDGET_PER_TURN;
 		$tools_started         = microtime( true );
-		foreach ( $calls as $call ) {
+		foreach ( $calls as $call_index => $call ) {
 			$name = isset( $call['name'] ) ? (string) $call['name'] : '';
 			$args = isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array();
 			$id   = isset( $call['id'] ) ? (string) $call['id'] : '';
@@ -283,11 +293,36 @@ class Ai_Agent {
 				)
 			);
 
+			if ( $turn_had_error ) {
+				$skipped                           = $this->transaction_error_output(
+					'This tool was not executed because an earlier tool failed in this turn.',
+					true,
+					$turn_start_snapshot,
+					$failed_tool_index,
+					$failed_tool_name,
+					array( 'notExecuted' => true )
+				);
+				$tool_responses[ $call_index ]     = Ai_Message::tool_response( $id, $name, $skipped );
+				$tool_response_meta[ $call_index ] = array(
+					'isEdit'                 => false,
+					'invalidatedObservation' => false,
+				);
+				$this->emit_event(
+					array(
+						'event'         => 'tool_end',
+						'toolName'      => $name,
+						'outputSummary' => $this->preview( wp_json_encode( $skipped ), 220 ),
+					)
+				);
+				continue;
+			}
+
 			if ( 'finish_edit' === $name || 'finish_without_edit' === $name ) {
 				$finish_calls[] = array(
-					'id'   => $id,
-					'name' => $name,
-					'args' => $args,
+					'index' => $call_index,
+					'id'    => $id,
+					'name'  => $name,
+					'args'  => $args,
 				);
 				continue;
 			}
@@ -300,22 +335,25 @@ class Ai_Agent {
 					$requested        = isset( $args['maxChars'] ) && is_numeric( $args['maxChars'] ) ? (int) $args['maxChars'] : Ai_Tools::DEFAULT_READ_CHARS;
 					$args['maxChars'] = max( 1, min( $requested, $remaining_read_budget ) );
 				}
-				$tool_result = $this->run_tool_call( $name, $args, $snapshot, $selection_records, $editable_targets );
+				$tool_result = $this->run_tool_call( $name, $args, $staged_snapshot, $staged_selection_records, $editable_targets );
 				if ( isset( $tool_result['snapshot'] ) && is_array( $tool_result['snapshot'] ) ) {
-					$snapshot = $tool_result['snapshot'];
+					$staged_snapshot = $tool_result['snapshot'];
 				}
 				if ( isset( $tool_result['selectionRecords'] ) && is_array( $tool_result['selectionRecords'] ) ) {
-					$selection_records = $tool_result['selectionRecords'];
+					$staged_selection_records = $tool_result['selectionRecords'];
 				}
 				if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
 					$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
 				}
 				if ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] ) {
-					$turn_had_error = true;
+					$turn_had_error            = true;
+					$failed_tool_index         = $call_index;
+					$failed_tool_name          = $name;
+					$failure_after_staged_edit = $staged_edit_applied;
 				}
-				$tool_applied_edit      = ! empty( $tool_result['appliedEditOperation'] );
-				$turn_had_edit          = $turn_had_edit || $tool_applied_edit;
-				$applied_edit_operation = $applied_edit_operation || $tool_applied_edit;
+				$tool_applied_edit   = ! empty( $tool_result['appliedEditOperation'] );
+				$turn_had_edit       = $turn_had_edit || $tool_applied_edit;
+				$staged_edit_applied = $staged_edit_applied || $tool_applied_edit;
 
 				$this->emit_event(
 					array(
@@ -324,10 +362,20 @@ class Ai_Agent {
 						'outputSummary' => $this->preview( wp_json_encode( $tool_result['output'] ), 220 ),
 					)
 				);
-				$tool_responses[] = Ai_Message::tool_response( $id, $name, $tool_result['output'] );
+				$tool_responses[ $call_index ]     = Ai_Message::tool_response( $id, $name, $tool_result['output'] );
+				$tool_response_meta[ $call_index ] = array(
+					'isEdit'                 => $tool_applied_edit,
+					'invalidatedObservation' => $staged_edit_applied && in_array( $name, array( 'search_text', 'read_document', 'read_selection' ), true ),
+				);
+				if ( $turn_had_error ) {
+					$failed_response_index = $call_index;
+				}
 			} catch ( Ai_Tool_Error $error ) {
-				$turn_had_error = true;
-				$key            = $this->repeated_failure_key( $name, $args, $error );
+				$turn_had_error            = true;
+				$failed_tool_index         = $call_index;
+				$failed_tool_name          = $name;
+				$failure_after_staged_edit = $staged_edit_applied;
+				$key                       = $this->repeated_failure_key( $name, $args, $error );
 				if ( '' !== $key ) {
 					$count                     = ( isset( $repeated_failures[ $key ] ) ? $repeated_failures[ $key ] : 0 ) + 1;
 					$repeated_failures[ $key ] = $count;
@@ -354,7 +402,38 @@ class Ai_Agent {
 						'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
 					)
 				);
-				$tool_responses[] = Ai_Message::tool_response( $id, $name, $recoverable );
+				$tool_responses[ $call_index ]     = Ai_Message::tool_response( $id, $name, $recoverable );
+				$tool_response_meta[ $call_index ] = array(
+					'isEdit'                 => false,
+					'invalidatedObservation' => false,
+				);
+				$failed_response_index             = $call_index;
+			}
+		}
+
+		if ( ! $turn_had_error && $turn_had_edit ) {
+			try {
+				Ai_Output_Policy::assert_safe_transition( $turn_start_snapshot, $staged_snapshot );
+			} catch ( Ai_Tool_Error $error ) {
+				$turn_had_error            = true;
+				$failed_tool_index         = count( $calls ) > 0 ? count( $calls ) - 1 : 0;
+				$failed_tool_name          = 'turn_output_policy';
+				$failure_after_staged_edit = true;
+				$recoverable               = array(
+					'ok'    => false,
+					'error' => array(
+						'type'      => 'agent_error',
+						'message'   => $error->getMessage(),
+						'retryable' => $error->is_retryable(),
+					),
+				);
+				if ( count( $error->get_details() ) > 0 ) {
+					$recoverable['error']['details'] = $error->get_details();
+				}
+				$failed_response_index = $this->last_tool_response_index( $tool_responses );
+				if ( null !== $failed_response_index ) {
+					$tool_responses[ $failed_response_index ]['output'] = $recoverable;
+				}
 			}
 		}
 
@@ -382,7 +461,7 @@ class Ai_Agent {
 				} elseif ( $turn_had_error ) {
 					$finish_error = 'finish_edit was not accepted because another tool failed in this turn. Inspect the error and retry the required edit.';
 					$retryable    = true;
-				} elseif ( 'finish_without_edit' === $finish_name && ( $applied_edit_operation || ! Ai_Output_Policy::snapshots_equal( $this->initial_snapshot( $payload ), $snapshot ) ) ) {
+				} elseif ( 'finish_without_edit' === $finish_name && ( $applied_edit_operation || ! Ai_Output_Policy::snapshots_equal( $this->initial_snapshot( $payload ), $staged_snapshot ) ) ) {
 					$finish_error = 'finish_without_edit requires the snapshot to remain unchanged.';
 					$retryable    = false;
 				} elseif ( 'finish_edit' === $finish_name && ! $finish_ready ) {
@@ -400,7 +479,7 @@ class Ai_Agent {
 					)
 				);
 				$tool_seconds = microtime( true ) - $tools_started;
-				return $this->completed_step( $payload, $state, $snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
+				return $this->completed_step( $payload, $state, $staged_snapshot, $summary, $usage, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
 			}
 
 			$recoverable = array(
@@ -419,9 +498,40 @@ class Ai_Agent {
 						'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
 					)
 				);
-				$tool_responses[] = Ai_Message::tool_response( $finish_call['id'], $finish_call['name'], $recoverable );
+				$tool_responses[ $finish_call['index'] ]     = Ai_Message::tool_response( $finish_call['id'], $finish_call['name'], $recoverable );
+				$tool_response_meta[ $finish_call['index'] ] = array(
+					'isEdit'                 => false,
+					'invalidatedObservation' => false,
+				);
 			}
+			$turn_had_error        = true;
+			$failed_tool_index     = isset( $finish_calls[0]['index'] ) ? (int) $finish_calls[0]['index'] : $failed_tool_index;
+			$failed_tool_name      = $finish_name;
+			$failed_response_index = $failed_tool_index;
 		}
+
+		if ( $turn_had_error ) {
+			$this->rollback_turn_tool_responses(
+				$tool_responses,
+				$tool_response_meta,
+				$turn_start_snapshot,
+				$failed_tool_index,
+				$failed_tool_name,
+				$failed_response_index,
+				$failure_after_staged_edit
+			);
+			$snapshot            = $turn_start_snapshot;
+			$selection_records   = $turn_start_selection_records;
+			$turn_had_edit       = false;
+			$staged_edit_applied = false;
+		} else {
+			$snapshot               = $staged_snapshot;
+			$selection_records      = $staged_selection_records;
+			$applied_edit_operation = $applied_edit_operation || $staged_edit_applied;
+		}
+
+		ksort( $tool_responses );
+		$tool_responses = array_values( $tool_responses );
 
 		$messages[]                    = Ai_Message::tool( $tool_responses );
 		$tool_seconds                  = microtime( true ) - $tools_started;
@@ -440,6 +550,119 @@ class Ai_Agent {
 			$state['phase'] = 'finalization';
 		}
 		return $this->continued_step( $state, 'agent', $turn + 1, $provider_seconds, $tool_seconds );
+	}
+
+	/**
+	 * Build a recoverable response describing a rolled-back tool turn.
+	 *
+	 * @param string   $message           Model-facing error message.
+	 * @param bool     $retryable         Whether a corrected call can be retried.
+	 * @param array    $turn_start        Snapshot before this model response.
+	 * @param int|null $failed_index    Failed tool index.
+	 * @param string   $failed_name       Failed tool name.
+	 * @param array    $extra             Additional structured details.
+	 * @return array
+	 */
+	private function transaction_error_output( string $message, bool $retryable, array $turn_start, $failed_index, string $failed_name, array $extra = array() ): array {
+		$details = array_merge(
+			array(
+				'transactionRolledBack' => true,
+				'committed'             => false,
+				'failedToolIndex'       => $failed_index,
+				'failedToolName'        => $failed_name,
+				'baseHash'              => isset( $turn_start['baseHash'] ) ? (string) $turn_start['baseHash'] : '',
+			),
+			$extra
+		);
+		return array(
+			'ok'    => false,
+			'error' => array(
+				'type'      => 'agent_error',
+				'message'   => $message,
+				'retryable' => $retryable,
+				'details'   => $details,
+			),
+		);
+	}
+
+	/**
+	 * Convert staged tool results to durable rollback responses.
+	 *
+	 * @param array    $tool_responses Tool responses keyed by model call index.
+	 * @param array    $tool_meta      Per-response transaction metadata.
+	 * @param array    $turn_start     Snapshot before this model response.
+	 * @param int|null $failed_index Failed tool index.
+	 * @param string   $failed_name   Failed tool name.
+	 * @param int|null $failed_response_index Response index that contains the root error.
+	 * @param bool     $failure_after_staged_edit Whether the root error observed staged content.
+	 * @return void
+	 */
+	private function rollback_turn_tool_responses( array &$tool_responses, array $tool_meta, array $turn_start, $failed_index, string $failed_name, $failed_response_index, bool $failure_after_staged_edit ): void {
+		foreach ( $tool_responses as $index => $response ) {
+			$meta = isset( $tool_meta[ $index ] ) && is_array( $tool_meta[ $index ] ) ? $tool_meta[ $index ] : array();
+			if ( $index === $failed_response_index ) {
+				$output = isset( $response['output'] ) && is_array( $response['output'] ) ? $response['output'] : array();
+				if ( ! isset( $output['error'] ) || ! is_array( $output['error'] ) ) {
+					$output = $this->transaction_error_output( 'This tool caused the turn to be rolled back.', true, $turn_start, $failed_index, $failed_name );
+				} else {
+					$details = isset( $output['error']['details'] ) && is_array( $output['error']['details'] ) ? $output['error']['details'] : array();
+					if ( $failure_after_staged_edit ) {
+						unset( $details['candidates'] );
+						$details['basedOnRolledBackSnapshot'] = true;
+					}
+					$output['ok']               = false;
+					$output['error']['details'] = array_merge(
+						$details,
+						array(
+							'transactionRolledBack' => true,
+							'committed'             => false,
+							'failedToolIndex'       => $failed_index,
+							'failedToolName'        => $failed_name,
+							'baseHash'              => isset( $turn_start['baseHash'] ) ? (string) $turn_start['baseHash'] : '',
+						)
+					);
+				}
+				$tool_responses[ $index ]['output'] = $output;
+				continue;
+			}
+
+			if ( ! empty( $meta['isEdit'] ) ) {
+				$tool_responses[ $index ]['output'] = $this->transaction_error_output(
+					'A later tool failed, so this edit was rolled back.',
+					true,
+					$turn_start,
+					$failed_index,
+					$failed_name,
+					array( 'originallySucceeded' => true )
+				);
+				continue;
+			}
+
+			if ( ! empty( $meta['invalidatedObservation'] ) ) {
+				$tool_responses[ $index ]['output'] = $this->transaction_error_output(
+					'This observation used staged edits that were rolled back.',
+					true,
+					$turn_start,
+					$failed_index,
+					$failed_name,
+					array( 'observationInvalidated' => true )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Return the last response index emitted for this model turn.
+	 *
+	 * @param array $tool_responses Tool responses keyed by model call index.
+	 * @return int|null
+	 */
+	private function last_tool_response_index( array $tool_responses ) {
+		if ( 0 === count( $tool_responses ) ) {
+			return null;
+		}
+		$indexes = array_keys( $tool_responses );
+		return (int) max( $indexes );
 	}
 
 	/** Execute the single finalization provider turn.

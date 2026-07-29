@@ -111,6 +111,34 @@ describe('AiEditorPanel', () => {
     await act(async () => root.unmount());
   });
 
+  it('automatically sends a pending initial request once the editor timeline is ready', async () => {
+    (window as any).KAYZART.ai.initialRequest = { requestId: 'initial-request-7', prompt: 'Create a product landing page.' };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot: vi.fn(() => true), setEditorLock: vi.fn(),
+    };
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') return json({ ok: true, jobId: 'job-initial', requestId: 'initial-request-7', status: 'pending', statusUrl: '/jobs/job-initial', cancelUrl: '/jobs/job-initial/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: null }, 202);
+      if (url.includes('/jobs/job-initial')) return json({
+        ok: true, jobId: 'job-initial', requestId: 'initial-request-7', status: 'completed', events: [], snapshot: afterSnapshot, error: null, usage: null,
+        cancelRequested: false, createdAt: timelineItem.createdAt, updatedAt: timelineItem.updatedAt, startedAt: timelineItem.createdAt, finishedAt: timelineItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000,
+      });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url) === '/jobs')).toBe(true));
+    const createCall = fetchMock.mock.calls.find(([url]) => String(url) === '/jobs');
+    expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ requestId: 'initial-request-7', prompt: 'Create a product landing page.', post_id: 7 });
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/jobs')).toHaveLength(1);
+    await act(async () => root.unmount());
+  });
+
   it('keeps a changed editor snapshot instead of applying a completed AI result', async () => {
     const divergentSnapshot = { ...beforeSnapshot, html: '<main>History</main>', baseHash: 'history' };
     let current: typeof beforeSnapshot | undefined = beforeSnapshot;

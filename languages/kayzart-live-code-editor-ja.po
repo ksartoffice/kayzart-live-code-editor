@@ -25,142 +25,144 @@ msgid "K's Art Office"
 msgstr "K's Art Office"
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:100
+#: includes/class-kayzart-admin.php:106
 #, php-format,js-format
 msgid "Kayzart: %s"
 msgstr "Kayzart: %s"
 
-#: includes/class-kayzart-admin.php:130
+#: includes/class-kayzart-admin.php:136
 msgid "Untitled"
 msgstr "無題"
 
 #: includes/ai/class-kayzart-ai-immediate-dispatcher.php:389
-#: includes/class-kayzart-admin.php:155
-#: includes/class-kayzart-admin.php:177
-#: includes/class-kayzart-admin.php:218
-#: includes/class-kayzart-admin.php:228
-#: includes/class-kayzart-admin.php:293
-#: includes/class-kayzart-admin.php:346
-#: includes/class-kayzart-admin.php:351
-#: includes/class-kayzart-admin.php:354
-#: includes/class-kayzart-admin.php:473
-#: includes/class-kayzart-admin.php:489
+#: includes/class-kayzart-admin.php:161
+#: includes/class-kayzart-admin.php:183
+#: includes/class-kayzart-admin.php:224
+#: includes/class-kayzart-admin.php:234
+#: includes/class-kayzart-admin.php:362
+#: includes/class-kayzart-admin.php:415
+#: includes/class-kayzart-admin.php:420
+#: includes/class-kayzart-admin.php:423
+#: includes/class-kayzart-admin.php:541
+#: includes/class-kayzart-admin.php:583
 #: includes/class-kayzart-preview.php:171
 #: includes/class-kayzart-rest.php:170
 #: includes/class-kayzart-rest.php:178
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
-#: includes/rest/class-kayzart-rest-ai.php:193
+#: includes/rest/class-kayzart-rest-ai.php:194
 #: includes/rest/class-kayzart-rest-revisions.php:88
-#: includes/rest/class-kayzart-rest-save.php:62
+#: includes/rest/class-kayzart-rest-save.php:63
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr "権限がありません。"
 
-#: includes/class-kayzart-admin.php:163
-#: includes/class-kayzart-admin.php:222
-#: includes/class-kayzart-admin.php:285
-#: includes/class-kayzart-admin.php:334
+#: includes/class-kayzart-admin.php:169
+#: includes/class-kayzart-admin.php:228
+#: includes/class-kayzart-admin.php:354
+#: includes/class-kayzart-admin.php:403
 #: includes/class-kayzart-preview.php:163
 msgid "post_id is required."
 msgstr "post_id は必須です。"
 
-#: includes/class-kayzart-admin.php:170
-#: includes/class-kayzart-admin.php:225
-#: includes/class-kayzart-admin.php:289
-#: includes/class-kayzart-admin.php:339
-#: includes/class-kayzart-admin.php:342
+#: includes/class-kayzart-admin.php:176
+#: includes/class-kayzart-admin.php:231
+#: includes/class-kayzart-admin.php:358
+#: includes/class-kayzart-admin.php:408
+#: includes/class-kayzart-admin.php:411
 msgid "This editor is only available for Kayzart posts."
 msgstr "このエディターは Kayzart 投稿でのみ利用できます。"
 
-#: includes/class-kayzart-admin.php:484
+#: includes/class-kayzart-admin.php:578
 msgid "This post type is not enabled for Kayzart."
 msgstr "この投稿タイプでは Kayzart が有効化されていません。"
 
-#: includes/class-kayzart-admin.php:496
+#: includes/class-kayzart-admin.php:590
 msgid "Untitled landing page"
 msgstr "無題のランディングページ"
 
-#: includes/class-kayzart-admin.php:667
-#: includes/class-kayzart-admin.php:668
+#: includes/class-kayzart-admin.php:856
+#: includes/class-kayzart-admin.php:857
+#: includes/class-kayzart-admin.php:889
+#: includes/class-kayzart-admin.php:890
 msgid "Kayzart"
 msgstr "Kayzart"
 
-#: includes/class-kayzart-admin.php:685
-#: includes/class-kayzart-admin.php:686
+#: includes/class-kayzart-admin.php:916
+#: includes/class-kayzart-admin.php:917
 #: assets/admin/post-type-list.js:30
 msgid "Add with Kayzart"
 msgstr "Kayzart で新規作成"
 
-#: includes/class-kayzart-admin.php:695
-#: includes/class-kayzart-admin.php:696
-#: includes/class-kayzart-admin.php:1123
+#: includes/class-kayzart-admin.php:877
+#: includes/class-kayzart-admin.php:878
+#: includes/class-kayzart-admin.php:1614
 msgid "Settings"
 msgstr "設定"
 
-#: includes/class-kayzart-admin.php:761
+#: includes/class-kayzart-admin.php:984
 msgid "Permalink"
 msgstr "パーマリンク"
 
-#: includes/class-kayzart-admin.php:769
+#: includes/class-kayzart-admin.php:992
 msgid "Page template"
 msgstr "ページテンプレート"
 
-#: includes/class-kayzart-admin.php:777
+#: includes/class-kayzart-admin.php:1000
 msgid "Kayzart slug"
 msgstr "Kayzart スラッグ"
 
-#: includes/class-kayzart-admin.php:786
+#: includes/class-kayzart-admin.php:1009
 msgid "Default template mode"
 msgstr "デフォルトのテンプレートモード"
 
-#: includes/class-kayzart-admin.php:809
+#: includes/class-kayzart-admin.php:1032
 msgid "Post types"
 msgstr "投稿タイプ"
 
-#: includes/class-kayzart-admin.php:816
+#: includes/class-kayzart-admin.php:1039
 msgid "Enabled post types"
 msgstr "有効な投稿タイプ"
 
-#: includes/class-kayzart-admin.php:978
+#: includes/class-kayzart-admin.php:1201
 msgid "Change the URL slug for Kayzart posts. Existing URLs will change after saving."
 msgstr "Kayzart 投稿の URL スラッグを変更します。保存後は既存の URL が変更されます。"
 
-#: includes/class-kayzart-admin.php:986
+#: includes/class-kayzart-admin.php:1209
 msgid "Choose the default page template mode used by Kayzart previews."
 msgstr "Kayzart プレビューで使用するデフォルトのページテンプレートモードを選択します。"
 
-#: includes/class-kayzart-admin.php:1000
+#: includes/class-kayzart-admin.php:1223
 msgid "Choose which post types can use the Kayzart landing page editor."
 msgstr "Kayzart ランディングページエディターを使用できる投稿タイプを選択します。"
 
-#: includes/class-kayzart-admin.php:1009
+#: includes/class-kayzart-admin.php:1232
 msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr "使用可能: 英小文字、数字、ハイフン。初期値: kayzart。"
 
-#: includes/class-kayzart-admin.php:1020
+#: includes/class-kayzart-admin.php:1243
 msgid "Standalone"
 msgstr "スタンドアロン"
 
-#: includes/class-kayzart-admin.php:1021
+#: includes/class-kayzart-admin.php:1244
 msgid "Theme"
 msgstr "テーマ"
 
-#: includes/class-kayzart-admin.php:1028
+#: includes/class-kayzart-admin.php:1251
 msgid "Applies when template mode is set to Use admin default."
 msgstr "テンプレートモードが「デフォルト」に設定されている場合に適用されます。"
 
-#: includes/class-kayzart-admin.php:1066
+#: includes/class-kayzart-admin.php:1289
 msgid "Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart."
 msgstr "既存の投稿は「Kayzart で編集」を選ぶか、「Kayzart で新規作成」で作成した場合にのみ Kayzart の管理下になります。"
 
-#: includes/class-kayzart-admin.php:1149
-#: includes/class-kayzart-admin.php:1160
-#: includes/class-kayzart-admin.php:1174
+#: includes/class-kayzart-admin.php:1640
+#: includes/class-kayzart-admin.php:1651
+#: includes/class-kayzart-admin.php:1665
 msgid "基本設定"
 msgstr "基本設定"
 
-#: includes/class-kayzart-admin.php:1456
-#: includes/class-kayzart-admin.php:1464
+#: includes/class-kayzart-admin.php:1961
+#: includes/class-kayzart-admin.php:1969
 msgid "Posts"
 msgstr "投稿"
 
@@ -224,11 +226,16 @@ msgstr "旧Kayzart"
 msgid "Landing page"
 msgstr "ランディングページ"
 
+#: includes/class-kayzart-admin.php:1564
 #: includes/class-kayzart-post-type.php:327
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
+#: includes/class-kayzart-admin.php:898
+#: includes/class-kayzart-admin.php:899
+#: includes/class-kayzart-admin.php:1514
 #: includes/class-kayzart-post-type.php:354
+#: includes/class-kayzart-post-type.php:367
 #: assets/admin/editor-bridge.js:18
 msgid "Edit with Kayzart"
 msgstr "Kayzart で編集"
@@ -238,8 +245,8 @@ msgid "Invalid preview token."
 msgstr "プレビュートークンが無効です。"
 
 #: includes/class-kayzart-preview.php:175
-#: includes/rest/class-kayzart-rest-save.php:51
-#: includes/rest/class-kayzart-rest-save.php:385
+#: includes/rest/class-kayzart-rest-save.php:52
+#: includes/rest/class-kayzart-rest-save.php:468
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr "投稿タイプが無効です。"
@@ -249,27 +256,27 @@ msgstr "投稿タイプが無効です。"
 msgid "Post not found."
 msgstr "投稿が見つかりません。"
 
-#: includes/rest/class-kayzart-rest-save.php:78
+#: includes/rest/class-kayzart-rest-save.php:79
 msgid "Invalid jsMode value."
 msgstr "JavaScript モードの値が不正です。"
 
-#: includes/rest/class-kayzart-rest-save.php:90
+#: includes/rest/class-kayzart-rest-save.php:91
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr "ペイロードが不正です。"
 
 #. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-save.php:146
-#: includes/rest/class-kayzart-rest-save.php:416
+#: includes/rest/class-kayzart-rest-save.php:205
+#: includes/rest/class-kayzart-rest-save.php:499
 #, php-format
 msgid "Tailwind compile failed: %s"
 msgstr "Tailwind のコンパイルに失敗しました: %s"
 
-#: includes/rest/class-kayzart-rest-save.php:354
+#: includes/rest/class-kayzart-rest-save.php:437
 msgid "Tailwind HTML input exceeds the maximum size."
 msgstr "Tailwind HTML 入力が最大サイズを超えています。"
 
-#: includes/rest/class-kayzart-rest-save.php:362
+#: includes/rest/class-kayzart-rest-save.php:445
 msgid "Tailwind CSS input exceeds the maximum size."
 msgstr "Tailwind CSS 入力が最大サイズを超えています。"
 
@@ -297,11 +304,11 @@ msgstr "ショートコード"
 msgid "Not available in preview. It will render on the front end."
 msgstr "プレビューでは表示されません。公開ページでは表示されます。"
 
-#: includes/class-kayzart-admin.php:1039
+#: includes/class-kayzart-admin.php:1262
 msgid "Show code"
 msgstr "コードを表示"
 
-#: includes/class-kayzart-admin.php:1040
+#: includes/class-kayzart-admin.php:1263
 msgid "Hide code"
 msgstr "コードを隠す"
 
@@ -310,12 +317,12 @@ msgid "Saving..."
 msgstr "保存中..."
 
 #. translators: %s: original post title.
-#: includes/class-kayzart-admin.php:362
+#: includes/class-kayzart-admin.php:431
 #, php-format
 msgid "%s (copy)"
 msgstr "%s（コピー）"
 
-#: includes/class-kayzart-admin.php:461
+#: includes/class-kayzart-admin.php:530
 msgid "Landing page duplicated. The copy was saved as a draft."
 msgstr "ランディングページを複製しました。コピーは下書きとして保存されました。"
 
@@ -336,7 +343,7 @@ msgstr "リビジョンが見つかりません。"
 msgid "Unknown user"
 msgstr "不明なユーザー"
 
-#: includes/rest/class-kayzart-rest-save.php:250
+#: includes/rest/class-kayzart-rest-save.php:328
 msgid "The saved page did not match the requested snapshot."
 msgstr "保存されたページが要求されたスナップショットと一致しませんでした。"
 
@@ -420,43 +427,44 @@ msgstr ""
 msgid "The scheduled AI worker failed."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:794
+#: includes/class-kayzart-admin.php:1017
 msgid "Editor display"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:801
+#: includes/class-kayzart-admin.php:1024
 msgid "Default editor layout"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:824
+#: includes/class-kayzart-admin.php:1047
+#: includes/class-kayzart-admin.php:1372
 msgid "AI editing"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:831
+#: includes/class-kayzart-admin.php:1054
 msgid "Default AI model"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:993
+#: includes/class-kayzart-admin.php:1216
 msgid "Choose how the Kayzart editor opens by default."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1047
+#: includes/class-kayzart-admin.php:1270
 msgid "When code is hidden, the editor opens with the preview area expanded. The toolbar can still show code for the current session."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1074
+#: includes/class-kayzart-admin.php:1297
 msgid "Choose which model AI editing uses. Auto lets the configured AI provider pick."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1088
+#: includes/class-kayzart-admin.php:1312
 msgid "Auto (recommended)"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1095
+#: includes/class-kayzart-admin.php:1319
 msgid "No selectable models were found. Configure an AI provider (Connector); editing will use the provider default until then."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1097
+#: includes/class-kayzart-admin.php:1321
 msgid "Auto follows the provider default and any newly added models automatically."
 msgstr ""
 
@@ -495,43 +503,43 @@ msgstr ""
 msgid "The AI edit history could not be created."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:178
+#: includes/rest/class-kayzart-rest-ai.php:179
 msgid "AI edit job not found."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:205
+#: includes/rest/class-kayzart-rest-ai.php:206
 msgid "A JSON request body is required."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:209
+#: includes/rest/class-kayzart-rest-ai.php:210
 msgid "requestId is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:213
+#: includes/rest/class-kayzart-rest-ai.php:214
 msgid "post_id is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:217
+#: includes/rest/class-kayzart-rest-ai.php:218
 msgid "editorMode is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:221
+#: includes/rest/class-kayzart-rest-ai.php:222
 msgid "prompt is empty or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:231
+#: includes/rest/class-kayzart-rest-ai.php:232
 msgid "A code field is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:241
+#: includes/rest/class-kayzart-rest-ai.php:242
 msgid "selectedContexts is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:245
+#: includes/rest/class-kayzart-rest-ai.php:246
 msgid "A selected context is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:251
+#: includes/rest/class-kayzart-rest-ai.php:252
 msgid "selectedContext is invalid."
 msgstr ""
 
@@ -539,92 +547,150 @@ msgstr ""
 msgid "The AI edit restore history could not be saved."
 msgstr ""
 
-
+#: includes/class-kayzart-admin.php:868
+#: includes/class-kayzart-admin.php:869
+#: includes/class-kayzart-admin.php:1404
 msgid "Add new"
 msgstr "新規作成"
 
-
-
-
-
+#: includes/class-kayzart-admin.php:1374
 msgid "AI editing is ready to use."
 msgstr "AI 編集を利用できます。"
 
+#: includes/class-kayzart-admin.php:1376
 msgid "AI editing is unavailable until every requirement below is met."
 msgstr "以下の要件をすべて満たすまで AI 編集は利用できません。"
 
+#: includes/class-kayzart-admin.php:1347
 msgid "AI Client SDK"
 msgstr "AI Client SDK"
 
+#: includes/class-kayzart-admin.php:1348
 msgid "Requires a WordPress version that bundles the AI Client."
 msgstr "AI Client を同梱した WordPress のバージョンが必要です。"
 
+#: includes/class-kayzart-admin.php:1351
 msgid "AI provider configured"
 msgstr "AI プロバイダーの設定"
 
+#: includes/class-kayzart-admin.php:1352
 msgid "Connect an AI provider so Kayzart can send edit requests."
 msgstr "Kayzart が編集リクエストを送れるよう、AI プロバイダーを接続してください。"
 
+#: includes/class-kayzart-admin.php:1355
 msgid "Action Scheduler"
 msgstr "Action Scheduler"
 
+#: includes/class-kayzart-admin.php:1356
 msgid "Required to run AI edits in the background."
 msgstr "AI 編集をバックグラウンドで実行するために必要です。"
 
+#: includes/class-kayzart-admin.php:1359
 msgid "PHP mbstring extension"
 msgstr "PHP mbstring 拡張"
 
+#: includes/class-kayzart-admin.php:1360
 msgid "Ask your host to enable the mbstring extension."
 msgstr "mbstring 拡張の有効化をホスティング事業者に依頼してください。"
 
+#: includes/class-kayzart-admin.php:1363
 msgid "PHP DOM extension"
 msgstr "PHP DOM 拡張"
 
+#: includes/class-kayzart-admin.php:1364
 msgid "Ask your host to enable the DOM and libxml extensions."
 msgstr "DOM および libxml 拡張の有効化をホスティング事業者に依頼してください。"
 
+#: includes/class-kayzart-admin.php:1367
 msgid "AI editing enabled for this site"
 msgstr "このサイトで AI 編集が有効"
 
+#: includes/class-kayzart-admin.php:1368
 msgid "AI editing was disabled by a site filter."
 msgstr "AI 編集はサイト側のフィルターで無効化されています。"
 
+#: includes/class-kayzart-admin.php:1386
 msgid "Available"
 msgstr "利用可能"
 
+#: includes/class-kayzart-admin.php:1386
 msgid "Unavailable"
 msgstr "利用不可"
 
+#: includes/class-kayzart-admin.php:1407
 msgid "You do not have permission to create Kayzart pages."
 msgstr "Kayzart ページを作成する権限がありません。"
 
+#: includes/class-kayzart-admin.php:1421
 msgid "Title"
 msgstr "タイトル"
 
+#: includes/class-kayzart-admin.php:1423
 msgid "Optional. You can rename the page later."
 msgstr "任意です。あとから変更できます。"
 
+#: includes/class-kayzart-admin.php:1426
 msgid "Create as"
 msgstr "作成先"
 
+#. translators: %s: post type label, e.g. Pages.
+#: includes/class-kayzart-admin.php:1445
+#, php-format
 msgid "This will be created as: %s"
 msgstr "作成先: %s"
 
+#: includes/class-kayzart-admin.php:1471
 msgid "Create and open editor"
 msgstr "作成してエディタを開く"
 
+#: includes/class-kayzart-admin.php:1517
 msgid "This page cannot be opened in Kayzart."
 msgstr "このページは Kayzart で開けません。"
 
+#. translators: %s: post title.
+#: includes/class-kayzart-admin.php:1539
+#, php-format
 msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
 msgstr "「%s」を Kayzart エディタで開きます。既存の本文は初期 HTML として保持されます。"
 
+#: includes/class-kayzart-admin.php:1528
+#: includes/class-kayzart-admin.php:1552
 msgid "Open editor"
 msgstr "エディタを開く"
 
+#: includes/class-kayzart-admin.php:1567
 msgid "Mode"
 msgstr "モード"
 
+#: includes/class-kayzart-admin.php:1563
 msgid "Normal HTML/CSS"
 msgstr "通常の HTML/CSS"
 
+#: includes/class-kayzart-admin.php:320
+msgid "The initial AI instruction is too large."
+msgstr "最初の AI 指示が大きすぎます。"
+
+#: includes/class-kayzart-admin.php:1458
+msgid "Start with AI"
+msgstr "AI で開始"
+
+#: includes/class-kayzart-admin.php:1460
+#: includes/class-kayzart-admin.php:1473
+msgid "bytes"
+msgstr "バイト"
+
+#: includes/class-kayzart-admin.php:1462
+msgid "You do not have permission to use AI editing."
+msgstr "AI 編集を使用する権限がありません。"
+
+#: includes/class-kayzart-admin.php:1464
+msgid "AI editing must be configured before you can start with a request."
+msgstr "指示から開始するには、AI 編集を設定する必要があります。"
+
+#: includes/class-kayzart-admin.php:1466
+msgid "Optional. This instruction will be sent automatically when the editor opens."
+msgstr "任意です。エディターを開くと、この指示は自動的に送信されます。"
+
+#: includes/rest/class-kayzart-rest-save.php:138
+msgid "Invalid editor mode payload."
+msgstr ""

@@ -37,6 +37,8 @@ class Admin {
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_DEFAULT_EDITOR_LAYOUT = 'kayzart_default_editor_layout';
 	const OPTION_AI_DEFAULT_MODEL      = 'kayzart_ai_default_model';
+	const INITIAL_AI_REQUEST_META_KEY  = '_kayzart_initial_ai_request';
+	const INITIAL_AI_PROMPT_MAX_BYTES  = 8192;
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
@@ -276,7 +278,7 @@ class Admin {
 		if ( '' === $post_type ) {
 			$post_type = Post_Type::PAGE_TYPE;
 		}
-		self::create_new_landing_page_post( $post_type, self::read_requested_setup_mode(), self::read_requested_post_title() );
+		self::create_new_landing_page_post( $post_type, self::read_requested_setup_mode(), self::read_requested_post_title(), self::read_requested_initial_ai_prompt() );
 	}
 
 	/**
@@ -299,6 +301,26 @@ class Admin {
 	 */
 	private static function read_requested_post_title(): string {
 		return trim( self::read_request_value( 'post_title' ) );
+	}
+
+	/**
+	 * Read an optional first AI instruction from a nonce-verified request.
+	 *
+	 * @return string
+	 */
+	private static function read_requested_initial_ai_prompt(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The caller verifies the form nonce.
+		if ( ! isset( $_POST['initial_ai_prompt'] ) ) {
+			return '';
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
+		$prompt = trim( sanitize_textarea_field( wp_unslash( (string) $_POST['initial_ai_prompt'] ) ) );
+		if ( strlen( $prompt ) > self::INITIAL_AI_PROMPT_MAX_BYTES ) {
+			wp_die( esc_html__( 'The initial AI instruction is too large.', 'kayzart-live-code-editor' ) );
+		}
+
+		return $prompt;
 	}
 
 	/**
@@ -549,8 +571,9 @@ class Admin {
 	 * @param string $post_type Post type.
 	 * @param string $mode      Setup mode, or an empty string to defer to the editor wizard.
 	 * @param string $title     Optional post title.
+	 * @param string $ai_prompt Optional initial AI instruction.
 	 */
-	private static function create_new_landing_page_post( string $post_type, string $mode = '', string $title = '' ): void {
+	private static function create_new_landing_page_post( string $post_type, string $mode = '', string $title = '', string $ai_prompt = '' ): void {
 		if ( ! Post_Type::is_post_type_enabled( $post_type ) ) {
 			wp_die( esc_html__( 'This post type is not enabled for Kayzart.', 'kayzart-live-code-editor' ) );
 		}
@@ -574,9 +597,57 @@ class Admin {
 
 		Post_Type::enable_for_post( (int) $post_id );
 		self::apply_setup_mode( (int) $post_id, $mode );
+		if ( '' !== $ai_prompt && current_user_can( Ai_Setup::CAPABILITY ) ) {
+			update_post_meta(
+				(int) $post_id,
+				self::INITIAL_AI_REQUEST_META_KEY,
+				array(
+					'requestId' => 'initial-' . wp_generate_uuid4(),
+					'prompt'    => $ai_prompt,
+					'userId'    => get_current_user_id(),
+				)
+			);
+		}
 
 		wp_safe_redirect( Post_Type::get_editor_url( (int) $post_id ) );
 		exit;
+	}
+
+	/**
+	 * Return a pending initial request only to the user who created it.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<string,mixed>|null
+	 */
+	private static function get_initial_ai_request( int $post_id ): ?array {
+		$request = get_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY, true );
+		if ( ! is_array( $request ) || get_current_user_id() !== (int) ( $request['userId'] ?? 0 ) ) {
+			return null;
+		}
+		if ( ! isset( $request['requestId'], $request['prompt'] ) || ! is_string( $request['requestId'] ) || ! is_string( $request['prompt'] ) ) {
+			return null;
+		}
+		return array(
+			'requestId' => $request['requestId'],
+			'prompt'    => $request['prompt'],
+		);
+	}
+
+	/**
+	 * Consume a pending initial request after its AI job has been accepted.
+	 *
+	 * @param int    $post_id    Post ID.
+	 * @param string $request_id Request ID.
+	 * @param int    $user_id    Request owner.
+	 */
+	public static function consume_initial_ai_request( int $post_id, string $request_id, int $user_id ): void {
+		$request = get_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY, true );
+		if ( ! is_array( $request ) ) {
+			return;
+		}
+		if ( $request_id === (string) ( $request['requestId'] ?? '' ) && $user_id === (int) ( $request['userId'] ?? 0 ) ) {
+			delete_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY );
+		}
 	}
 
 	/**
@@ -1381,8 +1452,26 @@ class Admin {
 
 		self::render_setup_mode_row();
 
+		$can_use_ai      = current_user_can( Ai_Setup::CAPABILITY );
+		$ai_status       = $can_use_ai ? Ai_Availability::get_status() : array( 'available' => false );
+		$ai_is_available = $can_use_ai && ! empty( $ai_status['available'] );
+		echo '<tr><th scope="row"><label for="kayzart-initial-ai-prompt">' . esc_html__( 'Start with AI', 'kayzart-live-code-editor' ) . '</label></th><td>';
+		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="5" class="large-text" maxlength="' . esc_attr( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count"></textarea>';
+		echo '<p id="kayzart-initial-ai-prompt-count" class="description">0/' . esc_html( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_html__( 'bytes', 'kayzart-live-code-editor' ) . '</p>';
+		if ( ! $can_use_ai ) {
+			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'You do not have permission to use AI editing.', 'kayzart-live-code-editor' ) . '</p>';
+		} elseif ( ! $ai_is_available ) {
+			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'AI editing must be configured before you can start with a request.', 'kayzart-live-code-editor' ) . '</p>';
+		} else {
+			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'Optional. This instruction will be sent automatically when the editor opens.', 'kayzart-live-code-editor' ) . '</p>';
+		}
+		echo '</td></tr>';
+
 		echo '</tbody></table>';
 		submit_button( __( 'Create and open editor', 'kayzart-live-code-editor' ) );
+		if ( $ai_is_available ) {
+			echo '<script>(function(){var field=document.getElementById("kayzart-initial-ai-prompt"),count=document.getElementById("kayzart-initial-ai-prompt-count"),form=field&&field.form;if(!field||!count||!form){return;}var update=function(){var bytes=(new TextEncoder()).encode(field.value.trim()).length;count.textContent=bytes+"/' . esc_js( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_js( __( 'bytes', 'kayzart-live-code-editor' ) ) . '";count.className="description"+(bytes>' . esc_js( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '?" error":"");var submit=form.querySelector("#submit");if(submit){submit.disabled=bytes>' . esc_js( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ';}};field.addEventListener("input",update);update();}());</script>';
+		}
 		echo '</form>';
 		echo '</div>';
 	}
@@ -1705,7 +1794,8 @@ class Admin {
 			)
 			: $preview_url;
 
-		$ai_status = Ai_Availability::get_status();
+		$ai_status              = Ai_Availability::get_status();
+		$initial_ai_request     = self::get_initial_ai_request( $post_id );
 		$data      = array(
 			'post_id'                => $post_id,
 			'initialHtml'            => $html,
@@ -1757,6 +1847,7 @@ class Admin {
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => current_user_can( 'manage_options' ),
+				'initialRequest'       => $initial_ai_request,
 			),
 		);
 		$json      = wp_json_encode( $data );

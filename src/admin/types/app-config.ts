@@ -48,5 +48,9 @@ export type AppConfig = {
     timelineBaseUrl: string;
     connectorsUrl: string;
     canManageConnectors: boolean;
+    initialRequest?: {
+      requestId: string;
+      prompt: string;
+    } | null;
   };
 };

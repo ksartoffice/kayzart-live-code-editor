@@ -29,6 +29,10 @@ export type AiAvailability = {
   timelineBaseUrl: string;
   connectorsUrl: string;
   canManageConnectors: boolean;
+  initialRequest?: {
+    requestId: string;
+    prompt: string;
+  } | null;
 };
 
 export type AiJobStatus =

@@ -9,6 +9,7 @@ use KayzArt\Ai_Job_Store;
 use KayzArt\Ai_Immediate_Dispatcher;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
+use KayzArt\Admin;
 use KayzArt\Post_Type;
 
 /** Verifies API validation, idempotency, authorization, and cancellation. */
@@ -89,6 +90,24 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 200, $again->get_status() );
 		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
 		$this->assertSame( 1, $this->immediate_dispatches );
+	}
+
+	public function test_create_consumes_the_matching_initial_ai_request(): void {
+		$request_id = 'initial-rest-request';
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $request_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( $request_id ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( '', get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
 	}
 
 	/** The server, rather than an untrusted browser field, fixes head-edit permission into each job. */

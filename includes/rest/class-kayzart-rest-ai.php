@@ -106,6 +106,7 @@ class Rest_Ai {
 			}
 			Ai_Immediate_Dispatcher::dispatch( $scheduled['run_action_id'], $job['job_uuid'] );
 		}
+		Admin::consume_initial_ai_request( $payload['postId'], $payload['requestId'], get_current_user_id() );
 
 		$response = new \WP_REST_Response( self::creation_response( $store, $job, $activity ), $result['is_new'] ? 202 : 200 );
 		return $response;

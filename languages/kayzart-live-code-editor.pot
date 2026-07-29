@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-28T03:32:33+02:00\n"
+"POT-Creation-Date: 2026-07-29T04:54:03+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -43,23 +43,23 @@ msgid "The AI job could not be started immediately."
 msgstr ""
 
 #: includes/ai/class-kayzart-ai-immediate-dispatcher.php:389
-#: includes/class-kayzart-admin.php:155
-#: includes/class-kayzart-admin.php:177
-#: includes/class-kayzart-admin.php:218
-#: includes/class-kayzart-admin.php:228
-#: includes/class-kayzart-admin.php:293
-#: includes/class-kayzart-admin.php:346
-#: includes/class-kayzart-admin.php:351
-#: includes/class-kayzart-admin.php:354
-#: includes/class-kayzart-admin.php:473
-#: includes/class-kayzart-admin.php:489
+#: includes/class-kayzart-admin.php:161
+#: includes/class-kayzart-admin.php:183
+#: includes/class-kayzart-admin.php:224
+#: includes/class-kayzart-admin.php:234
+#: includes/class-kayzart-admin.php:362
+#: includes/class-kayzart-admin.php:415
+#: includes/class-kayzart-admin.php:420
+#: includes/class-kayzart-admin.php:423
+#: includes/class-kayzart-admin.php:541
+#: includes/class-kayzart-admin.php:583
 #: includes/class-kayzart-preview.php:171
 #: includes/class-kayzart-rest.php:170
 #: includes/class-kayzart-rest.php:178
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
-#: includes/rest/class-kayzart-rest-ai.php:193
+#: includes/rest/class-kayzart-rest-ai.php:194
 #: includes/rest/class-kayzart-rest-revisions.php:88
-#: includes/rest/class-kayzart-rest-save.php:62
+#: includes/rest/class-kayzart-rest-save.php:63
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr ""
@@ -127,178 +127,339 @@ msgid "The scheduled AI worker failed."
 msgstr ""
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:100
+#: includes/class-kayzart-admin.php:106
 #, php-format
-msgid "Kayzart Landing Page Editor: %s"
+msgid "Kayzart: %s"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:130
+#: includes/class-kayzart-admin.php:136
 msgid "Untitled"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:163
-#: includes/class-kayzart-admin.php:222
-#: includes/class-kayzart-admin.php:285
-#: includes/class-kayzart-admin.php:334
+#: includes/class-kayzart-admin.php:169
+#: includes/class-kayzart-admin.php:228
+#: includes/class-kayzart-admin.php:354
+#: includes/class-kayzart-admin.php:403
 #: includes/class-kayzart-preview.php:163
 msgid "post_id is required."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:170
-#: includes/class-kayzart-admin.php:225
-#: includes/class-kayzart-admin.php:289
-#: includes/class-kayzart-admin.php:339
-#: includes/class-kayzart-admin.php:342
+#: includes/class-kayzart-admin.php:176
+#: includes/class-kayzart-admin.php:231
+#: includes/class-kayzart-admin.php:358
+#: includes/class-kayzart-admin.php:408
+#: includes/class-kayzart-admin.php:411
 msgid "This editor is only available for Kayzart posts."
 msgstr ""
 
+#: includes/class-kayzart-admin.php:320
+msgid "The initial AI instruction is too large."
+msgstr ""
+
 #. translators: %s: original post title.
-#: includes/class-kayzart-admin.php:362
+#: includes/class-kayzart-admin.php:431
 #, php-format
 msgid "%s (copy)"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:461
+#: includes/class-kayzart-admin.php:530
 msgid "Landing page duplicated. The copy was saved as a draft."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:484
+#: includes/class-kayzart-admin.php:578
 msgid "This post type is not enabled for Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:496
+#: includes/class-kayzart-admin.php:590
 msgid "Untitled landing page"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:667
-#: includes/class-kayzart-admin.php:668
+#: includes/class-kayzart-admin.php:856
+#: includes/class-kayzart-admin.php:857
+#: includes/class-kayzart-admin.php:889
+#: includes/class-kayzart-admin.php:890
 msgid "Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:685
-#: includes/class-kayzart-admin.php:686
+#: includes/class-kayzart-admin.php:868
+#: includes/class-kayzart-admin.php:869
+#: includes/class-kayzart-admin.php:1404
+msgid "Add new"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:877
+#: includes/class-kayzart-admin.php:878
+#: includes/class-kayzart-admin.php:1614
+msgid "Settings"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:898
+#: includes/class-kayzart-admin.php:899
+#: includes/class-kayzart-admin.php:1514
+#: includes/class-kayzart-post-type.php:354
+#: includes/class-kayzart-post-type.php:367
+#: assets/admin/editor-bridge.js:18
+msgid "Edit with Kayzart"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:916
+#: includes/class-kayzart-admin.php:917
 #: assets/admin/post-type-list.js:30
-msgid "Add landing page"
+msgid "Add with Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:695
-#: includes/class-kayzart-admin.php:696
-#: includes/class-kayzart-admin.php:1123
-msgid "Landing page settings"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:761
+#: includes/class-kayzart-admin.php:984
 msgid "Permalink"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:769
+#: includes/class-kayzart-admin.php:992
 msgid "Page template"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:777
+#: includes/class-kayzart-admin.php:1000
 msgid "Kayzart slug"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:786
+#: includes/class-kayzart-admin.php:1009
 msgid "Default template mode"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:794
+#: includes/class-kayzart-admin.php:1017
 msgid "Editor display"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:801
+#: includes/class-kayzart-admin.php:1024
 msgid "Default editor layout"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:809
+#: includes/class-kayzart-admin.php:1032
 msgid "Post types"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:816
+#: includes/class-kayzart-admin.php:1039
 msgid "Enabled post types"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:824
+#: includes/class-kayzart-admin.php:1047
+#: includes/class-kayzart-admin.php:1372
 msgid "AI editing"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:831
+#: includes/class-kayzart-admin.php:1054
 msgid "Default AI model"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:978
+#: includes/class-kayzart-admin.php:1201
 msgid "Change the URL slug for Kayzart posts. Existing URLs will change after saving."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:986
+#: includes/class-kayzart-admin.php:1209
 msgid "Choose the default page template mode used by Kayzart previews."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:993
+#: includes/class-kayzart-admin.php:1216
 msgid "Choose how the Kayzart editor opens by default."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1000
+#: includes/class-kayzart-admin.php:1223
 msgid "Choose which post types can use the Kayzart landing page editor."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1009
+#: includes/class-kayzart-admin.php:1232
 msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1020
+#: includes/class-kayzart-admin.php:1243
 msgid "Standalone"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1021
+#: includes/class-kayzart-admin.php:1244
 msgid "Theme"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1028
+#: includes/class-kayzart-admin.php:1251
 msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1039
+#: includes/class-kayzart-admin.php:1262
 msgid "Show code"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1040
+#: includes/class-kayzart-admin.php:1263
 msgid "Hide code"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1047
+#: includes/class-kayzart-admin.php:1270
 msgid "When code is hidden, the editor opens with the preview area expanded. The toolbar can still show code for the current session."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1066
-msgid "Existing posts are converted only when you choose Convert to landing page or create one with Add landing page."
+#: includes/class-kayzart-admin.php:1289
+msgid "Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1074
+#: includes/class-kayzart-admin.php:1297
 msgid "Choose which model AI editing uses. Auto lets the configured AI provider pick."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1088
+#: includes/class-kayzart-admin.php:1312
 msgid "Auto (recommended)"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1095
+#: includes/class-kayzart-admin.php:1319
 msgid "No selectable models were found. Configure an AI provider (Connector); editing will use the provider default until then."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1097
+#: includes/class-kayzart-admin.php:1321
 msgid "Auto follows the provider default and any newly added models automatically."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1149
-#: includes/class-kayzart-admin.php:1160
-#: includes/class-kayzart-admin.php:1174
+#: includes/class-kayzart-admin.php:1347
+msgid "AI Client SDK"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1348
+msgid "Requires a WordPress version that bundles the AI Client."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1351
+msgid "AI provider configured"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1352
+msgid "Connect an AI provider so Kayzart can send edit requests."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1355
+msgid "Action Scheduler"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1356
+msgid "Required to run AI edits in the background."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1359
+msgid "PHP mbstring extension"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1360
+msgid "Ask your host to enable the mbstring extension."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1363
+msgid "PHP DOM extension"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1364
+msgid "Ask your host to enable the DOM and libxml extensions."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1367
+msgid "AI editing enabled for this site"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1368
+msgid "AI editing was disabled by a site filter."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1374
+msgid "AI editing is ready to use."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1376
+msgid "AI editing is unavailable until every requirement below is met."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1386
+msgid "Available"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1386
+msgid "Unavailable"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1407
+msgid "You do not have permission to create Kayzart pages."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1421
+msgid "Title"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1423
+msgid "Optional. You can rename the page later."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1426
+msgid "Create as"
+msgstr ""
+
+#. translators: %s: post type label, e.g. Pages.
+#: includes/class-kayzart-admin.php:1445
+#, php-format
+msgid "This will be created as: %s"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1458
+msgid "Start with AI"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1460
+#: includes/class-kayzart-admin.php:1473
+msgid "bytes"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1462
+msgid "You do not have permission to use AI editing."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1464
+msgid "AI editing must be configured before you can start with a request."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1466
+msgid "Optional. This instruction will be sent automatically when the editor opens."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1471
+msgid "Create and open editor"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1517
+msgid "This page cannot be opened in Kayzart."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1528
+#: includes/class-kayzart-admin.php:1552
+msgid "Open editor"
+msgstr ""
+
+#. translators: %s: post title.
+#: includes/class-kayzart-admin.php:1539
+#, php-format
+msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1563
+msgid "Normal HTML/CSS"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1564
+#: includes/class-kayzart-post-type.php:327
+msgid "TailwindCSS"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1567
+msgid "Mode"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1640
+#: includes/class-kayzart-admin.php:1651
+#: includes/class-kayzart-admin.php:1665
 msgid "基本設定"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1456
-#: includes/class-kayzart-admin.php:1464
+#: includes/class-kayzart-admin.php:1961
+#: includes/class-kayzart-admin.php:1969
 msgid "Posts"
 msgstr ""
 
@@ -362,21 +523,8 @@ msgstr ""
 msgid "Landing page"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:327
-msgid "TailwindCSS"
-msgstr ""
-
-#: includes/class-kayzart-post-type.php:354
-#: assets/admin/editor-bridge.js:18
-msgid "Edit landing page"
-msgstr ""
-
 #: includes/class-kayzart-post-type.php:359
-msgid "Duplicate landing page"
-msgstr ""
-
-#: includes/class-kayzart-post-type.php:365
-msgid "Convert to landing page"
+msgid "Duplicate"
 msgstr ""
 
 #: includes/class-kayzart-preview.php:167
@@ -384,8 +532,8 @@ msgid "Invalid preview token."
 msgstr ""
 
 #: includes/class-kayzart-preview.php:175
-#: includes/rest/class-kayzart-rest-save.php:51
-#: includes/rest/class-kayzart-rest-save.php:385
+#: includes/rest/class-kayzart-rest-save.php:52
+#: includes/rest/class-kayzart-rest-save.php:468
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr ""
@@ -454,43 +602,43 @@ msgstr ""
 msgid "The AI edit history could not be created."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:178
+#: includes/rest/class-kayzart-rest-ai.php:179
 msgid "AI edit job not found."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:205
+#: includes/rest/class-kayzart-rest-ai.php:206
 msgid "A JSON request body is required."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:209
+#: includes/rest/class-kayzart-rest-ai.php:210
 msgid "requestId is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:213
+#: includes/rest/class-kayzart-rest-ai.php:214
 msgid "post_id is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:217
+#: includes/rest/class-kayzart-rest-ai.php:218
 msgid "editorMode is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:221
+#: includes/rest/class-kayzart-rest-ai.php:222
 msgid "prompt is empty or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:231
+#: includes/rest/class-kayzart-rest-ai.php:232
 msgid "A code field is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:241
+#: includes/rest/class-kayzart-rest-ai.php:242
 msgid "selectedContexts is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:245
+#: includes/rest/class-kayzart-rest-ai.php:246
 msgid "A selected context is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:251
+#: includes/rest/class-kayzart-rest-ai.php:252
 msgid "selectedContext is invalid."
 msgstr ""
 
@@ -507,31 +655,35 @@ msgstr ""
 msgid "Unknown user"
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:78
+#: includes/rest/class-kayzart-rest-save.php:79
 msgid "Invalid jsMode value."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:90
+#: includes/rest/class-kayzart-rest-save.php:91
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr ""
 
+#: includes/rest/class-kayzart-rest-save.php:138
+msgid "Invalid editor mode payload."
+msgstr ""
+
 #. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-save.php:146
-#: includes/rest/class-kayzart-rest-save.php:416
+#: includes/rest/class-kayzart-rest-save.php:205
+#: includes/rest/class-kayzart-rest-save.php:499
 #, php-format
 msgid "Tailwind compile failed: %s"
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:250
+#: includes/rest/class-kayzart-rest-save.php:328
 msgid "The saved page did not match the requested snapshot."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:354
+#: includes/rest/class-kayzart-rest-save.php:437
 msgid "Tailwind HTML input exceeds the maximum size."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:362
+#: includes/rest/class-kayzart-rest-save.php:445
 msgid "Tailwind CSS input exceeds the maximum size."
 msgstr ""
 

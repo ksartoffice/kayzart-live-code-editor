@@ -147,6 +147,7 @@ export function AiEditorPanel() {
   const pollAbortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const timelineRecoveryRef = useRef(false);
+  const initialRequestAttemptedRef = useRef(false);
   const blockedRecoveryJobIdsRef = useRef(new Set<string>());
   const [prompt, setPromptState] = useState(draftState.prompt);
   const [contexts, setContextsState] = useState<SelectedElementContext[]>(draftState.contexts);
@@ -240,7 +241,7 @@ export function AiEditorPanel() {
     const fallback = status.status === 'canceled' ? __('AI edit was canceled.', 'kayzart-live-code-editor')
       : status.status === 'timed_out' ? __('AI edit timed out.', 'kayzart-live-code-editor')
         : status.status === 'enqueue_failed' ? __('AI edit could not be scheduled.', 'kayzart-live-code-editor') : __('AI edit failed.', 'kayzart-live-code-editor');
-    setError(status.error?.message || fallback); finish();
+    setPrompt(active.prompt); setError(status.error?.message || fallback); finish();
   };
   const poll = async (active: ActiveJobRecord) => {
     pollAbortRef.current?.abort();
@@ -381,12 +382,12 @@ export function AiEditorPanel() {
     } catch (caught) { setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor')); }
     finally { setLoading(false); }
   };
-  const send = async (override?: { prompt: string; contexts: SelectedElementContext[] }) => {
+  const send = async (override?: { prompt: string; contexts: SelectedElementContext[]; requestId?: string }) => {
     if ((!canSend && !override) || !ai) return;
     const snapshot = host()?.getEditorSnapshot?.(); const editorMode = host()?.getEditorMode?.();
     if (!snapshot || !editorMode) { setError(__('Editor state is unavailable.', 'kayzart-live-code-editor')); return; }
     const input = normalizeSnapshot(snapshot); const promptText = override?.prompt || prompt.trim(); const submittedContexts = override?.contexts || [...contexts];
-    const requestId = makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
+    const requestId = override?.requestId || makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
     setPrompt(''); setContexts([]); setRunning(true); host()?.setEditorLock?.(true);
     try {
       const created = await createJob(ai.jobsUrl, nonce, { ...input, requestId, post_id: postId, editorMode, prompt: promptText, selectedContexts: submittedContexts.length ? submittedContexts : undefined });
@@ -418,6 +419,16 @@ export function AiEditorPanel() {
     }
     void send({ prompt: item.prompt || '', contexts: retryContexts });
   };
+
+  useEffect(() => {
+    const initialRequest = ai?.initialRequest;
+    if (!initialRequest || initialRequestAttemptedRef.current || loading) return;
+    initialRequestAttemptedRef.current = true;
+    setPrompt(initialRequest.prompt);
+    const activeTimelineJob = items.some((item) => item.type === 'ai_edit' && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
+    if (!ai?.available || activeTimelineJob || loadActiveJob(postId)) return;
+    void send({ prompt: initialRequest.prompt, contexts: [], requestId: initialRequest.requestId });
+  }, [ai?.initialRequest, ai?.available, items, loading, postId]);
   const stop = async () => {
     const active = loadActiveJob(postId); if (!active || canceling) return;
     setCanceling(true);

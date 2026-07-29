@@ -351,18 +351,20 @@ class Post_Type {
 			$actions['kayzart_edit']      = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( self::get_editor_url( $post->ID ) ),
-				esc_html__( 'Edit landing page', 'kayzart-live-code-editor' )
+				esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' )
 			);
 			$actions['kayzart_duplicate'] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( Admin::get_duplicate_post_action_url( (int) $post->ID ) ),
-				esc_html__( 'Duplicate landing page', 'kayzart-live-code-editor' )
+				esc_html__( 'Duplicate', 'kayzart-live-code-editor' )
 			);
 		} else {
+			// Same label as the managed case: the user is choosing an editor, not
+			// a conversion. The confirmation screen explains what happens.
 			$actions['kayzart_convert'] = sprintf(
 				'<a href="%s">%s</a>',
-				esc_url( Admin::get_convert_post_action_url( (int) $post->ID ) ),
-				esc_html__( 'Convert to landing page', 'kayzart-live-code-editor' )
+				esc_url( Admin::get_convert_screen_url( (int) $post->ID ) ),
+				esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' )
 			);
 		}
 

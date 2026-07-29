@@ -212,32 +212,57 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$matched_slug  = '';
 		foreach ( (array) ( $submenu[ $page_parent_slug ] ?? array() ) as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( false !== strpos( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+			if ( false !== strpos( $slug, 'page=' . Admin::NEW_SLUG ) ) {
 				$matched_label = isset( $item[0] ) ? (string) $item[0] : '';
 				$matched_slug  = $slug;
 				break;
 			}
 		}
 
-		$this->assertSame( __( 'Add landing page', 'kayzart-live-code-editor' ), $matched_label );
-		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
-		$this->assertStringContainsString( 'post_type=page', $matched_slug );
-		$this->assertStringContainsString( '_wpnonce=', $matched_slug );
+		$this->assertSame( __( 'Add with Kayzart', 'kayzart-live-code-editor' ), $matched_label );
+		$this->assertStringContainsString( 'page=' . Admin::NEW_SLUG, $matched_slug );
+		$this->assertStringContainsString( Admin::NEW_TYPE_PARAM . '=page', $matched_slug );
+		// The create screen has no side effects, so it needs no nonce; the form
+		// it renders carries one.
+		$this->assertStringNotContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
 
 		$post_matched_slug = '';
 		foreach ( (array) ( $submenu[ $post_parent_slug ] ?? array() ) as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( false !== strpos( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+			if ( false !== strpos( $slug, 'page=' . Admin::NEW_SLUG ) ) {
 				$post_matched_slug = $slug;
 				break;
 			}
 		}
-		$this->assertStringContainsString( 'post_type=post', $post_matched_slug );
+		$this->assertStringContainsString( Admin::NEW_TYPE_PARAM . '=post', $post_matched_slug );
 
 		$submenu = $original_submenu;
 	}
 
-	public function test_register_menu_adds_lp_settings_under_options_not_legacy_cpt(): void {
+	public function test_get_new_screen_url_avoids_a_post_type_query_arg(): void {
+		// A post_type query arg sets $typenow, which makes admin.php resolve the
+		// page's parent as "admin.php?post_type=..." instead of the Kayzart menu.
+		// The screen then dies with "Cannot load kayzart-new".
+		$url = Admin::get_new_screen_url( Post_Type::PAGE_TYPE );
+
+		$args = array();
+		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $args );
+
+		$this->assertSame( Admin::NEW_SLUG, $args['page'] ?? '' );
+		$this->assertSame( Post_Type::PAGE_TYPE, $args[ Admin::NEW_TYPE_PARAM ] ?? '' );
+		$this->assertArrayNotHasKey( 'post_type', $args );
+	}
+
+	public function test_get_convert_screen_url_avoids_a_post_type_query_arg(): void {
+		$args = array();
+		parse_str( (string) wp_parse_url( Admin::get_convert_screen_url( 123 ), PHP_URL_QUERY ), $args );
+
+		$this->assertSame( Admin::CONVERT_SLUG, $args['page'] ?? '' );
+		$this->assertSame( '123', (string) ( $args['post_id'] ?? '' ) );
+		$this->assertArrayNotHasKey( 'post_type', $args );
+	}
+
+	public function test_register_menu_adds_settings_under_kayzart_not_options_or_legacy_cpt(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -246,31 +271,105 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$options_parent   = 'options-general.php';
 		$legacy_parent    = 'edit.php?post_type=' . Post_Type::POST_TYPE;
 		$submenu          = is_array( $submenu ) ? $submenu : array();
-		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ] );
+		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ], $submenu[ Admin::NEW_SLUG ] );
 
 		Admin::register_menu();
 
-		$options_has_settings = false;
-		foreach ( (array) ( $submenu[ $options_parent ] ?? array() ) as $item ) {
+		$hub_settings_cap = '';
+		foreach ( (array) ( $submenu[ Admin::NEW_SLUG ] ?? array() ) as $item ) {
 			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
-				$options_has_settings = true;
-				$this->assertSame( __( 'Landing page settings', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
+				$hub_settings_cap = (string) ( $item[1] ?? '' );
+				$this->assertSame( __( 'Settings', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
 				break;
 			}
 		}
 
-		$legacy_has_settings = false;
-		foreach ( (array) ( $submenu[ $legacy_parent ] ?? array() ) as $item ) {
-			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
-				$legacy_has_settings = true;
-				break;
+		$stale_parents = array( $options_parent, $legacy_parent );
+		$stale_hits    = array();
+		foreach ( $stale_parents as $parent ) {
+			foreach ( (array) ( $submenu[ $parent ] ?? array() ) as $item ) {
+				if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
+					$stale_hits[] = $parent;
+					break;
+				}
 			}
 		}
 
 		$submenu = $original_submenu;
 
-		$this->assertTrue( $options_has_settings );
-		$this->assertFalse( $legacy_has_settings );
+		$this->assertSame( 'manage_options', $hub_settings_cap );
+		$this->assertSame( array(), $stale_hits );
+	}
+
+	public function test_register_menu_adds_kayzart_top_level_at_edit_posts(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $menu, $submenu;
+		$original_menu    = $menu;
+		$original_submenu = $submenu;
+		$menu             = is_array( $menu ) ? $menu : array();
+		$submenu          = is_array( $submenu ) ? $submenu : array();
+		unset( $submenu[ Admin::NEW_SLUG ] );
+
+		Admin::register_menu();
+
+		$hub_cap = '';
+		foreach ( $menu as $item ) {
+			if ( Admin::NEW_SLUG === (string) ( $item[2] ?? '' ) ) {
+				$hub_cap = (string) ( $item[1] ?? '' );
+				break;
+			}
+		}
+
+		$child_slugs = array();
+		foreach ( (array) ( $submenu[ Admin::NEW_SLUG ] ?? array() ) as $item ) {
+			$child_slugs[] = (string) ( $item[2] ?? '' );
+		}
+
+		$menu    = $original_menu;
+		$submenu = $original_submenu;
+
+		$this->assertSame( 'edit_posts', $hub_cap );
+		$this->assertSame(
+			array( Admin::NEW_SLUG, Admin::SETTINGS_SLUG ),
+			$child_slugs,
+			'The menu must expose exactly Add new and Settings — no landing screen and no duplicate page list.'
+		);
+	}
+
+	public function test_render_ai_section_reports_ai_availability(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$unavailable = static function () {
+			return false;
+		};
+		add_filter( 'kayzart_ai_sdk_present', $unavailable );
+
+		ob_start();
+		Admin::render_ai_section();
+		$output = (string) ob_get_clean();
+
+		remove_filter( 'kayzart_ai_sdk_present', $unavailable );
+
+		$this->assertStringContainsString( __( 'AI Client SDK', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Action Scheduler', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString(
+			__( 'AI editing is unavailable until every requirement below is met.', 'kayzart-live-code-editor' ),
+			$output
+		);
+	}
+
+	public function test_get_settings_url_points_at_the_hub_and_keeps_tab_support(): void {
+		$this->assertSame(
+			admin_url( 'admin.php?page=' . Admin::SETTINGS_SLUG ),
+			Admin::get_settings_url()
+		);
+		$this->assertSame(
+			admin_url( 'admin.php?page=' . Admin::SETTINGS_SLUG . '&tab=license' ),
+			Admin::get_settings_url( 'license' )
+		);
 	}
 
 	public function test_render_settings_page_supports_extension_tabs(): void {
@@ -298,7 +397,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		remove_filter( 'kayzart_settings_tabs', $tabs_filter );
 		remove_action( 'kayzart_render_settings_tab_sample', $tab_action );
 
-		$this->assertStringContainsString( __( 'Landing page settings', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Settings', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( __( '基本設定', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'Sample Tab', $output );
 		$this->assertStringContainsString( 'id="sample-settings-tab"', $output );
@@ -377,8 +476,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_enabled_post_types_field();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( 'Convert to landing page', $output );
-		$this->assertStringContainsString( 'Add landing page', $output );
+		$this->assertStringContainsString( 'Edit with Kayzart', $output );
+		$this->assertStringContainsString( 'Add with Kayzart', $output );
 		$this->assertStringNotContainsString( 'opened in the Kayzart editor', $output );
 	}
 

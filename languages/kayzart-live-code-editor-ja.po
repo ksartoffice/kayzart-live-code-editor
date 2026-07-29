@@ -27,8 +27,8 @@ msgstr "K's Art Office"
 #. translators: %s: post title.
 #: includes/class-kayzart-admin.php:100
 #, php-format,js-format
-msgid "Kayzart Landing Page Editor: %s"
-msgstr "Kayzart Landing Page Editor: %s"
+msgid "Kayzart: %s"
+msgstr "Kayzart: %s"
 
 #: includes/class-kayzart-admin.php:130
 msgid "Untitled"
@@ -88,14 +88,14 @@ msgstr "Kayzart"
 #: includes/class-kayzart-admin.php:685
 #: includes/class-kayzart-admin.php:686
 #: assets/admin/post-type-list.js:30
-msgid "Add landing page"
-msgstr "ランディングページを追加"
+msgid "Add with Kayzart"
+msgstr "Kayzart で新規作成"
 
 #: includes/class-kayzart-admin.php:695
 #: includes/class-kayzart-admin.php:696
 #: includes/class-kayzart-admin.php:1123
-msgid "Landing page settings"
-msgstr "ランディングページ設定"
+msgid "Settings"
+msgstr "設定"
 
 #: includes/class-kayzart-admin.php:761
 msgid "Permalink"
@@ -150,8 +150,8 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr "テンプレートモードが「デフォルト」に設定されている場合に適用されます。"
 
 #: includes/class-kayzart-admin.php:1066
-msgid "Existing posts are converted only when you choose Convert to landing page or create one with Add landing page."
-msgstr "既存の投稿は「ランディングページに変換」を選択するか、「ランディングページを追加」で作成した場合にのみ変換されます。"
+msgid "Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart."
+msgstr "既存の投稿は「Kayzart で編集」を選ぶか、「Kayzart で新規作成」で作成した場合にのみ Kayzart の管理下になります。"
 
 #: includes/class-kayzart-admin.php:1149
 #: includes/class-kayzart-admin.php:1160
@@ -228,14 +228,10 @@ msgstr "ランディングページ"
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
-#: includes/class-kayzart-post-type.php:365
-msgid "Convert to landing page"
-msgstr "ランディングページに変換"
-
 #: includes/class-kayzart-post-type.php:354
 #: assets/admin/editor-bridge.js:18
-msgid "Edit landing page"
-msgstr "ランディングページを編集"
+msgid "Edit with Kayzart"
+msgstr "Kayzart で編集"
 
 #: includes/class-kayzart-preview.php:167
 msgid "Invalid preview token."
@@ -324,8 +320,8 @@ msgid "Landing page duplicated. The copy was saved as a draft."
 msgstr "ランディングページを複製しました。コピーは下書きとして保存されました。"
 
 #: includes/class-kayzart-post-type.php:359
-msgid "Duplicate landing page"
-msgstr "ランディングページを複製"
+msgid "Duplicate"
+msgstr "複製"
 
 #: includes/rest/class-kayzart-rest-revisions.php:77
 msgid "Full-page revisions require WordPress 6.4 or later."
@@ -542,3 +538,93 @@ msgstr ""
 #: includes/rest/class-kayzart-rest-ai-timeline.php:124
 msgid "The AI edit restore history could not be saved."
 msgstr ""
+
+
+msgid "Add new"
+msgstr "新規作成"
+
+
+
+
+
+msgid "AI editing is ready to use."
+msgstr "AI 編集を利用できます。"
+
+msgid "AI editing is unavailable until every requirement below is met."
+msgstr "以下の要件をすべて満たすまで AI 編集は利用できません。"
+
+msgid "AI Client SDK"
+msgstr "AI Client SDK"
+
+msgid "Requires a WordPress version that bundles the AI Client."
+msgstr "AI Client を同梱した WordPress のバージョンが必要です。"
+
+msgid "AI provider configured"
+msgstr "AI プロバイダーの設定"
+
+msgid "Connect an AI provider so Kayzart can send edit requests."
+msgstr "Kayzart が編集リクエストを送れるよう、AI プロバイダーを接続してください。"
+
+msgid "Action Scheduler"
+msgstr "Action Scheduler"
+
+msgid "Required to run AI edits in the background."
+msgstr "AI 編集をバックグラウンドで実行するために必要です。"
+
+msgid "PHP mbstring extension"
+msgstr "PHP mbstring 拡張"
+
+msgid "Ask your host to enable the mbstring extension."
+msgstr "mbstring 拡張の有効化をホスティング事業者に依頼してください。"
+
+msgid "PHP DOM extension"
+msgstr "PHP DOM 拡張"
+
+msgid "Ask your host to enable the DOM and libxml extensions."
+msgstr "DOM および libxml 拡張の有効化をホスティング事業者に依頼してください。"
+
+msgid "AI editing enabled for this site"
+msgstr "このサイトで AI 編集が有効"
+
+msgid "AI editing was disabled by a site filter."
+msgstr "AI 編集はサイト側のフィルターで無効化されています。"
+
+msgid "Available"
+msgstr "利用可能"
+
+msgid "Unavailable"
+msgstr "利用不可"
+
+msgid "You do not have permission to create Kayzart pages."
+msgstr "Kayzart ページを作成する権限がありません。"
+
+msgid "Title"
+msgstr "タイトル"
+
+msgid "Optional. You can rename the page later."
+msgstr "任意です。あとから変更できます。"
+
+msgid "Create as"
+msgstr "作成先"
+
+msgid "This will be created as: %s"
+msgstr "作成先: %s"
+
+msgid "Create and open editor"
+msgstr "作成してエディタを開く"
+
+msgid "This page cannot be opened in Kayzart."
+msgstr "このページは Kayzart で開けません。"
+
+msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
+msgstr "「%s」を Kayzart エディタで開きます。既存の本文は初期 HTML として保持されます。"
+
+msgid "Open editor"
+msgstr "エディタを開く"
+
+msgid "Mode"
+msgstr "モード"
+
+msgid "Normal HTML/CSS"
+msgstr "通常の HTML/CSS"
+

@@ -1,11 +1,14 @@
 import type { SettingsData } from '../settings';
 import type { JsMode } from './js-mode';
+import type { CssByMode, EditorCssMode } from './css-mode';
 
 export type AppConfig = {
   post_id: number;
   initialHtml: string;
   initialCustomHead?: string;
   initialCss: string;
+  initialCssByMode?: CssByMode;
+  initialEditorMode?: EditorCssMode;
   initialJs: string;
   initialJsMode?: JsMode;
   canEditJs: boolean;

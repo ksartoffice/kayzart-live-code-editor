@@ -14,6 +14,7 @@ import {
 } from '../logic/full-html-import';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
+import type { EditorCssMode } from '../types/css-mode';
 
 type SnackbarStatus = 'success' | 'error' | 'info' | 'warning';
 
@@ -58,6 +59,11 @@ export type FullHtmlImportDecision =
   | { type: 'cancel' };
 
 export type TailwindExportCssDecision = 'compiled' | 'editor' | 'cancel';
+export type CssModeChangeInfo = {
+  from: EditorCssMode;
+  to: EditorCssMode;
+  restoresSavedCss: boolean;
+};
 
 type FullHtmlImportSelectableItem = keyof FullHtmlImportSelection;
 
@@ -75,6 +81,64 @@ type FullHtmlImportSourceModalProps = {
 type TailwindExportCssModalProps = {
   onChoose: (choice: TailwindExportCssDecision) => void;
 };
+
+type CssModeChangeModalProps = {
+  info: CssModeChangeInfo;
+  onChoose: (confirmed: boolean) => void;
+};
+
+function CssModeChangeModal({ info, onChoose }: CssModeChangeModalProps) {
+  const toTailwind = info.to === 'tailwind';
+  const title = toTailwind
+    ? __( 'Switch to TailwindCSS?', 'kayzart-live-code-editor')
+    : __( 'Switch to Normal HTML/CSS?', 'kayzart-live-code-editor');
+  const body = info.restoresSavedCss
+    ? __(
+        'The CSS last used in the selected mode will be restored. CSS in the current mode is kept separately.',
+        'kayzart-live-code-editor'
+      )
+    : toTailwind
+      ? __(
+          'TailwindCSS will be initialized from the current CSS. Tailwind Preflight may change the appearance of existing elements.',
+          'kayzart-live-code-editor'
+        )
+      : __(
+          'The current Tailwind output will be converted to browser-ready CSS to preserve the current appearance. The Tailwind source is kept separately.',
+          'kayzart-live-code-editor'
+        );
+
+  return (
+    <div className="kayzart-modal">
+      <div className="kayzart-modalBackdrop" />
+      <div className="kayzart-modalDialog" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="kayzart-modalHeader">
+          <div className="kayzart-modalTitle">{title}</div>
+        </div>
+        <div className="kayzart-modalBody">
+          <p className="kayzart-hintText">{body}</p>
+          <p className="kayzart-hintText">
+            {__(
+              'This change is not permanent until you save the page.',
+              'kayzart-live-code-editor'
+            )}
+          </p>
+        </div>
+        <div className="kayzart-modalActions">
+          <button type="button" className="kayzart-btn" onClick={() => onChoose(false)}>
+            {__( 'Cancel', 'kayzart-live-code-editor')}
+          </button>
+          <button
+            type="button"
+            className="kayzart-btn kayzart-btn-primary"
+            onClick={() => onChoose(true)}
+          >
+            {__( 'Switch mode', 'kayzart-live-code-editor')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MissingMarkersModal({
   title,
@@ -391,6 +455,8 @@ export function createModalController(deps: ModalControllerDeps) {
   let fullHtmlImportCanEditJs = true;
   let fullHtmlImportResolver: ((action: FullHtmlImportDecision) => void) | null = null;
   let tailwindExportCssResolver: ((choice: TailwindExportCssDecision) => void) | null = null;
+  let cssModeChangeInfo: CssModeChangeInfo | null = null;
+  let cssModeChangeResolver: ((confirmed: boolean) => void) | null = null;
   let lastMissingMarkersNoticeAt = 0;
   const missingMarkersNoticeCooldownMs = 1500;
 
@@ -411,7 +477,8 @@ export function createModalController(deps: ModalControllerDeps) {
       missingMarkersOpen ||
       fullHtmlImportSourceOpen ||
       fullHtmlImportResult ||
-      tailwindExportCssResolver
+      tailwindExportCssResolver ||
+      cssModeChangeInfo
     ) {
       return;
     }
@@ -458,6 +525,9 @@ export function createModalController(deps: ModalControllerDeps) {
         {tailwindExportCssResolver ? (
           <TailwindExportCssModal onChoose={closeTailwindExportCssModal} />
         ) : null}
+        {cssModeChangeInfo ? (
+          <CssModeChangeModal info={cssModeChangeInfo} onChoose={closeCssModeChangeModal} />
+        ) : null}
       </Fragment>
     );
     if (modalRoot) {
@@ -498,6 +568,15 @@ export function createModalController(deps: ModalControllerDeps) {
     renderModals();
     unmountIfIdle();
     resolver?.(choice);
+  }
+
+  function closeCssModeChangeModal(confirmed: boolean) {
+    const resolver = cssModeChangeResolver;
+    cssModeChangeResolver = null;
+    cssModeChangeInfo = null;
+    renderModals();
+    unmountIfIdle();
+    resolver?.(confirmed);
   }
 
   const applyMissingMarkersTemplateMode = async () => {
@@ -635,11 +714,24 @@ export function createModalController(deps: ModalControllerDeps) {
     });
   };
 
+  const confirmCssModeChange = (info: CssModeChangeInfo): Promise<boolean> => {
+    if (cssModeChangeResolver) {
+      closeCssModeChangeModal(false);
+    }
+    ensureMounted();
+    cssModeChangeInfo = info;
+    return new Promise((resolve) => {
+      cssModeChangeResolver = resolve;
+      renderModals();
+    });
+  };
+
   return {
     handleMissingMarkers,
     requestFullHtmlImportSource,
     confirmFullHtmlImport,
     confirmTailwindExportCss,
+    confirmCssModeChange,
   };
 }
 

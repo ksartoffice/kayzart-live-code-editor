@@ -30,6 +30,7 @@ import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml, buildMediaUrl } from './logic/media-html';
 import { resolveQuotedValueReplacementRange, type TextRange } from './logic/media-insertion';
 import { buildStatusUpdates } from './logic/status-updates';
+import { resolveEditorLockState } from './logic/editor-lock-state';
 import {
   buildImportedHtml,
   parseFullHtmlDocument,
@@ -37,6 +38,7 @@ import {
   type FullHtmlImportResult,
 } from './logic/full-html-import';
 import { buildFullHtmlExport } from './logic/full-html-export';
+import { resolveCssModeChange } from './logic/css-mode';
 import {
   formatCssCode,
   formatHtmlCode,
@@ -57,6 +59,12 @@ import { createPreviewRenderScheduler, debounce, type PreviewRenderScheduler } f
 import type { AppConfig } from './types/app-config';
 import { resolveInitialState } from './bootstrap/resolve-initial-state';
 import { normalizeJsMode, type JsMode } from './types/js-mode';
+import {
+  cloneCssByMode,
+  normalizeEditorCssMode,
+  type CssByMode,
+  type EditorCssMode,
+} from './types/css-mode';
 import {
   compileTailwindSnapshot,
   createTailwindCompiler,
@@ -236,6 +244,10 @@ async function main() {
 
   const initialState = resolveInitialState(cfg, setupTailwindEnabled);
   let tailwindEnabled = initialState.tailwindEnabled;
+  let editorMode: EditorCssMode = initialState.initialEditorMode;
+  let cssByMode: CssByMode = cloneCssByMode(initialState.initialCssByMode);
+  let cssModeChangeInFlight = false;
+  let saveInFlight = false;
   let htmlWordWrapMode: HtmlWordWrapMode = readHtmlWordWrapMode();
 
   let codemirror: CodeMirrorType;
@@ -303,6 +315,25 @@ async function main() {
   const subscribeEditorSnapshot = (listener: () => void) => {
     contentListeners.add(listener);
     return () => contentListeners.delete(listener);
+  };
+
+  const syncActiveCssDraft = () => {
+    if (cssModel) {
+      cssByMode[editorMode] = cssModel.getValue();
+    }
+  };
+
+  const getCssByMode = (): CssByMode => {
+    syncActiveCssDraft();
+    return cloneCssByMode(cssByMode);
+  };
+
+  const syncEditorModeControl = () => {
+    settingsApi?.setEditorModeState(
+      editorMode,
+      extensionEditorLock || cssModeChangeInFlight || saveInFlight
+    );
+    toolbarApi?.update({ saveDisabled: cssModeChangeInFlight || saveInFlight });
   };
 
   let saveCopyController: ReturnType<typeof createSaveCopyController> | null = null;
@@ -415,6 +446,8 @@ async function main() {
     getJsModel: () => jsModel,
     getJsMode: () => jsMode,
     getTailwindEnabled: () => tailwindEnabled,
+    getEditorMode: () => editorMode,
+    getCssByMode,
     getPendingSettingsState: () => ({
       pendingSettingsUpdates,
       hasUnsavedSettings,
@@ -453,11 +486,20 @@ async function main() {
       settingsApi?.refreshHistory();
       window.dispatchEvent(new CustomEvent('kayzart-editor-saved'));
     },
+    onSaveStateChange: (saving) => {
+      saveInFlight = saving;
+      syncEditorModeControl();
+    },
   });
 
   async function handleSave(): Promise<{ ok: boolean; error?: string }> {
     if (!saveCopyController) {
       return { ok: false, error: __('Save failed.', 'kayzart-live-code-editor') };
+    }
+    if (cssModeChangeInFlight) {
+      const error = __('Wait for the CSS mode change to finish before saving.', 'kayzart-live-code-editor');
+      createSnackbar('info', error, NOTICE_IDS.save, NOTICE_ERROR_DURATION_MS);
+      return { ok: false, error };
     }
     return await saveCopyController.handleSave();
   }
@@ -738,6 +780,7 @@ async function main() {
       tailwindEnabled,
       viewportMode: viewportController.getViewportMode(),
       hasUnsavedChanges: false,
+      saveDisabled: false,
       viewPostUrl,
       postStatus,
       postTitle,
@@ -1813,9 +1856,11 @@ async function main() {
 
   const setTailwindEnabled = (enabled: boolean) => {
     tailwindEnabled = enabled;
+    editorMode = enabled ? 'tailwind' : 'normal';
     ui.app.classList.toggle('is-tailwind', enabled);
     editorUiController?.syncTailwindState();
     toolbarApi?.update({ tailwindEnabled: enabled });
+    syncEditorModeControl();
     if (enabled) {
       preview?.sendRender();
       tailwindCompiler?.compile();
@@ -1824,12 +1869,18 @@ async function main() {
     preview?.sendRender();
   };
 
+  const syncEditorLocks = () => {
+    const locks = resolveEditorLockState(extensionEditorLock, cssModeChangeInFlight);
+    htmlEditor.setLocked(locks.htmlAndCss);
+    cssEditor.setLocked(locks.htmlAndCss);
+    customHeadEditor.setLocked(locks.otherEditors);
+    jsEditor.setLocked(locks.otherEditors);
+  };
+
   const setEditorLock = (locked: boolean) => {
     extensionEditorLock = locked;
-    htmlEditor.setLocked(locked);
-    customHeadEditor.setLocked(locked);
-    cssEditor.setLocked(locked);
-    jsEditor.setLocked(locked);
+    syncEditorLocks();
+    syncEditorModeControl();
   };
 
   const getEditorSnapshot = (): EditorSnapshot => {
@@ -1873,15 +1924,108 @@ async function main() {
 
     replaceModelContent(htmlModel, snapshot.html ?? '');
     replaceModelContent(customHeadModel, snapshot.customHead ?? customHeadModel.getValue());
-    replaceModelContent(cssModel, snapshot.css ?? '');
+    const hasSnapshotMode = snapshot.editorMode === 'normal' || snapshot.editorMode === 'tailwind';
+    const nextEditorMode = hasSnapshotMode
+      ? normalizeEditorCssMode(snapshot.editorMode)
+      : editorMode;
+    if (snapshot.cssByMode && typeof snapshot.cssByMode === 'object') {
+      cssByMode = {
+        normal:
+          typeof snapshot.cssByMode.normal === 'string' ? snapshot.cssByMode.normal : null,
+        tailwind:
+          typeof snapshot.cssByMode.tailwind === 'string' ? snapshot.cssByMode.tailwind : null,
+      };
+    }
+    cssByMode[nextEditorMode] = snapshot.css ?? '';
+    if (hasSnapshotMode) {
+      cssModel.resetValue(snapshot.css ?? '');
+    } else {
+      replaceModelContent(cssModel, snapshot.css ?? '');
+    }
     replaceModelContent(jsModel, snapshot.js ?? '');
 
     setJsMode(snapshot.jsMode ?? 'classic');
+    if (hasSnapshotMode) {
+      setTailwindEnabled(nextEditorMode === 'tailwind');
+    }
     requestPreviewReload();
     if (tailwindEnabled) {
       void tailwindCompiler?.compile();
     }
     return true;
+  };
+
+  const requestEditorModeChange = async (nextMode: EditorCssMode) => {
+    if (
+      nextMode === editorMode ||
+      cssModeChangeInFlight ||
+      extensionEditorLock ||
+      saveInFlight
+    ) {
+      syncEditorModeControl();
+      return;
+    }
+
+    syncActiveCssDraft();
+    const currentMode = editorMode;
+    const restoresSavedCss = cssByMode[nextMode] !== null;
+    const confirmed = await modalController?.confirmCssModeChange({
+      from: currentMode,
+      to: nextMode,
+      restoresSavedCss,
+    });
+    if (!confirmed) {
+      syncEditorModeControl();
+      return;
+    }
+
+    if (
+      nextMode === editorMode ||
+      cssModeChangeInFlight ||
+      extensionEditorLock ||
+      saveInFlight
+    ) {
+      syncEditorModeControl();
+      return;
+    }
+
+    cssModeChangeInFlight = true;
+    syncEditorLocks();
+    syncEditorModeControl();
+    try {
+      const resolved = await resolveCssModeChange({
+        currentMode,
+        nextMode,
+        currentCss: cssModel.getValue(),
+        cssByMode,
+        compileTailwind: () =>
+          compileTailwindSnapshot({
+            apiFetch: wp.apiFetch,
+            restCompileUrl: cfg.restCompileUrl,
+            postId,
+            html: htmlModel.getValue(),
+            css: cssModel.getValue(),
+          }),
+      });
+      cssByMode = resolved.cssByMode;
+      cssModel.resetValue(resolved.css);
+      setTailwindEnabled(nextMode === 'tailwind');
+      notifyContentChange();
+      syncUnsavedUi();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message !== 'tailwind_compile_failed'
+          ? error.message
+          : __(
+              'Tailwind compile failed. The CSS mode was not changed.',
+              'kayzart-live-code-editor'
+            );
+      createSnackbar('error', message, NOTICE_IDS.tailwind, NOTICE_ERROR_DURATION_MS);
+    } finally {
+      cssModeChangeInFlight = false;
+      syncEditorLocks();
+      syncEditorModeControl();
+    }
   };
 
   const getElementContextById = (lcId: string): SelectedElementContext | null => {
@@ -1975,7 +2119,12 @@ async function main() {
     },
     onClosePanel: () => setSettingsOpen(false),
     elementsApi,
+    editorMode,
+    onEditorModeChange: (nextMode) => {
+      void requestEditorModeChange(nextMode);
+    },
   });
+  syncEditorModeControl();
   publishExtensionApi();
   setSettingsOpen(true);
   if (canEditAi) {

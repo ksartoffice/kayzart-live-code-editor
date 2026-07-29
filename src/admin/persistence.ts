@@ -3,6 +3,7 @@ import { __, sprintf } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
 import type { CompileTailwindResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
+import type { CssByMode, EditorCssMode } from './types/css-mode';
 
 const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
   if (error instanceof Error && error.message.trim()) {
@@ -147,6 +148,8 @@ type SaveParams = {
   customHead: string;
   css: string;
   tailwindEnabled: boolean;
+  editorMode: EditorCssMode;
+  cssByMode: CssByMode;
   canEditJs: boolean;
   js: string;
   jsMode: JsMode;
@@ -155,13 +158,23 @@ type SaveParams = {
 
 export async function saveKayzArt(
   params: SaveParams
-): Promise<{ ok: boolean; error?: string; customHead?: string; customHeadRemovedTags?: string[]; settings?: SettingsData }> {
+): Promise<{
+  ok: boolean;
+  error?: string;
+  customHead?: string;
+  customHeadRemovedTags?: string[];
+  settings?: SettingsData;
+  editorMode?: EditorCssMode;
+  cssByMode?: CssByMode;
+}> {
   try {
     const payload: Record<string, unknown> = {
       post_id: params.postId,
       html: params.html,
       css: params.css,
       tailwindEnabled: params.tailwindEnabled,
+      editorMode: params.editorMode,
+      cssByMode: params.cssByMode,
     };
     if (params.canEditJs) {
       payload.customHead = params.customHead;
@@ -186,7 +199,14 @@ export async function saveKayzArt(
       const customHeadRemovedTags = Array.isArray(res?.customHeadRemovedTags)
         ? res.customHeadRemovedTags.filter((tag): tag is string => typeof tag === 'string')
         : undefined;
-      return { ok: true, customHead, customHeadRemovedTags, settings };
+      return {
+        ok: true,
+        customHead,
+        customHeadRemovedTags,
+        settings,
+        editorMode: res.editorMode,
+        cssByMode: res.cssByMode,
+      };
     }
     if (typeof res?.error === 'string' && res.error.trim()) {
       return { ok: false, error: res.error };

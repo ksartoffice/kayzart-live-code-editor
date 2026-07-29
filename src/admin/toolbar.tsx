@@ -47,6 +47,7 @@ type ToolbarState = {
   tailwindEnabled: boolean;
   viewportMode: ViewportMode;
   hasUnsavedChanges: boolean;
+  saveDisabled: boolean;
   viewPostUrl: string;
   postStatus: string;
   postTitle: string;
@@ -154,6 +155,7 @@ function Toolbar({
   settingsOpen,
   tailwindEnabled,
   hasUnsavedChanges,
+  saveDisabled,
   viewPostUrl,
   postStatus,
   postTitle,
@@ -589,6 +591,7 @@ function Toolbar({
               className={`kayzart-btn kayzart-btn-save kayzart-splitButton-main${hasUnsavedChanges ? ' is-unsaved' : ''}`}
               type="button"
               onClick={onSave}
+              disabled={saveDisabled}
               aria-label={saveLabel}
             >
               <IconLabel label={saveLabel} svg={ICONS.save} />
@@ -601,6 +604,7 @@ function Toolbar({
               aria-label={__( 'Save options', 'kayzart-live-code-editor')}
               data-tooltip={__( 'Save options', 'kayzart-live-code-editor')}
               onClick={toggleSaveMenu}
+              disabled={saveDisabled}
             >
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.chevronDown }} />
             </button>

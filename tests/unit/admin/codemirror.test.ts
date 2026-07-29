@@ -155,4 +155,20 @@ describe('codemirror editor selection highlight', () => {
     expect(onBeforeHtmlUserInteraction).not.toHaveBeenCalled();
     expect(document.querySelector('.kayzart-highlight-inline')).toBeTruthy();
   });
+
+  it('resets document history when replacing a mode-specific CSS buffer', async () => {
+    const { codemirror, cssModel } = await createEditors();
+    cssModel.pushEditOperations(
+      [],
+      [{ range: new codemirror.Range(1, 1, 1, 1), text: '.old {}' }],
+      () => null
+    );
+    expect(cssModel.canUndo()).toBe(true);
+
+    cssModel.resetValue('@import "tailwindcss";');
+
+    expect(cssModel.getValue()).toBe('@import "tailwindcss";');
+    expect(cssModel.canUndo()).toBe(false);
+    expect(cssModel.canRedo()).toBe(false);
+  });
 });

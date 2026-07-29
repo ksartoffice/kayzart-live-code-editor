@@ -56,6 +56,11 @@ export type EditorSnapshot = {
   js: string;
   jsMode: 'classic' | 'module';
   baseHash: string;
+  editorMode?: EditorMode;
+  cssByMode?: {
+    normal: string | null;
+    tailwind: string | null;
+  };
 };
 
 export type EditorMode = 'normal' | 'tailwind';

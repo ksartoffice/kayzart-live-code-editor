@@ -126,7 +126,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$actions = Post_Type::add_kayzart_row_action( array(), $page );
 
 		$this->assertArrayHasKey( 'kayzart_edit', $actions );
-		$this->assertStringContainsString( esc_html__( 'Edit landing page', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
+		$this->assertStringContainsString( esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
 	}
 
 	public function test_row_action_allows_unmarked_legacy_cpt_posts(): void {
@@ -149,7 +149,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$actions = Post_Type::add_kayzart_row_action( array(), $post );
 
 		$this->assertArrayHasKey( 'kayzart_edit', $actions );
-		$this->assertStringContainsString( esc_html__( 'Edit landing page', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
+		$this->assertStringContainsString( esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_edit'] );
 	}
 
 	public function test_row_action_offers_conversion_for_unmarked_pages(): void {
@@ -172,8 +172,10 @@ class Test_Post_Type extends WP_UnitTestCase {
 
 		$this->assertArrayNotHasKey( 'kayzart_edit', $actions );
 		$this->assertArrayHasKey( 'kayzart_convert', $actions );
-		$this->assertStringContainsString( esc_html__( 'Convert to landing page', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
-		$this->assertStringContainsString( 'action=' . \KayzArt\Admin::CONVERT_POST_ACTION, $actions['kayzart_convert'] );
+		// Same label as the managed case; only the destination differs.
+		$this->assertStringContainsString( esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
+		$this->assertStringContainsString( 'page=' . \KayzArt\Admin::CONVERT_SLUG, $actions['kayzart_convert'] );
+		$this->assertStringNotContainsString( 'action=' . \KayzArt\Admin::CONVERT_POST_ACTION, $actions['kayzart_convert'] );
 	}
 
 	public function test_row_action_ignores_unmarked_pages_without_edit_permission(): void {

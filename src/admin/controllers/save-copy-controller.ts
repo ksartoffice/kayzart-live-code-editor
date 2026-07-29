@@ -4,6 +4,7 @@ import { sanitizeCustomHeadInput } from '../logic/custom-head';
 import type { SettingsData } from '../settings';
 import type { ApiFetch } from '../types/api-fetch';
 import type { JsMode } from '../types/js-mode';
+import type { CssByMode, EditorCssMode } from '../types/css-mode';
 import { EditorRange, type EditorModel } from '../codemirror';
 import { presentableDiff } from '@codemirror/merge';
 
@@ -29,6 +30,8 @@ type SaveCopyControllerDeps = {
   getJsModel: () => EditorModel | undefined;
   getJsMode: () => JsMode;
   getTailwindEnabled: () => boolean;
+  getEditorMode: () => EditorCssMode;
+  getCssByMode: () => CssByMode;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
     hasUnsavedSettings: boolean;
@@ -61,6 +64,7 @@ type SaveCopyControllerDeps = {
   };
   onUnsavedChange: (hasUnsavedChanges: boolean) => void;
   onSaveSuccess?: () => void;
+  onSaveStateChange?: (saving: boolean) => void;
 };
 
 const buildLineStarts = (text: string): number[] => {
@@ -212,12 +216,22 @@ function replaceModelContent(model: EditorModel, nextText: string) {
 export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
   let hasUnsavedChanges = false;
-  let lastSaved: { html: string; customHead: string; css: string; js: string; jsMode: JsMode } = {
+  let lastSaved: {
+    html: string;
+    customHead: string;
+    css: string;
+    js: string;
+    jsMode: JsMode;
+    editorMode: EditorCssMode;
+    cssByMode: CssByMode;
+  } = {
     html: '',
     customHead: '',
     css: '',
     js: '',
     jsMode: deps.getJsMode(),
+    editorMode: deps.getEditorMode(),
+    cssByMode: deps.getCssByMode(),
   };
 
   const getUnsavedFlags = (): UnsavedFlags => {
@@ -239,15 +253,28 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     const htmlDirty = htmlModel.getValue() !== lastSaved.html;
     const customHeadDirty = deps.canEditJs && customHeadModel.getValue() !== lastSaved.customHead;
     const cssDirty = cssModel.getValue() !== lastSaved.css;
+    const currentCssByMode = deps.getCssByMode();
+    const editorModeDirty = deps.getEditorMode() !== lastSaved.editorMode;
+    const cssByModeDirty =
+      currentCssByMode.normal !== lastSaved.cssByMode.normal ||
+      currentCssByMode.tailwind !== lastSaved.cssByMode.tailwind;
     const jsDirty = deps.canEditJs && jsModel.getValue() !== lastSaved.js;
     const jsModeDirty = deps.canEditJs && deps.getJsMode() !== lastSaved.jsMode;
     return {
       html: htmlDirty,
       customHead: customHeadDirty,
-      css: cssDirty,
+      css: cssDirty || editorModeDirty || cssByModeDirty,
       js: jsDirty || jsModeDirty,
       settings: hasUnsavedSettings,
-      hasAny: htmlDirty || customHeadDirty || cssDirty || jsDirty || jsModeDirty || hasUnsavedSettings,
+      hasAny:
+        htmlDirty ||
+        customHeadDirty ||
+        cssDirty ||
+        editorModeDirty ||
+        cssByModeDirty ||
+        jsDirty ||
+        jsModeDirty ||
+        hasUnsavedSettings,
     };
   };
 
@@ -311,6 +338,8 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       css: cssModel.getValue(),
       js: jsModel.getValue(),
       jsMode: deps.getJsMode(),
+      editorMode: deps.getEditorMode(),
+      cssByMode: deps.getCssByMode(),
     };
     syncUnsavedUi();
   };
@@ -343,6 +372,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       return await saveInFlight;
     }
     const settingsUpdates = hasUnsavedSettings ? { ...pendingSettingsUpdates } : undefined;
+    deps.onSaveStateChange?.(true);
     saveInFlight = (async () => {
       deps.createSnackbar('info', __('Saving...', 'kayzart-live-code-editor'), deps.noticeIds.save);
       if (deps.canEditJs) {
@@ -371,6 +401,8 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         customHead: customHeadModel.getValue(),
         css: cssModel.getValue(),
         tailwindEnabled: deps.getTailwindEnabled(),
+        editorMode: deps.getEditorMode(),
+        cssByMode: deps.getCssByMode(),
         canEditJs: deps.canEditJs,
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),
@@ -432,6 +464,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       return await saveInFlight;
     } finally {
       saveInFlight = null;
+      deps.onSaveStateChange?.(false);
     }
   };
 

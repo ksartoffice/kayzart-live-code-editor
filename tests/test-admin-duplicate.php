@@ -323,7 +323,7 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$actions = Post_Type::add_kayzart_row_action( array(), $managed );
 
 		$this->assertArrayHasKey( 'kayzart_duplicate', $actions );
-		$this->assertStringContainsString( esc_html__( 'Duplicate landing page', 'kayzart-live-code-editor' ), $actions['kayzart_duplicate'] );
+		$this->assertStringContainsString( esc_html__( 'Duplicate', 'kayzart-live-code-editor' ), $actions['kayzart_duplicate'] );
 		$this->assertStringContainsString( 'action=' . Admin::DUPLICATE_POST_ACTION, $actions['kayzart_duplicate'] );
 	}
 

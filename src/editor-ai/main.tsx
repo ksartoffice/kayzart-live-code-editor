@@ -40,6 +40,16 @@ function makeId(prefix: string) {
 
 function config(): AiAvailability | undefined { return window.KAYZART.ai; }
 function host() { return window.KAYZART_EXTENSION_API; }
+function clearRuntimeInitialRequest(requestId: string) {
+  const ai = config();
+  if (ai?.initialRequest?.requestId === requestId) ai.initialRequest = null;
+}
+function reconcileRuntimeInitialRequest(items: AiTimelineItem[]) {
+  const requestId = config()?.initialRequest?.requestId;
+  if (!requestId) return;
+  const accepted = items.some((item) => item.type === 'ai_edit' && item.requestId === requestId && item.executionStatus !== null && item.executionStatus !== 'enqueue_failed');
+  if (accepted) clearRuntimeInitialRequest(requestId);
+}
 function normalizeUrl(url: string) {
   try { return new URL(url, window.location.origin).toString(); } catch { return url; }
 }
@@ -179,6 +189,7 @@ export function AiEditorPanel() {
     try {
       const page = await getTimeline(ai.timelineUrl, nonce, postId);
       if (!mountedRef.current) return;
+      reconcileRuntimeInitialRequest(page.items);
       setItems(page.items); setHasMore(page.hasMore); setCursor(page.nextCursor);
     } catch (caught) {
       if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor'));
@@ -391,10 +402,11 @@ export function AiEditorPanel() {
     const snapshot = host()?.getEditorSnapshot?.(); const editorMode = host()?.getEditorMode?.();
     if (!snapshot || !editorMode) { setError(__('Editor state is unavailable.', 'kayzart-live-code-editor')); return; }
     const input = normalizeSnapshot(snapshot); const promptText = override?.prompt || prompt.trim(); const submittedContexts = override?.contexts || [...contexts];
-    const requestId = override?.requestId || makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
+    const requestId = override?.requestId || (!override ? ai.initialRequest?.requestId : undefined) || makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
     setPrompt(''); setContexts([]); setRunning(true); host()?.setEditorLock?.(true);
     try {
       const created = await createJob(ai.jobsUrl, nonce, { ...input, requestId, post_id: postId, editorMode, prompt: promptText, selectedContexts: submittedContexts.length ? submittedContexts : undefined });
+      clearRuntimeInitialRequest(requestId);
       const active: ActiveJobRecord = {
         version: 1, postId, jobId: created.jobId, requestId: created.requestId,
         statusUrl: normalizeUrl(created.statusUrl), cancelUrl: normalizeUrl(created.cancelUrl),

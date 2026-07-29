@@ -333,6 +333,7 @@ async function main() {
       editorMode,
       extensionEditorLock || cssModeChangeInFlight || saveInFlight
     );
+    toolbarApi?.update({ saveDisabled: cssModeChangeInFlight || saveInFlight });
   };
 
   let saveCopyController: ReturnType<typeof createSaveCopyController> | null = null;
@@ -494,6 +495,11 @@ async function main() {
   async function handleSave(): Promise<{ ok: boolean; error?: string }> {
     if (!saveCopyController) {
       return { ok: false, error: __('Save failed.', 'kayzart-live-code-editor') };
+    }
+    if (cssModeChangeInFlight) {
+      const error = __('Wait for the CSS mode change to finish before saving.', 'kayzart-live-code-editor');
+      createSnackbar('info', error, NOTICE_IDS.save, NOTICE_ERROR_DURATION_MS);
+      return { ok: false, error };
     }
     return await saveCopyController.handleSave();
   }
@@ -774,6 +780,7 @@ async function main() {
       tailwindEnabled,
       viewportMode: viewportController.getViewportMode(),
       hasUnsavedChanges: false,
+      saveDisabled: false,
       viewPostUrl,
       postStatus,
       postTitle,
@@ -1968,6 +1975,16 @@ async function main() {
       restoresSavedCss,
     });
     if (!confirmed) {
+      syncEditorModeControl();
+      return;
+    }
+
+    if (
+      nextMode === editorMode ||
+      cssModeChangeInFlight ||
+      extensionEditorLock ||
+      saveInFlight
+    ) {
       syncEditorModeControl();
       return;
     }

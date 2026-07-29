@@ -29,7 +29,7 @@ describe('toolbar', () => {
     document.body.replaceChildren();
   });
 
-  const mount = async () => {
+  const mount = async (stateOverrides: Record<string, unknown> = {}) => {
     const { mountToolbar } = await import('../../../src/admin/toolbar');
     const container = document.createElement('div');
     const handlers = {
@@ -49,7 +49,7 @@ describe('toolbar', () => {
     document.body.append(container);
 
     await act(async () => {
-      mountToolbar(
+      const toolbar = mountToolbar(
         container,
         {
           backUrl: '/wp-admin/',
@@ -63,16 +63,18 @@ describe('toolbar', () => {
           tailwindEnabled: false,
           viewportMode: 'desktop',
           hasUnsavedChanges: false,
+          saveDisabled: false,
           viewPostUrl: '',
           postStatus: 'draft',
           postTitle: 'Draft page',
           postSlug: 'draft-page',
+          ...stateOverrides,
         },
         handlers
       );
     });
 
-    return { container, handlers };
+    return { container, handlers, toolbar };
   };
 
   it('renders the import and export button', async () => {
@@ -111,5 +113,16 @@ describe('toolbar', () => {
 
     expect(handlers.onImportFullHtml).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain('Import full HTML');
+  });
+
+  it('disables save controls while saving is unavailable', async () => {
+    const { container } = await mount({ saveDisabled: true });
+
+    expect(
+      (container.querySelector('.kayzart-splitButton-main') as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (container.querySelector('.kayzart-splitButton-toggle') as HTMLButtonElement).disabled
+    ).toBe(true);
   });
 });

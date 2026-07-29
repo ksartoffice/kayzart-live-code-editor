@@ -92,6 +92,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( 1, $this->immediate_dispatches );
 	}
 
+	/** A matching initial request marker is consumed after job acceptance. */
 	public function test_create_consumes_the_matching_initial_ai_request(): void {
 		$request_id = 'initial-rest-request';
 		update_post_meta(
@@ -108,6 +109,98 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 		$this->assertSame( 202, $response->get_status() );
 		$this->assertSame( '', get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
+	}
+
+	/** A replacement job consumes the original initial request ID after a terminal creation failure. */
+	public function test_terminal_initial_request_requires_a_fresh_job_id(): void {
+		$initial_id = 'initial-terminal-request';
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $initial_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$initial_payload                     = $this->payload( $initial_id );
+		$initial_payload['initialRequestId'] = $initial_id;
+		global $wpdb;
+		$previous_suppression         = $wpdb->suppress_errors( true );
+		$this->timeline_write_failure = 'insert';
+		$failed                       = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $initial_payload );
+		$this->timeline_write_failure = '';
+		$wpdb->suppress_errors( $previous_suppression );
+
+		$this->assertSame( 503, $failed->get_status() );
+		$this->assertSame( 'kayzart_ai_timeline_create_failed', $failed->get_data()['code'] );
+		$this->assertNotEmpty( get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
+
+		$edited_retry           = $initial_payload;
+		$edited_retry['prompt'] = 'Create a revised landing page.';
+		$terminal_retry         = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $edited_retry );
+		$this->assertSame( 409, $terminal_retry->get_status() );
+		$this->assertSame( 'kayzart_ai_initial_request_terminal', $terminal_retry->get_data()['code'] );
+		$this->assertSame( 0, $this->immediate_dispatches );
+
+		$replacement_payload                     = $this->payload( 'replacement-terminal-request' );
+		$replacement_payload['initialRequestId'] = $initial_id;
+		$replacement                             = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $replacement_payload );
+
+		$this->assertSame( 202, $replacement->get_status() );
+		$this->assertSame( 'replacement-terminal-request', $replacement->get_data()['requestId'] );
+		$this->assertSame( 1, $this->immediate_dispatches );
+		$this->assertSame( '', get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
+	}
+
+	/** An enqueue-failed initial job is not returned as a successful idempotent retry. */
+	public function test_enqueue_failed_initial_request_requires_a_fresh_job_id(): void {
+		$request_id = 'initial-enqueue-failed';
+		$created    = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( $request_id ) );
+		$this->assertSame( 202, $created->get_status() );
+		$this->assertTrue( ( new Ai_Job_Store() )->mark_enqueue_failed( $created->get_data()['jobId'] ) );
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $request_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$payload                     = $this->payload( $request_id );
+		$payload['initialRequestId'] = $request_id;
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'kayzart_ai_initial_request_terminal', $response->get_data()['code'] );
+		$this->assertSame( 1, $this->immediate_dispatches );
+		$this->assertNotEmpty( get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
+	}
+
+	/** Invalid or mismatched initial request IDs cannot consume another marker. */
+	public function test_initial_request_id_is_validated_and_must_match_the_pending_marker(): void {
+		$invalid                     = $this->payload( 'rest-invalid-initial' );
+		$invalid['initialRequestId'] = 'invalid request id';
+		$response                    = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $invalid );
+		$this->assertSame( 400, $response->get_status() );
+
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => 'initial-marker',
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$mismatch                     = $this->payload( 'rest-mismatched-initial' );
+		$mismatch['initialRequestId'] = 'different-initial-marker';
+		$created                      = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $mismatch );
+
+		$this->assertSame( 202, $created->get_status() );
+		$this->assertNotEmpty( get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
 	}
 
 	/** The server, rather than an untrusted browser field, fixes head-edit permission into each job. */

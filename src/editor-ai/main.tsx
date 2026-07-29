@@ -29,8 +29,20 @@ type PendingConflict = {
   activityId?: number;
 };
 
+type InitialRequestAttempt = {
+  initialRequestId: string;
+  requestId: string;
+  terminal: boolean;
+};
+
 const draftState = { prompt: '', contexts: [] as SelectedElementContext[] };
 const pendingContexts = new Map<string, SelectedElementContext>();
+const initialRequestAttempts = new Map<number, InitialRequestAttempt>();
+const TERMINAL_INITIAL_REQUEST_CODES = new Set([
+  'kayzart_ai_timeline_create_failed',
+  'kayzart_ai_enqueue_failed',
+  'kayzart_ai_initial_request_terminal',
+]);
 let promptFocusRequested = false;
 
 function makeId(prefix: string) {
@@ -40,15 +52,38 @@ function makeId(prefix: string) {
 
 function config(): AiAvailability | undefined { return window.KAYZART.ai; }
 function host() { return window.KAYZART_EXTENSION_API; }
-function clearRuntimeInitialRequest(requestId: string) {
+function getInitialRequestAttempt(postId: number) {
   const ai = config();
-  if (ai?.initialRequest?.requestId === requestId) ai.initialRequest = null;
+  const initialRequest = ai?.initialRequest;
+  if (!initialRequest) {
+    initialRequestAttempts.delete(postId);
+    return null;
+  }
+  const current = initialRequestAttempts.get(postId);
+  if (current?.initialRequestId === initialRequest.requestId) return current;
+  const attempt = { initialRequestId: initialRequest.requestId, requestId: initialRequest.requestId, terminal: false };
+  initialRequestAttempts.set(postId, attempt);
+  return attempt;
 }
-function reconcileRuntimeInitialRequest(items: AiTimelineItem[]) {
-  const requestId = config()?.initialRequest?.requestId;
-  if (!requestId) return;
-  const accepted = items.some((item) => item.type === 'ai_edit' && item.requestId === requestId && item.executionStatus !== null && item.executionStatus !== 'enqueue_failed');
-  if (accepted) clearRuntimeInitialRequest(requestId);
+function clearRuntimeInitialRequest(postId: number, initialRequestId: string) {
+  const ai = config();
+  if (ai?.initialRequest?.requestId === initialRequestId) ai.initialRequest = null;
+  initialRequestAttempts.delete(postId);
+}
+function markInitialRequestAttemptTerminal(postId: number, requestId: string) {
+  const attempt = getInitialRequestAttempt(postId);
+  if (attempt?.requestId === requestId) attempt.terminal = true;
+}
+function reconcileRuntimeInitialRequest(postId: number, items: AiTimelineItem[]) {
+  const attempt = getInitialRequestAttempt(postId);
+  if (!attempt) return;
+  const item = items.find((candidate) => candidate.type === 'ai_edit' && candidate.requestId === attempt.requestId);
+  if (!item || item.executionStatus === null) return;
+  if (item.executionStatus === 'enqueue_failed') {
+    attempt.terminal = true;
+    return;
+  }
+  clearRuntimeInitialRequest(postId, attempt.initialRequestId);
 }
 function normalizeUrl(url: string) {
   try { return new URL(url, window.location.origin).toString(); } catch { return url; }
@@ -189,7 +224,7 @@ export function AiEditorPanel() {
     try {
       const page = await getTimeline(ai.timelineUrl, nonce, postId);
       if (!mountedRef.current) return;
-      reconcileRuntimeInitialRequest(page.items);
+      reconcileRuntimeInitialRequest(postId, page.items);
       setItems(page.items); setHasMore(page.hasMore); setCursor(page.nextCursor);
     } catch (caught) {
       if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor'));
@@ -397,16 +432,22 @@ export function AiEditorPanel() {
     } catch (caught) { setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor')); }
     finally { setLoading(false); }
   };
-  const send = async (override?: { prompt: string; contexts: SelectedElementContext[]; requestId?: string }) => {
+  const send = async (override?: { prompt: string; contexts: SelectedElementContext[]; requestId?: string; initialRequestId?: string }) => {
     if ((!canSend && !override) || !ai) return;
     const snapshot = host()?.getEditorSnapshot?.(); const editorMode = host()?.getEditorMode?.();
     if (!snapshot || !editorMode) { setError(__('Editor state is unavailable.', 'kayzart-live-code-editor')); return; }
     const input = normalizeSnapshot(snapshot); const promptText = override?.prompt || prompt.trim(); const submittedContexts = override?.contexts || [...contexts];
-    const requestId = override?.requestId || (!override ? ai.initialRequest?.requestId : undefined) || makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
+    const initialAttempt = !override ? getInitialRequestAttempt(postId) : null;
+    if (initialAttempt?.terminal) {
+      initialAttempt.requestId = makeId('request');
+      initialAttempt.terminal = false;
+    }
+    const initialRequestId = override?.initialRequestId || initialAttempt?.initialRequestId;
+    const requestId = override?.requestId || initialAttempt?.requestId || makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
     setPrompt(''); setContexts([]); setRunning(true); host()?.setEditorLock?.(true);
     try {
-      const created = await createJob(ai.jobsUrl, nonce, { ...input, requestId, post_id: postId, editorMode, prompt: promptText, selectedContexts: submittedContexts.length ? submittedContexts : undefined });
-      clearRuntimeInitialRequest(requestId);
+      const created = await createJob(ai.jobsUrl, nonce, { ...input, requestId, initialRequestId, post_id: postId, editorMode, prompt: promptText, selectedContexts: submittedContexts.length ? submittedContexts : undefined });
+      if (initialRequestId) clearRuntimeInitialRequest(postId, initialRequestId);
       const active: ActiveJobRecord = {
         version: 1, postId, jobId: created.jobId, requestId: created.requestId,
         statusUrl: normalizeUrl(created.statusUrl), cancelUrl: normalizeUrl(created.cancelUrl),
@@ -418,6 +459,9 @@ export function AiEditorPanel() {
       setOptimistic(null); setLiveJob({ requestId: created.requestId, status: created.status });
       void refresh(); await poll(active);
     } catch (caught) {
+      if (initialRequestId && caught instanceof AiApiError && TERMINAL_INITIAL_REQUEST_CODES.has(caught.code)) {
+        markInitialRequestAttemptTerminal(postId, requestId);
+      }
       setError(caught instanceof AiApiError || caught instanceof Error ? caught.message : __('AI edit failed.', 'kayzart-live-code-editor'));
       restorePromptIfEmpty(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
     }
@@ -441,9 +485,11 @@ export function AiEditorPanel() {
     if (!initialRequest || initialRequestAttemptedRef.current || loading) return;
     initialRequestAttemptedRef.current = true;
     setPrompt(initialRequest.prompt);
+    const initialAttempt = getInitialRequestAttempt(postId);
+    if (initialAttempt?.terminal) return;
     const activeTimelineJob = items.some((item) => item.type === 'ai_edit' && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
     if (!ai?.available || activeTimelineJob || loadActiveJob(postId)) return;
-    void send({ prompt: initialRequest.prompt, contexts: [], requestId: initialRequest.requestId });
+    void send({ prompt: initialRequest.prompt, contexts: [], requestId: initialAttempt?.requestId || initialRequest.requestId, initialRequestId: initialRequest.requestId });
   }, [ai?.initialRequest, ai?.available, items, loading, postId]);
   const stop = async () => {
     const active = loadActiveJob(postId); if (!active || canceling) return;

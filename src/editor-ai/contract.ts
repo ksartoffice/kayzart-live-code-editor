@@ -140,6 +140,7 @@ export type AiJobStatusResponse = {
 
 export type AiEditRequest = EditorSnapshot & {
   requestId: string;
+  initialRequestId?: string;
   post_id: number;
   editorMode: EditorMode;
   prompt: string;

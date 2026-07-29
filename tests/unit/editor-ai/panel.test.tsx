@@ -211,7 +211,7 @@ describe('AiEditorPanel', () => {
     await act(async () => root.render(<AiEditorPanel />));
     await vi.waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url) === '/jobs')).toBe(true));
     const createCall = fetchMock.mock.calls.find(([url]) => String(url) === '/jobs');
-    expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ requestId: 'initial-request-7', prompt: 'Create a product landing page.', post_id: 7 });
+    expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ requestId: 'initial-request-7', initialRequestId: 'initial-request-7', prompt: 'Create a product landing page.', post_id: 7 });
     await vi.waitFor(() => expect(replaceEditorSnapshot).toHaveBeenCalledWith(afterSnapshot));
     expect((window as any).KAYZART.ai.initialRequest).toBeNull();
     expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/jobs')).toHaveLength(1);
@@ -261,6 +261,50 @@ describe('AiEditorPanel', () => {
     await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
     await vi.waitFor(() => expect(submittedBodies).toHaveLength(2));
     expect(submittedBodies.map((body) => body.requestId)).toEqual(['initial-request-7', 'initial-request-7']);
+    expect(submittedBodies.map((body) => body.initialRequestId)).toEqual(['initial-request-7', 'initial-request-7']);
+    expect((window as any).KAYZART.ai.initialRequest).toBeNull();
+    await act(async () => root.unmount());
+  });
+
+  it('allocates a fresh request ID after a terminal initial creation failure', async () => {
+    (window as any).KAYZART.ai.initialRequest = { requestId: 'initial-request-7', prompt: 'Create a product landing page.' };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot: vi.fn(() => true), setEditorLock: vi.fn(),
+    };
+    const acceptedItem = { ...timelineItem, jobId: 'job-replacement', requestId: 'request-replacement', prompt: 'Create a revised landing page.', executionStatus: 'completed' as const };
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const submittedBodies: Array<Record<string, unknown>> = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        submittedBodies.push(body);
+        if (submittedBodies.length === 1) return json({ code: 'kayzart_ai_timeline_create_failed', message: 'Timeline creation failed.' }, 503);
+        return json({ ok: true, jobId: 'job-replacement', requestId: body.requestId, status: 'pending', statusUrl: '/jobs/job-replacement', cancelUrl: '/jobs/job-replacement/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: { ...acceptedItem, requestId: body.requestId } }, 202);
+      }
+      if (url.includes('/jobs/job-replacement')) return json({
+        ok: true, jobId: 'job-replacement', requestId: submittedBodies[1].requestId, status: 'completed', events: [], snapshot: afterSnapshot, error: null, usage: null,
+        cancelRequested: false, createdAt: timelineItem.createdAt, updatedAt: timelineItem.updatedAt, startedAt: timelineItem.createdAt, finishedAt: timelineItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000,
+      });
+      if (url.includes('/application')) return json({ ok: true, item: acceptedItem });
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-error')).not.toBeNull());
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    await act(async () => { setter?.call(textarea, 'Create a revised landing page.'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
+
+    await vi.waitFor(() => expect(submittedBodies).toHaveLength(2));
+    expect(submittedBodies[0].requestId).toBe('initial-request-7');
+    expect(submittedBodies[1].requestId).not.toBe('initial-request-7');
+    expect(submittedBodies[1]).toMatchObject({ initialRequestId: 'initial-request-7', prompt: 'Create a revised landing page.' });
     expect((window as any).KAYZART.ai.initialRequest).toBeNull();
     await act(async () => root.unmount());
   });
@@ -288,7 +332,7 @@ describe('AiEditorPanel', () => {
     await act(async () => root.unmount());
   });
 
-  it('keeps an enqueue-failed initial request available for retry', async () => {
+  it('rotates a terminal initial attempt while reusing a replacement ID after a pre-persistence failure', async () => {
     (window as any).KAYZART.ai.initialRequest = { requestId: 'initial-request-7', prompt: 'Create a product landing page.' };
     (window as any).KAYZART_EXTENSION_API = {
       registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
@@ -302,7 +346,8 @@ describe('AiEditorPanel', () => {
       if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: [enqueueFailedItem], hasMore: false, nextCursor: null });
       if (url === '/jobs' && method === 'POST') {
         submittedBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-        return json({ code: 'kayzart_ai_enqueue_failed', message: 'The AI edit job could not be scheduled.' }, 503);
+        if (submittedBodies.length === 2) return json({ code: 'kayzart_ai_enqueue_failed', message: 'The AI edit job could not be scheduled.' }, 503);
+        return json({ code: 'kayzart_ai_job_create_failed', message: 'Job creation failed.' }, 503);
       }
       throw new Error(`Unexpected request: ${method} ${url}`);
     });
@@ -310,8 +355,24 @@ describe('AiEditorPanel', () => {
     const { AiEditorPanel } = await import('../../../src/editor-ai/main');
     const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
     await act(async () => root.render(<AiEditorPanel />));
-    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-error')).not.toBeNull());
-    expect(submittedBodies.map((body) => body.requestId)).toEqual(['initial-request-7']);
+    await vi.waitFor(() => expect(container.textContent).toContain('Create a product landing page.'));
+    expect(submittedBodies).toHaveLength(0);
+
+    const sendButton = () => Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement;
+    await act(async () => sendButton().click());
+    await vi.waitFor(() => expect(submittedBodies).toHaveLength(1));
+    const firstReplacementId = submittedBodies[0].requestId;
+    expect(firstReplacementId).not.toBe('initial-request-7');
+    expect(submittedBodies[0].initialRequestId).toBe('initial-request-7');
+
+    await act(async () => sendButton().click());
+    await vi.waitFor(() => expect(submittedBodies).toHaveLength(2));
+    expect(submittedBodies[1].requestId).toBe(firstReplacementId);
+
+    await act(async () => sendButton().click());
+    await vi.waitFor(() => expect(submittedBodies).toHaveLength(3));
+    expect(submittedBodies[2].requestId).not.toBe(firstReplacementId);
+    expect(submittedBodies[2].initialRequestId).toBe('initial-request-7');
     expect((window as any).KAYZART.ai.initialRequest).toMatchObject({ requestId: 'initial-request-7' });
     await act(async () => root.unmount());
   });
@@ -345,6 +406,7 @@ describe('AiEditorPanel', () => {
     expect(submittedBodies[0].requestId).toBe('initial-request-7');
     expect(submittedBodies[1].requestId).not.toBe('initial-request-7');
     expect(String(submittedBodies[1].requestId)).toMatch(/^request-/);
+    expect(submittedBodies[1].initialRequestId).toBeUndefined();
     await act(async () => root.unmount());
   });
 

@@ -635,6 +635,20 @@ class Admin {
 	}
 
 	/**
+	 * Whether a request ID matches the pending initial request for its owner.
+	 *
+	 * @param int    $post_id    Post ID.
+	 * @param string $request_id Request ID.
+	 * @param int    $user_id    Request owner.
+	 */
+	public static function matches_initial_ai_request( int $post_id, string $request_id, int $user_id ): bool {
+		$request = get_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY, true );
+		return is_array( $request )
+			&& (string) ( $request['requestId'] ?? '' ) === $request_id
+			&& (int) ( $request['userId'] ?? 0 ) === $user_id;
+	}
+
+	/**
 	 * Consume a pending initial request after its AI job has been accepted.
 	 *
 	 * @param int    $post_id    Post ID.
@@ -642,11 +656,7 @@ class Admin {
 	 * @param int    $user_id    Request owner.
 	 */
 	public static function consume_initial_ai_request( int $post_id, string $request_id, int $user_id ): void {
-		$request = get_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY, true );
-		if ( ! is_array( $request ) ) {
-			return;
-		}
-		if ( $request_id === (string) ( $request['requestId'] ?? '' ) && $user_id === (int) ( $request['userId'] ?? 0 ) ) {
+		if ( self::matches_initial_ai_request( $post_id, $request_id, $user_id ) ) {
 			delete_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY );
 		}
 	}

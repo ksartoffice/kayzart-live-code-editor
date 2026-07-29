@@ -9,13 +9,13 @@ describe('AI REST client', () => {
       new Response(JSON.stringify({ ok: true, jobId: 'job-1' }), { status: 202 })
     );
     const payload = {
-      requestId: 'request-1', post_id: 3, editorMode: 'normal' as const, prompt: 'Edit',
+      requestId: 'request-1', initialRequestId: 'initial-request-1', post_id: 3, editorMode: 'normal' as const, prompt: 'Edit',
       html: '<main/>', customHead: '', css: '', js: '', jsMode: 'classic' as const, baseHash: 'hash',
     };
     await createJob('/jobs', 'nonce-value', payload);
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(new Headers(init.headers).get('X-WP-Nonce')).toBe('nonce-value');
-    expect(JSON.parse(String(init.body))).toMatchObject({ requestId: 'request-1', post_id: 3 });
+    expect(JSON.parse(String(init.body))).toMatchObject({ requestId: 'request-1', initialRequestId: 'initial-request-1', post_id: 3 });
   });
 
   it('uses the WordPress REST message and status for errors', async () => {

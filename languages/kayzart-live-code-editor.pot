@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-29T04:54:03+02:00\n"
+"POT-Creation-Date: 2026-07-29T06:09:52+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -189,7 +189,7 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:877
 #: includes/class-kayzart-admin.php:878
-#: includes/class-kayzart-admin.php:1614
+#: includes/class-kayzart-admin.php:1630
 msgid "Settings"
 msgstr ""
 
@@ -400,7 +400,7 @@ msgid "This will be created as: %s"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1458
-msgid "Start with AI"
+msgid "AI instruction"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1460
@@ -439,27 +439,45 @@ msgstr ""
 msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1563
+#: includes/class-kayzart-admin.php:1568
 msgid "Normal HTML/CSS"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1564
+#: includes/class-kayzart-admin.php:1569
+msgid "Create the page with standard HTML and CSS."
+msgstr ""
+
+#. translators: %s: CSS framework name.
+#: includes/class-kayzart-admin.php:1574
+#, php-format
+msgid "%s (Recommended)"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1575
 #: includes/class-kayzart-post-type.php:327
 msgid "TailwindCSS"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1567
+#: includes/class-kayzart-admin.php:1577
+msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1581
 msgid "Mode"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1640
-#: includes/class-kayzart-admin.php:1651
-#: includes/class-kayzart-admin.php:1665
+#: includes/class-kayzart-admin.php:1591
+msgid "This cannot be changed after the page is created."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1656
+#: includes/class-kayzart-admin.php:1667
+#: includes/class-kayzart-admin.php:1681
 msgid "基本設定"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1961
-#: includes/class-kayzart-admin.php:1969
+#: includes/class-kayzart-admin.php:1977
+#: includes/class-kayzart-admin.php:1985
 msgid "Posts"
 msgstr ""
 

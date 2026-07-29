@@ -1450,12 +1450,12 @@ class Admin {
 		}
 		echo '</td></tr>';
 
-		self::render_setup_mode_row();
+		self::render_setup_mode_row( 'tailwind' );
 
 		$can_use_ai      = current_user_can( Ai_Setup::CAPABILITY );
 		$ai_status       = $can_use_ai ? Ai_Availability::get_status() : array( 'available' => false );
 		$ai_is_available = $can_use_ai && ! empty( $ai_status['available'] );
-		echo '<tr><th scope="row"><label for="kayzart-initial-ai-prompt">' . esc_html__( 'Start with AI', 'kayzart-live-code-editor' ) . '</label></th><td>';
+		echo '<tr><th scope="row"><label for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label></th><td>';
 		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="5" class="large-text" maxlength="' . esc_attr( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count"></textarea>';
 		echo '<p id="kayzart-initial-ai-prompt-count" class="description">0/' . esc_html( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_html__( 'bytes', 'kayzart-live-code-editor' ) . '</p>';
 		if ( ! $can_use_ai ) {
@@ -1556,23 +1556,39 @@ class Admin {
 
 	/**
 	 * Render the shared Normal/Tailwind mode chooser row.
+	 *
+	 * @param string $default_mode Optional selected mode.
 	 */
-	private static function render_setup_mode_row(): void {
-		$default = 'tailwind' === get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'normal' ) ? 'tailwind' : 'normal';
+	private static function render_setup_mode_row( string $default_mode = '' ): void {
+		$default = in_array( $default_mode, array( 'normal', 'tailwind' ), true )
+			? $default_mode
+			: ( 'tailwind' === get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, 'normal' ) ? 'tailwind' : 'normal' );
 		$modes   = array(
-			'normal'   => __( 'Normal HTML/CSS', 'kayzart-live-code-editor' ),
-			'tailwind' => __( 'TailwindCSS', 'kayzart-live-code-editor' ),
+			'tailwind' => array(
+				'label'       => sprintf(
+					/* translators: %s: CSS framework name. */
+					__( '%s (Recommended)', 'kayzart-live-code-editor' ),
+					__( 'TailwindCSS', 'kayzart-live-code-editor' )
+				),
+				'description' => __( 'Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily.', 'kayzart-live-code-editor' ),
+			),
+			'normal'   => array(
+				'label'       => __( 'Normal HTML/CSS', 'kayzart-live-code-editor' ),
+				'description' => __( 'Create the page with standard HTML and CSS.', 'kayzart-live-code-editor' ),
+			),
 		);
 
 		echo '<tr><th scope="row">' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</th><td><fieldset>';
-		foreach ( $modes as $mode => $label ) {
+		foreach ( $modes as $mode => $details ) {
 			printf(
-				'<label style="display:block"><input type="radio" name="mode" value="%s"%s /> %s</label>',
+				'<label style="display:block"><input type="radio" name="mode" value="%s"%s /> %s<span class="description" style="display:block;margin-left:24px">%s</span></label>',
 				esc_attr( $mode ),
 				checked( $mode, $default, false ),
-				esc_html( $label )
+				esc_html( $details['label'] ),
+				esc_html( $details['description'] )
 			);
 		}
+		echo '<p class="description">' . esc_html__( 'This cannot be changed after the page is created.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</fieldset></td></tr>';
 	}
 
@@ -1594,6 +1610,11 @@ class Admin {
 			$post_types[ $post_type ] = ! empty( $post_type_object->labels->name )
 				? (string) $post_type_object->labels->name
 				: $post_type;
+		}
+		if ( isset( $post_types[ Post_Type::PAGE_TYPE ] ) ) {
+			$page_label = $post_types[ Post_Type::PAGE_TYPE ];
+			unset( $post_types[ Post_Type::PAGE_TYPE ] );
+			$post_types = array_merge( array( Post_Type::PAGE_TYPE => $page_label ), $post_types );
 		}
 		return $post_types;
 	}

@@ -95,7 +95,7 @@ msgstr "Kayzart で新規作成"
 
 #: includes/class-kayzart-admin.php:877
 #: includes/class-kayzart-admin.php:878
-#: includes/class-kayzart-admin.php:1614
+#: includes/class-kayzart-admin.php:1630
 msgid "Settings"
 msgstr "設定"
 
@@ -155,14 +155,14 @@ msgstr "テンプレートモードが「デフォルト」に設定されてい
 msgid "Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart."
 msgstr "既存の投稿は「Kayzart で編集」を選ぶか、「Kayzart で新規作成」で作成した場合にのみ Kayzart の管理下になります。"
 
-#: includes/class-kayzart-admin.php:1640
-#: includes/class-kayzart-admin.php:1651
-#: includes/class-kayzart-admin.php:1665
+#: includes/class-kayzart-admin.php:1656
+#: includes/class-kayzart-admin.php:1667
+#: includes/class-kayzart-admin.php:1681
 msgid "基本設定"
 msgstr "基本設定"
 
-#: includes/class-kayzart-admin.php:1961
-#: includes/class-kayzart-admin.php:1969
+#: includes/class-kayzart-admin.php:1977
+#: includes/class-kayzart-admin.php:1985
 msgid "Posts"
 msgstr "投稿"
 
@@ -226,7 +226,7 @@ msgstr "旧Kayzart"
 msgid "Landing page"
 msgstr "ランディングページ"
 
-#: includes/class-kayzart-admin.php:1564
+#: includes/class-kayzart-admin.php:1575
 #: includes/class-kayzart-post-type.php:327
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
@@ -658,21 +658,17 @@ msgstr "「%s」を Kayzart エディタで開きます。既存の本文は初�
 msgid "Open editor"
 msgstr "エディタを開く"
 
-#: includes/class-kayzart-admin.php:1567
+#: includes/class-kayzart-admin.php:1581
 msgid "Mode"
 msgstr "モード"
 
-#: includes/class-kayzart-admin.php:1563
+#: includes/class-kayzart-admin.php:1568
 msgid "Normal HTML/CSS"
 msgstr "通常の HTML/CSS"
 
 #: includes/class-kayzart-admin.php:320
 msgid "The initial AI instruction is too large."
 msgstr "最初の AI 指示が大きすぎます。"
-
-#: includes/class-kayzart-admin.php:1458
-msgid "Start with AI"
-msgstr "AI で開始"
 
 #: includes/class-kayzart-admin.php:1460
 #: includes/class-kayzart-admin.php:1473
@@ -694,3 +690,25 @@ msgstr "任意です。エディターを開くと、この指示は自動的に
 #: includes/rest/class-kayzart-rest-save.php:138
 msgid "Invalid editor mode payload."
 msgstr ""
+
+#: includes/class-kayzart-admin.php:1458
+msgid "AI instruction"
+msgstr "AIへの指示"
+
+#. translators: %s: CSS framework name.
+#: includes/class-kayzart-admin.php:1574
+#, php-format
+msgid "%s (Recommended)"
+msgstr "%s（推奨）"
+
+#: includes/class-kayzart-admin.php:1591
+msgid "This cannot be changed after the page is created."
+msgstr "ページの作成後は変更できません。"
+
+#: includes/class-kayzart-admin.php:1569
+msgid "Create the page with standard HTML and CSS."
+msgstr "標準的な HTML と CSS でページを作成します。"
+
+#: includes/class-kayzart-admin.php:1577
+msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
+msgstr "Tailwind CSS のユーティリティクラスでページを作成します。AI がコードを理解・編集しやすいため推奨です。"

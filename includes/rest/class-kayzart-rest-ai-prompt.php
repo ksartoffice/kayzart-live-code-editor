@@ -22,6 +22,8 @@ class Rest_Ai_Prompt {
 	const RATE_LIMIT       = 5;
 	const RATE_WINDOW      = 60;
 	const RATE_KEY_PREFIX  = 'kayzart_ai_prompt_improve_';
+	const RATE_LOCK_PREFIX = 'kayzart_prompt_rate_lock_';
+	const RATE_LOCK_WAIT   = 1;
 
 	/**
 	 * Register the endpoint.
@@ -118,6 +120,39 @@ class Rest_Ai_Prompt {
 	 * @return true|\WP_Error
 	 */
 	private static function consume_rate_limit( int $user_id ) {
+		global $wpdb;
+
+		$lock_name = self::RATE_LOCK_PREFIX . md5( $wpdb->prefix . ':' . $user_id );
+		$acquired  = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MySQL advisory locks provide cross-request atomicity.
+			$wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock_name, self::RATE_LOCK_WAIT )
+		);
+		if ( '1' !== (string) $acquired ) {
+			return new \WP_Error(
+				'kayzart_ai_prompt_rate_lock_busy',
+				__( 'Too many improvement requests. Please wait a moment and try again.', 'kayzart-live-code-editor' ),
+				array(
+					'status'     => 429,
+					'retryAfter' => 1,
+				)
+			);
+		}
+
+		try {
+			return self::consume_rate_limit_window( $user_id );
+		} finally {
+			$wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Releases the matching advisory lock on this connection.
+				$wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name )
+			);
+		}
+	}
+
+	/**
+	 * Consume one attempt while holding the current user's rate-limit lock.
+	 *
+	 * @param int $user_id Current user ID.
+	 * @return true|\WP_Error
+	 */
+	private static function consume_rate_limit_window( int $user_id ) {
 		$now    = time();
 		$key    = self::RATE_KEY_PREFIX . $user_id;
 		$stored = get_transient( $key );

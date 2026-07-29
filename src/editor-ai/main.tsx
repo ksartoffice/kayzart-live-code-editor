@@ -143,6 +143,7 @@ export function AiEditorPanel() {
   const postId = Number(window.KAYZART.post_id || 0);
   const nonce = window.KAYZART.restNonce || '';
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const promptValueRef = useRef(draftState.prompt);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
@@ -168,7 +169,10 @@ export function AiEditorPanel() {
     return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
   });
 
-  const setPrompt = (value: string) => { draftState.prompt = value; setPromptState(value); };
+  const setPrompt = (value: string) => { promptValueRef.current = value; draftState.prompt = value; setPromptState(value); };
+  const restorePromptIfEmpty = (value: string) => {
+    if (promptValueRef.current === '') setPrompt(value);
+  };
   const setContexts = (value: SelectedElementContext[]) => { draftState.contexts = value; setContextsState(value); };
   const refresh = async () => {
     if (!ai?.timelineUrl) { setLoading(false); return; }
@@ -241,7 +245,7 @@ export function AiEditorPanel() {
     const fallback = status.status === 'canceled' ? __('AI edit was canceled.', 'kayzart-live-code-editor')
       : status.status === 'timed_out' ? __('AI edit timed out.', 'kayzart-live-code-editor')
         : status.status === 'enqueue_failed' ? __('AI edit could not be scheduled.', 'kayzart-live-code-editor') : __('AI edit failed.', 'kayzart-live-code-editor');
-    setPrompt(active.prompt); setError(status.error?.message || fallback); finish();
+    restorePromptIfEmpty(active.prompt); setError(status.error?.message || fallback); finish();
   };
   const poll = async (active: ActiveJobRecord) => {
     pollAbortRef.current?.abort();
@@ -403,7 +407,7 @@ export function AiEditorPanel() {
       void refresh(); await poll(active);
     } catch (caught) {
       setError(caught instanceof AiApiError || caught instanceof Error ? caught.message : __('AI edit failed.', 'kayzart-live-code-editor'));
-      setPrompt(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
+      restorePromptIfEmpty(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
     }
   };
   const rerun = (item: AiTimelineItem) => {

@@ -379,6 +379,7 @@ class Admin {
 	const DUPLICATE_META_DENYLIST = array(
 		'_kayzart_setup_required',
 		'_kayzart_screen',
+		self::INITIAL_AI_REQUEST_META_KEY,
 	);
 
 	/**

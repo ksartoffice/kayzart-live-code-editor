@@ -156,6 +156,44 @@ class Test_Kayzart_Rest_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Provider failures still consume attempts in the current rate window.
+	 */
+	public function test_improve_counts_failed_provider_attempts(): void {
+		for ( $index = 0; $index < 5; ++$index ) {
+			$this->assertSame( 502, $this->dispatch( array( 'prompt' => 'Build a page.' ) )->get_status() );
+		}
+
+		$limited = $this->dispatch( array( 'prompt' => 'Build a page.' ) );
+		$this->assertSame( 429, $limited->get_status() );
+		$this->assertCount( 5, $this->fake->calls() );
+	}
+
+	/**
+	 * A concurrent request cannot enter the transient read-modify-write section.
+	 */
+	public function test_improve_rejects_request_while_user_rate_lock_is_held(): void {
+		global $wpdb;
+
+		$lock_name = Rest_Ai_Prompt::RATE_LOCK_PREFIX . md5( $wpdb->prefix . ':' . $this->admin_id );
+		$locker    = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+		$acquired  = $locker->get_var( $locker->prepare( 'SELECT GET_LOCK(%s, 0)', $lock_name ) );
+		$this->assertSame( '1', (string) $acquired );
+
+		try {
+			$limited = $this->dispatch( array( 'prompt' => 'Build a page.' ) );
+			$this->assertSame( 429, $limited->get_status() );
+			$this->assertSame( 1, $limited->get_data()['data']['retryAfter'] );
+			$this->assertCount( 0, $this->fake->calls() );
+		} finally {
+			$locker->get_var( $locker->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			$locker->close();
+		}
+
+		$this->fake->queue_final_text( 'Allowed after lock release.' );
+		$this->assertSame( 200, $this->dispatch( array( 'prompt' => 'Build a page.' ) )->get_status() );
+	}
+
+	/**
 	 * Dispatch an authenticated JSON request.
 	 *
 	 * @param array $body JSON request body.

@@ -54,6 +54,64 @@ describe('AiEditorPanel', () => {
     return { container, fetchMock, replaceEditorSnapshot, root, setEditorLock };
   };
 
+  const runFailedSubmission = async (options: {
+    nextDraft?: string;
+    failDuringCreate?: boolean;
+    terminalStatus?: 'error' | 'canceled';
+  }) => {
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+    };
+    const pendingItem = { ...timelineItem, executionStatus: 'pending' as const, applicationStatus: 'not_applied' as const };
+    const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+    let resolveFailure!: (response: Response) => void;
+    const failure = new Promise<Response>((resolve) => { resolveFailure = resolve; });
+    let failureRequested = false;
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return Promise.resolve(json({ ok: true, items: [], hasMore: false, nextCursor: null }));
+      if (url === '/jobs' && method === 'POST') {
+        failureRequested = Boolean(options.failDuringCreate);
+        return options.failDuringCreate
+          ? failure
+          : Promise.resolve(json({ ok: true, jobId: 'job-failed', requestId: 'request-failed', status: 'pending', statusUrl: '/jobs/job-failed', cancelUrl: '/jobs/job-failed/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: pendingItem }, 202));
+      }
+      if (url.includes('/jobs/job-failed')) {
+        failureRequested = true;
+        return failure;
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Describe'));
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    await act(async () => { setter?.call(textarea, 'Improve the hero'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
+    await vi.waitFor(() => expect(failureRequested).toBe(true));
+    if (options.nextDraft !== undefined) {
+      await act(async () => { setter?.call(textarea, options.nextDraft); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    }
+
+    await act(async () => {
+      resolveFailure(options.failDuringCreate
+        ? json({ code: 'kayzart_ai_job_create_failed', message: 'Job creation failed.' }, 503)
+        : json({
+          ok: true, jobId: 'job-failed', requestId: 'request-failed', status: options.terminalStatus || 'error', events: [], snapshot: null,
+          error: options.terminalStatus === 'canceled' ? null : { message: 'AI edit failed.' }, usage: null, cancelRequested: false,
+          createdAt: timelineItem.createdAt, updatedAt: timelineItem.updatedAt, startedAt: timelineItem.createdAt,
+          finishedAt: timelineItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000,
+        }));
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-error')).not.toBeNull());
+    return { root, textarea };
+  };
+
   beforeEach(() => {
     vi.resetModules(); sessionStorage.clear(); document.body.innerHTML = '';
     (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
@@ -108,6 +166,24 @@ describe('AiEditorPanel', () => {
     expect(container.textContent).toContain('gpt-4o');
     expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).toBeNull();
     expect(setEditorLock).toHaveBeenCalledWith(true); expect(setEditorLock).toHaveBeenLastCalledWith(false);
+    await act(async () => root.unmount());
+  });
+
+  it('preserves a new draft when the running job fails', async () => {
+    const { root, textarea } = await runFailedSubmission({ nextDraft: 'Add a pricing section.' });
+    expect(textarea.value).toBe('Add a pricing section.');
+    await act(async () => root.unmount());
+  });
+
+  it('restores the submitted prompt after cancellation when the composer is still empty', async () => {
+    const { root, textarea } = await runFailedSubmission({ terminalStatus: 'canceled' });
+    expect(textarea.value).toBe('Improve the hero');
+    await act(async () => root.unmount());
+  });
+
+  it('preserves a draft entered while job creation is pending when creation fails', async () => {
+    const { root, textarea } = await runFailedSubmission({ nextDraft: 'Add customer testimonials.', failDuringCreate: true });
+    expect(textarea.value).toBe('Add customer testimonials.');
     await act(async () => root.unmount());
   });
 

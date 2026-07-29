@@ -52,7 +52,7 @@ class Rest_Setup {
 
 		if ( ! $tailwind_locked ) {
 			$tailwind_enabled = 'tailwind' === $mode;
-			update_post_meta( $post_id, '_kayzart_tailwind', $tailwind_enabled ? '1' : '0' );
+			Css_Mode::initialize_post_mode( $post_id, $mode );
 			update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
 		}
 

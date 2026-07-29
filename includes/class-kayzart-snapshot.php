@@ -100,13 +100,20 @@ class Snapshot {
 	}
 
 	/**
-	 * Clear the temporary legacy restore state after core restores metadata.
+	 * Reconcile the active CSS buffer after core restores legacy metadata.
 	 *
 	 * @param int $post_id     Restored post ID.
 	 * @param int $revision_id Revision ID.
 	 */
 	public static function finish_legacy_revision_restore( int $post_id, int $revision_id ): void {
-		unset( $post_id, $revision_id );
+		unset( $revision_id );
+		if ( self::$preserving_legacy_mode_meta ) {
+			$restored_css = (string) get_post_meta( $post_id, '_kayzart_css', true );
+			$active_key   = '1' === get_post_meta( $post_id, '_kayzart_tailwind', true )
+				? '_kayzart_tailwind_css'
+				: '_kayzart_normal_css';
+			update_post_meta( $post_id, $active_key, wp_slash( $restored_css ) );
+		}
 		self::$preserving_legacy_mode_meta = false;
 	}
 

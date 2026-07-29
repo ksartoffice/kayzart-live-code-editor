@@ -176,7 +176,8 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Native restoration of a schema-1 revision keeps the current CSS mode data.
+	 * Native restoration of a schema-1 revision keeps the current CSS mode and
+	 * applies the restored CSS to that mode's active buffer.
 	 */
 	public function test_native_restore_of_legacy_revision_preserves_css_mode_meta(): void {
 		$this->require_snapshot_support();
@@ -205,9 +206,52 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 		$this->assertSame( '<main>Before</main>', get_post( $page['post_id'] )->post_content );
 		$this->assertSame( '.legacy{}', get_post_meta( $page['post_id'], '_kayzart_css', true ) );
 		$this->assertSame( '0', get_post_meta( $page['post_id'], '_kayzart_tailwind', true ) );
-		$this->assertSame( '.current-normal{}', get_post_meta( $page['post_id'], '_kayzart_normal_css', true ) );
+		$this->assertSame( '.legacy{}', get_post_meta( $page['post_id'], '_kayzart_normal_css', true ) );
 		$this->assertSame( '@import "tailwindcss";', get_post_meta( $page['post_id'], '_kayzart_tailwind_css', true ) );
 		$this->assertFalse( metadata_exists( 'post', $page['post_id'], '_kayzart_generated_css' ) );
+	}
+
+	/**
+	 * Native restoration of a schema-1 revision recompiles the restored
+	 * Tailwind source while retaining the inactive Normal buffer.
+	 */
+	public function test_native_restore_of_legacy_revision_reconciles_tailwind_css(): void {
+		$this->require_snapshot_support();
+		$page = $this->create_page();
+
+		wp_update_post(
+			array(
+				'ID'           => $page['post_id'],
+				'post_content' => '<main class="text-sm">Before</main>',
+			)
+		);
+		$legacy_css = '@import "tailwindcss";';
+		update_post_meta( $page['post_id'], '_kayzart_css', $legacy_css );
+		update_post_meta( $page['post_id'], Snapshot::SCHEMA_META_KEY, '1' );
+		update_post_meta( $page['post_id'], Snapshot::HASH_META_KEY, 'legacy-hash' );
+		$revision_id = wp_save_post_revision( $page['post_id'] );
+		$this->assertIsInt( $revision_id );
+
+		wp_update_post(
+			array(
+				'ID'           => $page['post_id'],
+				'post_content' => '<main>Current</main>',
+			)
+		);
+		update_post_meta( $page['post_id'], '_kayzart_tailwind', '1' );
+		update_post_meta( $page['post_id'], '_kayzart_normal_css', '.current-normal{}' );
+		update_post_meta( $page['post_id'], '_kayzart_tailwind_css', '@theme {}' );
+
+		wp_restore_post_revision( $revision_id );
+
+		$this->assertSame( $legacy_css, get_post_meta( $page['post_id'], '_kayzart_css', true ) );
+		$this->assertSame( '1', get_post_meta( $page['post_id'], '_kayzart_tailwind', true ) );
+		$this->assertSame( '.current-normal{}', get_post_meta( $page['post_id'], '_kayzart_normal_css', true ) );
+		$this->assertSame( $legacy_css, get_post_meta( $page['post_id'], '_kayzart_tailwind_css', true ) );
+		$this->assertStringContainsString(
+			'.text-sm',
+			get_post_meta( $page['post_id'], '_kayzart_generated_css', true )
+		);
 	}
 
 	/**

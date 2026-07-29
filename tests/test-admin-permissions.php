@@ -288,6 +288,16 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 'Spring campaign', get_post( $created_id )->post_title );
 		$this->assertSame( $expected_tailwind, get_post_meta( $created_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $created_id, '_kayzart_tailwind_locked', true ) );
+		if ( 'tailwind' === $mode ) {
+			$this->assertStringContainsString(
+				'@import "tailwindcss";',
+				get_post_meta( $created_id, '_kayzart_css', true )
+			);
+			$this->assertSame(
+				get_post_meta( $created_id, '_kayzart_css', true ),
+				get_post_meta( $created_id, '_kayzart_tailwind_css', true )
+			);
+		}
 		$this->assertSame(
 			'',
 			get_post_meta( $created_id, '_kayzart_setup_required', true ),
@@ -313,6 +323,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 				'post_content' => $content,
 			)
 		);
+		$existing_css = '.legacy { color: red; }';
+		update_post_meta( $page_id, '_kayzart_css', $existing_css );
 
 		$original_get = $_GET;
 		$_GET         = array(
@@ -333,6 +345,17 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( '1', get_post_meta( $page_id, Post_Type::ENABLED_META, true ) );
 		$this->assertSame( $expected_tailwind, get_post_meta( $page_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $page_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame( $existing_css, get_post_meta( $page_id, '_kayzart_normal_css', true ) );
+		if ( 'tailwind' === $mode ) {
+			$this->assertStringContainsString(
+				'@import "tailwindcss";',
+				get_post_meta( $page_id, '_kayzart_css', true )
+			);
+			$this->assertSame(
+				get_post_meta( $page_id, '_kayzart_css', true ),
+				get_post_meta( $page_id, '_kayzart_tailwind_css', true )
+			);
+		}
 		$this->assertSame( '', get_post_meta( $page_id, '_kayzart_setup_required', true ) );
 	}
 

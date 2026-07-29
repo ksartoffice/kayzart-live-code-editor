@@ -378,6 +378,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="post_type" value="page" checked=', $output );
 		$this->assertStringContainsString( 'name="mode" value="tailwind" checked=', $output );
 		$this->assertStringContainsString( __( 'Recommended', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'You can change this later in the editor.', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 		$this->assertStringNotContainsString( 'class="form-table"', $output );

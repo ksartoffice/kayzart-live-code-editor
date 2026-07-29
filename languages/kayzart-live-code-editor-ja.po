@@ -95,7 +95,7 @@ msgstr "Kayzart で新規作成"
 
 #: includes/class-kayzart-admin.php:877
 #: includes/class-kayzart-admin.php:878
-#: includes/class-kayzart-admin.php:1663
+#: includes/class-kayzart-admin.php:1662
 msgid "Settings"
 msgstr "設定"
 
@@ -155,14 +155,14 @@ msgstr "テンプレートモードが「デフォルト」に設定されてい
 msgid "Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart."
 msgstr "既存の投稿は「Kayzart で編集」を選ぶか、「Kayzart で新規作成」で作成した場合にのみ Kayzart の管理下になります。"
 
-#: includes/class-kayzart-admin.php:1689
-#: includes/class-kayzart-admin.php:1700
-#: includes/class-kayzart-admin.php:1714
+#: includes/class-kayzart-admin.php:1688
+#: includes/class-kayzart-admin.php:1699
+#: includes/class-kayzart-admin.php:1713
 msgid "基本設定"
 msgstr "基本設定"
 
-#: includes/class-kayzart-admin.php:2049
-#: includes/class-kayzart-admin.php:2057
+#: includes/class-kayzart-admin.php:2048
+#: includes/class-kayzart-admin.php:2056
 msgid "Posts"
 msgstr "投稿"
 
@@ -226,15 +226,15 @@ msgstr "旧Kayzart"
 msgid "Landing page"
 msgstr "ランディングページ"
 
-#: includes/class-kayzart-admin.php:1467
-#: includes/class-kayzart-admin.php:1599
+#: includes/class-kayzart-admin.php:1466
+#: includes/class-kayzart-admin.php:1598
 #: includes/class-kayzart-post-type.php:327
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
 #: includes/class-kayzart-admin.php:898
 #: includes/class-kayzart-admin.php:899
-#: includes/class-kayzart-admin.php:1542
+#: includes/class-kayzart-admin.php:1541
 #: includes/class-kayzart-post-type.php:354
 #: includes/class-kayzart-post-type.php:367
 #: assets/admin/editor-bridge.js:18
@@ -622,45 +622,45 @@ msgstr "利用不可"
 msgid "You do not have permission to create Kayzart pages."
 msgstr "Kayzart ページを作成する権限がありません。"
 
-#: includes/class-kayzart-admin.php:1431
+#: includes/class-kayzart-admin.php:1430
 msgid "Title"
 msgstr "タイトル"
 
-#: includes/class-kayzart-admin.php:1433
+#: includes/class-kayzart-admin.php:1432
 msgid "Optional. You can rename the page later."
 msgstr "任意です。あとから変更できます。"
 
-#: includes/class-kayzart-admin.php:1437
+#: includes/class-kayzart-admin.php:1436
 msgid "Create as"
 msgstr "作成先"
 
-#: includes/class-kayzart-admin.php:1501
+#: includes/class-kayzart-admin.php:1500
 msgid "Create and open editor"
 msgstr "作成してエディタを開く"
 
-#: includes/class-kayzart-admin.php:1545
+#: includes/class-kayzart-admin.php:1544
 msgid "This page cannot be opened in Kayzart."
 msgstr "このページは Kayzart で開けません。"
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:1567
+#: includes/class-kayzart-admin.php:1566
 #, php-format
 msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
 msgstr "「%s」を Kayzart エディタで開きます。既存の本文は初期 HTML として保持されます。"
 
-#: includes/class-kayzart-admin.php:1556
-#: includes/class-kayzart-admin.php:1580
+#: includes/class-kayzart-admin.php:1555
+#: includes/class-kayzart-admin.php:1579
 msgid "Open editor"
 msgstr "エディタを開く"
 
-#: includes/class-kayzart-admin.php:1462
-#: includes/class-kayzart-admin.php:1465
-#: includes/class-kayzart-admin.php:1609
+#: includes/class-kayzart-admin.php:1461
+#: includes/class-kayzart-admin.php:1464
+#: includes/class-kayzart-admin.php:1608
 msgid "Mode"
 msgstr "モード"
 
-#: includes/class-kayzart-admin.php:1468
-#: includes/class-kayzart-admin.php:1604
+#: includes/class-kayzart-admin.php:1467
+#: includes/class-kayzart-admin.php:1603
 msgid "Normal HTML/CSS"
 msgstr "通常の HTML/CSS"
 
@@ -668,20 +668,20 @@ msgstr "通常の HTML/CSS"
 msgid "The initial AI instruction is too large."
 msgstr "最初の AI 指示が大きすぎます。"
 
-#: includes/class-kayzart-admin.php:1494
-#: includes/class-kayzart-admin.php:1975
+#: includes/class-kayzart-admin.php:1493
+#: includes/class-kayzart-admin.php:1974
 msgid "bytes"
 msgstr "バイト"
 
-#: includes/class-kayzart-admin.php:1488
+#: includes/class-kayzart-admin.php:1487
 msgid "You do not have permission to use AI editing."
 msgstr "AI 編集を使用する権限がありません。"
 
-#: includes/class-kayzart-admin.php:1490
+#: includes/class-kayzart-admin.php:1489
 msgid "AI editing must be configured before you can start with a request."
 msgstr "指示から開始するには、AI 編集を設定する必要があります。"
 
-#: includes/class-kayzart-admin.php:1492
+#: includes/class-kayzart-admin.php:1491
 msgid "Optional. This instruction will be sent automatically when the editor opens."
 msgstr "任意です。エディターを開くと、この指示は自動的に送信されます。"
 
@@ -689,29 +689,24 @@ msgstr "任意です。エディターを開くと、この指示は自動的に
 msgid "Invalid editor mode payload."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1480
-#: includes/class-kayzart-admin.php:1484
+#: includes/class-kayzart-admin.php:1479
+#: includes/class-kayzart-admin.php:1483
 msgid "AI instruction"
 msgstr "AIへの指示"
 
 #. translators: %s: CSS framework name.
-#: includes/class-kayzart-admin.php:1598
+#: includes/class-kayzart-admin.php:1597
 #, php-format
 msgid "%s (Recommended)"
 msgstr "%s（推奨）"
 
-#: includes/class-kayzart-admin.php:1470
-#: includes/class-kayzart-admin.php:1619
-msgid "This cannot be changed after the page is created."
-msgstr "ページの作成後は変更できません。"
-
-#: includes/class-kayzart-admin.php:1468
-#: includes/class-kayzart-admin.php:1605
+#: includes/class-kayzart-admin.php:1467
+#: includes/class-kayzart-admin.php:1604
 msgid "Create the page with standard HTML and CSS."
 msgstr "標準的な HTML と CSS でページを作成します。"
 
-#: includes/class-kayzart-admin.php:1467
-#: includes/class-kayzart-admin.php:1601
+#: includes/class-kayzart-admin.php:1466
+#: includes/class-kayzart-admin.php:1600
 msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
 msgstr "Tailwind CSS のユーティリティクラスでページを作成します。AI がコードを理解・編集しやすいため推奨です。"
 
@@ -723,42 +718,47 @@ msgstr "Kayzartで作成"
 msgid "Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design."
 msgstr "AIを使ってランディングページを作成できます。デフォルトでは、テーマのデザインに影響されない独立したページとして作成されます。"
 
-#: includes/class-kayzart-admin.php:1427
+#: includes/class-kayzart-admin.php:1426
 msgid "Basic information"
 msgstr "基本情報"
 
-#: includes/class-kayzart-admin.php:1428
+#: includes/class-kayzart-admin.php:1427
 msgid "Choose where to create the page and give it a working title."
 msgstr "ページの作成先を選択し、仮のタイトルを入力します。"
 
-#: includes/class-kayzart-admin.php:1432
+#: includes/class-kayzart-admin.php:1431
 msgid "Landing page title"
 msgstr "ランディングページのタイトル"
 
-#: includes/class-kayzart-admin.php:1463
+#: includes/class-kayzart-admin.php:1462
 msgid "Choose how the page styles will be created."
 msgstr "ページのスタイルを作成する方法を選択します。"
 
-#: includes/class-kayzart-admin.php:1467
+#: includes/class-kayzart-admin.php:1466
 msgid "Recommended"
 msgstr "推奨"
 
-#: includes/class-kayzart-admin.php:1481
+#: includes/class-kayzart-admin.php:1480
 msgid "Describe the page you want, and AI will start building it when the editor opens."
 msgstr "作成したいページを入力すると、エディターを開いたときにAIが作成を開始します。"
 
-#: includes/class-kayzart-admin.php:1485
+#: includes/class-kayzart-admin.php:1484
 msgid "Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form."
 msgstr "例：ヒーローセクション、特徴、料金表、お問い合わせフォームを含む新サービスのランディングページを作成してください。"
 
-#: includes/class-kayzart-admin.php:1500
+#: includes/class-kayzart-admin.php:1499
 msgid "Ready to create?"
 msgstr "作成の準備ができましたか？"
 
-#: includes/class-kayzart-admin.php:1500
+#: includes/class-kayzart-admin.php:1499
 msgid "The editor will open after the page is created."
 msgstr "ページを作成するとエディターが開きます。"
 
-#: includes/class-kayzart-admin.php:1501
+#: includes/class-kayzart-admin.php:1500
 msgid "Creating…"
 msgstr "作成中…"
+
+#: includes/class-kayzart-admin.php:1469
+#: includes/class-kayzart-admin.php:1618
+msgid "You can change this later in the editor."
+msgstr "作成後もエディターで変更できます。"

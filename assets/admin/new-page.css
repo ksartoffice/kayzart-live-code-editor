@@ -8,7 +8,7 @@
   box-sizing: border-box;
   max-width: 920px;
   margin: 0 auto;
-  padding: 42px 28px 64px 8px;
+  padding: 24px 28px 40px 8px;
   color: var(--kayzart-text);
 }
 
@@ -20,13 +20,13 @@
 
 .kayzart-create-page__header {
   max-width: 760px;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
 }
 
 .kayzart-create-page__eyebrow {
   display: inline-flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   color: var(--kayzart-accent-dark);
   font-size: 12px;
   font-weight: 700;
@@ -46,7 +46,7 @@
 .kayzart-create-page__header h1 {
   margin: 0;
   color: #101828;
-  font-size: clamp(30px, 4vw, 42px);
+  font-size: clamp(28px, 4vw, 36px);
   font-weight: 750;
   line-height: 1.15;
   letter-spacing: -0.03em;
@@ -54,10 +54,10 @@
 
 .kayzart-create-page__header p {
   max-width: 700px;
-  margin: 14px 0 0;
+  margin: 8px 0 0;
   color: var(--kayzart-muted);
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .kayzart-create-form {
@@ -71,7 +71,7 @@
 }
 
 .kayzart-create-section {
-  padding: 32px 36px;
+  padding: 22px 30px;
   border-bottom: 1px solid #eaecf0;
 }
 
@@ -87,20 +87,20 @@
 
 .kayzart-create-section__heading {
   display: flex;
-  gap: 14px;
+  gap: 11px;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .kayzart-create-section__heading h2 {
   margin: 0;
   color: #101828;
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1.35;
 }
 
 .kayzart-create-section__heading p {
-  margin: 5px 0 0;
+  margin: 3px 0 0;
   color: var(--kayzart-muted);
   font-size: 13px;
   line-height: 1.55;
@@ -108,12 +108,12 @@
 
 .kayzart-create-section__step {
   display: inline-flex;
-  flex: 0 0 30px;
+  flex: 0 0 27px;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
   background: var(--kayzart-accent-soft);
   color: var(--kayzart-accent-dark);
   font-size: 13px;
@@ -128,13 +128,13 @@
 
 .kayzart-create-field + .kayzart-create-field,
 .kayzart-create-field + .kayzart-create-fieldset {
-  margin-top: 24px;
+  margin-top: 16px;
 }
 
 .kayzart-create-field > label,
 .kayzart-create-fieldset > legend {
   display: block;
-  margin-bottom: 9px;
+  margin-bottom: 6px;
   padding: 0;
   color: #344054;
   font-size: 13px;
@@ -158,13 +158,13 @@
 }
 
 .kayzart-create-field input[type="text"] {
-  min-height: 46px;
-  padding: 9px 13px;
+  min-height: 42px;
+  padding: 7px 12px;
 }
 
 .kayzart-create-field textarea {
-  min-height: 164px;
-  padding: 13px 15px;
+  min-height: 120px;
+  padding: 10px 13px;
   resize: vertical;
 }
 
@@ -183,7 +183,7 @@
 }
 
 .kayzart-create-field .description {
-  margin: 7px 0 0;
+  margin: 5px 0 0;
   color: var(--kayzart-muted);
   font-size: 12px;
   line-height: 1.55;
@@ -191,7 +191,7 @@
 
 .kayzart-create-options {
   display: grid;
-  gap: 12px;
+  gap: 9px;
 }
 
 .kayzart-create-options--post-type {
@@ -205,11 +205,11 @@
 .kayzart-create-option {
   position: relative;
   display: flex;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  padding: 18px;
+  padding: 14px;
   border: 1px solid var(--kayzart-border);
-  border-radius: 13px;
+  border-radius: 11px;
   background: #fff;
   cursor: pointer;
   transition:
@@ -264,7 +264,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .kayzart-create-option__title {
@@ -287,7 +287,7 @@
 
 .kayzart-create-option--compact {
   align-items: center;
-  padding: 14px 16px;
+  padding: 11px 14px;
 }
 
 .kayzart-create-option--compact .kayzart-create-option__control {
@@ -309,7 +309,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  margin: 13px 0 0;
+  margin: 9px 0 0;
   color: var(--kayzart-muted);
   font-size: 12px;
 }
@@ -333,7 +333,7 @@
 
 .kayzart-create-counter {
   flex: 0 0 auto;
-  margin: 7px 0 0;
+  margin: 5px 0 0;
   color: var(--kayzart-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -346,10 +346,10 @@
 
 .kayzart-create-form__footer {
   display: flex;
-  gap: 24px;
+  gap: 18px;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 36px;
+  padding: 17px 30px;
   background: #fcfcfd;
 }
 
@@ -370,7 +370,7 @@
 }
 
 .kayzart-create-form__footer .button.button-primary {
-  min-height: 44px;
+  min-height: 40px;
   margin: 0;
   padding: 0 22px;
   border-color: var(--kayzart-accent-dark);
@@ -379,7 +379,7 @@
   box-shadow: 0 5px 14px rgba(79, 70, 229, 0.23);
   font-size: 13px;
   font-weight: 650;
-  line-height: 42px;
+  line-height: 38px;
   text-shadow: none;
 }
 
@@ -397,7 +397,7 @@
 
 @media (max-width: 782px) {
   .kayzart-create-page {
-    padding: 28px 12px 48px 2px;
+    padding: 20px 12px 32px 2px;
   }
 
   .kayzart-create-form {
@@ -406,7 +406,7 @@
 
   .kayzart-create-section,
   .kayzart-create-form__footer {
-    padding: 24px 20px;
+    padding: 18px 16px;
   }
 
   .kayzart-create-options--post-type,

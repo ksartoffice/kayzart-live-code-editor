@@ -1466,7 +1466,7 @@ class Admin {
 		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="tailwind" checked="checked" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'TailwindCSS', 'kayzart-live-code-editor' ) . '</strong><span class="kayzart-create-badge">' . esc_html__( 'Recommended', 'kayzart-live-code-editor' ) . '</span></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily.', 'kayzart-live-code-editor' ) . '</span></span></label>';
 		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="normal" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'Normal HTML/CSS', 'kayzart-live-code-editor' ) . '</strong></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with standard HTML and CSS.', 'kayzart-live-code-editor' ) . '</span></span></label>';
 		echo '</div>';
-		echo '<p class="kayzart-create-note"><span class="dashicons dashicons-lock" aria-hidden="true"></span>' . esc_html__( 'This cannot be changed after the page is created.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p class="kayzart-create-note"><span class="dashicons dashicons-edit" aria-hidden="true"></span>' . esc_html__( 'You can change this later in the editor.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</fieldset>';
 		echo '</section>';
 
@@ -1615,7 +1615,7 @@ class Admin {
 				esc_html( $details['description'] )
 			);
 		}
-		echo '<p class="description">' . esc_html__( 'This cannot be changed after the page is created.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'You can change this later in the editor.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</fieldset></td></tr>';
 	}
 

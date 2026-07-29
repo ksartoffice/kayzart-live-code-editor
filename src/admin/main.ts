@@ -30,6 +30,7 @@ import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml, buildMediaUrl } from './logic/media-html';
 import { resolveQuotedValueReplacementRange, type TextRange } from './logic/media-insertion';
 import { buildStatusUpdates } from './logic/status-updates';
+import { resolveEditorLockState } from './logic/editor-lock-state';
 import {
   buildImportedHtml,
   parseFullHtmlDocument,
@@ -1861,12 +1862,17 @@ async function main() {
     preview?.sendRender();
   };
 
+  const syncEditorLocks = () => {
+    const locks = resolveEditorLockState(extensionEditorLock, cssModeChangeInFlight);
+    htmlEditor.setLocked(locks.htmlAndCss);
+    cssEditor.setLocked(locks.htmlAndCss);
+    customHeadEditor.setLocked(locks.otherEditors);
+    jsEditor.setLocked(locks.otherEditors);
+  };
+
   const setEditorLock = (locked: boolean) => {
     extensionEditorLock = locked;
-    htmlEditor.setLocked(locked);
-    customHeadEditor.setLocked(locked);
-    cssEditor.setLocked(locked);
-    jsEditor.setLocked(locked);
+    syncEditorLocks();
     syncEditorModeControl();
   };
 
@@ -1967,6 +1973,7 @@ async function main() {
     }
 
     cssModeChangeInFlight = true;
+    syncEditorLocks();
     syncEditorModeControl();
     try {
       const resolved = await resolveCssModeChange({
@@ -1999,6 +2006,7 @@ async function main() {
       createSnackbar('error', message, NOTICE_IDS.tailwind, NOTICE_ERROR_DURATION_MS);
     } finally {
       cssModeChangeInFlight = false;
+      syncEditorLocks();
       syncEditorModeControl();
     }
   };

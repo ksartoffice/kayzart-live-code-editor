@@ -8,7 +8,7 @@
   box-sizing: border-box;
   max-width: 920px;
   margin: 0 auto;
-  padding: 24px 28px 40px 8px;
+  padding: 16px 28px 24px 8px;
   color: var(--kayzart-text);
 }
 
@@ -20,13 +20,13 @@
 
 .kayzart-create-page__header {
   max-width: 760px;
-  margin-bottom: 18px;
+  margin-bottom: 12px;
 }
 
 .kayzart-create-page__eyebrow {
   display: inline-flex;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: var(--kayzart-accent-dark);
   font-size: 12px;
   font-weight: 700;
@@ -46,7 +46,7 @@
 .kayzart-create-page__header h1 {
   margin: 0;
   color: #101828;
-  font-size: clamp(28px, 4vw, 36px);
+  font-size: clamp(27px, 4vw, 32px);
   font-weight: 750;
   line-height: 1.15;
   letter-spacing: -0.03em;
@@ -54,10 +54,10 @@
 
 .kayzart-create-page__header p {
   max-width: 700px;
-  margin: 8px 0 0;
+  margin: 5px 0 0;
   color: var(--kayzart-muted);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.5;
 }
 
 .kayzart-create-form {
@@ -71,7 +71,7 @@
 }
 
 .kayzart-create-section {
-  padding: 22px 30px;
+  padding: 18px 26px;
   border-bottom: 1px solid #eaecf0;
 }
 
@@ -85,11 +85,17 @@
   background: #f8f9fb;
 }
 
+.kayzart-create-section--settings {
+  padding-top: 13px;
+  padding-bottom: 13px;
+  background: #f8fafc;
+}
+
 .kayzart-create-section__heading {
   display: flex;
   gap: 11px;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .kayzart-create-section__heading h2 {
@@ -103,7 +109,17 @@
   margin: 3px 0 0;
   color: var(--kayzart-muted);
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.45;
+}
+
+.kayzart-create-section__heading--compact {
+  margin-bottom: 9px;
+}
+
+.kayzart-create-section__heading--compact h2 {
+  color: #475467;
+  font-size: 13px;
+  letter-spacing: 0.02em;
 }
 
 .kayzart-create-section__step {
@@ -128,7 +144,7 @@
 
 .kayzart-create-field + .kayzart-create-field,
 .kayzart-create-field + .kayzart-create-fieldset {
-  margin-top: 16px;
+  margin-top: 11px;
 }
 
 .kayzart-create-field > label,
@@ -163,7 +179,8 @@
 }
 
 .kayzart-create-field textarea {
-  min-height: 120px;
+  height: 116px;
+  min-height: 96px;
   padding: 10px 13px;
   resize: vertical;
 }
@@ -321,12 +338,28 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.kayzart-create-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 0;
+  align-items: start;
+}
+
+.kayzart-create-settings > .kayzart-create-fieldset:first-child {
+  padding-right: 20px;
+}
+
+.kayzart-create-settings > .kayzart-create-fieldset + .kayzart-create-fieldset {
+  padding-left: 20px;
+  border-left: 1px solid #d9dee8;
+}
+
 .kayzart-create-option {
   position: relative;
   display: flex;
   gap: 10px;
   min-width: 0;
-  padding: 14px;
+  padding: 10px;
   border: 1px solid var(--kayzart-border);
   border-radius: 11px;
   background: #fff;
@@ -401,12 +434,13 @@
 .kayzart-create-option__description {
   color: var(--kayzart-muted);
   font-size: 12px;
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .kayzart-create-option--compact {
   align-items: center;
-  padding: 11px 14px;
+  padding: 9px 11px;
 }
 
 .kayzart-create-option--compact .kayzart-create-option__control {
@@ -415,7 +449,7 @@
 
 .kayzart-create-badge {
   display: inline-flex;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: #e9e7ff;
   color: var(--kayzart-accent-dark);
@@ -428,7 +462,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  margin: 9px 0 0;
+  margin: 6px 0 0;
   color: var(--kayzart-muted);
   font-size: 12px;
 }
@@ -468,7 +502,7 @@
   gap: 18px;
   align-items: center;
   justify-content: space-between;
-  padding: 17px 30px;
+  padding: 12px 26px;
   background: #fcfcfd;
 }
 
@@ -528,9 +562,22 @@
     padding: 18px 16px;
   }
 
+  .kayzart-create-settings,
   .kayzart-create-options--post-type,
   .kayzart-create-options--mode {
     grid-template-columns: 1fr;
+  }
+
+  .kayzart-create-settings > .kayzart-create-fieldset:first-child {
+    padding-right: 0;
+    padding-bottom: 14px;
+  }
+
+  .kayzart-create-settings > .kayzart-create-fieldset + .kayzart-create-fieldset {
+    padding-top: 14px;
+    padding-left: 0;
+    border-top: 1px solid #d9dee8;
+    border-left: 0;
   }
 
   .kayzart-create-form__footer {

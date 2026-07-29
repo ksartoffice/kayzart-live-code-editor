@@ -378,20 +378,26 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="post_type" value="page" checked=', $output );
 		$this->assertStringContainsString( 'name="mode" value="tailwind" checked=', $output );
 		$this->assertStringContainsString( __( 'Recommended', 'kayzart-live-code-editor' ), $output );
-		$this->assertStringContainsString( __( 'You can change this later in the editor.', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( __( 'You can change this later in the editor.', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 		$this->assertStringNotContainsString( 'class="form-table"', $output );
 
+		$title_position    = strpos( $output, 'name="post_title"' );
+		$prompt_position   = strpos( $output, 'name="initial_ai_prompt"' );
 		$page_position     = strpos( $output, 'name="post_type" value="page"' );
 		$post_position     = strpos( $output, 'name="post_type" value="post"' );
 		$tailwind_position = strpos( $output, 'name="mode" value="tailwind"' );
 		$normal_position   = strpos( $output, 'name="mode" value="normal"' );
 
+		$this->assertIsInt( $title_position );
+		$this->assertIsInt( $prompt_position );
 		$this->assertIsInt( $page_position );
 		$this->assertIsInt( $post_position );
 		$this->assertIsInt( $tailwind_position );
 		$this->assertIsInt( $normal_position );
+		$this->assertLessThan( $prompt_position, $title_position );
+		$this->assertLessThan( $page_position, $prompt_position );
 		$this->assertLessThan( $post_position, $page_position );
 		$this->assertLessThan( $normal_position, $tailwind_position );
 	}

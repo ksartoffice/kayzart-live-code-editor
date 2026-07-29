@@ -1420,56 +1420,6 @@ class Admin {
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::NEW_PAGE_ACTION ) . '" />';
 		wp_nonce_field( self::NEW_PAGE_NONCE_ACTION );
 
-		echo '<section class="kayzart-create-section" aria-labelledby="kayzart-create-basics-title">';
-		echo '<div class="kayzart-create-section__heading">';
-		echo '<span class="kayzart-create-section__step" aria-hidden="true">1</span>';
-		echo '<div><h2 id="kayzart-create-basics-title">' . esc_html__( 'Basic information', 'kayzart-live-code-editor' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Choose where to create the page and give it a working title.', 'kayzart-live-code-editor' ) . '</p></div>';
-		echo '</div>';
-		echo '<div class="kayzart-create-field">';
-		echo '<label for="kayzart-create-title">' . esc_html__( 'Title', 'kayzart-live-code-editor' ) . '</label>';
-		echo '<input id="kayzart-create-title" type="text" name="post_title" value="" placeholder="' . esc_attr__( 'Landing page title', 'kayzart-live-code-editor' ) . '" />';
-		echo '<p class="description">' . esc_html__( 'Optional. You can rename the page later.', 'kayzart-live-code-editor' ) . '</p>';
-		echo '</div>';
-
-		echo '<fieldset class="kayzart-create-field kayzart-create-fieldset">';
-		echo '<legend>' . esc_html__( 'Create as', 'kayzart-live-code-editor' ) . '</legend>';
-		echo '<div class="kayzart-create-options kayzart-create-options--post-type">';
-		if ( count( $post_types ) > 1 ) {
-			foreach ( $post_types as $post_type => $label ) {
-				printf(
-					'<label class="kayzart-create-option kayzart-create-option--compact"><input type="radio" name="post_type" value="%s"%s /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>%s</strong></span></label>',
-					esc_attr( $post_type ),
-					checked( $post_type, $selected, false ),
-					esc_html( $label )
-				);
-			}
-		} else {
-			echo '<input type="hidden" name="post_type" value="' . esc_attr( $selected ) . '" />';
-			printf(
-				'<div class="kayzart-create-option kayzart-create-option--compact is-selected"><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>%s</strong></span></div>',
-				esc_html( $post_types[ $selected ] )
-			);
-		}
-		echo '</div>';
-		echo '</fieldset>';
-		echo '</section>';
-
-		echo '<section class="kayzart-create-section" aria-labelledby="kayzart-create-mode-title">';
-		echo '<div class="kayzart-create-section__heading">';
-		echo '<span class="kayzart-create-section__step" aria-hidden="true">2</span>';
-		echo '<div><h2 id="kayzart-create-mode-title">' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Choose how the page styles will be created.', 'kayzart-live-code-editor' ) . '</p></div>';
-		echo '</div>';
-		echo '<fieldset class="kayzart-create-fieldset"><legend class="screen-reader-text">' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</legend>';
-		echo '<div class="kayzart-create-options kayzart-create-options--mode">';
-		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="tailwind" checked="checked" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'TailwindCSS', 'kayzart-live-code-editor' ) . '</strong><span class="kayzart-create-badge">' . esc_html__( 'Recommended', 'kayzart-live-code-editor' ) . '</span></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily.', 'kayzart-live-code-editor' ) . '</span></span></label>';
-		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="normal" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'Normal HTML/CSS', 'kayzart-live-code-editor' ) . '</strong></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with standard HTML and CSS.', 'kayzart-live-code-editor' ) . '</span></span></label>';
-		echo '</div>';
-		echo '<p class="kayzart-create-note"><span class="dashicons dashicons-edit" aria-hidden="true"></span>' . esc_html__( 'You can change this later in the editor.', 'kayzart-live-code-editor' ) . '</p>';
-		echo '</fieldset>';
-		echo '</section>';
-
 		$can_use_ai      = current_user_can( Ai_Setup::CAPABILITY );
 		$ai_status       = $can_use_ai ? Ai_Availability::get_status() : array( 'available' => false );
 		$ai_is_available = $can_use_ai && ! empty( $ai_status['available'] );
@@ -1478,6 +1428,11 @@ class Admin {
 		echo '<span class="kayzart-create-section__step kayzart-create-section__step--ai" aria-hidden="true">✦</span>';
 		echo '<div><h2 id="kayzart-create-ai-title">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</h2>';
 		echo '<p>' . esc_html__( 'Describe the page you want, and AI will start building it when the editor opens.', 'kayzart-live-code-editor' ) . '</p></div>';
+		echo '</div>';
+		echo '<div class="kayzart-create-field">';
+		echo '<label for="kayzart-create-title">' . esc_html__( 'Title', 'kayzart-live-code-editor' ) . '</label>';
+		echo '<input id="kayzart-create-title" type="text" name="post_title" value="" placeholder="' . esc_attr__( 'Landing page title', 'kayzart-live-code-editor' ) . '" />';
+		echo '<p class="description">' . esc_html__( 'Optional. You can rename the page later.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</div>';
 		echo '<div class="kayzart-create-field">';
 		echo '<label class="screen-reader-text" for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label>';
@@ -1501,6 +1456,41 @@ class Admin {
 		}
 		echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_html__( 'bytes', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</div>';
+		echo '</div>';
+		echo '</section>';
+
+		echo '<section class="kayzart-create-section kayzart-create-section--settings" aria-labelledby="kayzart-create-basics-title">';
+		echo '<div class="kayzart-create-section__heading kayzart-create-section__heading--compact">';
+		echo '<div><h2 id="kayzart-create-basics-title">' . esc_html__( 'Basic information', 'kayzart-live-code-editor' ) . '</h2></div>';
+		echo '</div>';
+		echo '<div class="kayzart-create-settings">';
+		echo '<fieldset class="kayzart-create-fieldset">';
+		echo '<legend>' . esc_html__( 'Create as', 'kayzart-live-code-editor' ) . '</legend>';
+		echo '<div class="kayzart-create-options kayzart-create-options--post-type">';
+		if ( count( $post_types ) > 1 ) {
+			foreach ( $post_types as $post_type => $label ) {
+				printf(
+					'<label class="kayzart-create-option kayzart-create-option--compact"><input type="radio" name="post_type" value="%s"%s /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>%s</strong></span></label>',
+					esc_attr( $post_type ),
+					checked( $post_type, $selected, false ),
+					esc_html( $label )
+				);
+			}
+		} else {
+			echo '<input type="hidden" name="post_type" value="' . esc_attr( $selected ) . '" />';
+			printf(
+				'<div class="kayzart-create-option kayzart-create-option--compact is-selected"><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>%s</strong></span></div>',
+				esc_html( $post_types[ $selected ] )
+			);
+		}
+		echo '</div>';
+		echo '</fieldset>';
+		echo '<fieldset class="kayzart-create-fieldset"><legend>' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</legend>';
+		echo '<div class="kayzart-create-options kayzart-create-options--mode">';
+		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="tailwind" checked="checked" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'TailwindCSS', 'kayzart-live-code-editor' ) . '</strong><span class="kayzart-create-badge">' . esc_html__( 'Recommended', 'kayzart-live-code-editor' ) . '</span></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily.', 'kayzart-live-code-editor' ) . '</span></span></label>';
+		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="normal" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'Normal HTML/CSS', 'kayzart-live-code-editor' ) . '</strong></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with standard HTML and CSS.', 'kayzart-live-code-editor' ) . '</span></span></label>';
+		echo '</div>';
+		echo '</fieldset>';
 		echo '</div>';
 		echo '</section>';
 

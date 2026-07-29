@@ -361,6 +361,54 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_render_new_page_uses_modern_sections_and_preserves_defaults(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, 'post' ) );
+
+		ob_start();
+		Admin::render_new_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'class="wrap kayzart-create-page"', $output );
+		$this->assertStringContainsString(
+			__( 'Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design.', 'kayzart-live-code-editor' ),
+			$output
+		);
+		$this->assertStringContainsString( 'name="post_type" value="page" checked=', $output );
+		$this->assertStringContainsString( 'name="mode" value="tailwind" checked=', $output );
+		$this->assertStringContainsString( __( 'Recommended', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
+		$this->assertStringContainsString( 'name="_wpnonce"', $output );
+		$this->assertStringNotContainsString( 'class="form-table"', $output );
+
+		$page_position     = strpos( $output, 'name="post_type" value="page"' );
+		$post_position     = strpos( $output, 'name="post_type" value="post"' );
+		$tailwind_position = strpos( $output, 'name="mode" value="tailwind"' );
+		$normal_position   = strpos( $output, 'name="mode" value="normal"' );
+
+		$this->assertIsInt( $page_position );
+		$this->assertIsInt( $post_position );
+		$this->assertIsInt( $tailwind_position );
+		$this->assertIsInt( $normal_position );
+		$this->assertLessThan( $post_position, $page_position );
+		$this->assertLessThan( $normal_position, $tailwind_position );
+	}
+
+	public function test_enqueue_assets_loads_only_new_page_assets_on_new_screen(): void {
+		Admin::enqueue_assets( 'toplevel_page_' . Admin::NEW_SLUG );
+
+		$this->assertTrue( wp_style_is( 'kayzart-new-page', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-new-page', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-admin', 'enqueued' ) );
+
+		$registered = wp_scripts()->registered['kayzart-new-page'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = isset( $registered->extra['before'] ) ? (array) $registered->extra['before'] : array();
+		$inline        = implode( "\n", $before_inline );
+		$this->assertStringContainsString( 'maxPromptBytes', $inline );
+	}
+
 	public function test_get_settings_url_points_at_the_hub_and_keeps_tab_support(): void {
 		$this->assertSame(
 			admin_url( 'admin.php?page=' . Admin::SETTINGS_SLUG ),

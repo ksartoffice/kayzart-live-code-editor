@@ -1400,64 +1400,89 @@ class Admin {
 	public static function render_new_page(): void {
 		$post_types = self::get_creatable_post_types();
 
-		echo '<div class="wrap">';
+		echo '<div class="wrap kayzart-create-page">';
+		echo '<header class="kayzart-create-page__header">';
+		echo '<span class="kayzart-create-page__eyebrow">' . esc_html__( 'Create with Kayzart', 'kayzart-live-code-editor' ) . '</span>';
 		echo '<h1>' . esc_html__( 'Add new', 'kayzart-live-code-editor' ) . '</h1>';
+		echo '<p>' . esc_html__( 'Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '</header>';
 
 		if ( 0 === count( $post_types ) ) {
-			echo '<p>' . esc_html__( 'You do not have permission to create Kayzart pages.', 'kayzart-live-code-editor' ) . '</p>';
+			echo '<div class="notice notice-error inline"><p>' . esc_html__( 'You do not have permission to create Kayzart pages.', 'kayzart-live-code-editor' ) . '</p></div>';
 			echo '</div>';
 			return;
 		}
-
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen preference, validated below.
 		$requested = isset( $_GET[ self::NEW_TYPE_PARAM ] ) ? sanitize_key( wp_unslash( (string) $_GET[ self::NEW_TYPE_PARAM ] ) ) : '';
 		$selected  = isset( $post_types[ $requested ] ) ? $requested : (string) array_key_first( $post_types );
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+		echo '<form class="kayzart-create-form" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::NEW_PAGE_ACTION ) . '" />';
 		wp_nonce_field( self::NEW_PAGE_NONCE_ACTION );
-		echo '<table class="form-table" role="presentation"><tbody>';
 
-		echo '<tr><th scope="row">' . esc_html__( 'Title', 'kayzart-live-code-editor' ) . '</th><td>';
-		echo '<input type="text" class="regular-text" name="post_title" value="" />';
+		echo '<section class="kayzart-create-section" aria-labelledby="kayzart-create-basics-title">';
+		echo '<div class="kayzart-create-section__heading">';
+		echo '<span class="kayzart-create-section__step" aria-hidden="true">1</span>';
+		echo '<div><h2 id="kayzart-create-basics-title">' . esc_html__( 'Basic information', 'kayzart-live-code-editor' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Choose where to create the page and give it a working title.', 'kayzart-live-code-editor' ) . '</p></div>';
+		echo '</div>';
+		echo '<div class="kayzart-create-field">';
+		echo '<label for="kayzart-create-title">' . esc_html__( 'Title', 'kayzart-live-code-editor' ) . '</label>';
+		echo '<input id="kayzart-create-title" type="text" name="post_title" value="" placeholder="' . esc_attr__( 'Landing page title', 'kayzart-live-code-editor' ) . '" />';
 		echo '<p class="description">' . esc_html__( 'Optional. You can rename the page later.', 'kayzart-live-code-editor' ) . '</p>';
-		echo '</td></tr>';
+		echo '</div>';
 
-		echo '<tr><th scope="row">' . esc_html__( 'Create as', 'kayzart-live-code-editor' ) . '</th><td>';
+		echo '<fieldset class="kayzart-create-field kayzart-create-fieldset">';
+		echo '<legend>' . esc_html__( 'Create as', 'kayzart-live-code-editor' ) . '</legend>';
+		echo '<div class="kayzart-create-options kayzart-create-options--post-type">';
 		if ( count( $post_types ) > 1 ) {
-			echo '<fieldset>';
 			foreach ( $post_types as $post_type => $label ) {
 				printf(
-					'<label style="display:block"><input type="radio" name="post_type" value="%s"%s /> %s</label>',
+					'<label class="kayzart-create-option kayzart-create-option--compact"><input type="radio" name="post_type" value="%s"%s /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>%s</strong></span></label>',
 					esc_attr( $post_type ),
 					checked( $post_type, $selected, false ),
 					esc_html( $label )
 				);
 			}
-			echo '</fieldset>';
 		} else {
 			echo '<input type="hidden" name="post_type" value="' . esc_attr( $selected ) . '" />';
 			printf(
-				'<p>%s</p>',
-				esc_html(
-					sprintf(
-						/* translators: %s: post type label, e.g. Pages. */
-						__( 'This will be created as: %s', 'kayzart-live-code-editor' ),
-						$post_types[ $selected ]
-					)
-				)
+				'<div class="kayzart-create-option kayzart-create-option--compact is-selected"><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>%s</strong></span></div>',
+				esc_html( $post_types[ $selected ] )
 			);
 		}
-		echo '</td></tr>';
+		echo '</div>';
+		echo '</fieldset>';
+		echo '</section>';
 
-		self::render_setup_mode_row( 'tailwind' );
+		echo '<section class="kayzart-create-section" aria-labelledby="kayzart-create-mode-title">';
+		echo '<div class="kayzart-create-section__heading">';
+		echo '<span class="kayzart-create-section__step" aria-hidden="true">2</span>';
+		echo '<div><h2 id="kayzart-create-mode-title">' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Choose how the page styles will be created.', 'kayzart-live-code-editor' ) . '</p></div>';
+		echo '</div>';
+		echo '<fieldset class="kayzart-create-fieldset"><legend class="screen-reader-text">' . esc_html__( 'Mode', 'kayzart-live-code-editor' ) . '</legend>';
+		echo '<div class="kayzart-create-options kayzart-create-options--mode">';
+		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="tailwind" checked="checked" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'TailwindCSS', 'kayzart-live-code-editor' ) . '</strong><span class="kayzart-create-badge">' . esc_html__( 'Recommended', 'kayzart-live-code-editor' ) . '</span></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily.', 'kayzart-live-code-editor' ) . '</span></span></label>';
+		echo '<label class="kayzart-create-option kayzart-create-option--mode"><input type="radio" name="mode" value="normal" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><span class="kayzart-create-option__title"><strong>' . esc_html__( 'Normal HTML/CSS', 'kayzart-live-code-editor' ) . '</strong></span><span class="kayzart-create-option__description">' . esc_html__( 'Create the page with standard HTML and CSS.', 'kayzart-live-code-editor' ) . '</span></span></label>';
+		echo '</div>';
+		echo '<p class="kayzart-create-note"><span class="dashicons dashicons-lock" aria-hidden="true"></span>' . esc_html__( 'This cannot be changed after the page is created.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '</fieldset>';
+		echo '</section>';
 
 		$can_use_ai      = current_user_can( Ai_Setup::CAPABILITY );
 		$ai_status       = $can_use_ai ? Ai_Availability::get_status() : array( 'available' => false );
 		$ai_is_available = $can_use_ai && ! empty( $ai_status['available'] );
-		echo '<tr><th scope="row"><label for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label></th><td>';
-		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="5" class="large-text" maxlength="' . esc_attr( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count"></textarea>';
-		echo '<p id="kayzart-initial-ai-prompt-count" class="description">0/' . esc_html( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_html__( 'bytes', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<section class="kayzart-create-section kayzart-create-section--ai' . ( $ai_is_available ? '' : ' is-disabled' ) . '" aria-labelledby="kayzart-create-ai-title">';
+		echo '<div class="kayzart-create-section__heading">';
+		echo '<span class="kayzart-create-section__step kayzart-create-section__step--ai" aria-hidden="true">✦</span>';
+		echo '<div><h2 id="kayzart-create-ai-title">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Describe the page you want, and AI will start building it when the editor opens.', 'kayzart-live-code-editor' ) . '</p></div>';
+		echo '</div>';
+		echo '<div class="kayzart-create-field">';
+		echo '<label class="screen-reader-text" for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label>';
+		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7" maxlength="' . esc_attr( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
+		echo '<div class="kayzart-create-field__meta">';
 		if ( ! $can_use_ai ) {
 			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'You do not have permission to use AI editing.', 'kayzart-live-code-editor' ) . '</p>';
 		} elseif ( ! $ai_is_available ) {
@@ -1465,13 +1490,15 @@ class Admin {
 		} else {
 			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'Optional. This instruction will be sent automatically when the editor opens.', 'kayzart-live-code-editor' ) . '</p>';
 		}
-		echo '</td></tr>';
+		echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_html__( 'bytes', 'kayzart-live-code-editor' ) . '</p>';
+		echo '</div>';
+		echo '</div>';
+		echo '</section>';
 
-		echo '</tbody></table>';
-		submit_button( __( 'Create and open editor', 'kayzart-live-code-editor' ) );
-		if ( $ai_is_available ) {
-			echo '<script>(function(){var field=document.getElementById("kayzart-initial-ai-prompt"),count=document.getElementById("kayzart-initial-ai-prompt-count"),form=field&&field.form;if(!field||!count||!form){return;}var update=function(){var bytes=(new TextEncoder()).encode(field.value.trim()).length;count.textContent=bytes+"/' . esc_js( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_js( __( 'bytes', 'kayzart-live-code-editor' ) ) . '";count.className="description"+(bytes>' . esc_js( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '?" error":"");var submit=form.querySelector("#submit");if(submit){submit.disabled=bytes>' . esc_js( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ';}};field.addEventListener("input",update);update();}());</script>';
-		}
+		echo '<footer class="kayzart-create-form__footer">';
+		echo '<div><strong>' . esc_html__( 'Ready to create?', 'kayzart-live-code-editor' ) . '</strong><span>' . esc_html__( 'The editor will open after the page is created.', 'kayzart-live-code-editor' ) . '</span></div>';
+		submit_button( __( 'Create and open editor', 'kayzart-live-code-editor' ), 'primary large', 'submit', false, array( 'data-loading-label' => __( 'Creating…', 'kayzart-live-code-editor' ) ) );
+		echo '</footer>';
 		echo '</form>';
 		echo '</div>';
 	}
@@ -1729,6 +1756,11 @@ class Admin {
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
+		if ( 'toplevel_page_' . self::NEW_SLUG === $hook_suffix ) {
+			self::enqueue_new_page_assets();
+			return;
+		}
+
 		if ( 'edit.php' === $hook_suffix ) {
 			self::maybe_enqueue_post_type_list_assets();
 			return;
@@ -1910,6 +1942,40 @@ class Admin {
 			return KAYZART_VERSION;
 		}
 		return (string) $mtime;
+	}
+
+	/**
+	 * Enqueue the lightweight assets used by the new page screen.
+	 */
+	private static function enqueue_new_page_assets(): void {
+		$handle = 'kayzart-new-page';
+
+		wp_register_style(
+			$handle,
+			KAYZART_URL . 'assets/admin/new-page.css',
+			array( 'dashicons' ),
+			self::resolve_asset_version( KAYZART_PATH . 'assets/admin/new-page.css' )
+		);
+		wp_register_script(
+			$handle,
+			KAYZART_URL . 'assets/admin/new-page.js',
+			array( 'wp-dom-ready' ),
+			self::resolve_asset_version( KAYZART_PATH . 'assets/admin/new-page.js' ),
+			true
+		);
+
+		wp_enqueue_style( $handle );
+		wp_enqueue_script( $handle );
+		wp_add_inline_script(
+			$handle,
+			'window.KAYZART_NEW_PAGE = ' . wp_json_encode(
+				array(
+					'maxPromptBytes' => self::INITIAL_AI_PROMPT_MAX_BYTES,
+					'bytesLabel'     => __( 'bytes', 'kayzart-live-code-editor' ),
+				)
+			) . ';',
+			'before'
+		);
 	}
 
 	/**

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-29T06:09:52+02:00\n"
+"POT-Creation-Date: 2026-07-29T06:22:54+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -183,19 +183,19 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:868
 #: includes/class-kayzart-admin.php:869
-#: includes/class-kayzart-admin.php:1404
+#: includes/class-kayzart-admin.php:1406
 msgid "Add new"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:877
 #: includes/class-kayzart-admin.php:878
-#: includes/class-kayzart-admin.php:1630
+#: includes/class-kayzart-admin.php:1663
 msgid "Settings"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:898
 #: includes/class-kayzart-admin.php:899
-#: includes/class-kayzart-admin.php:1514
+#: includes/class-kayzart-admin.php:1542
 #: includes/class-kayzart-post-type.php:354
 #: includes/class-kayzart-post-type.php:367
 #: assets/admin/editor-bridge.js:18
@@ -377,107 +377,157 @@ msgstr ""
 msgid "Unavailable"
 msgstr ""
 
+#: includes/class-kayzart-admin.php:1405
+msgid "Create with Kayzart"
+msgstr ""
+
 #: includes/class-kayzart-admin.php:1407
+msgid "Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1411
 msgid "You do not have permission to create Kayzart pages."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1421
+#: includes/class-kayzart-admin.php:1427
+msgid "Basic information"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1428
+msgid "Choose where to create the page and give it a working title."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1431
 msgid "Title"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1423
+#: includes/class-kayzart-admin.php:1432
+msgid "Landing page title"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1433
 msgid "Optional. You can rename the page later."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1426
+#: includes/class-kayzart-admin.php:1437
 msgid "Create as"
 msgstr ""
 
-#. translators: %s: post type label, e.g. Pages.
-#: includes/class-kayzart-admin.php:1445
-#, php-format
-msgid "This will be created as: %s"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1458
-msgid "AI instruction"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1460
-#: includes/class-kayzart-admin.php:1473
-msgid "bytes"
-msgstr ""
-
 #: includes/class-kayzart-admin.php:1462
-msgid "You do not have permission to use AI editing."
+#: includes/class-kayzart-admin.php:1465
+#: includes/class-kayzart-admin.php:1609
+msgid "Mode"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1464
-msgid "AI editing must be configured before you can start with a request."
+#: includes/class-kayzart-admin.php:1463
+msgid "Choose how the page styles will be created."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1466
-msgid "Optional. This instruction will be sent automatically when the editor opens."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1471
-msgid "Create and open editor"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1517
-msgid "This page cannot be opened in Kayzart."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1528
-#: includes/class-kayzart-admin.php:1552
-msgid "Open editor"
-msgstr ""
-
-#. translators: %s: post title.
-#: includes/class-kayzart-admin.php:1539
-#, php-format
-msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1568
-msgid "Normal HTML/CSS"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1569
-msgid "Create the page with standard HTML and CSS."
-msgstr ""
-
-#. translators: %s: CSS framework name.
-#: includes/class-kayzart-admin.php:1574
-#, php-format
-msgid "%s (Recommended)"
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1575
+#: includes/class-kayzart-admin.php:1467
+#: includes/class-kayzart-admin.php:1599
 #: includes/class-kayzart-post-type.php:327
 msgid "TailwindCSS"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1577
+#: includes/class-kayzart-admin.php:1467
+msgid "Recommended"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1467
+#: includes/class-kayzart-admin.php:1601
 msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1581
-msgid "Mode"
+#: includes/class-kayzart-admin.php:1468
+#: includes/class-kayzart-admin.php:1604
+msgid "Normal HTML/CSS"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1591
+#: includes/class-kayzart-admin.php:1468
+#: includes/class-kayzart-admin.php:1605
+msgid "Create the page with standard HTML and CSS."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1470
+#: includes/class-kayzart-admin.php:1619
 msgid "This cannot be changed after the page is created."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1656
-#: includes/class-kayzart-admin.php:1667
-#: includes/class-kayzart-admin.php:1681
+#: includes/class-kayzart-admin.php:1480
+#: includes/class-kayzart-admin.php:1484
+msgid "AI instruction"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1481
+msgid "Describe the page you want, and AI will start building it when the editor opens."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1485
+msgid "Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1488
+msgid "You do not have permission to use AI editing."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1490
+msgid "AI editing must be configured before you can start with a request."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1492
+msgid "Optional. This instruction will be sent automatically when the editor opens."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1494
+#: includes/class-kayzart-admin.php:1975
+msgid "bytes"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1500
+msgid "Ready to create?"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1500
+msgid "The editor will open after the page is created."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1501
+msgid "Create and open editor"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1501
+msgid "Creating…"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1545
+msgid "This page cannot be opened in Kayzart."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1556
+#: includes/class-kayzart-admin.php:1580
+msgid "Open editor"
+msgstr ""
+
+#. translators: %s: post title.
+#: includes/class-kayzart-admin.php:1567
+#, php-format
+msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
+msgstr ""
+
+#. translators: %s: CSS framework name.
+#: includes/class-kayzart-admin.php:1598
+#, php-format
+msgid "%s (Recommended)"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1689
+#: includes/class-kayzart-admin.php:1700
+#: includes/class-kayzart-admin.php:1714
 msgid "基本設定"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1977
-#: includes/class-kayzart-admin.php:1985
+#: includes/class-kayzart-admin.php:2049
+#: includes/class-kayzart-admin.php:2057
 msgid "Posts"
 msgstr ""
 

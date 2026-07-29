@@ -168,6 +168,125 @@
   resize: vertical;
 }
 
+.kayzart-ai-prompt-control {
+  position: relative;
+}
+
+.kayzart-ai-prompt-control.has-improver textarea {
+  display: block;
+  padding-bottom: 48px;
+}
+
+.kayzart-ai-improve {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 31px;
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid #c9c5ff;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--kayzart-accent-dark);
+  box-shadow: 0 2px 7px rgba(79, 70, 229, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.kayzart-ai-improve::before {
+  content: "✦";
+  font-size: 13px;
+}
+
+.kayzart-ai-improve:hover:not(:disabled),
+.kayzart-ai-improve:focus-visible {
+  border-color: var(--kayzart-accent);
+  background: #f7f7ff;
+}
+
+.kayzart-ai-improve:focus-visible {
+  outline: 2px solid var(--kayzart-accent);
+  outline-offset: 2px;
+}
+
+.kayzart-ai-improve:disabled {
+  border-color: #e4e7ec;
+  color: #98a2b3;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.kayzart-ai-improve.is-loading::before {
+  display: none;
+}
+
+.kayzart-ai-improve__spinner {
+  display: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(79, 70, 229, 0.22);
+  border-top-color: currentcolor;
+  border-radius: 50%;
+  animation: kayzart-ai-improve-spin 700ms linear infinite;
+}
+
+.kayzart-ai-improve.is-loading .kayzart-ai-improve__spinner {
+  display: inline-block;
+}
+
+.kayzart-ai-improve-status {
+  display: block;
+  min-height: 0;
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.kayzart-ai-improve-status:empty {
+  display: none;
+}
+
+.kayzart-ai-improve-status.is-success {
+  color: #067647;
+}
+
+.kayzart-ai-improve-status.is-info {
+  color: #475467;
+}
+
+.kayzart-ai-improve-status.is-error {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.kayzart-ai-improve-undo {
+  flex: 0 0 auto;
+  margin: 5px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--kayzart-accent-dark);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.kayzart-ai-improve-undo:hover,
+.kayzart-ai-improve-undo:focus {
+  color: #312e81;
+}
+
+@keyframes kayzart-ai-improve-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .kayzart-create-field input[type="text"]:focus,
 .kayzart-create-field textarea:focus {
   border-color: var(--kayzart-accent);
@@ -430,5 +549,9 @@
   .kayzart-create-page *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .kayzart-ai-improve__spinner {
+    animation: none;
   }
 }

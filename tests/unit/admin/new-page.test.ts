@@ -1,12 +1,18 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const newPageScript = readFileSync('assets/admin/new-page.js', 'utf8');
 
-const renderForm = () => {
+const renderForm = (maxPromptBytes = 8192) => {
   document.body.innerHTML = [
     '<form class="kayzart-create-form">',
+    '<input id="kayzart-create-title" value="Salon launch" />',
     '<textarea id="kayzart-initial-ai-prompt"></textarea>',
+    '<button id="kayzart-ai-improve" type="button" disabled>',
+    '<span class="kayzart-ai-improve__label">Improve with AI</span>',
+    '</button>',
+    '<p id="kayzart-ai-improve-status"></p>',
+    '<button id="kayzart-ai-improve-undo" type="button" hidden>Undo improvement</button>',
     '<p id="kayzart-initial-ai-prompt-count"></p>',
     '<input id="submit" type="submit" value="Create" data-loading-label="Creating…" />',
     '</form>',
@@ -16,10 +22,22 @@ const renderForm = () => {
     domReady: (callback: () => void) => callback(),
   };
   (window as any).KAYZART_NEW_PAGE = {
-    maxPromptBytes: 5,
+    maxPromptBytes,
     bytesLabel: 'bytes',
+    improveUrl: '/wp-json/kayzart/v1/ai/prompts/improve',
+    restNonce: 'rest-nonce',
+    improveLabel: 'Improve with AI',
+    improvingLabel: 'Improving…',
+    improvedMessage: 'Improved.',
+    restoredMessage: 'Restored.',
+    staleMessage: 'Text changed. Run again.',
+    errorMessage: 'Could not improve.',
   };
   window.eval(newPageScript);
+};
+
+const flushPromises = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
 describe('new page form', () => {
@@ -27,10 +45,16 @@ describe('new page form', () => {
     renderForm();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('counts UTF-8 bytes and blocks a prompt over the byte limit', () => {
+    renderForm(5);
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
     const counter = document.querySelector<HTMLElement>('#kayzart-initial-ai-prompt-count')!;
     const submit = document.querySelector<HTMLInputElement>('#submit')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
 
     prompt.value = 'あい';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
@@ -39,6 +63,7 @@ describe('new page form', () => {
     expect(counter.classList.contains('is-error')).toBe(true);
     expect(prompt.getAttribute('aria-invalid')).toBe('true');
     expect(submit.disabled).toBe(true);
+    expect(improve.disabled).toBe(true);
   });
 
   it('locks the form and changes the button label after a valid submit', () => {
@@ -56,5 +81,105 @@ describe('new page form', () => {
     expect(form.getAttribute('aria-busy')).toBe('true');
     expect(submit.disabled).toBe(true);
     expect(submit.value).toBe('Creating…');
+  });
+
+  it('sends the instruction and title, replaces the text, and restores it with undo', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ improvedPrompt: 'A clearer landing-page brief.' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+    const label = improve.querySelector<HTMLElement>('.kayzart-ai-improve__label')!;
+    const undo = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve-undo')!;
+
+    prompt.value = 'Build a salon LP.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(improve.disabled).toBe(false);
+    improve.click();
+
+    expect(improve.disabled).toBe(true);
+    expect(label.textContent).toBe('Improving…');
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/wp-json/kayzart/v1/ai/prompts/improve',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'X-WP-Nonce': 'rest-nonce' }),
+        body: JSON.stringify({ prompt: 'Build a salon LP.', title: 'Salon launch' }),
+      })
+    );
+    expect(prompt.value).toBe('A clearer landing-page brief.');
+    expect(undo.hidden).toBe(false);
+
+    undo.click();
+    expect(prompt.value).toBe('Build a salon LP.');
+    expect(undo.hidden).toBe(true);
+  });
+
+  it('removes undo after the improved instruction is manually edited', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ improvedPrompt: 'Improved brief.' }),
+    }));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+    const undo = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve-undo')!;
+
+    prompt.value = 'Original.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    improve.click();
+    await flushPromises();
+    expect(undo.hidden).toBe(false);
+
+    prompt.value += ' Manual change.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(undo.hidden).toBe(true);
+  });
+
+  it('does not apply a stale response after the user edits the instruction', async () => {
+    let resolveFetch: (value: unknown) => void = () => undefined;
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((resolve) => {
+      resolveFetch = resolve;
+    })));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+    const status = document.querySelector<HTMLElement>('#kayzart-ai-improve-status')!;
+
+    prompt.value = 'Original.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    improve.click();
+    prompt.value = 'Edited while waiting.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    resolveFetch({
+      ok: true,
+      json: async () => ({ improvedPrompt: 'Stale result.' }),
+    });
+    await flushPromises();
+
+    expect(prompt.value).toBe('Edited while waiting.');
+    expect(status.textContent).toBe('Text changed. Run again.');
+  });
+
+  it('keeps the original text and displays the REST error on failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ message: 'Too many requests.' }),
+    }));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+    const status = document.querySelector<HTMLElement>('#kayzart-ai-improve-status')!;
+
+    prompt.value = 'Keep this text.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    improve.click();
+    await flushPromises();
+
+    expect(prompt.value).toBe('Keep this text.');
+    expect(status.textContent).toBe('Too many requests.');
+    expect(status.classList.contains('is-error')).toBe(true);
+    expect(improve.disabled).toBe(false);
   });
 });

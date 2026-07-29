@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-29T06:41:29+02:00\n"
+"POT-Creation-Date: 2026-07-29T07:09:24+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -54,8 +54,9 @@ msgstr ""
 #: includes/class-kayzart-admin.php:541
 #: includes/class-kayzart-admin.php:583
 #: includes/class-kayzart-preview.php:171
-#: includes/class-kayzart-rest.php:170
-#: includes/class-kayzart-rest.php:178
+#: includes/class-kayzart-rest.php:171
+#: includes/class-kayzart-rest.php:179
+#: includes/rest/class-kayzart-rest-ai-prompt.php:55
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:194
 #: includes/rest/class-kayzart-rest-revisions.php:88
@@ -189,13 +190,13 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:877
 #: includes/class-kayzart-admin.php:878
-#: includes/class-kayzart-admin.php:1662
+#: includes/class-kayzart-admin.php:1671
 msgid "Settings"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:898
 #: includes/class-kayzart-admin.php:899
-#: includes/class-kayzart-admin.php:1541
+#: includes/class-kayzart-admin.php:1550
 #: includes/class-kayzart-post-type.php:354
 #: includes/class-kayzart-post-type.php:367
 #: assets/admin/editor-bridge.js:18
@@ -415,7 +416,7 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:1461
 #: includes/class-kayzart-admin.php:1464
-#: includes/class-kayzart-admin.php:1608
+#: includes/class-kayzart-admin.php:1617
 msgid "Mode"
 msgstr ""
 
@@ -424,7 +425,7 @@ msgid "Choose how the page styles will be created."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1466
-#: includes/class-kayzart-admin.php:1598
+#: includes/class-kayzart-admin.php:1607
 #: includes/class-kayzart-post-type.php:327
 msgid "TailwindCSS"
 msgstr ""
@@ -434,22 +435,22 @@ msgid "Recommended"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1466
-#: includes/class-kayzart-admin.php:1600
+#: includes/class-kayzart-admin.php:1609
 msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1467
-#: includes/class-kayzart-admin.php:1603
+#: includes/class-kayzart-admin.php:1612
 msgid "Normal HTML/CSS"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1467
-#: includes/class-kayzart-admin.php:1604
+#: includes/class-kayzart-admin.php:1613
 msgid "Create the page with standard HTML and CSS."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1469
-#: includes/class-kayzart-admin.php:1618
+#: includes/class-kayzart-admin.php:1627
 msgid "You can change this later in the editor."
 msgstr ""
 
@@ -462,72 +463,102 @@ msgstr ""
 msgid "Describe the page you want, and AI will start building it when the editor opens."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1484
+#: includes/class-kayzart-admin.php:1485
 msgid "Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1487
-msgid "You do not have permission to use AI editing."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1489
-msgid "AI editing must be configured before you can start with a request."
-msgstr ""
-
-#: includes/class-kayzart-admin.php:1491
-msgid "Optional. This instruction will be sent automatically when the editor opens."
+#: includes/class-kayzart-admin.php:1986
+msgid "Improve with AI"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1493
-#: includes/class-kayzart-admin.php:1974
+msgid "You do not have permission to use AI editing."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1495
+msgid "AI editing must be configured before you can start with a request."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1497
+msgid "Optional. This instruction will be sent automatically when the editor opens."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1500
+msgid "Undo improvement"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1502
+#: includes/class-kayzart-admin.php:1983
 msgid "bytes"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1499
+#: includes/class-kayzart-admin.php:1508
 msgid "Ready to create?"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1499
+#: includes/class-kayzart-admin.php:1508
 msgid "The editor will open after the page is created."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1500
+#: includes/class-kayzart-admin.php:1509
 msgid "Create and open editor"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1500
+#: includes/class-kayzart-admin.php:1509
 msgid "Creating…"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1544
+#: includes/class-kayzart-admin.php:1553
 msgid "This page cannot be opened in Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1555
-#: includes/class-kayzart-admin.php:1579
+#: includes/class-kayzart-admin.php:1564
+#: includes/class-kayzart-admin.php:1588
 msgid "Open editor"
 msgstr ""
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:1566
+#: includes/class-kayzart-admin.php:1575
 #, php-format
 msgid "\"%s\" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML."
 msgstr ""
 
 #. translators: %s: CSS framework name.
-#: includes/class-kayzart-admin.php:1597
+#: includes/class-kayzart-admin.php:1606
 #, php-format
 msgid "%s (Recommended)"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1688
-#: includes/class-kayzart-admin.php:1699
-#: includes/class-kayzart-admin.php:1713
+#: includes/class-kayzart-admin.php:1697
+#: includes/class-kayzart-admin.php:1708
+#: includes/class-kayzart-admin.php:1722
 msgid "基本設定"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2048
-#: includes/class-kayzart-admin.php:2056
+#: includes/class-kayzart-admin.php:1987
+msgid "Improving…"
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1988
+msgid "The instruction was improved. Review it before creating the page."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1989
+msgid "The original instruction was restored."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1990
+msgid "The instruction changed while AI was working. Run the improvement again to use the latest text."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1991
+#: includes/rest/class-kayzart-rest-ai-prompt.php:170
+msgid "The instruction could not be improved. Please try again."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:2065
+#: includes/class-kayzart-admin.php:2073
 msgid "Posts"
 msgstr ""
 
@@ -635,6 +666,28 @@ msgstr ""
 msgid "Not available in preview. It will render on the front end."
 msgstr ""
 
+#: includes/rest/class-kayzart-rest-ai-prompt.php:72
+#: includes/rest/class-kayzart-rest-ai.php:61
+msgid "AI editing is not currently available."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-prompt.php:79
+#: includes/rest/class-kayzart-rest-ai.php:206
+msgid "A JSON request body is required."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-prompt.php:89
+msgid "The instruction is empty or too large."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-prompt.php:92
+msgid "The page title is too large."
+msgstr ""
+
+#: includes/rest/class-kayzart-rest-ai-prompt.php:136
+msgid "Too many improvement requests. Please wait a moment and try again."
+msgstr ""
+
 #: includes/rest/class-kayzart-rest-ai-timeline.php:77
 #: includes/rest/class-kayzart-rest-ai-timeline.php:117
 msgid "The AI edit snapshot is no longer available."
@@ -661,10 +714,6 @@ msgstr ""
 msgid "The AI edit restore target is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:61
-msgid "AI editing is not currently available."
-msgstr ""
-
 #: includes/rest/class-kayzart-rest-ai.php:90
 #: includes/rest/class-kayzart-rest-ai.php:91
 msgid "The AI edit history could not be created."
@@ -672,10 +721,6 @@ msgstr ""
 
 #: includes/rest/class-kayzart-rest-ai.php:179
 msgid "AI edit job not found."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-ai.php:206
-msgid "A JSON request body is required."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-ai.php:210

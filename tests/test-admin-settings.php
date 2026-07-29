@@ -408,6 +408,39 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$before_inline = isset( $registered->extra['before'] ) ? (array) $registered->extra['before'] : array();
 		$inline        = implode( "\n", $before_inline );
 		$this->assertStringContainsString( 'maxPromptBytes', $inline );
+		$this->assertStringContainsString( 'ai\\/prompts\\/improve', $inline );
+		$this->assertStringContainsString( 'restNonce', $inline );
+	}
+
+	public function test_render_new_page_shows_prompt_improver_only_when_ai_is_available(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+		wp_set_current_user( $admin_id );
+
+		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		ob_start();
+		Admin::render_new_page();
+		$available_output = (string) ob_get_clean();
+		$this->assertStringContainsString( 'id="kayzart-ai-improve"', $available_output );
+		$this->assertStringContainsString( 'id="kayzart-ai-improve-undo"', $available_output );
+
+		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		ob_start();
+		Admin::render_new_page();
+		$unavailable_output = (string) ob_get_clean();
+		$this->assertStringNotContainsString( 'id="kayzart-ai-improve"', $unavailable_output );
+
+		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
 	}
 
 	public function test_get_settings_url_points_at_the_hub_and_keeps_tab_support(): void {
@@ -709,6 +742,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => true,
+				'initialRequest'      => null,
 			),
 			$payload['ai'] ?? null
 		);

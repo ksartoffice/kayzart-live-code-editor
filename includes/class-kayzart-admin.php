@@ -887,7 +887,7 @@ class Admin {
 			'edit_posts',
 			self::NEW_SLUG,
 			array( __CLASS__, 'render_new_page' ),
-			'dashicons-editor-code',
+			Post_Type::menu_icon(),
 			21
 		);
 

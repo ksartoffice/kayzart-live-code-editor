@@ -315,7 +315,7 @@ class Admin {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
-		$prompt = trim( sanitize_textarea_field( wp_unslash( (string) $_POST['initial_ai_prompt'] ) ) );
+		$prompt = trim( wp_check_invalid_utf8( wp_unslash( (string) $_POST['initial_ai_prompt'] ), true ) );
 		if ( strlen( $prompt ) > self::INITIAL_AI_PROMPT_MAX_BYTES ) {
 			wp_die( esc_html__( 'The initial AI instruction is too large.', 'kayzart-live-code-editor' ) );
 		}

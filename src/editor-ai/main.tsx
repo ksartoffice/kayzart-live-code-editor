@@ -242,6 +242,7 @@ export function AiEditorPanel() {
   const promptValueRef = useRef(draftState.prompt);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
+  const jobCreationInFlightRef = useRef(false);
   const mountedRef = useRef(true);
   const timelineRecoveryRef = useRef(false);
   const initialRequestAttemptedRef = useRef(false);
@@ -252,6 +253,7 @@ export function AiEditorPanel() {
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialTimelineSettled, setInitialTimelineSettled] = useState(false);
   const [events, setEvents] = useState<AiJobEvent[]>([]);
   const [liveJob, setLiveJob] = useState<{ requestId: string; status: AiJobStatus } | null>(null);
   const [running, setRunning] = useState(false);
@@ -271,8 +273,12 @@ export function AiEditorPanel() {
     if (promptValueRef.current === '') setPrompt(value);
   };
   const setContexts = (value: SelectedElementContext[]) => { draftState.contexts = value; setContextsState(value); };
-  const refresh = async () => {
-    if (!ai?.timelineUrl) { setLoading(false); return; }
+  const refresh = async (settleInitialTimeline = false) => {
+    if (!ai?.timelineUrl) {
+      setLoading(false);
+      if (settleInitialTimeline) setInitialTimelineSettled(true);
+      return;
+    }
     try {
       const page = await getTimeline(ai.timelineUrl, nonce, postId);
       if (!mountedRef.current) return;
@@ -281,7 +287,10 @@ export function AiEditorPanel() {
     } catch (caught) {
       if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor'));
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        if (settleInitialTimeline) setInitialTimelineSettled(true);
+      }
     }
   };
   const finish = () => {
@@ -430,7 +439,7 @@ export function AiEditorPanel() {
     };
     const saved = () => { window.setTimeout(() => void refresh(), 150); };
     window.addEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.addEventListener(SAVE_EVENT, saved);
-    syncContexts(); void refresh();
+    syncContexts(); void refresh(true);
     const active = loadActiveJob(postId); if (active) void poll(active);
     return () => {
       mountedRef.current = false; window.removeEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.removeEventListener(SAVE_EVENT, saved);
@@ -484,7 +493,7 @@ export function AiEditorPanel() {
   }, [items, running]);
 
   const promptBytes = useMemo(() => new TextEncoder().encode(prompt.trim()).length, [prompt]);
-  const canSend = Boolean(ai?.available && !running && !pendingConflict && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
+  const canSend = Boolean(ai?.available && initialTimelineSettled && !running && !pendingConflict && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
   const loadOlder = async () => {
     if (!ai || !cursor || !chatRef.current) return;
     const element = chatRef.current; const previousHeight = element.scrollHeight; setLoading(true);
@@ -496,9 +505,14 @@ export function AiEditorPanel() {
     finally { setLoading(false); }
   };
   const send = async (override?: { prompt: string; contexts: SelectedElementContext[]; requestId?: string; initialRequestId?: string }) => {
-    if ((!canSend && !override) || !ai) return;
+    if ((!canSend && !override) || !ai || running || jobCreationInFlightRef.current) return;
+    jobCreationInFlightRef.current = true;
     const snapshot = host()?.getEditorSnapshot?.(); const editorMode = host()?.getEditorMode?.();
-    if (!snapshot || !editorMode) { setError(__('Editor state is unavailable.', 'kayzart-live-code-editor')); return; }
+    if (!snapshot || !editorMode) {
+      jobCreationInFlightRef.current = false;
+      setError(__('Editor state is unavailable.', 'kayzart-live-code-editor'));
+      return;
+    }
     const input = normalizeSnapshot(snapshot); const promptText = override?.prompt || prompt.trim(); const submittedContexts = override?.contexts || [...contexts];
     const initialAttempt = !override ? getInitialRequestAttempt(postId) : null;
     if (initialAttempt?.terminal) {
@@ -518,10 +532,12 @@ export function AiEditorPanel() {
         startedAt: Date.now(), prompt: promptText, contexts: submittedContexts, inputSnapshot: input, activityId: created.timelineItem?.id,
       };
       saveActiveJob(active);
+      jobCreationInFlightRef.current = false;
       if (created.timelineItem) setItems((current) => current.some((item) => item.requestId === created.requestId) ? current : [...current, created.timelineItem as AiTimelineItem]);
       setOptimistic(null); setLiveJob({ requestId: created.requestId, status: created.status });
       void refresh(); await poll(active);
     } catch (caught) {
+      jobCreationInFlightRef.current = false;
       if (initialRequestId && caught instanceof AiApiError && TERMINAL_INITIAL_REQUEST_CODES.has(caught.code)) {
         markInitialRequestAttemptTerminal(postId, requestId);
       }
@@ -545,7 +561,7 @@ export function AiEditorPanel() {
 
   useEffect(() => {
     const initialRequest = ai?.initialRequest;
-    if (!initialRequest || initialRequestAttemptedRef.current || loading) return;
+    if (!initialRequest || initialRequestAttemptedRef.current || !initialTimelineSettled || running) return;
     initialRequestAttemptedRef.current = true;
     setPrompt(initialRequest.prompt);
     const initialAttempt = getInitialRequestAttempt(postId);
@@ -553,7 +569,7 @@ export function AiEditorPanel() {
     const activeTimelineJob = items.some((item) => item.type === 'ai_edit' && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
     if (!ai?.available || activeTimelineJob || loadActiveJob(postId)) return;
     void send({ prompt: initialRequest.prompt, contexts: [], requestId: initialAttempt?.requestId || initialRequest.requestId, initialRequestId: initialRequest.requestId });
-  }, [ai?.initialRequest, ai?.available, items, loading, postId]);
+  }, [ai?.initialRequest, ai?.available, items, initialTimelineSettled, postId, running]);
   const stop = async () => {
     const active = loadActiveJob(postId); if (!active || canceling) return;
     setCanceling(true);

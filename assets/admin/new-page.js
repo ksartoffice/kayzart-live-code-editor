@@ -75,6 +75,22 @@
       }
     }
 
+    function resizePrompt() {
+      if (!prompt) {
+        return;
+      }
+
+      prompt.style.height = '0px';
+      var styles = window.getComputedStyle(prompt);
+      var borderHeight = (parseFloat(styles.borderTopWidth) || 0) + (parseFloat(styles.borderBottomWidth) || 0);
+      var contentHeight = prompt.scrollHeight + borderHeight;
+      var maxHeight = parseFloat(styles.maxHeight);
+      var hasMaxHeight = !isNaN(maxHeight);
+      var nextHeight = hasMaxHeight ? Math.min(contentHeight, maxHeight) : contentHeight;
+      prompt.style.height = nextHeight + 'px';
+      prompt.style.overflowY = hasMaxHeight && contentHeight > maxHeight ? 'auto' : 'hidden';
+    }
+
     function setImproving(value) {
       improving = value;
       if (improve) {
@@ -120,6 +136,7 @@
 
     if (prompt && counter) {
       prompt.addEventListener('input', function () {
+        resizePrompt();
         updatePromptCount();
         if (!applyingPromptValue) {
           cancelImprovementIfInputsChanged();
@@ -129,6 +146,8 @@
           setStatus('', '');
         }
       });
+      window.addEventListener('resize', resizePrompt);
+      resizePrompt();
       updatePromptCount();
     }
 
@@ -192,6 +211,7 @@
           previousPrompt = originalPrompt;
           applyingPromptValue = true;
           prompt.value = data.improvedPrompt.trim();
+          resizePrompt();
           updatePromptCount();
           applyingPromptValue = false;
           if (undo) {
@@ -224,6 +244,7 @@
         var value = previousPrompt;
         applyingPromptValue = true;
         prompt.value = value;
+        resizePrompt();
         updatePromptCount();
         applyingPromptValue = false;
         hideUndo();

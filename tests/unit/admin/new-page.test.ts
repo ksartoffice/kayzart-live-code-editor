@@ -66,6 +66,44 @@ describe('new page form', () => {
     expect(improve.disabled).toBe(true);
   });
 
+  it('resizes the instruction field to match its content', () => {
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    let scrollHeight = 220;
+    Object.defineProperty(prompt, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    });
+
+    prompt.value = 'A longer instruction.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(prompt.style.height).toBe('222px');
+    expect(prompt.style.overflowY).toBe('hidden');
+
+    scrollHeight = 180;
+    prompt.value = 'Shorter.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(prompt.style.height).toBe('182px');
+  });
+
+  it('shows a scrollbar only after the instruction field reaches its maximum height', () => {
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    Object.defineProperty(prompt, 'scrollHeight', {
+      configurable: true,
+      value: 300,
+    });
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      borderTopWidth: '1px',
+      borderBottomWidth: '1px',
+      maxHeight: '240px',
+    } as CSSStyleDeclaration);
+
+    prompt.value = 'A very long instruction.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(prompt.style.height).toBe('240px');
+    expect(prompt.style.overflowY).toBe('auto');
+  });
+
   it('locks the form and changes the button label after a valid submit', () => {
     const form = document.querySelector<HTMLFormElement>('.kayzart-create-form')!;
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
@@ -93,6 +131,11 @@ describe('new page form', () => {
     const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
     const label = improve.querySelector<HTMLElement>('.kayzart-ai-improve__label')!;
     const undo = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve-undo')!;
+    let scrollHeight = 240;
+    Object.defineProperty(prompt, 'scrollHeight', {
+      configurable: true,
+      get: () => scrollHeight,
+    });
 
     prompt.value = 'Build a salon LP.';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
@@ -112,10 +155,13 @@ describe('new page form', () => {
       })
     );
     expect(prompt.value).toBe('A clearer landing-page brief.');
+    expect(prompt.style.height).toBe('242px');
     expect(undo.hidden).toBe(false);
 
+    scrollHeight = 180;
     undo.click();
     expect(prompt.value).toBe('Build a salon LP.');
+    expect(prompt.style.height).toBe('182px');
     expect(undo.hidden).toBe(true);
   });
 

@@ -180,9 +180,11 @@
 
 .kayzart-create-field textarea {
   height: 116px;
-  min-height: 96px;
+  min-height: 116px;
+  max-height: min(60vh, 640px);
   padding: 10px 13px;
-  resize: vertical;
+  overflow-y: hidden;
+  resize: none;
 }
 
 .kayzart-ai-prompt-control {

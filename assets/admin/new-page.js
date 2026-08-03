@@ -39,6 +39,7 @@
     var improving = false;
     var previousPrompt = null;
     var applyingPromptValue = false;
+    var activeImproveRequest = null;
 
     function setStatus(message, type) {
       if (!improveStatus) {
@@ -88,9 +89,41 @@
       updatePromptCount();
     }
 
+    function currentTitle() {
+      return title ? title.value.trim() : '';
+    }
+
+    function cancelImproveRequest(request, showStatus) {
+      if (activeImproveRequest !== request) {
+        return;
+      }
+
+      activeImproveRequest = null;
+      request.controller.abort();
+      setImproving(false);
+      if (showStatus) {
+        setStatus(config.staleMessage || 'The title or instruction changed, so the AI improvement was canceled. Run it again to use the latest content.', 'info');
+      }
+    }
+
+    function cancelImprovementIfInputsChanged() {
+      var request = activeImproveRequest;
+      if (!request) {
+        return;
+      }
+      if (prompt.value.trim() === request.prompt && currentTitle() === request.title) {
+        return;
+      }
+
+      cancelImproveRequest(request, true);
+    }
+
     if (prompt && counter) {
       prompt.addEventListener('input', function () {
         updatePromptCount();
+        if (!applyingPromptValue) {
+          cancelImprovementIfInputsChanged();
+        }
         if (!applyingPromptValue && previousPrompt !== null) {
           hideUndo();
           setStatus('', '');
@@ -99,13 +132,25 @@
       updatePromptCount();
     }
 
+    if (title) {
+      title.addEventListener('input', cancelImprovementIfInputsChanged);
+    }
+
     if (improve && prompt) {
       improve.addEventListener('click', function () {
         var submittedPrompt = prompt.value.trim();
+        var submittedTitle = currentTitle();
         var originalPrompt = prompt.value;
         if (!submittedPrompt || !promptIsValid || improving || !config.improveUrl || !config.restNonce) {
           return;
         }
+
+        var request = {
+          prompt: submittedPrompt,
+          title: submittedTitle,
+          controller: new window.AbortController(),
+        };
+        activeImproveRequest = request;
 
         hideUndo();
         setStatus('', '');
@@ -118,9 +163,10 @@
             'Content-Type': 'application/json',
             'X-WP-Nonce': config.restNonce,
           },
+          signal: request.controller.signal,
           body: JSON.stringify({
             prompt: submittedPrompt,
-            title: title ? title.value.trim() : '',
+            title: submittedTitle,
           }),
         }).then(function (response) {
           return response.json().catch(function () {
@@ -132,8 +178,11 @@
             return data;
           });
         }).then(function (data) {
-          if (prompt.value.trim() !== submittedPrompt) {
-            setStatus(config.staleMessage || 'The instruction changed while AI was working. Run the improvement again.', 'info');
+          if (activeImproveRequest !== request) {
+            return;
+          }
+          if (prompt.value.trim() !== submittedPrompt || currentTitle() !== submittedTitle) {
+            cancelImproveRequest(request, true);
             return;
           }
           if (!data || typeof data.improvedPrompt !== 'string' || !data.improvedPrompt.trim()) {
@@ -151,9 +200,18 @@
           setStatus(config.improvedMessage || 'The instruction was improved. Review it before creating the page.', 'success');
           prompt.focus();
         }).catch(function (error) {
+          if (activeImproveRequest !== request) {
+            return;
+          }
+          if (error && error.name === 'AbortError') {
+            return;
+          }
           setStatus(error && error.message ? error.message : (config.errorMessage || 'The instruction could not be improved. Please try again.'), 'error');
         }).then(function () {
-          setImproving(false);
+          if (activeImproveRequest === request) {
+            activeImproveRequest = null;
+            setImproving(false);
+          }
         });
       });
     }

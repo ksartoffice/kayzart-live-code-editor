@@ -2009,7 +2009,7 @@ class Admin {
 					'improvingLabel'  => __( 'Improving…', 'kayzart-live-code-editor' ),
 					'improvedMessage' => __( 'The instruction was improved. Review it before creating the page.', 'kayzart-live-code-editor' ),
 					'restoredMessage' => __( 'The original instruction was restored.', 'kayzart-live-code-editor' ),
-					'staleMessage'    => __( 'The instruction changed while AI was working. Run the improvement again to use the latest text.', 'kayzart-live-code-editor' ),
+					'staleMessage'    => __( 'The title or instruction changed, so the AI improvement was canceled. Run it again to use the latest content.', 'kayzart-live-code-editor' ),
 					'errorMessage'    => __( 'The instruction could not be improved. Please try again.', 'kayzart-live-code-editor' ),
 				)
 			) . ';',

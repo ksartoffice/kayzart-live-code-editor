@@ -30,7 +30,7 @@ const renderForm = (maxPromptBytes = 8192) => {
     improvingLabel: 'Improving…',
     improvedMessage: 'Improved.',
     restoredMessage: 'Restored.',
-    staleMessage: 'Text changed. Run again.',
+    staleMessage: 'Content changed. Improvement canceled.',
     errorMessage: 'Could not improve.',
   };
   window.eval(newPageScript);
@@ -139,11 +139,16 @@ describe('new page form', () => {
     expect(undo.hidden).toBe(true);
   });
 
-  it('does not apply a stale response after the user edits the instruction', async () => {
-    let resolveFetch: (value: unknown) => void = () => undefined;
-    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise((resolve) => {
-      resolveFetch = resolve;
-    })));
+  it('cancels the request and keeps the edit when the instruction changes', async () => {
+    let requestSignal: AbortSignal | null = null;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, init?: RequestInit) => {
+      requestSignal = init?.signal || null;
+      return new Promise((_resolve, reject) => {
+        requestSignal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
+    }));
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
     const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
     const status = document.querySelector<HTMLElement>('#kayzart-ai-improve-status')!;
@@ -153,14 +158,112 @@ describe('new page form', () => {
     improve.click();
     prompt.value = 'Edited while waiting.';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
-    resolveFetch({
-      ok: true,
-      json: async () => ({ improvedPrompt: 'Stale result.' }),
-    });
     await flushPromises();
 
     expect(prompt.value).toBe('Edited while waiting.');
-    expect(status.textContent).toBe('Text changed. Run again.');
+    expect(requestSignal?.aborted).toBe(true);
+    expect(improve.disabled).toBe(false);
+    expect(status.textContent).toBe('Content changed. Improvement canceled.');
+    expect(status.classList.contains('is-info')).toBe(true);
+  });
+
+  it('cancels the request when the title changes', async () => {
+    let requestSignal: AbortSignal | null = null;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, init?: RequestInit) => {
+      requestSignal = init?.signal || null;
+      return new Promise((_resolve, reject) => {
+        requestSignal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
+    }));
+    const title = document.querySelector<HTMLInputElement>('#kayzart-create-title')!;
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+    const status = document.querySelector<HTMLElement>('#kayzart-ai-improve-status')!;
+
+    prompt.value = 'Original.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    improve.click();
+    title.value = 'Clinic launch';
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+    await flushPromises();
+
+    expect(title.value).toBe('Clinic launch');
+    expect(prompt.value).toBe('Original.');
+    expect(requestSignal?.aborted).toBe(true);
+    expect(improve.disabled).toBe(false);
+    expect(status.textContent).toBe('Content changed. Improvement canceled.');
+  });
+
+  it('allows an immediate retry and ignores a late response from the canceled request', async () => {
+    const pending: Array<(value: unknown) => void> = [];
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise((resolve) => {
+      pending.push(resolve);
+    })));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+
+    prompt.value = 'First instruction.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    improve.click();
+    prompt.value = 'Second instruction.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(improve.disabled).toBe(false);
+
+    improve.click();
+    expect(improve.disabled).toBe(true);
+    pending[0]({
+      ok: true,
+      json: async () => ({ improvedPrompt: 'Late stale result.' }),
+    });
+    await flushPromises();
+
+    expect(prompt.value).toBe('Second instruction.');
+    expect(improve.disabled).toBe(true);
+
+    pending[1]({
+      ok: true,
+      json: async () => ({ improvedPrompt: 'Current result.' }),
+    });
+    await flushPromises();
+
+    expect(prompt.value).toBe('Current result.');
+    expect(improve.disabled).toBe(false);
+  });
+
+  it('does not cancel when only surrounding input whitespace changes', async () => {
+    let resolveFetch: (value: unknown) => void = () => undefined;
+    let requestSignal: AbortSignal | null = null;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((_url, init?: RequestInit) => {
+      requestSignal = init?.signal || null;
+      return new Promise((resolve) => {
+        resolveFetch = resolve;
+      });
+    }));
+    const title = document.querySelector<HTMLInputElement>('#kayzart-create-title')!;
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
+
+    prompt.value = 'Original.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    improve.click();
+    prompt.value = '  Original.  ';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    title.value = '  Salon launch  ';
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(requestSignal?.aborted).toBe(false);
+    expect(improve.disabled).toBe(true);
+
+    resolveFetch({
+      ok: true,
+      json: async () => ({ improvedPrompt: 'Improved result.' }),
+    });
+    await flushPromises();
+
+    expect(prompt.value).toBe('Improved result.');
+    expect(improve.disabled).toBe(false);
   });
 
   it('keeps the original text and displays the REST error on failure', async () => {

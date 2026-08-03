@@ -16,7 +16,8 @@
     "plugin-zip:version": "node scripts/plugin-zip-version.mjs",
     "release:svn": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-to-svn.ps1",
     "e2e": "playwright test",
-    "e2e:install": "playwright install"
+    "e2e:install": "playwright install",
+    "e2e:freeze": "playwright test tests/e2e/snapshot-apply-freeze.spec.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.0",

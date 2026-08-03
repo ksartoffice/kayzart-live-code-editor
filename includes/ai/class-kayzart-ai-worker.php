@@ -144,7 +144,7 @@ class Ai_Worker {
 			error_log( 'Kayzart AI client error: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$store->mark_error( $job_uuid, __( 'The AI provider request failed.', 'kayzart-live-code-editor' ), $error->is_retryable() );
 		} catch ( Ai_Agent_Error $error ) {
-			$store->mark_error( $job_uuid, $error->getMessage(), $error->is_retryable() );
+			$store->mark_error( $job_uuid, self::agent_error_message( $error ), $error->is_retryable() );
 		} catch ( \Throwable $error ) {
 			error_log( 'Kayzart AI worker error: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$store->mark_error( $job_uuid, __( 'The AI edit job failed unexpectedly.', 'kayzart-live-code-editor' ), true );
@@ -372,7 +372,7 @@ class Ai_Worker {
 				);
 			}
 		} catch ( Ai_Agent_Error $error ) {
-			$store->mark_error( $job_uuid, $error->getMessage(), $error->is_retryable() );
+			$store->mark_error( $job_uuid, self::agent_error_message( $error ), $error->is_retryable() );
 			self::finish_job_actions( $job_uuid );
 			self::performance_log(
 				$job,
@@ -571,6 +571,25 @@ class Ai_Worker {
 		if ( function_exists( 'as_unschedule_action' ) ) {
 			as_unschedule_action( self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP );
 		}
+	}
+
+	/** Translate an agent-loop failure into a message the editor can show.
+	 *
+	 * Known causes get a localized, actionable message; anything else keeps the
+	 * internal wording, which is still more useful than a generic fallback.
+	 *
+	 * @param Ai_Agent_Error $error Agent-loop failure.
+	 * @return string
+	 */
+	private static function agent_error_message( Ai_Agent_Error $error ): string {
+		if ( 'max_turns' === $error->get_code_key() ) {
+			return sprintf(
+				/* translators: %d: maximum number of AI attempts per edit. */
+				__( 'Could not finish after %d attempts. Try splitting the instruction into smaller steps.', 'kayzart-live-code-editor' ),
+				Ai_Agent::MAX_AGENT_TURNS
+			);
+		}
+		return $error->getMessage();
 	}
 
 	/** Create an agent wired to the durable job event stream.

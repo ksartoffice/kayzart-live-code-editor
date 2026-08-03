@@ -56,6 +56,12 @@ export type AiJobEvent = {
   requestId: string;
   message?: string;
   toolName?: string;
+  /* Absent on events stored before the agent started emitting them. */
+  turn?: number;
+  maxTurns?: number;
+  phase?: string;
+  target?: string;
+  ok?: boolean;
   inputSummary?: string;
   outputSummary?: string;
   summary?: string;

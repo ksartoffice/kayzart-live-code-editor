@@ -163,7 +163,7 @@ test('continues after parallel OpenAI tool calls and applies the result', async 
   const after = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
   expect(after.html).not.toBe(before.html);
   const events = Array.isArray(latestStatus?.events) ? latestStatus.events : [];
-  const secondTurn = events.findIndex((event: any) => event.event === 'progress' && event.message === 'AI turn 2/15');
+  const secondTurn = events.findIndex((event: any) => event.event === 'progress' && event.turn === 2);
   expect(secondTurn).toBeGreaterThan(0);
   expect(events.slice(0, secondTurn).filter((event: any) => event.event === 'tool_start').length).toBeGreaterThan(1);
 

@@ -603,15 +603,72 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 			$fake,
 			array(
 				'emit' => static function ( array $event ) use ( &$events ) {
-					$events[] = $event['event'];
+					$events[] = $event;
 				},
 			)
 		);
 		$agent->run( $this->payload() );
 
-		$this->assertContains( 'progress', $events );
-		$this->assertContains( 'tool_start', $events );
-		$this->assertContains( 'tool_end', $events );
+		$names = array_column( $events, 'event' );
+		$this->assertContains( 'progress', $names );
+		$this->assertContains( 'tool_start', $names );
+		$this->assertContains( 'tool_end', $names );
+	}
+
+	/**
+	 * The UI builds its own wording, so events carry structured fields instead
+	 * of internal phrasing.
+	 */
+	public function test_events_carry_ui_fields(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+		$fake->queue_final_text( 'Editing complete.' );
+		$fake->queue_final_text( '{"summary":"ok"}' );
+
+		$events = array();
+		$agent  = new Ai_Agent(
+			$fake,
+			array(
+				'emit' => static function ( array $event ) use ( &$events ) {
+					$events[] = $event;
+				},
+			)
+		);
+		$agent->run( $this->payload() );
+
+		$progress = array_values(
+			array_filter(
+				$events,
+				static function ( array $event ) {
+					return 'progress' === $event['event'] && isset( $event['turn'] );
+				}
+			)
+		);
+		$this->assertNotEmpty( $progress );
+		$this->assertSame( '', $progress[0]['message'] );
+		$this->assertSame( 1, $progress[0]['turn'] );
+		$this->assertSame( Ai_Agent::MAX_AGENT_TURNS, $progress[0]['maxTurns'] );
+
+		$starts = array_values(
+			array_filter(
+				$events,
+				static function ( array $event ) {
+					return 'tool_start' === $event['event'];
+				}
+			)
+		);
+		$this->assertSame( 'html', $starts[0]['target'] );
+
+		$ends = array_values(
+			array_filter(
+				$events,
+				static function ( array $event ) {
+					return 'tool_end' === $event['event'];
+				}
+			)
+		);
+		$this->assertTrue( $ends[0]['ok'] );
+		$this->assertSame( 'html', $ends[0]['target'] );
 	}
 
 	/**
@@ -688,6 +745,29 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
 		// 15 loop turns + 1 finalization turn.
 		$this->assertCount( Ai_Agent::MAX_AGENT_TURNS + 1, $fake->calls() );
+	}
+
+	/**
+	 * Hitting the limit without an edit is tagged so the worker can show a
+	 * translated, actionable message instead of the internal wording.
+	 */
+	public function test_turn_limit_without_edit_is_tagged_max_turns(): void {
+		$fake = new Ai_Client_Fake();
+		for ( $i = 0; $i <= Ai_Agent::MAX_AGENT_TURNS; $i++ ) {
+			$fake->queue_tool_calls(
+				array(
+					Ai_Message::tool_call( 's' . $i, 'search_text', array( 'query' => 'Hello' ) ),
+				)
+			);
+		}
+
+		try {
+			( new Ai_Agent( $fake ) )->run( $this->payload() );
+			$this->fail( 'Expected the turn limit to abort the run.' );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertSame( 'max_turns', $error->get_code_key() );
+			$this->assertTrue( $error->is_retryable() );
+		}
 	}
 
 	/** Old bulky read observations are receipts while recent observations remain. */

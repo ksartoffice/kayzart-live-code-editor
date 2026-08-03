@@ -920,8 +920,55 @@ describe('AiEditorPanel', () => {
     await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set; setter?.call(textarea, 'Improve the hero'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
     await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
 
-    await vi.waitFor(() => expect(container.textContent).toContain('Generating the update'));
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toContain('Thinking…'));
     expect(container.textContent).toContain('Applying changes.');
+    // The raw event stays available for debugging, but only inside the run log.
+    expect(container.querySelector('.kayzart-ai-details.is-log')?.textContent).toContain('Generating the update');
+    await act(async () => root.unmount());
+  });
+
+  it('names the current tool and only counts attempts near the limit', async () => {
+    const pendingTimelineItem = { ...timelineItem, executionStatus: 'pending' as const, applicationStatus: 'not_applied' as const };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+    };
+    let created = false;
+    let nearLimit = false;
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const statusBody = (events: unknown[]) => ({
+      ok: true, jobId: 'job-1', requestId: 'request-1', status: 'running', events,
+      snapshot: null, error: null, usage: null, cancelRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      startedAt: timelineItem.createdAt, finishedAt: null, pollIntervalMs: 1, timeoutMs: 600000,
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: created ? [pendingTimelineItem] : [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') { created = true; return json({ ok: true, jobId: 'job-1', requestId: 'request-1', status: 'pending', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: pendingTimelineItem }, 202); }
+      if (url.includes('/jobs/job-1') && !url.includes('/cancel')) {
+        return json(nearLimit ? statusBody([
+          { event: 'progress', requestId: 'request-1', message: '', turn: 14, maxTurns: 15 },
+        ]) : statusBody([
+          { event: 'progress', requestId: 'request-1', message: '', turn: 2, maxTurns: 15 },
+          { event: 'tool_start', requestId: 'request-1', toolName: 'read_document', target: 'css' },
+        ]));
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Describe'));
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set; setter?.call(textarea, 'Improve the hero'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
+
+    // Mid-run the attempt number says nothing useful, so only the action shows.
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toBe('Reading the CSS…'));
+    // Close to the limit the count can change what the user does, so it appears.
+    nearLimit = true;
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toContain('(14/15)'));
     await act(async () => root.unmount());
   });
 

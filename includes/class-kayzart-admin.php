@@ -662,6 +662,24 @@ class Admin {
 	}
 
 	/**
+	 * Turn off WordPress emoji replacement on the editor screen.
+	 *
+	 * wp-emoji watches the whole document and rewrites emoji text into <img>
+	 * elements. Inside CodeMirror that rewrite corrupts the rendered text, so
+	 * CodeMirror syncs its document to the damaged DOM and silently drops the
+	 * character. While the editor is locked for a running AI job it cannot
+	 * accept that change, so it reverts the DOM instead, wp-emoji rewrites it
+	 * again, and the two loop forever in microtasks. That starves the task
+	 * queue and freezes the whole browser tab.
+	 */
+	private static function disable_emoji_replacement(): void {
+		remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+		remove_action( 'admin_print_styles', 'print_emoji_styles' );
+		remove_action( 'wp_print_styles', 'print_emoji_styles' );
+		add_filter( 'emoji_svg_url', '__return_false' );
+	}
+
+	/**
 	 * Build nonce-protected admin action URL for opening the KayzArt editor bridge.
 	 *
 	 * @return string
@@ -1785,6 +1803,9 @@ class Admin {
 		if ( ! $post_id ) {
 			return;
 		}
+
+		self::disable_emoji_replacement();
+
 		$admin_script_version = self::resolve_asset_version( KAYZART_PATH . 'assets/dist/main.js' );
 		$admin_style_version  = self::resolve_asset_version( KAYZART_PATH . 'assets/dist/style.css' );
 

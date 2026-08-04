@@ -144,7 +144,7 @@ class Ai_Worker {
 			error_log( 'Kayzart AI client error: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$store->mark_error( $job_uuid, __( 'The AI provider request failed.', 'kayzart-live-code-editor' ), $error->is_retryable() );
 		} catch ( Ai_Agent_Error $error ) {
-			$store->mark_error( $job_uuid, self::agent_error_message( $error ), $error->is_retryable() );
+			$store->mark_error( $job_uuid, self::agent_error_message( $error, $payload ), $error->is_retryable() );
 		} catch ( \Throwable $error ) {
 			error_log( 'Kayzart AI worker error: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$store->mark_error( $job_uuid, __( 'The AI edit job failed unexpectedly.', 'kayzart-live-code-editor' ), true );
@@ -372,7 +372,7 @@ class Ai_Worker {
 				);
 			}
 		} catch ( Ai_Agent_Error $error ) {
-			$store->mark_error( $job_uuid, self::agent_error_message( $error ), $error->is_retryable() );
+			$store->mark_error( $job_uuid, self::agent_error_message( $error, $payload ), $error->is_retryable() );
 			self::finish_job_actions( $job_uuid );
 			self::performance_log(
 				$job,
@@ -578,15 +578,16 @@ class Ai_Worker {
 	 * Known causes get a localized, actionable message; anything else keeps the
 	 * internal wording, which is still more useful than a generic fallback.
 	 *
-	 * @param Ai_Agent_Error $error Agent-loop failure.
+	 * @param Ai_Agent_Error $error   Agent-loop failure.
+	 * @param array          $payload Persisted AI job payload.
 	 * @return string
 	 */
-	private static function agent_error_message( Ai_Agent_Error $error ): string {
+	private static function agent_error_message( Ai_Agent_Error $error, array $payload = array() ): string {
 		if ( 'max_turns' === $error->get_code_key() ) {
 			return sprintf(
 				/* translators: %d: maximum number of AI attempts per edit. */
 				__( 'Could not finish after %d attempts. Try splitting the instruction into smaller steps.', 'kayzart-live-code-editor' ),
-				Ai_Agent::MAX_AGENT_TURNS
+				Ai_Agent::resolve_max_agent_turns( $payload )
 			);
 		}
 		return $error->getMessage();

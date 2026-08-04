@@ -173,6 +173,19 @@ class Ai_Agent {
 		);
 	}
 
+	/** Resolve the model-turn limit baked into an AI job payload.
+	 *
+	 * Jobs created before the configurable setting was introduced do not include
+	 * maxAgentTurns, so they retain the historic 15-turn behavior.
+	 *
+	 * @param array $payload AI job payload.
+	 * @return int
+	 */
+	public static function resolve_max_agent_turns( array $payload ): int {
+		$value = isset( $payload['maxAgentTurns'] ) ? $payload['maxAgentTurns'] : self::MAX_AGENT_TURNS;
+		return Admin::sanitize_ai_max_turns( $value );
+	}
+
 	/** Execute at most one provider call and return the next checkpoint.
 	 *
 	 * @param array $payload Request payload.
@@ -190,7 +203,8 @@ class Ai_Agent {
 		if ( 'finalization' === $phase ) {
 			return $this->advance_finalization( $payload, $state );
 		}
-		if ( (int) $state['turn'] >= self::MAX_AGENT_TURNS ) {
+		$max_agent_turns = self::resolve_max_agent_turns( $payload );
+		if ( (int) $state['turn'] >= $max_agent_turns ) {
 			if ( empty( $state['appliedEditOperation'] ) ) {
 				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true, 'max_turns' );
 			}
@@ -238,7 +252,7 @@ class Ai_Agent {
 				'event'    => 'progress',
 				'message'  => '',
 				'turn'     => $turn + 1,
-				'maxTurns' => self::MAX_AGENT_TURNS,
+				'maxTurns' => $max_agent_turns,
 			)
 		);
 
@@ -446,7 +460,7 @@ class Ai_Agent {
 		$state['finishReady']          = $finish_ready;
 		$state['usage']                = $usage;
 		$state['repeatedFailures']     = $repeated_failures;
-		if ( $state['turn'] >= self::MAX_AGENT_TURNS ) {
+		if ( $state['turn'] >= $max_agent_turns ) {
 			if ( ! $applied_edit_operation ) {
 				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true, 'max_turns' );
 			}

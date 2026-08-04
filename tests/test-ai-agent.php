@@ -671,6 +671,49 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( 'html', $ends[0]['target'] );
 	}
 
+	/** Configured job limits drive the UI progress event and preserve the default for legacy jobs. */
+	public function test_configured_max_turns_are_used_for_progress_events(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+		$fake->queue_final_text( '{"summary":"ok"}' );
+		$events  = array();
+		$payload = $this->payload();
+		$payload['maxAgentTurns'] = 20;
+
+		( new Ai_Agent(
+			$fake,
+			array(
+				'emit' => static function ( array $event ) use ( &$events ) {
+					$events[] = $event;
+				},
+			)
+		) )->run( $payload );
+
+		$this->assertSame( 20, $events[0]['maxTurns'] );
+		$this->assertSame( Ai_Agent::MAX_AGENT_TURNS, Ai_Agent::resolve_max_agent_turns( $this->payload() ) );
+	}
+
+	/** A configured limit also controls when the edit loop enters finalization. */
+	public function test_configured_max_turns_limit_the_agent_loop(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
+		for ( $i = 1; $i < 10; $i++ ) {
+			$fake->queue_tool_calls(
+				array(
+					Ai_Message::tool_call( 's' . $i, 'search_text', array( 'query' => 'World' ) ),
+				)
+			);
+		}
+		$fake->queue_final_text( '{"summary":"Finalized after configured limit."}' );
+		$payload                  = $this->payload();
+		$payload['maxAgentTurns'] = 10;
+
+		$result = ( new Ai_Agent( $fake ) )->run( $payload );
+
+		$this->assertSame( 'Finalized after configured limit.', $result['summary'] );
+		$this->assertCount( 11, $fake->calls() );
+	}
+
 	/**
 	 * Parallel tool calls are all executed and preserved for the next turn.
 	 */

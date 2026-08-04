@@ -457,6 +457,10 @@ msgstr ""
 msgid "Default AI model"
 msgstr ""
 
+#: includes/class-kayzart-admin.php:1041
+msgid "Maximum AI turns"
+msgstr "AI の最大ターン数"
+
 #: includes/class-kayzart-admin.php:1245
 msgid "Choose how the Kayzart editor opens by default."
 msgstr ""
@@ -468,6 +472,12 @@ msgstr ""
 #: includes/class-kayzart-admin.php:1326
 msgid "Choose which model AI editing uses. Auto lets the configured AI provider pick."
 msgstr ""
+
+#. translators: 1: minimum number of AI turns, 2: maximum number of AI turns.
+#: includes/class-kayzart-admin.php:1412
+#, php-format
+msgid "Choose between %1$d and %2$d model turns per AI edit. Higher values can increase processing time and AI usage."
+msgstr "AI 編集ごとに %1$d〜%2$d 回のモデルターンを指定します。値を大きくすると、処理時間と AI の使用量が増える場合があります。"
 
 #: includes/class-kayzart-admin.php:1341
 msgid "Auto (recommended)"

@@ -15,6 +15,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Owns job creation, state transitions, events, and retention.
  */
 class Ai_Job_Store {
+	/** Server-derived values captured when a job is first created.
+	 *
+	 * These values affect execution, but not whether a retried client request is
+	 * the same request. The stored payload remains untouched.
+	 *
+	 * @var array<int,string>
+	 */
+	private const IDEMPOTENCY_IGNORED_PAYLOAD_KEYS = array(
+		'recentEditContext',
+		'modelPreference',
+		'maxAgentTurns',
+		'canEditHead',
+	);
+
 	const MAX_EVENTS               = 300;
 	const TIMEOUT_SECONDS          = 600;
 	const STEPWISE_TIMEOUT_SECONDS = 1800;
@@ -469,14 +483,8 @@ class Ai_Job_Store {
 	 * @param string $payload_json Canonical payload JSON.
 	 */
 	private function resolve_existing( array $job, int $post_id, string $payload_json ) {
-		$stored_payload = json_decode( (string) $job['payload_json'], true );
-		$next_payload   = json_decode( $payload_json, true );
-		if ( is_array( $stored_payload ) ) {
-			unset( $stored_payload['recentEditContext'] );
-		}
-		if ( is_array( $next_payload ) ) {
-			unset( $next_payload['recentEditContext'] );
-		}
+		$stored_payload = self::client_payload_for_idempotency( json_decode( (string) $job['payload_json'], true ) );
+		$next_payload   = self::client_payload_for_idempotency( json_decode( $payload_json, true ) );
 		if ( (int) $job['post_id'] !== $post_id || $stored_payload !== $next_payload ) {
 			return new \WP_Error( 'kayzart_ai_request_conflict', __( 'This request ID was already used for different input.', 'kayzart-live-code-editor' ), array( 'status' => 409 ) );
 		}
@@ -484,6 +492,23 @@ class Ai_Job_Store {
 			'job'    => $job,
 			'is_new' => false,
 		);
+	}
+
+	/** Remove server-captured execution values before comparing client input.
+	 *
+	 * @param mixed $payload Decoded job payload.
+	 * @return mixed
+	 */
+	private static function client_payload_for_idempotency( $payload ) {
+		if ( ! is_array( $payload ) ) {
+			return $payload;
+		}
+
+		foreach ( self::IDEMPOTENCY_IGNORED_PAYLOAD_KEYS as $key ) {
+			unset( $payload[ $key ] );
+		}
+
+		return $payload;
 	}
 
 	/** Perform an active-to-terminal error transition.

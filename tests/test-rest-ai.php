@@ -227,14 +227,20 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	/** Site AI settings are captured when the asynchronous job is created. */
 	public function test_create_captures_the_configured_max_turns_in_job_payload(): void {
 		update_option( Admin::OPTION_AI_MAX_TURNS, 20 );
-		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-max-turns' ) );
+		$first = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-max-turns' ) );
 
-		$this->assertSame( 202, $response->get_status() );
-		$job    = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
+		$this->assertSame( 202, $first->get_status() );
+		$job    = ( new Ai_Job_Store() )->get( $first->get_data()['jobId'] );
 		$stored = json_decode( $job['payload_json'], true );
 		$this->assertSame( 20, $stored['maxAgentTurns'] );
 
 		update_option( Admin::OPTION_AI_MAX_TURNS, 30 );
+		$again = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-max-turns' ) );
+		$this->assertSame( 200, $again->get_status() );
+		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
+
+		$job    = ( new Ai_Job_Store() )->get( $again->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
 		$this->assertSame( 20, $stored['maxAgentTurns'] );
 	}
 

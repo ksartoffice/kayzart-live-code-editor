@@ -45,6 +45,39 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 		$this->assertSame( 'kayzart_ai_post_locked', $locked->get_error_code() );
 	}
 
+	/** Server-captured execution settings do not change client request identity. */
+	public function test_server_derived_payload_fields_are_ignored_for_idempotent_retries(): void {
+		$stored_payload = array_merge(
+			$this->payload(),
+			array(
+				'recentEditContext' => array( array( 'summary' => 'Earlier context.' ) ),
+				'modelPreference'   => array( 'provider/model-a' ),
+				'canEditHead'       => false,
+			)
+		);
+		$first          = $this->store->create( 10, 20, 'request-server-settings', $stored_payload );
+		$retry_payload  = array_merge(
+			$this->payload(),
+			array(
+				'recentEditContext' => array( array( 'summary' => 'Newer context.' ) ),
+				'modelPreference'   => array( 'provider/model-b' ),
+				'maxAgentTurns'     => 20,
+				'canEditHead'       => true,
+			)
+		);
+		$again          = $this->store->create( 10, 20, 'request-server-settings', $retry_payload );
+
+		$this->assertTrue( $first['is_new'] );
+		$this->assertFalse( $again['is_new'] );
+		$this->assertSame( $first['job']['job_uuid'], $again['job']['job_uuid'] );
+		$this->assertSame( $stored_payload, json_decode( $again['job']['payload_json'], true ) );
+
+		$retry_payload['prompt'] = 'Use different client input.';
+		$conflict                = $this->store->create( 10, 20, 'request-server-settings', $retry_payload );
+		$this->assertWPError( $conflict );
+		$this->assertSame( 'kayzart_ai_request_conflict', $conflict->get_error_code() );
+	}
+
 	/** Terminal transitions cannot be overwritten and release the post lock. */
 	public function test_conditional_transitions_release_lock_and_preserve_terminal_state(): void {
 		$created = $this->store->create( 10, 20, 'request-transition', $this->payload() );

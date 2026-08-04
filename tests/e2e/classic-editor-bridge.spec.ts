@@ -23,11 +23,7 @@ test('shows a Kayzart bridge card while protecting Classic Editor content', asyn
     await page.goto(editUrl.toString(), { waitUntil: 'domcontentloaded' });
 
     if (await page.locator('body.block-editor-page').count()) {
-      test.info().annotations.push({
-        type: 'skip-reason',
-        description: 'The WordPress test site is configured to use Gutenberg.',
-      });
-      return;
+      test.skip(true, 'The WordPress test site is configured to use Gutenberg.');
     }
 
     const bridge = page.locator('.kayzart-editor-bridge--classic');

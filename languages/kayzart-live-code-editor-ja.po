@@ -2079,12 +2079,6 @@ msgstr "既存の投稿は「Kayzartで編集を開始」を選択したとき�
 msgid "Start editing with Kayzart"
 msgstr "Kayzartで編集を開始"
 
-#. translators: %s: post title.
-#: includes/class-kayzart-admin.php:1658
-#, php-format
-msgid "The content editing for \"%s\" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a preview."
-msgstr "「%s」の本文編集をKayzartに切り替えます。現在のコンテンツは初期HTMLとして引き継がれます。変換後、本文はKayzartで編集し、WordPressエディターではプレビューを表示します。"
-
 #: includes/class-kayzart-admin.php:1670
 msgid "Convert and edit with Kayzart"
 msgstr "Kayzartに変換して編集"
@@ -2109,3 +2103,9 @@ msgstr "ページタイトル"
 #: assets/admin/editor-bridge.js:274
 msgid "View page"
 msgstr "ページを表示"
+
+#. translators: %s: post title.
+#: includes/class-kayzart-admin.php:1658
+#, php-format
+msgid "The content editing for \"%s\" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a Kayzart management card instead of the content editor."
+msgstr "「%s」の本文編集をKayzartに切り替えます。現在のコンテンツは初期HTMLとして引き継がれます。変換後の本文はKayzartで編集し、WordPressエディターでは本文エディターの代わりにKayzart管理カードが表示されます。"

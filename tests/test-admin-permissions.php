@@ -619,7 +619,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Start editing with Kayzart', $output );
 		$this->assertStringContainsString( 'Convert and edit with Kayzart', $output );
-		$this->assertStringContainsString( 'the WordPress editor will show a preview', $output );
+		$this->assertStringContainsString( 'the WordPress editor will show a Kayzart management card instead of the content editor', $output );
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 	}
 

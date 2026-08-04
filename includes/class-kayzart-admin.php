@@ -1655,7 +1655,7 @@ class Admin {
 			esc_html(
 				sprintf(
 					/* translators: %s: post title. */
-					__( 'The content editing for "%s" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a preview.', 'kayzart-live-code-editor' ),
+					__( 'The content editing for "%s" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a Kayzart management card instead of the content editor.', 'kayzart-live-code-editor' ),
 					get_the_title( $post )
 				)
 			)

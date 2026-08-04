@@ -21,11 +21,7 @@ test('shows a Kayzart bridge card while protecting Gutenberg content', async ({ 
     await page.goto(unmanagedEditUrl.toString(), { waitUntil: 'domcontentloaded' });
     await expect(page.locator('.kayzart-editor-bridge')).toHaveCount(0);
     if (!(await page.locator('body.block-editor-page').count())) {
-      test.info().annotations.push({
-        type: 'skip-reason',
-        description: 'The WordPress test site is configured to use the Classic Editor.',
-      });
-      return;
+      test.skip(true, 'The WordPress test site is configured to use the Classic Editor.');
     }
     const unmanagedEditor = await page.evaluate(() => ({
       isBlockEditor: document.body.classList.contains('block-editor-page'),

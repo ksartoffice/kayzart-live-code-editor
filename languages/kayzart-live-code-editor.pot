@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-03T08:16:56+02:00\n"
+"POT-Creation-Date: 2026-08-04T03:03:11+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -54,13 +54,13 @@ msgstr ""
 #: includes/class-kayzart-admin.php:542
 #: includes/class-kayzart-admin.php:584
 #: includes/class-kayzart-preview.php:171
-#: includes/class-kayzart-rest.php:171
-#: includes/class-kayzart-rest.php:179
+#: includes/class-kayzart-rest.php:174
+#: includes/class-kayzart-rest.php:182
 #: includes/rest/class-kayzart-rest-ai-prompt.php:57
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:213
 #: includes/rest/class-kayzart-rest-revisions.php:88
-#: includes/rest/class-kayzart-rest-save.php:63
+#: includes/rest/class-kayzart-rest-save.php:62
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr ""
@@ -135,14 +135,14 @@ msgstr ""
 
 #. translators: %s: post title.
 #: includes/class-kayzart-admin.php:106
-#: assets/dist/main.js:5284
+#: assets/dist/main.js:5300
 #, php-format,js-format
 msgid "Kayzart: %s"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:136
-#: assets/dist/main.js:2264
-#: assets/dist/main.js:5283
+#: assets/dist/main.js:2280
+#: assets/dist/main.js:5299
 msgid "Untitled"
 msgstr ""
 
@@ -200,15 +200,15 @@ msgstr ""
 #: includes/class-kayzart-admin.php:906
 #: includes/class-kayzart-admin.php:907
 #: includes/class-kayzart-admin.php:1690
-#: assets/dist/main.js:1742
+#: assets/dist/main.js:1758
 msgid "Settings"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:927
 #: includes/class-kayzart-admin.php:928
 #: includes/class-kayzart-admin.php:1569
-#: includes/class-kayzart-post-type.php:354
-#: includes/class-kayzart-post-type.php:367
+#: includes/class-kayzart-post-type.php:372
+#: includes/class-kayzart-post-type.php:385
 #: assets/admin/editor-bridge.js:18
 msgid "Edit with Kayzart"
 msgstr ""
@@ -296,12 +296,12 @@ msgid "Applies when template mode is set to Use admin default."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1291
-#: assets/dist/main.js:2245
+#: assets/dist/main.js:2261
 msgid "Show code"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1292
-#: assets/dist/main.js:2245
+#: assets/dist/main.js:2261
 msgid "Hide code"
 msgstr ""
 
@@ -415,8 +415,8 @@ msgid "Describe the page you want, and AI will start building it when the editor
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1462
-#: assets/dist/main.js:2532
-#: assets/dist/main.js:2550
+#: assets/dist/main.js:2548
+#: assets/dist/main.js:2566
 msgid "Title"
 msgstr ""
 
@@ -473,9 +473,9 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:1519
 #: includes/class-kayzart-admin.php:1626
-#: includes/class-kayzart-post-type.php:327
+#: includes/class-kayzart-post-type.php:345
 #: assets/dist/main.js:54
-#: assets/dist/main.js:6380
+#: assets/dist/main.js:6432
 msgid "TailwindCSS"
 msgstr ""
 
@@ -559,7 +559,7 @@ msgid "The original instruction was restored."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:2012
-msgid "The instruction changed while AI was working. Run the improvement again to use the latest text."
+msgid "The title or instruction changed, so the AI improvement was canceled. Run it again to use the latest content."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:2013
@@ -569,71 +569,71 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:2087
 #: includes/class-kayzart-admin.php:2095
-#: assets/dist/main.js:2275
+#: assets/dist/main.js:2291
 msgid "Posts"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:55
+#: includes/class-kayzart-post-type.php:73
 msgctxt "post type general name"
 msgid "旧Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:56
+#: includes/class-kayzart-post-type.php:74
 msgctxt "post type singular name"
 msgid "旧Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:57
+#: includes/class-kayzart-post-type.php:75
 msgctxt "kayzart"
 msgid "Add New"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:58
+#: includes/class-kayzart-post-type.php:76
 msgid "Add New"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:59
+#: includes/class-kayzart-post-type.php:77
 msgid "Edit Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:60
+#: includes/class-kayzart-post-type.php:78
 msgid "New Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:61
-#: includes/class-kayzart-post-type.php:62
+#: includes/class-kayzart-post-type.php:79
+#: includes/class-kayzart-post-type.php:80
 msgid "View on front end"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:63
+#: includes/class-kayzart-post-type.php:81
 msgid "Search Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:64
+#: includes/class-kayzart-post-type.php:82
 msgid "No Kayzart found"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:65
+#: includes/class-kayzart-post-type.php:83
 msgid "No Kayzart found in Trash"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:66
+#: includes/class-kayzart-post-type.php:84
 msgid "旧Kayzart一覧"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:67
+#: includes/class-kayzart-post-type.php:85
 msgid "Kayzart Archives"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:71
+#: includes/class-kayzart-post-type.php:89
 msgid "旧Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:323
+#: includes/class-kayzart-post-type.php:341
 msgid "Landing page"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:359
+#: includes/class-kayzart-post-type.php:377
 msgid "Duplicate"
 msgstr ""
 
@@ -642,8 +642,8 @@ msgid "Invalid preview token."
 msgstr ""
 
 #: includes/class-kayzart-preview.php:175
-#: includes/rest/class-kayzart-rest-save.php:52
-#: includes/rest/class-kayzart-rest-save.php:468
+#: includes/rest/class-kayzart-rest-save.php:51
+#: includes/rest/class-kayzart-rest-save.php:420
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr ""
@@ -659,7 +659,7 @@ msgstr ""
 
 #: includes/class-kayzart-preview.php:410
 #: assets/dist/main.js:512
-#: assets/dist/main.js:8876
+#: assets/dist/main.js:8928
 msgid "Replace image"
 msgstr ""
 
@@ -677,6 +677,47 @@ msgstr ""
 
 #: includes/class-kayzart-preview.php:414
 msgid "Not available in preview. It will render on the front end."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:31
+msgid "Invalid Tailwind candidate payload."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:35
+#: includes/class-kayzart-tailwind-compiler.php:195
+msgid "Tailwind candidate count exceeds the maximum."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:44
+msgid "Tailwind candidate contains an invalid value."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:49
+#: includes/class-kayzart-tailwind-compiler.php:192
+msgid "A Tailwind candidate exceeds the maximum size."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:54
+#: includes/class-kayzart-tailwind-compiler.php:199
+msgid "Tailwind candidates exceed the maximum size."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:125
+msgid "Tailwind CSS input exceeds the maximum size."
+msgstr ""
+
+#. translators: %s: error message.
+#: includes/class-kayzart-tailwind-compiler.php:141
+#, php-format
+msgid "Tailwind compile failed: %s"
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:149
+msgid "Generated Tailwind CSS exceeds the maximum size."
+msgstr ""
+
+#: includes/class-kayzart-tailwind-compiler.php:163
+msgid "Tailwind candidates are not available."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-ai-prompt.php:74
@@ -791,36 +832,21 @@ msgstr ""
 msgid "Unknown user"
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:79
+#: includes/rest/class-kayzart-rest-save.php:78
 msgid "Invalid jsMode value."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:91
+#: includes/rest/class-kayzart-rest-save.php:90
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:138
+#: includes/rest/class-kayzart-rest-save.php:137
 msgid "Invalid editor mode payload."
 msgstr ""
 
-#. translators: %s: error message.
-#: includes/rest/class-kayzart-rest-save.php:205
-#: includes/rest/class-kayzart-rest-save.php:499
-#, php-format
-msgid "Tailwind compile failed: %s"
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-save.php:328
+#: includes/rest/class-kayzart-rest-save.php:308
 msgid "The saved page did not match the requested snapshot."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-save.php:437
-msgid "Tailwind HTML input exceeds the maximum size."
-msgstr ""
-
-#: includes/rest/class-kayzart-rest-save.php:445
-msgid "Tailwind CSS input exceeds the maximum size."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-setup.php:43
@@ -828,9 +854,9 @@ msgid "Invalid setup mode."
 msgstr ""
 
 #: assets/admin/editor-bridge.js:65
-#: assets/dist/main.js:2582
-#: assets/dist/main.js:6228
-#: assets/dist/main.js:6388
+#: assets/dist/main.js:2598
+#: assets/dist/main.js:6280
+#: assets/dist/main.js:6440
 msgid "Saving..."
 msgstr ""
 
@@ -926,7 +952,7 @@ msgstr ""
 
 #: assets/dist/main.js:468
 #: assets/dist/main.js:470
-#: assets/dist/main.js:1734
+#: assets/dist/main.js:1750
 msgid "Elements"
 msgstr ""
 
@@ -1136,12 +1162,12 @@ msgid "Changes are ready."
 msgstr ""
 
 #: assets/dist/main.js:998
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "AI edit is waiting."
 msgstr ""
 
 #: assets/dist/main.js:999
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Applying changes."
 msgstr ""
 
@@ -1154,19 +1180,19 @@ msgid "Changes were reverted."
 msgstr ""
 
 #: assets/dist/main.js:1003
-#: assets/dist/main.js:1186
+#: assets/dist/main.js:1193
 msgid "AI edit was canceled."
 msgstr ""
 
 #: assets/dist/main.js:1004
-#: assets/dist/main.js:1186
+#: assets/dist/main.js:1193
 msgid "AI edit timed out."
 msgstr ""
 
 #: assets/dist/main.js:1005
-#: assets/dist/main.js:1186
-#: assets/dist/main.js:1273
-#: assets/dist/main.js:1433
+#: assets/dist/main.js:1193
+#: assets/dist/main.js:1280
+#: assets/dist/main.js:1444
 msgid "AI edit failed."
 msgstr ""
 
@@ -1236,814 +1262,814 @@ msgstr ""
 msgid "Open Connectors"
 msgstr ""
 
-#: assets/dist/main.js:1104
-#: assets/dist/main.js:1375
+#: assets/dist/main.js:1108
+#: assets/dist/main.js:1382
 msgid "History could not be loaded."
 msgstr ""
 
-#: assets/dist/main.js:1128
+#: assets/dist/main.js:1135
 msgid "AI response is missing its snapshot."
 msgstr ""
 
-#: assets/dist/main.js:1147
-#: assets/dist/main.js:1171
+#: assets/dist/main.js:1154
+#: assets/dist/main.js:1178
 msgid "The AI result could not be applied to the editor."
 msgstr ""
 
-#: assets/dist/main.js:1165
+#: assets/dist/main.js:1172
 msgid "The editor state is unavailable. The AI result was not applied."
 msgstr ""
 
-#: assets/dist/main.js:1186
+#: assets/dist/main.js:1193
 msgid "AI edit could not be scheduled."
 msgstr ""
 
-#: assets/dist/main.js:1202
-#: assets/dist/main.js:1213
-#: assets/dist/main.js:1227
-#: assets/dist/main.js:1236
-#: assets/dist/main.js:1266
+#: assets/dist/main.js:1209
+#: assets/dist/main.js:1220
+#: assets/dist/main.js:1234
+#: assets/dist/main.js:1243
+#: assets/dist/main.js:1273
 msgid "AI edit timed out while waiting for its status."
 msgstr ""
 
-#: assets/dist/main.js:1239
+#: assets/dist/main.js:1246
 msgid "Connection lost. Retrying the AI job status…"
 msgstr ""
 
-#: assets/dist/main.js:1356
+#: assets/dist/main.js:1363
 msgid "The original AI input could not be recovered."
 msgstr ""
 
-#: assets/dist/main.js:1385
+#: assets/dist/main.js:1394
 msgid "Editor state is unavailable."
 msgstr ""
 
-#: assets/dist/main.js:1447
+#: assets/dist/main.js:1458
 msgid "The selected element is no longer available. Select it again before running the edit."
 msgstr ""
 
-#: assets/dist/main.js:1473
+#: assets/dist/main.js:1489
 msgid "Cancel request failed."
 msgstr ""
 
-#: assets/dist/main.js:1490
+#: assets/dist/main.js:1506
 msgid "Your current unsaved changes will be replaced. Continue?"
 msgstr ""
 
-#: assets/dist/main.js:1496
+#: assets/dist/main.js:1512
 msgid "The edit could not be restored because the editor rejected the snapshot."
 msgstr ""
 
-#: assets/dist/main.js:1505
+#: assets/dist/main.js:1521
 msgid "The editor was restored, but the edit history could not be updated."
 msgstr ""
 
-#: assets/dist/main.js:1508
+#: assets/dist/main.js:1524
 msgid "The edit could not be restored."
 msgstr ""
 
 #. translators: 1: what the AI is doing, 2: elapsed time as m:ss.
-#: assets/dist/main.js:1522
+#: assets/dist/main.js:1538
 #, js-format
 msgid "%1$s (%2$s)"
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "Run log"
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "This is the current state."
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "Restore before changes"
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "Restore this result"
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "The retention period for these changes has ended."
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "Details"
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "Model"
 msgstr ""
 
-#: assets/dist/main.js:1525
+#: assets/dist/main.js:1541
 msgid "Input"
 msgstr ""
 
 #. translators: %s: formatted token count.
-#: assets/dist/main.js:1527
-#: assets/dist/main.js:1531
+#: assets/dist/main.js:1543
+#: assets/dist/main.js:1547
 #, js-format
 msgid "%s tokens"
 msgstr ""
 
-#: assets/dist/main.js:1529
+#: assets/dist/main.js:1545
 msgid "Output"
 msgstr ""
 
-#: assets/dist/main.js:1533
+#: assets/dist/main.js:1549
 msgid "Duration"
 msgstr ""
 
-#: assets/dist/main.js:1533
+#: assets/dist/main.js:1549
 msgid "Run again"
 msgstr ""
 
-#: assets/dist/main.js:1536
+#: assets/dist/main.js:1552
 msgid "Return to input"
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "The editor changed while the AI edit was running."
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Choose whether to keep the current editor content or replace it with the completed AI result."
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Keep current content"
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Applying…"
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Replace with AI result"
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Loading…"
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Load earlier history"
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Describe the landing page change you want."
 msgstr ""
 
-#: assets/dist/main.js:1538
+#: assets/dist/main.js:1554
 msgid "Changes saved · "
 msgstr ""
 
 #. translators: %d: revision ID.
-#: assets/dist/main.js:1540
-#: assets/dist/main.js:1544
+#: assets/dist/main.js:1556
+#: assets/dist/main.js:1560
 #, js-format
 msgid "Revision #%d"
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Revision was deleted."
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 #, js-format
 msgid "Restored edit #%d to its previous state."
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 #, js-format
 msgid "Restored the result of edit #%d."
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Remove context"
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Example: Make the hero clearer and improve the primary button."
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Canceling…"
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Stop"
 msgstr ""
 
-#: assets/dist/main.js:1546
+#: assets/dist/main.js:1562
 msgid "Send"
 msgstr ""
 
-#: assets/dist/main.js:1551
-#: assets/dist/main.js:1731
+#: assets/dist/main.js:1567
+#: assets/dist/main.js:1747
 msgid "AI Edit"
 msgstr ""
 
-#: assets/dist/main.js:1552
-#: assets/dist/main.js:1572
+#: assets/dist/main.js:1568
+#: assets/dist/main.js:1588
 msgid "Edit with AI"
 msgstr ""
 
-#: assets/dist/main.js:1738
+#: assets/dist/main.js:1754
 msgid "History"
 msgstr ""
 
-#: assets/dist/main.js:1920
+#: assets/dist/main.js:1936
 msgid "Settings tabs"
 msgstr ""
 
-#: assets/dist/main.js:1939
+#: assets/dist/main.js:1955
 msgid "Close settings panel"
 msgstr ""
 
-#: assets/dist/main.js:2246
+#: assets/dist/main.js:2262
 msgid "Reload preview"
 msgstr ""
 
-#: assets/dist/main.js:2250
+#: assets/dist/main.js:2266
 msgid "View post"
 msgstr ""
 
-#: assets/dist/main.js:2250
+#: assets/dist/main.js:2266
 msgid "Preview"
 msgstr ""
 
-#: assets/dist/main.js:2252
+#: assets/dist/main.js:2268
 msgid "Desktop"
 msgstr ""
 
-#: assets/dist/main.js:2253
+#: assets/dist/main.js:2269
 msgid "Tablet"
 msgstr ""
 
-#: assets/dist/main.js:2254
+#: assets/dist/main.js:2270
 msgid "Mobile"
 msgstr ""
 
-#: assets/dist/main.js:2262
+#: assets/dist/main.js:2278
 msgid "Back to WordPress"
 msgstr ""
 
-#: assets/dist/main.js:2265
+#: assets/dist/main.js:2281
 msgid "(Draft)"
 msgstr ""
 
-#: assets/dist/main.js:2269
+#: assets/dist/main.js:2285
 msgid "Tailwind CSS"
 msgstr ""
 
-#: assets/dist/main.js:2270
+#: assets/dist/main.js:2286
 msgid "Editing in Tailwind CSS mode"
 msgstr ""
 
-#: assets/dist/main.js:2271
+#: assets/dist/main.js:2287
 msgid "Import / Export"
 msgstr ""
 
-#: assets/dist/main.js:2272
-#: assets/dist/main.js:6477
+#: assets/dist/main.js:2288
+#: assets/dist/main.js:6529
 msgid "Import full HTML"
 msgstr ""
 
-#: assets/dist/main.js:2273
+#: assets/dist/main.js:2289
 msgid "Copy full HTML"
 msgstr ""
 
-#: assets/dist/main.js:2274
+#: assets/dist/main.js:2290
 msgid "Download full HTML"
 msgstr ""
 
-#: assets/dist/main.js:2276
+#: assets/dist/main.js:2292
 msgid "Save draft"
 msgstr ""
 
-#: assets/dist/main.js:2276
+#: assets/dist/main.js:2292
 msgid "Save for review"
 msgstr ""
 
-#: assets/dist/main.js:2276
+#: assets/dist/main.js:2292
 msgid "Update as private"
 msgstr ""
 
-#: assets/dist/main.js:2276
+#: assets/dist/main.js:2292
 msgid "Update"
 msgstr ""
 
-#: assets/dist/main.js:2278
+#: assets/dist/main.js:2294
 msgid "Publish"
 msgstr ""
 
-#: assets/dist/main.js:2279
+#: assets/dist/main.js:2295
 msgid "Move to review"
 msgstr ""
 
-#: assets/dist/main.js:2280
+#: assets/dist/main.js:2296
 msgid "Make private"
 msgstr ""
 
-#: assets/dist/main.js:2281
+#: assets/dist/main.js:2297
 msgid "Revert to draft"
 msgstr ""
 
-#: assets/dist/main.js:2323
-#: assets/dist/main.js:6819
-#: assets/dist/main.js:6837
-#: assets/dist/main.js:8443
-#: assets/dist/main.js:8461
-#: assets/dist/main.js:8480
-#: assets/dist/main.js:8489
+#: assets/dist/main.js:2339
+#: assets/dist/main.js:6871
+#: assets/dist/main.js:6889
+#: assets/dist/main.js:8495
+#: assets/dist/main.js:8513
+#: assets/dist/main.js:8532
+#: assets/dist/main.js:8541
 msgid "Update failed."
 msgstr ""
 
-#: assets/dist/main.js:2451
-#: assets/dist/main.js:2452
+#: assets/dist/main.js:2467
+#: assets/dist/main.js:2468
 msgid "Undo"
 msgstr ""
 
-#: assets/dist/main.js:2462
-#: assets/dist/main.js:2463
+#: assets/dist/main.js:2478
+#: assets/dist/main.js:2479
 msgid "Redo"
 msgstr ""
 
-#: assets/dist/main.js:2538
+#: assets/dist/main.js:2554
 msgid "Close"
 msgstr ""
 
-#: assets/dist/main.js:2562
+#: assets/dist/main.js:2578
 msgid "Slug"
 msgstr ""
 
-#: assets/dist/main.js:2581
-#: assets/dist/main.js:6445
-#: assets/dist/main.js:6478
-#: assets/dist/main.js:6537
-#: assets/dist/main.js:6639
+#: assets/dist/main.js:2597
+#: assets/dist/main.js:6497
+#: assets/dist/main.js:6530
+#: assets/dist/main.js:6589
+#: assets/dist/main.js:6691
 msgid "Cancel"
 msgstr ""
 
-#: assets/dist/main.js:2582
-#: assets/dist/main.js:8175
+#: assets/dist/main.js:2598
+#: assets/dist/main.js:8227
 msgid "Save"
 msgstr ""
 
-#: assets/dist/main.js:2600
-#: assets/dist/main.js:2601
+#: assets/dist/main.js:2616
+#: assets/dist/main.js:2617
 msgid "Save options"
 msgstr ""
 
-#: assets/dist/main.js:2614
+#: assets/dist/main.js:2630
 #, js-format
 msgid "Status: %s"
 msgstr ""
 
-#: assets/dist/main.js:2615
+#: assets/dist/main.js:2631
 msgid "Draft"
 msgstr ""
 
-#: assets/dist/main.js:2615
+#: assets/dist/main.js:2631
 msgid "Pending"
 msgstr ""
 
-#: assets/dist/main.js:2615
+#: assets/dist/main.js:2631
 msgid "Private"
 msgstr ""
 
-#: assets/dist/main.js:2615
+#: assets/dist/main.js:2631
 msgid "Scheduled"
 msgstr ""
 
-#: assets/dist/main.js:2615
+#: assets/dist/main.js:2631
 msgid "Published"
 msgstr ""
 
-#: assets/dist/main.js:2769
+#: assets/dist/main.js:2785
 msgid "JavaScript mode"
 msgstr ""
 
-#: assets/dist/main.js:2771
+#: assets/dist/main.js:2787
 msgid "type: classic script"
 msgstr ""
 
-#: assets/dist/main.js:2772
+#: assets/dist/main.js:2788
 msgid "type: module"
 msgstr ""
 
-#: assets/dist/main.js:2811
-#: assets/dist/main.js:2848
-#: assets/dist/main.js:2852
-#: assets/dist/main.js:6545
+#: assets/dist/main.js:2827
+#: assets/dist/main.js:2864
+#: assets/dist/main.js:2868
+#: assets/dist/main.js:6597
 msgid "HTML"
 msgstr ""
 
-#: assets/dist/main.js:2815
-#: assets/dist/main.js:2903
-#: assets/dist/main.js:6557
+#: assets/dist/main.js:2831
+#: assets/dist/main.js:2919
+#: assets/dist/main.js:6609
 msgid "CSS"
 msgstr ""
 
-#: assets/dist/main.js:2819
-#: assets/dist/main.js:2856
-#: assets/dist/main.js:6551
+#: assets/dist/main.js:2835
+#: assets/dist/main.js:2872
+#: assets/dist/main.js:6603
 msgid "head"
 msgstr ""
 
-#: assets/dist/main.js:2823
-#: assets/dist/main.js:2907
+#: assets/dist/main.js:2839
+#: assets/dist/main.js:2923
 msgid "JavaScript"
 msgstr ""
 
-#: assets/dist/main.js:2828
-#: assets/dist/main.js:2862
+#: assets/dist/main.js:2844
+#: assets/dist/main.js:2878
 msgid "Add Media"
 msgstr ""
 
-#: assets/dist/main.js:2833
-#: assets/dist/main.js:2867
-#: assets/dist/main.js:2868
-#: assets/dist/main.js:6956
-#: assets/dist/main.js:6964
-#: assets/dist/main.js:8609
-#: assets/dist/main.js:8615
+#: assets/dist/main.js:2849
+#: assets/dist/main.js:2883
+#: assets/dist/main.js:2884
+#: assets/dist/main.js:7008
+#: assets/dist/main.js:7016
+#: assets/dist/main.js:8661
+#: assets/dist/main.js:8667
 msgid "Format HTML"
 msgstr ""
 
-#: assets/dist/main.js:2866
-#: assets/dist/main.js:2914
+#: assets/dist/main.js:2882
+#: assets/dist/main.js:2930
 msgid "Format"
 msgstr ""
 
-#: assets/dist/main.js:2872
-#: assets/dist/main.js:2873
-#: assets/dist/main.js:8285
+#: assets/dist/main.js:2888
+#: assets/dist/main.js:2889
+#: assets/dist/main.js:8337
 msgid "Wrap: Off"
 msgstr ""
 
-#: assets/dist/main.js:2881
-#: assets/dist/main.js:2918
+#: assets/dist/main.js:2897
+#: assets/dist/main.js:2934
 msgid "Reload preview to apply head and JavaScript changes."
 msgstr ""
 
-#: assets/dist/main.js:2883
+#: assets/dist/main.js:2899
 msgid "Enter code to add inside the head."
 msgstr ""
 
-#: assets/dist/main.js:2884
+#: assets/dist/main.js:2900
 msgid "Use this for external CSS, Google Fonts, OGP, structured data, and similar head markup."
 msgstr ""
 
-#: assets/dist/main.js:2885
+#: assets/dist/main.js:2901
 msgid "Write external JS here, or add it as <script src=\"\"> at the bottom of the HTML editor."
 msgstr ""
 
-#: assets/dist/main.js:2886
+#: assets/dist/main.js:2902
 msgid "Note: <title>, <meta charset>, viewport, and <base> cannot be used."
 msgstr ""
 
-#: assets/dist/main.js:2915
-#: assets/dist/main.js:2916
-#: assets/dist/main.js:6951
-#: assets/dist/main.js:6962
-#: assets/dist/main.js:8621
+#: assets/dist/main.js:2931
+#: assets/dist/main.js:2932
+#: assets/dist/main.js:7003
+#: assets/dist/main.js:7014
+#: assets/dist/main.js:8673
 msgid "Format CSS"
 msgstr ""
 
-#: assets/dist/main.js:5942
-#: assets/dist/main.js:5950
+#: assets/dist/main.js:5991
+#: assets/dist/main.js:5999
 msgid "Tailwind compile failed."
 msgstr ""
 
-#: assets/dist/main.js:5952
+#: assets/dist/main.js:6001
 #, js-format
 msgid "Tailwind error: %s"
 msgstr ""
 
-#: assets/dist/main.js:6011
-#: assets/dist/main.js:6206
-#: assets/dist/main.js:6302
-#: assets/dist/main.js:6306
-#: assets/dist/main.js:8160
+#: assets/dist/main.js:6063
+#: assets/dist/main.js:6258
+#: assets/dist/main.js:6354
+#: assets/dist/main.js:6358
+#: assets/dist/main.js:8212
 msgid "Save failed."
 msgstr ""
 
-#: assets/dist/main.js:6213
+#: assets/dist/main.js:6265
 msgid "Fix settings errors before saving."
 msgstr ""
 
-#: assets/dist/main.js:6238
-#: assets/dist/main.js:6269
-#: assets/dist/main.js:8527
+#: assets/dist/main.js:6290
+#: assets/dist/main.js:6321
+#: assets/dist/main.js:8579
 #, js-format
 msgid "Removed unsupported head tags: %s"
 msgstr ""
 
-#: assets/dist/main.js:6285
+#: assets/dist/main.js:6337
 msgid "Saved."
 msgstr ""
 
-#: assets/dist/main.js:6294
+#: assets/dist/main.js:6346
 #, js-format
 msgid "Save error: %s"
 msgstr ""
 
-#: assets/dist/main.js:6349
-#: assets/dist/main.js:7934
+#: assets/dist/main.js:6401
+#: assets/dist/main.js:7986
 msgid "Setup failed."
 msgstr ""
 
-#: assets/dist/main.js:6362
+#: assets/dist/main.js:6414
 msgid "Choose editor mode"
 msgstr ""
 
-#: assets/dist/main.js:6362
+#: assets/dist/main.js:6414
 msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
 msgstr ""
 
-#: assets/dist/main.js:6371
+#: assets/dist/main.js:6423
 msgid "Normal (HTML/CSS)"
 msgstr ""
 
-#: assets/dist/main.js:6371
+#: assets/dist/main.js:6423
 msgid "Edit HTML and CSS directly in the code editor."
 msgstr ""
 
-#: assets/dist/main.js:6380
+#: assets/dist/main.js:6432
 msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
 msgstr ""
 
-#: assets/dist/main.js:6380
+#: assets/dist/main.js:6432
 msgid "Back"
 msgstr ""
 
-#: assets/dist/main.js:6388
+#: assets/dist/main.js:6440
 msgid "Continue"
 msgstr ""
 
-#: assets/dist/main.js:6394
+#: assets/dist/main.js:6446
 msgid "Setup unavailable."
 msgstr ""
 
-#: assets/dist/main.js:6395
+#: assets/dist/main.js:6447
 msgid "wp.apiFetch is unavailable."
 msgstr ""
 
-#: assets/dist/main.js:6431
+#: assets/dist/main.js:6483
 msgid "Switch to TailwindCSS?"
 msgstr ""
 
-#: assets/dist/main.js:6431
+#: assets/dist/main.js:6483
 msgid "Switch to Normal HTML/CSS?"
 msgstr ""
 
-#: assets/dist/main.js:6432
+#: assets/dist/main.js:6484
 msgid "The CSS last used in the selected mode will be restored. CSS in the current mode is kept separately."
 msgstr ""
 
-#: assets/dist/main.js:6435
+#: assets/dist/main.js:6487
 msgid "TailwindCSS will be initialized from the current CSS. Tailwind Preflight may change the appearance of existing elements."
 msgstr ""
 
-#: assets/dist/main.js:6438
+#: assets/dist/main.js:6490
 msgid "The current Tailwind output will be converted to browser-ready CSS to preserve the current appearance. The Tailwind source is kept separately."
 msgstr ""
 
-#: assets/dist/main.js:6442
+#: assets/dist/main.js:6494
 msgid "This change is not permanent until you save the page."
 msgstr ""
 
-#: assets/dist/main.js:6452
+#: assets/dist/main.js:6504
 msgid "Switch mode"
 msgstr ""
 
-#: assets/dist/main.js:6484
-#: assets/dist/main.js:6511
+#: assets/dist/main.js:6536
+#: assets/dist/main.js:6563
 msgid "Paste a complete HTML document."
 msgstr ""
 
-#: assets/dist/main.js:6488
+#: assets/dist/main.js:6540
 msgid "Could not parse the content as a complete HTML document."
 msgstr ""
 
-#: assets/dist/main.js:6511
+#: assets/dist/main.js:6563
 msgid "head, body, style, and script sections are split and imported automatically."
 msgstr ""
 
-#: assets/dist/main.js:6528
+#: assets/dist/main.js:6580
 msgid "Parse"
 msgstr ""
 
-#: assets/dist/main.js:6536
+#: assets/dist/main.js:6588
 msgid "Complete HTML detected"
 msgstr ""
 
-#: assets/dist/main.js:6546
+#: assets/dist/main.js:6598
 msgid "body content and body attributes"
 msgstr ""
 
-#: assets/dist/main.js:6552
+#: assets/dist/main.js:6604
 msgid "head additions"
 msgstr ""
 
-#: assets/dist/main.js:6558
+#: assets/dist/main.js:6610
 msgid "style tags"
 msgstr ""
 
-#: assets/dist/main.js:6563
+#: assets/dist/main.js:6615
 msgid "JS"
 msgstr ""
 
-#: assets/dist/main.js:6564
+#: assets/dist/main.js:6616
 msgid "inline script tags"
 msgstr ""
 
-#: assets/dist/main.js:6577
+#: assets/dist/main.js:6629
 msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
 msgstr ""
 
-#: assets/dist/main.js:6580
+#: assets/dist/main.js:6632
 msgid "head HTML and JavaScript will not be imported because your account cannot edit them."
 msgstr ""
 
-#: assets/dist/main.js:6600
+#: assets/dist/main.js:6652
 msgid "Replace"
 msgstr ""
 
-#: assets/dist/main.js:6609
+#: assets/dist/main.js:6661
 msgid "Skip"
 msgstr ""
 
-#: assets/dist/main.js:6626
+#: assets/dist/main.js:6678
 msgid "Paste as HTML"
 msgstr ""
 
-#: assets/dist/main.js:6634
+#: assets/dist/main.js:6686
 msgid "Split and import"
 msgstr ""
 
-#: assets/dist/main.js:6638
+#: assets/dist/main.js:6690
 msgid "Include compiled Tailwind CSS?"
 msgstr ""
 
-#: assets/dist/main.js:6649
+#: assets/dist/main.js:6701
 msgid "Include it if this HTML should keep the current Tailwind styling when opened by itself. Choose “No” to write the CSS editor content instead."
 msgstr ""
 
-#: assets/dist/main.js:6659
+#: assets/dist/main.js:6711
 msgid "No, use CSS editor content"
 msgstr ""
 
-#: assets/dist/main.js:6667
+#: assets/dist/main.js:6719
 msgid "Yes, include compiled CSS"
 msgstr ""
 
-#: assets/dist/main.js:6671
+#: assets/dist/main.js:6723
 msgid "Theme template unavailable"
 msgstr ""
 
-#: assets/dist/main.js:6672
+#: assets/dist/main.js:6724
 msgid "This theme does not output \"the_content\", so the preview cannot be rendered. Kayzart will switch the template mode to Standalone."
 msgstr ""
 
-#: assets/dist/main.js:6676
+#: assets/dist/main.js:6728
 msgid "OK"
 msgstr ""
 
-#: assets/dist/main.js:6677
+#: assets/dist/main.js:6729
 msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
 msgstr ""
 
-#: assets/dist/main.js:6799
-#: assets/dist/main.js:8428
-#: assets/dist/main.js:8467
+#: assets/dist/main.js:6851
+#: assets/dist/main.js:8480
+#: assets/dist/main.js:8519
 msgid "Settings unavailable."
 msgstr ""
 
-#: assets/dist/main.js:6954
-#: assets/dist/main.js:6959
-#: assets/dist/main.js:8627
+#: assets/dist/main.js:7006
+#: assets/dist/main.js:7011
+#: assets/dist/main.js:8679
 msgid "Format JavaScript"
 msgstr ""
 
-#: assets/dist/main.js:8163
+#: assets/dist/main.js:8215
 msgid "Wait for the CSS mode change to finish before saving."
 msgstr ""
 
-#: assets/dist/main.js:8183
+#: assets/dist/main.js:8235
 msgid "Toggle HTML word wrap"
 msgstr ""
 
-#: assets/dist/main.js:8236
+#: assets/dist/main.js:8288
 msgid "Formatted HTML."
 msgstr ""
 
-#: assets/dist/main.js:8237
+#: assets/dist/main.js:8289
 msgid "Could not format HTML."
 msgstr ""
 
-#: assets/dist/main.js:8245
+#: assets/dist/main.js:8297
 msgid "Formatted CSS."
 msgstr ""
 
-#: assets/dist/main.js:8246
+#: assets/dist/main.js:8298
 msgid "Could not format CSS."
 msgstr ""
 
-#: assets/dist/main.js:8254
+#: assets/dist/main.js:8306
 msgid "Formatted JavaScript."
 msgstr ""
 
-#: assets/dist/main.js:8255
+#: assets/dist/main.js:8307
 msgid "Could not format JavaScript."
 msgstr ""
 
-#: assets/dist/main.js:8285
+#: assets/dist/main.js:8337
 msgid "Wrap: On"
 msgstr ""
 
-#: assets/dist/main.js:8501
+#: assets/dist/main.js:8553
 msgid "Loading editor..."
 msgstr ""
 
-#: assets/dist/main.js:8637
+#: assets/dist/main.js:8689
 msgid "You may have unsaved changes."
 msgstr ""
 
-#: assets/dist/main.js:8712
+#: assets/dist/main.js:8764
 msgid "Compiled Tailwind CSS is not available yet. The CSS editor content will be exported instead."
 msgstr ""
 
-#: assets/dist/main.js:8739
+#: assets/dist/main.js:8791
 msgid "Could not copy full HTML to the clipboard."
 msgstr ""
 
-#: assets/dist/main.js:8747
+#: assets/dist/main.js:8799
 msgid "Full HTML copied."
 msgstr ""
 
-#: assets/dist/main.js:8771
+#: assets/dist/main.js:8823
 msgid "HTML download started."
 msgstr ""
 
-#: assets/dist/main.js:8781
+#: assets/dist/main.js:8833
 msgid "Could not find the selected element HTML."
 msgstr ""
 
-#: assets/dist/main.js:8791
+#: assets/dist/main.js:8843
 msgid "Could not copy HTML to the clipboard."
 msgstr ""
 
-#: assets/dist/main.js:8799
+#: assets/dist/main.js:8851
 msgid "Element HTML copied."
 msgstr ""
 
-#: assets/dist/main.js:8810
+#: assets/dist/main.js:8862
 msgid "Could not find the selected element range."
 msgstr ""
 
-#: assets/dist/main.js:8817
+#: assets/dist/main.js:8869
 msgid "Delete the selected element?"
 msgstr ""
 
-#: assets/dist/main.js:8830
+#: assets/dist/main.js:8882
 msgid "Element deleted."
 msgstr ""
 
-#: assets/dist/main.js:8856
-#: assets/dist/main.js:8960
+#: assets/dist/main.js:8908
+#: assets/dist/main.js:9012
 msgid "Media library is unavailable."
 msgstr ""
 
-#: assets/dist/main.js:8865
-#: assets/dist/main.js:8910
+#: assets/dist/main.js:8917
+#: assets/dist/main.js:8962
 msgid "Could not find the selected image source."
 msgstr ""
 
-#: assets/dist/main.js:8874
+#: assets/dist/main.js:8926
 msgid "Select replacement image."
 msgstr ""
 
-#: assets/dist/main.js:8901
-#: assets/dist/main.js:9006
+#: assets/dist/main.js:8953
+#: assets/dist/main.js:9058
 msgid "The selected media has no URL and was not inserted."
 msgstr ""
 
-#: assets/dist/main.js:8918
+#: assets/dist/main.js:8970
 msgid "Image replaced."
 msgstr ""
 
-#: assets/dist/main.js:8969
+#: assets/dist/main.js:9021
 msgid "Select media to insert into HTML."
 msgstr ""
 
-#: assets/dist/main.js:8971
+#: assets/dist/main.js:9023
 msgid "Insert into HTML"
 msgstr ""
 
-#: assets/dist/main.js:9457
+#: assets/dist/main.js:9509
 msgid "Tailwind compile failed. The CSS mode was not changed."
 msgstr ""

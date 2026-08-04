@@ -149,7 +149,8 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status(), 'Invalid jsMode should fail save.' );
 	}
 
-	public function test_compile_tailwind_rejects_html_over_limit(): void {
+	public function test_compile_tailwind_rejects_legacy_html_payload(): void {
+
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -159,12 +160,12 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			'/kayzart/v1/compile-tailwind',
 			array(
 				'post_id' => $post_id,
-				'html'    => str_repeat( 'a', Limits::MAX_TAILWIND_HTML_BYTES + 1 ),
+				'html'    => '<div class="text-sm"></div>',
 				'css'     => $this->get_tailwind_css_base(),
 			)
 		);
 
-		$this->assertSame( 400, $response->get_status(), 'Tailwind compile should reject oversized HTML.' );
+		$this->assertSame( 400, $response->get_status(), 'Tailwind compile should require candidate input.' );
 	}
 
 	public function test_compile_tailwind_rejects_css_over_limit(): void {
@@ -176,16 +177,17 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$response = $this->dispatch_route(
 			'/kayzart/v1/compile-tailwind',
 			array(
-				'post_id' => $post_id,
-				'html'    => '<div class="text-sm"></div>',
-				'css'     => $this->build_tailwind_css_of_size( Limits::MAX_TAILWIND_CSS_BYTES + 1 ),
+				'post_id'    => $post_id,
+				'candidates' => array( 'text-sm' ),
+				'css'        => $this->build_tailwind_css_of_size( Limits::MAX_TAILWIND_CSS_BYTES + 1 ),
 			)
 		);
 
 		$this->assertSame( 400, $response->get_status(), 'Tailwind compile should reject oversized CSS.' );
 	}
 
-	public function test_compile_tailwind_accepts_exact_limit_sizes(): void {
+	public function test_compile_tailwind_accepts_exact_css_limit(): void {
+
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -194,16 +196,17 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		$response = $this->dispatch_route(
 			'/kayzart/v1/compile-tailwind',
 			array(
-				'post_id' => $post_id,
-				'html'    => str_repeat( 'a', Limits::MAX_TAILWIND_HTML_BYTES ),
-				'css'     => $this->build_tailwind_css_of_size( Limits::MAX_TAILWIND_CSS_BYTES ),
+				'post_id'    => $post_id,
+				'candidates' => array( 'text-sm' ),
+				'css'        => $this->build_tailwind_css_of_size( Limits::MAX_TAILWIND_CSS_BYTES ),
 			)
 		);
 
-		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should accept exact-limit HTML/CSS.' );
+		$this->assertSame( 200, $response->get_status(), 'Tailwind compile should accept exact-limit CSS.' );
 	}
 
-	public function test_save_rejects_tailwind_input_over_limit_and_preserves_content(): void {
+	public function test_save_rejects_missing_tailwind_candidates_and_preserves_content(): void {
+
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -219,17 +222,16 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 			'/kayzart/v1/save',
 			array(
 				'post_id'         => $post_id,
-				'html'            => str_repeat( 'a', Limits::MAX_TAILWIND_HTML_BYTES + 1 ),
+				'html'            => '<div class="text-sm">After save</div>',
 				'css'             => $this->get_tailwind_css_base(),
 				'tailwindEnabled' => true,
 			)
 		);
 
-		$this->assertSame( 400, $response->get_status(), 'Save should reject oversized Tailwind input.' );
-
+		$this->assertSame( 400, $response->get_status(), 'Save should reject missing Tailwind candidates.' );
 		$post = get_post( $post_id );
 		$this->assertInstanceOf( WP_Post::class, $post );
-		$this->assertSame( 'Before save', (string) $post->post_content, 'Content should stay unchanged when Tailwind input is oversized.' );
+		$this->assertSame( 'Before save', (string) $post->post_content, 'Content should stay unchanged when Tailwind candidates are missing.' );
 	}
 
 	public function test_save_strips_xss_from_html_for_author(): void {
@@ -345,8 +347,4 @@ class Test_Rest_Validation extends WP_UnitTestCase {
 		}
 		return $response;
 	}
-
 }
-
-
-

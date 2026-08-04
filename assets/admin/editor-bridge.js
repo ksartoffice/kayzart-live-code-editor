@@ -245,24 +245,41 @@
     }
 
     var editor = document.getElementById('postdivrich');
-    if (!editor || !editor.parentNode) {
+    var title = document.getElementById('titlediv');
+    var content = document.getElementById('post-body-content');
+    if (
+      (!editor || !editor.parentNode) &&
+      (!title || !title.parentNode) &&
+      !content
+    ) {
       return;
     }
 
-    editor.classList.add('kayzart-classic-editor-source');
-    editor.setAttribute('aria-hidden', 'true');
-    editor.parentNode.insertBefore(
-      createPreviewPanel({
-        getPostId: function () {
-          return getPostIdFromClassic() || Number(data.postId) || 0;
-        },
-        modifierClass: 'kayzart-editor-preview--classic',
-        primaryButtonClass: 'button button-primary',
-        secondaryButtonClass: 'button button-secondary',
-        showTitleInput: false
-      }),
-      editor
-    );
+    var panel = createPreviewPanel({
+      getPostId: function () {
+        return getPostIdFromClassic() || Number(data.postId) || 0;
+      },
+      modifierClass: 'kayzart-editor-preview--classic',
+      primaryButtonClass: 'button button-primary',
+      secondaryButtonClass: 'button button-secondary',
+      showTitleInput: false
+    });
+
+    if (editor && editor.parentNode) {
+      editor.classList.add('kayzart-classic-editor-source');
+      editor.setAttribute('aria-hidden', 'true');
+      editor.parentNode.insertBefore(panel, editor);
+      return;
+    }
+
+    if (title && title.parentNode) {
+      title.insertAdjacentElement('afterend', panel);
+      return;
+    }
+
+    if (content) {
+      content.prepend(panel);
+    }
   };
 
   domReady(function () {

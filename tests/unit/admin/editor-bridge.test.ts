@@ -51,13 +51,20 @@ const renderBlockEditor = () => {
   window.eval(bridgeScript);
 };
 
-const renderClassicEditor = () => {
+const renderClassicEditor = ({
+  includeEditor = true,
+  includeTitle = true,
+}: { includeEditor?: boolean; includeTitle?: boolean } = {}) => {
   document.body.className = 'wp-admin post-php';
   document.body.innerHTML = [
     '<form id="post">',
     '<div id="post-body-content">',
-    '<div id="titlediv"><input id="title" value="Translated page"></div>',
-    '<div id="postdivrich"><textarea id="content">Stored Kayzart HTML</textarea></div>',
+    includeTitle
+      ? '<div id="titlediv"><input id="title" value="Translated page"></div>'
+      : '',
+    includeEditor
+      ? '<div id="postdivrich"><textarea id="content">Stored Kayzart HTML</textarea></div>'
+      : '',
     '</div>',
     '<div id="postbox-container-1"><div id="submitdiv">Publish settings</div></div>',
     '<div id="acf-group">ACF settings</div>',
@@ -66,6 +73,16 @@ const renderClassicEditor = () => {
   ].join('');
   setupWordPress();
   window.eval(bridgeScript);
+};
+
+const rerenderClassicEditor = (options: {
+  includeEditor?: boolean;
+  includeTitle?: boolean;
+}) => {
+  vi.clearAllTimers();
+  document.body.className = '';
+  document.body.innerHTML = '';
+  renderClassicEditor(options);
 };
 
 const cleanup = () => {
@@ -179,6 +196,27 @@ describe('Classic Editor bridge', () => {
     expect(edit.href).toContain('post_id=42');
     expect(view.classList.contains('button-secondary')).toBe(true);
     expect(view.target).toBe('_blank');
+    expect(document.querySelectorAll('.kayzart-editor-preview__edit')).toHaveLength(1);
+  });
+
+  it('mounts the preview after the title when the post type has no editor support', () => {
+    rerenderClassicEditor({ includeEditor: false });
+
+    const title = document.querySelector<HTMLElement>('#titlediv')!;
+    const panel = document.querySelector<HTMLElement>('.kayzart-editor-preview--classic')!;
+
+    expect(document.querySelector('#postdivrich')).toBeNull();
+    expect(title.nextElementSibling).toBe(panel);
+    expect(document.querySelectorAll('.kayzart-editor-preview__edit')).toHaveLength(1);
+  });
+
+  it('mounts the preview at the start of post content without editor or title support', () => {
+    rerenderClassicEditor({ includeEditor: false, includeTitle: false });
+
+    const content = document.querySelector<HTMLElement>('#post-body-content')!;
+    const panel = document.querySelector<HTMLElement>('.kayzart-editor-preview--classic')!;
+
+    expect(content.firstElementChild).toBe(panel);
     expect(document.querySelectorAll('.kayzart-editor-preview__edit')).toHaveLength(1);
   });
 });

@@ -137,10 +137,11 @@ class Editor_Bridge {
 	}
 
 	/**
-	 * Register guards for core REST updates to editor-enabled post types.
+	 * Register guards for core REST updates to all REST-enabled post types.
 	 */
 	public static function register_rest_content_guards(): void {
-		foreach ( Post_Type::get_enabled_post_types() as $post_type ) {
+		$post_types = get_post_types( array( 'show_in_rest' => true ), 'names' );
+		foreach ( $post_types as $post_type ) {
 			add_filter( 'rest_pre_insert_' . $post_type, array( __CLASS__, 'preserve_managed_content' ), 20, 2 );
 		}
 	}
@@ -203,7 +204,7 @@ class Editor_Bridge {
 
 		$post = get_post( $post_id );
 		if ( $post instanceof \WP_Post ) {
-			$data['post_content'] = (string) $post->post_content;
+			$data['post_content'] = wp_slash( (string) $post->post_content );
 		}
 
 		return $data;

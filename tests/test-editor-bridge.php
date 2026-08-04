@@ -237,13 +237,87 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
 	}
 
+	public function test_core_rest_guard_preserves_managed_content_after_post_type_is_disabled(): void {
+		$post_type      = 'kz_review_type';
+		$original_types = get_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, null );
+		register_post_type(
+			$post_type,
+			array(
+				'public'       => true,
+				'show_ui'      => true,
+				'show_in_rest' => true,
+				'supports'     => array( 'title', 'editor' ),
+			)
+		);
+
+		try {
+			update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, $post_type ) );
+			$post_id = $this->create_enabled_post( $post_type );
+			wp_update_post(
+				array(
+					'ID'           => $post_id,
+					'post_title'   => 'Before title',
+					'post_content' => 'Stored Kayzart HTML',
+				)
+			);
+
+			update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE ) );
+			$this->assertTrue( Post_Type::is_kayzart_post( $post_id ) );
+			$this->assertFalse( Post_Type::is_editor_enabled_post( $post_id ) );
+			Editor_Bridge::register_rest_content_guards();
+
+			$request = new WP_REST_Request( 'POST', '/wp/v2/' . $post_type . '/' . $post_id );
+			$request->set_param( 'id', $post_id );
+			$request->set_param( 'title', 'Updated title' );
+			$request->set_param( 'content', 'Gutenberg replacement' );
+			$controller = new WP_REST_Posts_Controller( $post_type );
+			$response   = $controller->update_item( $request );
+			$post       = get_post( $post_id );
+
+			$this->assertNotWPError( $response );
+			$this->assertInstanceOf( WP_REST_Response::class, $response );
+			$this->assertSame( 200, $response->get_status() );
+			$this->assertInstanceOf( WP_Post::class, $post );
+			$this->assertSame( 'Updated title', $post->post_title );
+			$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
+		} finally {
+			remove_filter( 'rest_pre_insert_' . $post_type, array( Editor_Bridge::class, 'preserve_managed_content' ), 20 );
+			unregister_post_type( $post_type );
+			if ( null === $original_types ) {
+				delete_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES );
+			} else {
+				update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, $original_types );
+			}
+		}
+	}
+
+	public function test_core_rest_guard_is_not_registered_for_non_rest_post_types(): void {
+		$post_type = 'kz_nonrest_type';
+		register_post_type(
+			$post_type,
+			array(
+				'public'       => true,
+				'show_ui'      => true,
+				'show_in_rest' => false,
+			)
+		);
+
+		try {
+			Editor_Bridge::register_rest_content_guards();
+			$this->assertFalse( has_filter( 'rest_pre_insert_' . $post_type, array( Editor_Bridge::class, 'preserve_managed_content' ) ) );
+		} finally {
+			unregister_post_type( $post_type );
+		}
+	}
+
 	public function test_classic_editor_update_saves_title_but_not_managed_content(): void {
-		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$post_id        = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$stored_content = '<script>const digits = /\d+/; const path = "C:\\\\temp"; const value = "\"quoted\"";</script>';
 		wp_update_post(
 			array(
 				'ID'           => $post_id,
 				'post_title'   => 'Before title',
-				'post_content' => 'Stored Kayzart HTML',
+				'post_content' => wp_slash( $stored_content ),
 			)
 		);
 		set_current_screen( 'post' );
@@ -253,14 +327,14 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 			array(
 				'ID'           => $post_id,
 				'post_title'   => 'Updated title',
-				'post_content' => 'Classic Editor replacement',
+				'post_content' => wp_slash( 'Classic Editor replacement' ),
 			)
 		);
 		$post = get_post( $post_id );
 
 		$this->assertInstanceOf( WP_Post::class, $post );
 		$this->assertSame( 'Updated title', $post->post_title );
-		$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
+		$this->assertSame( $stored_content, $post->post_content );
 	}
 
 	public function test_classic_editor_guard_leaves_unmanaged_content_unchanged(): void {

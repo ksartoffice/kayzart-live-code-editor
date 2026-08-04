@@ -379,6 +379,65 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( 'Kayzart REST replacement', get_post( $post_id )->post_content );
 	}
 
+	public function test_classic_editor_save_redirects_to_kayzart_when_requested(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$this->set_valid_classic_redirect_request( $post_id );
+
+		$location = Editor_Bridge::redirect_classic_editor_to_kayzart( admin_url( 'post.php?post=' . $post_id . '&action=edit' ), $post_id );
+		$parts    = wp_parse_url( $location );
+		$query    = array();
+		parse_str( (string) ( $parts['query'] ?? '' ), $query );
+
+		$this->assertSame( 'kayzart', $query['action'] ?? '' );
+		$this->assertSame( (string) $post_id, (string) ( $query['post_id'] ?? '' ) );
+		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
+	}
+
+	public function test_classic_editor_save_without_redirect_flag_keeps_wordpress_location(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$this->set_valid_classic_redirect_request( $post_id );
+		unset( $_POST['kayzart_open_after_save'] );
+		$original = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+
+		$this->assertSame( $original, Editor_Bridge::redirect_classic_editor_to_kayzart( $original, $post_id ) );
+	}
+
+	public function test_classic_editor_save_with_invalid_nonce_keeps_wordpress_location(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$this->set_valid_classic_redirect_request( $post_id );
+		$_POST['_wpnonce'] = 'invalid';
+		$original = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+
+		$this->assertSame( $original, Editor_Bridge::redirect_classic_editor_to_kayzart( $original, $post_id ) );
+	}
+
+	public function test_classic_editor_save_for_unmanaged_post_keeps_wordpress_location(): void {
+		$post_id = $this->create_post( Post_Type::PAGE_TYPE );
+		$this->set_valid_classic_redirect_request( $post_id );
+		$original = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+
+		$this->assertSame( $original, Editor_Bridge::redirect_classic_editor_to_kayzart( $original, $post_id ) );
+	}
+
+	public function test_classic_editor_save_without_permission_keeps_wordpress_location(): void {
+		$post_id       = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $subscriber_id );
+		$this->set_valid_classic_redirect_request( $post_id );
+		$original = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+
+		$this->assertSame( $original, Editor_Bridge::redirect_classic_editor_to_kayzart( $original, $post_id ) );
+	}
+
+	public function test_classic_editor_save_for_disabled_post_type_keeps_wordpress_location(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, array( 'post' ) );
+		$this->set_valid_classic_redirect_request( $post_id );
+		$original = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+
+		$this->assertSame( $original, Editor_Bridge::redirect_classic_editor_to_kayzart( $original, $post_id ) );
+	}
+
 	private function create_post( string $post_type ): int {
 		$author_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $author_id );
@@ -396,6 +455,12 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		Post_Type::enable_for_post( $post_id );
 
 		return $post_id;
+	}
+
+	private function set_valid_classic_redirect_request( int $post_id ): void {
+		$_POST['action']                  = 'editpost';
+		$_POST['_wpnonce']                = wp_create_nonce( 'update-post_' . $post_id );
+		$_POST['kayzart_open_after_save'] = '1';
 	}
 
 	private function invoke_private_int_method( string $method_name ): int {

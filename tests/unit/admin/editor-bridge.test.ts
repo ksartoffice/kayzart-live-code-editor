@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs';
 
 const bridgeScript = readFileSync('assets/admin/editor-bridge.js', 'utf8');
 const editPost = vi.fn();
+const savePost = vi.fn();
+let editorDirty = false;
+let saveSucceeded = false;
 
 const setupWordPress = () => {
   (window as any).wp = {
@@ -11,10 +14,12 @@ const setupWordPress = () => {
     data: {
       select: () => ({
         getCurrentPostId: () => 42,
+        isEditedPostDirty: () => editorDirty,
+        didPostSaveRequestSucceed: () => saveSucceeded,
         getEditedPostAttribute: (attribute: string) =>
           attribute === 'title' ? 'Translated page' : '',
       }),
-      dispatch: () => ({ editPost }),
+      dispatch: () => ({ editPost, savePost }),
     },
   };
   (window as any).KAYZART_EDITOR = {
@@ -54,7 +59,8 @@ const renderBlockEditor = () => {
 const renderClassicEditor = ({
   includeEditor = true,
   includeTitle = true,
-}: { includeEditor?: boolean; includeTitle?: boolean } = {}) => {
+  postStatus = 'draft',
+}: { includeEditor?: boolean; includeTitle?: boolean; postStatus?: string } = {}) => {
   document.body.className = 'wp-admin post-php';
   document.body.innerHTML = [
     '<form id="post">',
@@ -69,6 +75,9 @@ const renderClassicEditor = ({
     '<div id="postbox-container-1"><div id="submitdiv">Publish settings</div></div>',
     '<div id="acf-group">ACF settings</div>',
     '<input id="post_ID" value="42">',
+    `<input id="post_status" value="${postStatus}">`,
+    '<button id="save-post" type="submit">Save draft</button>',
+    '<button id="publish" type="submit">Update</button>',
     '</form>',
   ].join('');
   setupWordPress();
@@ -78,6 +87,7 @@ const renderClassicEditor = ({
 const rerenderClassicEditor = (options: {
   includeEditor?: boolean;
   includeTitle?: boolean;
+  postStatus?: string;
 }) => {
   vi.clearAllTimers();
   document.body.className = '';
@@ -99,6 +109,9 @@ describe('Gutenberg editor bridge', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     editPost.mockReset();
+    savePost.mockReset();
+    editorDirty = false;
+    saveSucceeded = false;
     renderBlockEditor();
   });
 
@@ -159,12 +172,85 @@ describe('Gutenberg editor bridge', () => {
 
     expect(editPost).toHaveBeenCalledWith({ title: 'Updated translated page' });
   });
+
+  it('waits for a dirty post to save and prevents duplicate saves', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let finishSave: (() => void) | undefined;
+    editorDirty = true;
+    savePost.mockReturnValue(new Promise<void>((resolve) => {
+      finishSave = resolve;
+    }));
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!;
+
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(savePost).toHaveBeenCalledTimes(1);
+    expect(edit.getAttribute('aria-disabled')).toBe('true');
+    expect(edit.textContent).toBe('Saving...');
+
+    editorDirty = false;
+    saveSucceeded = true;
+    finishSave?.();
+    await Promise.resolve();
+
+    expect(edit.classList.contains('is-busy')).toBe(true);
+    consoleError.mockRestore();
+  });
+
+  it('restores the edit action when saving fails', async () => {
+    editorDirty = true;
+    savePost.mockRejectedValue(new Error('save failed'));
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!;
+
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+
+    expect(edit.getAttribute('aria-disabled')).toBeNull();
+    expect(edit.textContent).toBe('Edit with Kayzart');
+  });
+
+  it('stays in Gutenberg when the post remains dirty after saving', async () => {
+    editorDirty = true;
+    saveSucceeded = true;
+    savePost.mockResolvedValue(undefined);
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!;
+
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+
+    expect(edit.classList.contains('is-busy')).toBe(false);
+    expect(edit.textContent).toBe('Edit with Kayzart');
+  });
+
+  it('does not issue a REST save when there are no pending changes', () => {
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    edit.addEventListener('click', (clickEvent) => clickEvent.preventDefault());
+    edit.dispatchEvent(event);
+
+    expect(savePost).not.toHaveBeenCalled();
+  });
+
+  it('stays in Gutenberg when the editor save API is unavailable', () => {
+    editorDirty = true;
+    (window as any).wp.data.dispatch = () => ({ editPost });
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    expect(edit.dispatchEvent(event)).toBe(false);
+    expect(edit.classList.contains('is-busy')).toBe(false);
+  });
 });
 
 describe('Classic Editor bridge', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     editPost.mockReset();
+    savePost.mockReset();
+    editorDirty = false;
+    saveSucceeded = false;
     renderClassicEditor();
   });
 
@@ -218,5 +304,44 @@ describe('Classic Editor bridge', () => {
 
     expect(content.firstElementChild).toBe(panel);
     expect(document.querySelectorAll('.kayzart-editor-preview__edit')).toHaveLength(1);
+  });
+
+  it.each([
+    ['draft', 'save-post'],
+    ['pending', 'save-post'],
+    ['publish', 'publish'],
+    ['private', 'publish'],
+    ['future', 'publish'],
+  ])('submits %s posts with the standard %s control', (postStatus, expectedButton) => {
+    rerenderClassicEditor({ postStatus });
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    const expected = document.getElementById(expectedButton)!;
+    const unexpected = document.getElementById(expectedButton === 'publish' ? 'save-post' : 'publish')!;
+    const expectedClick = vi.fn((event: Event) => event.preventDefault());
+    const unexpectedClick = vi.fn((event: Event) => event.preventDefault());
+    expected.addEventListener('click', expectedClick);
+    unexpected.addEventListener('click', unexpectedClick);
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!.click();
+
+    expect(expectedClick).toHaveBeenCalledTimes(1);
+    expect(unexpectedClick).not.toHaveBeenCalled();
+    expect(form.querySelector<HTMLInputElement>('[name="kayzart_open_after_save"]')?.value).toBe('1');
+  });
+
+  it('clears the redirect flag and busy state when form submission is rejected', () => {
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    form.addEventListener('submit', (event) => event.preventDefault());
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!;
+
+    edit.click();
+    expect(edit.getAttribute('aria-disabled')).toBe('true');
+    expect(form.querySelector('[name="kayzart_open_after_save"]')).not.toBeNull();
+
+    vi.runOnlyPendingTimers();
+
+    expect(edit.getAttribute('aria-disabled')).toBeNull();
+    expect(edit.textContent).toBe('Edit with Kayzart');
+    expect(form.querySelector('[name="kayzart_open_after_save"]')).toBeNull();
   });
 });

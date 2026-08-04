@@ -71,16 +71,19 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
       .toBe('rgb(18, 52, 86)');
 
     const titleInput = page.locator('.kayzart-editor-preview__titleInput');
-    await titleInput.fill('Updated translated page');
-    const coreSave = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/wp-json/wp/v2/pages/${postId}`) &&
-        response.request().method() === 'POST'
-    );
-    await page.keyboard.press('Control+S');
-    expect((await coreSave).status()).toBe(200);
-
     const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));
+    await titleInput.fill('Updated translated page');
+    const [coreSave] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().includes(`/wp-json/wp/v2/pages/${postId}`) &&
+          response.request().method() === 'POST'
+      ),
+      page.locator('.kayzart-editor-preview__edit').click(),
+    ]);
+    expect(coreSave.status()).toBe(200);
+    await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API));
+
     const response = await page.request.get(
       new URL(`wp-json/wp/v2/pages/${postId}?context=edit`, baseUrl).toString(),
       { headers: { 'X-WP-Nonce': restNonce } }
@@ -92,9 +95,6 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     };
     expect(saved.title.raw).toBe('Updated translated page');
     expect(saved.content.raw).toBe(originalHtml);
-
-    await page.locator('.kayzart-editor-preview__edit').click();
-    await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API));
   } finally {
     await deleteTemporaryPage(page, postId);
   }

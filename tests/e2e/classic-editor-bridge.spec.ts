@@ -42,13 +42,14 @@ test('shows a Kayzart preview while protecting Classic Editor content', async ({
     const previewMarker = page.frameLocator('.kayzart-editor-preview__frame').locator(`#${marker}`);
     await expect(previewMarker).toBeVisible();
 
+    const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));
     await page.locator('#title').fill('Updated Classic translated page');
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-      page.locator('#save-post').click(),
+      page.locator('.kayzart-editor-preview__edit').click(),
     ]);
+    await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API));
 
-    const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));
     const response = await page.request.get(
       new URL(`wp-json/wp/v2/pages/${postId}?context=edit`, baseUrl).toString(),
       { headers: { 'X-WP-Nonce': restNonce } }

@@ -52,6 +52,119 @@
     return link;
   };
 
+  var setEditActionBusy = function (link, busy) {
+    link.classList.toggle('is-busy', busy);
+    if (busy) {
+      link.setAttribute('aria-disabled', 'true');
+      link.textContent = __( 'Saving...', 'kayzart-live-code-editor');
+    } else {
+      link.removeAttribute('aria-disabled');
+      link.textContent = buttonLabel;
+    }
+  };
+
+  var handleBlockEditorEdit = function (event, link, editorUrl) {
+    if (link.classList.contains('is-busy')) {
+      event.preventDefault();
+      return;
+    }
+
+    var selector = wpRef.data && wpRef.data.select ? wpRef.data.select('core/editor') : null;
+    if (!selector || !selector.isEditedPostDirty) {
+      event.preventDefault();
+      return;
+    }
+    if (!selector.isEditedPostDirty()) {
+      return;
+    }
+
+    event.preventDefault();
+    var editorDispatch = wpRef.data && wpRef.data.dispatch ? wpRef.data.dispatch('core/editor') : null;
+    if (!editorDispatch || !editorDispatch.savePost) {
+      return;
+    }
+
+    setEditActionBusy(link, true);
+    var saveRequest;
+    try {
+      saveRequest = editorDispatch.savePost();
+    } catch (error) {
+      setEditActionBusy(link, false);
+      return;
+    }
+
+    Promise.resolve(saveRequest).then(
+      function () {
+        var savedSelector = wpRef.data && wpRef.data.select ? wpRef.data.select('core/editor') : null;
+        var stillDirty =
+          savedSelector && savedSelector.isEditedPostDirty
+            ? savedSelector.isEditedPostDirty()
+            : true;
+        var didSucceed =
+          savedSelector && savedSelector.didPostSaveRequestSucceed
+            ? savedSelector.didPostSaveRequestSucceed()
+            : false;
+        if (!stillDirty && didSucceed) {
+          window.location.href = editorUrl;
+          return;
+        }
+
+        setEditActionBusy(link, false);
+      },
+      function () {
+        setEditActionBusy(link, false);
+      }
+    );
+  };
+
+  var handleClassicEditorEdit = function (event, link) {
+    if (link.classList.contains('is-busy')) {
+      event.preventDefault();
+      return;
+    }
+
+    var form = document.getElementById('post');
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    var statusInput = document.getElementById('post_status');
+    var originalStatusInput = document.getElementById('original_post_status');
+    var postStatus = statusInput ? statusInput.value : originalStatusInput ? originalStatusInput.value : '';
+    var updateStatuses = ['publish', 'private', 'future'];
+    var submitterId = updateStatuses.indexOf(postStatus) >= 0 ? 'publish' : 'save-post';
+    var submitter = document.getElementById(submitterId);
+    if (!submitter || submitter.disabled || submitter.classList.contains('disabled')) {
+      return;
+    }
+
+    var redirectFlag = form.querySelector('input[name="kayzart_open_after_save"]');
+    if (!redirectFlag) {
+      redirectFlag = document.createElement('input');
+      redirectFlag.type = 'hidden';
+      redirectFlag.name = 'kayzart_open_after_save';
+      form.appendChild(redirectFlag);
+    }
+    redirectFlag.value = '1';
+
+    var submitEvent = null;
+    var captureSubmit = function (submit) {
+      submitEvent = submit;
+    };
+    form.addEventListener('submit', captureSubmit, { once: true });
+    setEditActionBusy(link, true);
+    submitter.click();
+
+    window.setTimeout(function () {
+      form.removeEventListener('submit', captureSubmit);
+      if (!submitEvent || submitEvent.defaultPrevented) {
+        redirectFlag.remove();
+        setEditActionBusy(link, false);
+      }
+    }, 0);
+  };
+
   var createPreviewPanel = function (options) {
     var editorUrl = buildActionUrl(actionUrl, options.getPostId());
     var panel = document.createElement('section');
@@ -110,13 +223,17 @@
       actions.appendChild(viewLink);
     }
     if (editorUrl) {
-      actions.appendChild(
-        createActionLink(
-          options.primaryButtonClass + ' kayzart-editor-preview__edit',
-          editorUrl,
-          buttonLabel
-        )
+      var editLink = createActionLink(
+        options.primaryButtonClass + ' kayzart-editor-preview__edit',
+        editorUrl,
+        buttonLabel
       );
+      if (options.onEdit) {
+        editLink.addEventListener('click', function (event) {
+          options.onEdit(event, editLink, editorUrl);
+        });
+      }
+      actions.appendChild(editLink);
     }
 
     header.appendChild(copy);
@@ -223,7 +340,8 @@
           modifierClass: 'kayzart-editor-preview--block',
           primaryButtonClass: 'components-button is-primary',
           secondaryButtonClass: 'components-button is-secondary',
-          showTitleInput: true
+          showTitleInput: true,
+          onEdit: handleBlockEditorEdit
         })
       );
     };
@@ -262,7 +380,8 @@
       modifierClass: 'kayzart-editor-preview--classic',
       primaryButtonClass: 'button button-primary',
       secondaryButtonClass: 'button button-secondary',
-      showTitleInput: false
+      showTitleInput: false,
+      onEdit: handleClassicEditorEdit
     });
 
     if (editor && editor.parentNode) {

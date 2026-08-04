@@ -26,6 +26,7 @@ class Editor_Bridge {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_classic_assets' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_content_guards' ) );
 		add_filter( 'wp_insert_post_data', array( __CLASS__, 'preserve_classic_editor_content' ), 20, 4 );
+		add_filter( 'redirect_post_location', array( __CLASS__, 'redirect_classic_editor_to_kayzart' ), 20, 2 );
 	}
 
 	/**
@@ -208,6 +209,36 @@ class Editor_Bridge {
 		}
 
 		return $data;
+	}
+
+	/**
+	 * Redirect a requested Classic Editor save to the KayzArt editor.
+	 *
+	 * @param string $location Default post-save redirect URL.
+	 * @param int    $post_id  Saved post ID.
+	 * @return string
+	 */
+	public static function redirect_classic_editor_to_kayzart( string $location, int $post_id ): string {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Verified below before using the request.
+		$redirect_requested = isset( $_POST['kayzart_open_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_open_after_save'] ) );
+		$action             = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+		$nonce              = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+
+		$post_id = absint( $post_id );
+		if (
+			! $redirect_requested
+			|| 'editpost' !== $action
+			|| ! $post_id
+			|| ! wp_verify_nonce( $nonce, 'update-post_' . $post_id )
+			|| ! current_user_can( 'edit_post', $post_id )
+			|| ! Post_Type::is_editor_enabled_post( $post_id )
+			|| ! Post_Type::is_kayzart_post( $post_id )
+		) {
+			return $location;
+		}
+
+		return add_query_arg( 'post_id', $post_id, Admin::get_action_redirect_url() );
 	}
 
 	/**

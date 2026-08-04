@@ -12,8 +12,13 @@ param(
 	[Parameter(Position = 3)]
 	[string]$DbHost = "localhost",
 
+	# Defaults to the minimum version the plugin header declares, not "latest".
+	# Core behavior differs between releases (for example wp_get_global_settings()
+	# dropped its theme.json origin check in 7.0), and a local suite silently
+	# running an older core lets tests pass that would fail on the supported floor.
+	# CI covers "latest" separately in .github/workflows/phpunit-matrix.yml.
 	[Parameter(Position = 4)]
-	[string]$WpVersion = "latest",
+	[string]$WpVersion = "7.0",
 
 	[Parameter(Position = 5)]
 	[bool]$SkipDbCreate = $false
@@ -232,6 +237,22 @@ $defaultTestsDir = Join-Path $projectRoot ".wordpress-tests-lib"
 $defaultCoreDir = Join-Path $projectRoot ".wordpress"
 $wpTestsDir = if ($env:WP_TESTS_DIR -and $env:WP_TESTS_DIR.Trim() -ne "") { $env:WP_TESTS_DIR } else { $defaultTestsDir }
 $wpCoreDir = if ($env:WP_CORE_DIR -and $env:WP_CORE_DIR.Trim() -ne "") { $env:WP_CORE_DIR } else { $defaultCoreDir }
+
+# An existing checkout is reused, but only when it is the requested version.
+# Without this a version argument is silently ignored once a core is present,
+# so the suite keeps running whatever was installed first.
+$versionFile = Join-Path $wpCoreDir "wp-includes\version.php"
+if ((Test-Path $versionFile) -and ($WpVersion -match '^\d+\.\d+(\.\d+)?$')) {
+	$match = Select-String -Path $versionFile -Pattern "^\`$wp_version\s*=\s*'([^']*)'" | Select-Object -First 1
+	if ($match) {
+		$installed = $match.Matches[0].Groups[1].Value
+		if ($installed -ne $WpVersion -and ($installed -replace '\.0$', '') -ne $WpVersion) {
+			Write-Output "Replacing WordPress $installed with $WpVersion in $wpCoreDir"
+			Remove-Item -Recurse -Force $wpCoreDir -ErrorAction SilentlyContinue
+			Remove-Item -Recurse -Force $wpTestsDir -ErrorAction SilentlyContinue
+		}
+	}
+}
 
 if (-not (Test-Path $wpCoreDir)) {
 	New-Item -ItemType Directory -Path $wpCoreDir | Out-Null

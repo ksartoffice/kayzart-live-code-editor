@@ -11,7 +11,12 @@ DB_NAME=$1
 DB_USER=$2
 DB_PASS=$3
 DB_HOST=${4-localhost}
-WP_VERSION=${5-latest}
+# Defaults to the minimum version the plugin header declares, not "latest".
+# Core behavior differs between releases (for example wp_get_global_settings()
+# dropped its theme.json origin check in 7.0), and a local suite silently
+# running an older core lets tests pass that would fail on the supported floor.
+# CI covers "latest" separately in .github/workflows/phpunit-matrix.yml.
+WP_VERSION=${5-7.0}
 SKIP_DB_CREATE=${6-false}
 
 TMPDIR=${TMPDIR-/tmp}
@@ -101,6 +106,18 @@ install_wp() {
     archive_name='nightly'
   else
     archive_name="wordpress-$WP_VERSION"
+  fi
+
+  # An existing checkout is reused, but only when it is the requested version.
+  # Without this a version argument is silently ignored once a core is present,
+  # so the suite keeps running whatever was installed first.
+  if [ -f "$WP_CORE_DIR/wp-settings.php" ] && [[ "$WP_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    local installed
+    installed=$(sed -n "s/^\$wp_version = '\([^']*\)';.*/\1/p" "$WP_CORE_DIR/wp-includes/version.php" 2>/dev/null || true)
+    if [ -n "$installed" ] && [ "$installed" != "$WP_VERSION" ] && [ "${installed%.0}" != "$WP_VERSION" ]; then
+      echo "Replacing WordPress $installed with $WP_VERSION in $WP_CORE_DIR"
+      rm -rf "$WP_CORE_DIR" "$WP_TESTS_DIR"
+    fi
   fi
 
   if [ ! -f "$WP_CORE_DIR/wp-settings.php" ]; then

@@ -79,6 +79,7 @@ class Rest_Ai {
 		$payload['agentPayload']['canEditHead']       = $can_edit_head;
 		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'] );
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
+		$payload['agentPayload']['maxAgentTurns']     = Admin::get_ai_max_turns();
 		$existing                                     = $store->get_by_request( $current_user, $payload['requestId'] );
 		if (
 			$existing

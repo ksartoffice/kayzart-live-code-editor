@@ -29,6 +29,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
 		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
+		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -96,6 +97,16 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_sanitize_ai_max_turns_uses_default_and_clamps_to_the_supported_range(): void {
+		$this->assertSame( 15, Admin::sanitize_ai_max_turns( '' ) );
+		$this->assertSame( 15, Admin::sanitize_ai_max_turns( 'invalid' ) );
+		$this->assertSame( 10, Admin::sanitize_ai_max_turns( 1 ) );
+		$this->assertSame( 10, Admin::sanitize_ai_max_turns( 10 ) );
+		$this->assertSame( 15, Admin::sanitize_ai_max_turns( '15' ) );
+		$this->assertSame( 30, Admin::sanitize_ai_max_turns( 30 ) );
+		$this->assertSame( 30, Admin::sanitize_ai_max_turns( 100 ) );
+	}
+
 	public function test_render_ai_default_model_field_discovers_models_once(): void {
 		$calls  = 0;
 		$filter = static function ( $models ) use ( &$calls ) {
@@ -121,6 +132,20 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 1, $calls );
 		$this->assertStringContainsString( 'value="provider/model-a"', $output );
 		$this->assertStringContainsString( "selected='selected'", $output );
+	}
+
+	public function test_render_ai_max_turns_field_shows_the_configured_value_and_range(): void {
+		update_option( Admin::OPTION_AI_MAX_TURNS, 20 );
+
+		ob_start();
+		Admin::render_ai_max_turns_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_MAX_TURNS . '"', $output );
+		$this->assertStringContainsString( 'value="20"', $output );
+		$this->assertStringContainsString( 'min="10"', $output );
+		$this->assertStringContainsString( 'max="30"', $output );
+		$this->assertStringContainsString( 'step="1"', $output );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -505,6 +530,23 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertStringNotContainsString( __( 'Kayzart slug', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringNotContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
+	}
+
+	public function test_render_settings_page_places_ai_editing_first(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$this->reset_kayzart_settings_api_state();
+		Admin::register_settings();
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$ai_position       = strpos( $output, __( 'AI editing', 'kayzart-live-code-editor' ) );
+		$template_position = strpos( $output, __( 'Page template', 'kayzart-live-code-editor' ) );
+		$this->assertIsInt( $ai_position );
+		$this->assertIsInt( $template_position );
+		$this->assertTrue( $ai_position < $template_position );
 	}
 
 	public function test_render_settings_page_shows_post_slug_field_for_custom_slug(): void {

@@ -66,6 +66,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 	/** Restore global filters, actions, and user state. */
 	protected function tearDown(): void {
+		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
@@ -221,6 +222,26 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$job    = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
 		$stored = json_decode( $job['payload_json'], true );
 		$this->assertFalse( $stored['canEditHead'] );
+	}
+
+	/** Site AI settings are captured when the asynchronous job is created. */
+	public function test_create_captures_the_configured_max_turns_in_job_payload(): void {
+		update_option( Admin::OPTION_AI_MAX_TURNS, 20 );
+		$first = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-max-turns' ) );
+
+		$this->assertSame( 202, $first->get_status() );
+		$job    = ( new Ai_Job_Store() )->get( $first->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
+		$this->assertSame( 20, $stored['maxAgentTurns'] );
+
+		update_option( Admin::OPTION_AI_MAX_TURNS, 30 );
+		$again = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-max-turns' ) );
+		$this->assertSame( 200, $again->get_status() );
+		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
+
+		$job    = ( new Ai_Job_Store() )->get( $again->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
+		$this->assertSame( 20, $stored['maxAgentTurns'] );
 	}
 
 	/** DOM/libxml support is required before a job can be accepted. */

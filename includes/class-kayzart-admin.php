@@ -37,6 +37,10 @@ class Admin {
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_DEFAULT_EDITOR_LAYOUT = 'kayzart_default_editor_layout';
 	const OPTION_AI_DEFAULT_MODEL      = 'kayzart_ai_default_model';
+	const OPTION_AI_MAX_TURNS          = 'kayzart_ai_max_turns';
+	const AI_MAX_TURNS_DEFAULT         = 15;
+	const AI_MAX_TURNS_MIN             = 10;
+	const AI_MAX_TURNS_MAX             = 30;
 	const INITIAL_AI_REQUEST_META_KEY  = '_kayzart_initial_ai_request';
 	const INITIAL_AI_PROMPT_MAX_BYTES  = 8192;
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
@@ -1007,6 +1011,39 @@ class Admin {
 			)
 		);
 
+		register_setting(
+			self::SETTINGS_GROUP,
+			self::OPTION_AI_MAX_TURNS,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_ai_max_turns' ),
+				'default'           => self::AI_MAX_TURNS_DEFAULT,
+			)
+		);
+
+		add_settings_section(
+			'kayzart_ai',
+			__( 'AI editing', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_section' ),
+			self::SETTINGS_SLUG
+		);
+
+		add_settings_field(
+			self::OPTION_AI_DEFAULT_MODEL,
+			__( 'Default AI model', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_default_model_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai'
+		);
+
+		add_settings_field(
+			self::OPTION_AI_MAX_TURNS,
+			__( 'Maximum AI turns', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_max_turns_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai'
+		);
+
 		if ( self::should_show_post_slug_settings() ) {
 			add_settings_section(
 				'kayzart_permalink',
@@ -1071,20 +1108,6 @@ class Admin {
 			'kayzart_post_types'
 		);
 
-		add_settings_section(
-			'kayzart_ai',
-			__( 'AI editing', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_ai_section' ),
-			self::SETTINGS_SLUG
-		);
-
-		add_settings_field(
-			self::OPTION_AI_DEFAULT_MODEL,
-			__( 'Default AI model', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_ai_default_model_field' ),
-			self::SETTINGS_SLUG,
-			'kayzart_ai'
-		);
 	}
 
 	/**
@@ -1149,6 +1172,29 @@ class Admin {
 			return '';
 		}
 		return self::validate_ai_default_model( $model, Ai_Models::available_for_text() );
+	}
+
+	/**
+	 * Sanitize the maximum number of model turns allowed for one AI edit.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return int
+	 */
+	public static function sanitize_ai_max_turns( $value ): int {
+		if ( ! is_scalar( $value ) || '' === trim( (string) $value ) || ! is_numeric( $value ) ) {
+			return self::AI_MAX_TURNS_DEFAULT;
+		}
+
+		return max( self::AI_MAX_TURNS_MIN, min( self::AI_MAX_TURNS_MAX, (int) $value ) );
+	}
+
+	/**
+	 * Get the configured maximum number of model turns for a new AI edit.
+	 *
+	 * @return int
+	 */
+	public static function get_ai_max_turns(): int {
+		return self::sanitize_ai_max_turns( get_option( self::OPTION_AI_MAX_TURNS, self::AI_MAX_TURNS_DEFAULT ) );
 	}
 
 	/**
@@ -1349,6 +1395,26 @@ class Admin {
 		} else {
 			echo '<p class="description">' . esc_html__( 'Auto follows the provider default and any newly added models automatically.', 'kayzart-live-code-editor' ) . '</p>';
 		}
+	}
+
+	/**
+	 * Render the maximum AI turns input field.
+	 */
+	public static function render_ai_max_turns_field(): void {
+		$value = self::get_ai_max_turns();
+
+		echo '<input type="number" class="small-text" name="' . esc_attr( self::OPTION_AI_MAX_TURNS ) . '" value="' . esc_attr( $value ) . '" min="' . esc_attr( self::AI_MAX_TURNS_MIN ) . '" max="' . esc_attr( self::AI_MAX_TURNS_MAX ) . '" step="1" />';
+		printf(
+			'<p class="description">%s</p>',
+			esc_html(
+				sprintf(
+					/* translators: 1: minimum number of AI turns, 2: maximum number of AI turns. */
+					__( 'Choose between %1$d and %2$d model turns per AI edit. Higher values can increase processing time and AI usage.', 'kayzart-live-code-editor' ),
+					self::AI_MAX_TURNS_MIN,
+					self::AI_MAX_TURNS_MAX
+				)
+			)
+		);
 	}
 
 	/**

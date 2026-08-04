@@ -300,6 +300,31 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		$this->assertFalse( has_action( 'wp_head', 'wp_custom_css_cb' ) );
 	}
 
+	/**
+	 * Standalone mode must keep core's @font-face output.
+	 *
+	 * Ai_Fonts offers the site's registered font families to the AI, and those
+	 * families render only because wp_print_font_faces still runs on these pages.
+	 * Dequeuing it as "theme CSS" would silently break every AI-selected font.
+	 */
+	public function test_standalone_mode_preserves_core_font_face_hook(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );
+		$post     = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+
+		update_post_meta( $post_id, '_kayzart_template_mode', 'standalone' );
+		$this->restore_core_theme_style_hooks();
+
+		$original_wp_query = $this->set_query_for_post( $post_id, $post );
+		Frontend::disable_theme_styles_for_standalone();
+		Frontend::dequeue_theme_assets_for_standalone();
+		$this->restore_query( $original_wp_query );
+
+		$this->assertSame( 50, has_action( 'wp_head', 'wp_print_font_faces' ) );
+	}
+
 	public function test_theme_mode_preserves_core_global_style_hooks(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id, 'publish' );

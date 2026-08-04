@@ -323,6 +323,7 @@ PROMPT;
 			'editor_mode'             => $mode_text,
 			'editable_targets_policy' => $editable_targets_text,
 			'creation_policy'         => $creation_policy_text,
+			'fonts_policy'            => self::format_fonts_policy( $payload ),
 			'tailwind_policy'         => $tailwind_policy_text,
 			'selected_contexts'       => $context_text,
 			'recent_edit_context'     => $recent_edit_context_text,
@@ -345,6 +346,56 @@ PROMPT;
 		);
 
 		return $segments;
+	}
+
+	/**
+	 * Describe the fonts this request may reference.
+	 *
+	 * Remote fonts are rejected by Ai_Output_Policy, so an unguided model invents
+	 * family names that resolve nowhere. Listing the real options turns the rule
+	 * from a prohibition into a choice.
+	 *
+	 * Jobs stored before availableFonts existed still get the system stacks,
+	 * which need no site state at all.
+	 *
+	 * @param array $payload Request payload.
+	 * @return string
+	 */
+	private static function format_fonts_policy( array $payload ): string {
+		$fonts      = ( isset( $payload['availableFonts'] ) && is_array( $payload['availableFonts'] ) )
+			? $payload['availableFonts']
+			: array();
+		$registered = ( isset( $fonts['registered'] ) && is_array( $fonts['registered'] ) ) ? $fonts['registered'] : array();
+		$stacks     = ( isset( $fonts['systemStacks'] ) && is_array( $fonts['systemStacks'] ) && count( $fonts['systemStacks'] ) > 0 )
+			? $fonts['systemStacks']
+			: Ai_Fonts::SYSTEM_STACKS;
+
+		$lines = array( 'Fonts available for this page:' );
+
+		if ( count( $registered ) > 0 ) {
+			$lines[] = 'Registered on this site (self-hosted, the @font-face is already served):';
+			foreach ( $registered as $family ) {
+				if ( ! is_array( $family ) || empty( $family['name'] ) ) {
+					continue;
+				}
+				$lines[] = '- ' . (string) $family['name'] . ' -> font-family: ' . (string) $family['fontFamily'];
+			}
+		} else {
+			$lines[] = 'Registered on this site: none.';
+		}
+
+		$lines[] = 'System font stacks (present on the visitor device, no download):';
+		foreach ( $stacks as $name => $stack ) {
+			$lines[] = '- ' . (string) $name . ' -> font-family: ' . (string) $stack;
+		}
+
+		$lines[] = 'Font rules:';
+		$lines[] = '- Use only the families listed above. Any other family name will not resolve on the visitor device.';
+		$lines[] = '- Never add a stylesheet link, @import, or @font-face for a font. Remote font resources are rejected.';
+		$lines[] = '- A registered family covering only Latin glyphs must be placed first and followed by a system stack so Japanese text still renders.';
+		$lines[] = '- Pick the stack whose character matches the page: gothic for general and modern, mincho for formal or premium, rounded for friendly and casual.';
+
+		return implode( "\n", $lines );
 	}
 
 	/**

@@ -7,6 +7,7 @@
 
 use KayzArt\Ai_Job_Store;
 use KayzArt\Ai_Immediate_Dispatcher;
+use KayzArt\Ai_Fonts;
 use KayzArt\Ai_Prompt;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
@@ -151,6 +152,22 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 		$this->assertSame( 202, $response->get_status() );
 		$this->assertSame( Ai_Prompt::INTENT_EDIT, $this->stored_intent( $response->get_data()['jobId'] ) );
+	}
+
+	/** Font availability is captured on the job so workers do not re-resolve it. */
+	public function test_create_stores_available_fonts_and_ignores_the_client_copy(): void {
+		$payload                   = $this->payload( 'rest-available-fonts' );
+		$payload['availableFonts'] = array( 'registered' => array( array( 'name' => 'Spoofed Font' ) ) );
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+		$this->assertSame( 202, $response->get_status() );
+
+		$job    = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
+		$stored = json_decode( (string) $job['payload_json'], true );
+		$fonts  = isset( $stored['availableFonts'] ) ? $stored['availableFonts'] : array();
+
+		$this->assertSame( Ai_Fonts::SYSTEM_STACKS, $fonts['systemStacks'] );
+		$this->assertNotContains( 'Spoofed Font', wp_list_pluck( $fonts['registered'], 'name' ) );
 	}
 
 	/** A retry after the initial marker is consumed stays idempotent. */

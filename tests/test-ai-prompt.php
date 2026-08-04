@@ -5,6 +5,7 @@
  * @package KayzArt
  */
 
+use KayzArt\Ai_Fonts;
 use KayzArt\Ai_Prompt;
 
 /**
@@ -172,6 +173,64 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Editable targets for this request: html, head, css', $prompt );
 		$this->assertStringContainsString( 'Define the page theme in the CSS tab with @theme', $prompt );
 		$this->assertStringNotContainsString( 'Edit CSS only when the user explicitly asks', $prompt );
+	}
+
+	/**
+	 * Registered families are offered alongside the always-available stacks.
+	 */
+	public function test_build_user_prompt_lists_registered_fonts(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode'     => 'normal',
+				'prompt'         => 'A landing page for a bakery.',
+				'intent'         => 'create',
+				'availableFonts' => array(
+					'registered'   => array(
+						array(
+							'name'       => 'Test Sans JP',
+							'fontFamily' => '"Test Sans JP", sans-serif',
+						),
+					),
+					'systemStacks' => Ai_Fonts::SYSTEM_STACKS,
+				),
+			)
+		);
+
+		$this->assertStringContainsString( 'Fonts available for this page:', $prompt );
+		$this->assertStringContainsString( 'Test Sans JP -> font-family: "Test Sans JP", sans-serif', $prompt );
+		$this->assertStringContainsString( 'Never add a stylesheet link, @import, or @font-face', $prompt );
+	}
+
+	/**
+	 * Without site fonts the prompt still offers every system stack.
+	 */
+	public function test_build_user_prompt_falls_back_to_system_stacks(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode' => 'normal',
+				'prompt'     => 'A landing page for a bakery.',
+			)
+		);
+
+		$this->assertStringContainsString( 'Registered on this site: none.', $prompt );
+		foreach ( array_keys( Ai_Fonts::SYSTEM_STACKS ) as $name ) {
+			$this->assertStringContainsString( $name . ' -> font-family:', $prompt );
+		}
+	}
+
+	/**
+	 * Font guidance applies to editing too, so restyle requests can resolve.
+	 */
+	public function test_build_user_prompt_fonts_policy_applies_to_both_intents(): void {
+		$payload = array(
+			'editorMode' => 'normal',
+			'prompt'     => 'Make the headings mincho.',
+		);
+
+		$this->assertStringContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
+
+		$payload['intent'] = 'create';
+		$this->assertStringContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
 	}
 
 	/**

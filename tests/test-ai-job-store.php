@@ -54,6 +54,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'modelPreference'   => array( 'provider/model-a' ),
 				'canEditHead'       => false,
 				'intent'            => 'create',
+				'availableFonts'    => array( 'registered' => array() ),
 			)
 		);
 		$first          = $this->store->create( 10, 20, 'request-server-settings', $stored_payload );
@@ -65,6 +66,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'maxAgentTurns'     => 20,
 				'canEditHead'       => true,
 				'intent'            => 'edit',
+				'availableFonts'    => array( 'registered' => array( array( 'name' => 'Installed Later' ) ) ),
 			)
 		);
 		$again          = $this->store->create( 10, 20, 'request-server-settings', $retry_payload );

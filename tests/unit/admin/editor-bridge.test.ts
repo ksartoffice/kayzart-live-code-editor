@@ -7,7 +7,7 @@ const savePost = vi.fn();
 let editorDirty = false;
 let saveSucceeded = false;
 
-const setupWordPress = () => {
+const setupWordPress = (supportsTitle = true) => {
   (window as any).wp = {
     domReady: (callback: () => void) => callback(),
     i18n: { __: (text: string) => text },
@@ -24,6 +24,7 @@ const setupWordPress = () => {
   };
   (window as any).KAYZART_EDITOR = {
     postId: 42,
+    supportsTitle,
     enabled: true,
     actionUrl: 'http://localhost/wp-admin/admin.php?action=kayzart&_wpnonce=nonce',
     previewUrl:
@@ -42,7 +43,7 @@ const setupWordPress = () => {
   };
 };
 
-const renderBlockEditor = () => {
+const renderBlockEditor = (supportsTitle = true) => {
   document.body.className = 'block-editor-page';
   document.body.innerHTML = [
     '<div class="interface-interface-skeleton">',
@@ -52,7 +53,7 @@ const renderBlockEditor = () => {
     '<div class="interface-interface-skeleton__content"></div>',
     '</div>',
   ].join('');
-  setupWordPress();
+  setupWordPress(supportsTitle);
   window.eval(bridgeScript);
 };
 
@@ -95,6 +96,14 @@ const rerenderClassicEditor = (options: {
   renderClassicEditor(options);
 };
 
+const rerenderBlockEditor = (supportsTitle: boolean) => {
+  window.dispatchEvent(new Event('unload'));
+  vi.clearAllTimers();
+  document.body.className = '';
+  document.body.innerHTML = '';
+  renderBlockEditor(supportsTitle);
+};
+
 const cleanup = () => {
   window.dispatchEvent(new Event('unload'));
   vi.clearAllTimers();
@@ -130,6 +139,8 @@ describe('Gutenberg editor bridge', () => {
       'Translated page'
     );
     expect(frame.src).toContain('kayzart_preview_context=wordpress_editor');
+    expect(frame.referrerPolicy).toBe('strict-origin-when-cross-origin');
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
     expect(panel.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')?.href).toContain(
       'post_id=42'
     );
@@ -171,6 +182,14 @@ describe('Gutenberg editor bridge', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(editPost).toHaveBeenCalledWith({ title: 'Updated translated page' });
+  });
+
+  it('omits the title input when the post type does not support titles', () => {
+    rerenderBlockEditor(false);
+
+    expect(document.querySelector('.kayzart-editor-preview__titleInput')).toBeNull();
+    expect(document.querySelector('.kayzart-editor-preview__titleLabel')).toBeNull();
+    expect(editPost).not.toHaveBeenCalled();
   });
 
   it('waits for a dirty post to save and prevents duplicate saves', async () => {
@@ -265,6 +284,8 @@ describe('Classic Editor bridge', () => {
     expect(editor.getAttribute('aria-hidden')).toBe('true');
     expect(panel.nextElementSibling).toBe(editor);
     expect(frame.src).toContain('kayzart_preview_context=wordpress_editor');
+    expect(frame.referrerPolicy).toBe('strict-origin-when-cross-origin');
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
   });
 
   it('keeps the native title, publish settings, and plugin meta boxes', () => {

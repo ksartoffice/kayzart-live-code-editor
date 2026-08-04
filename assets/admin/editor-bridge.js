@@ -256,6 +256,8 @@
     var iframe = document.createElement('iframe');
     iframe.className = 'kayzart-editor-preview__frame';
     iframe.title = labels.eyebrow || __( 'Kayzart page preview', 'kayzart-live-code-editor');
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.setAttribute('sandbox', 'allow-scripts');
 
     var loadTimer = 0;
     var startLoading = function () {
@@ -340,7 +342,7 @@
           modifierClass: 'kayzart-editor-preview--block',
           primaryButtonClass: 'components-button is-primary',
           secondaryButtonClass: 'components-button is-secondary',
-          showTitleInput: true,
+          showTitleInput: data.supportsTitle === true,
           onEdit: handleBlockEditorEdit
         })
       );

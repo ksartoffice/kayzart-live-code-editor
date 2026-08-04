@@ -167,6 +167,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( 'kayzart', $query['action'] ?? '' );
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 		$this->assertTrue( (bool) ( $data['isManaged'] ?? false ) );
+		$this->assertTrue( (bool) ( $data['supportsTitle'] ?? false ) );
 		$this->assertFalse( (bool) ( $data['canConvert'] ?? true ) );
 		$this->assertArrayNotHasKey( 'convertUrl', $data );
 		$this->assertNotEmpty( $data['viewUrl'] ?? '' );
@@ -181,6 +182,45 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( (string) $post_id, (string) ( $preview_query['post_id'] ?? '' ) );
 		$this->assertSame( 'wordpress_editor', $preview_query['kayzart_preview_context'] ?? '' );
 		$this->assertNotEmpty( $preview_query['token'] ?? '' );
+	}
+
+	public function test_enqueue_assets_reports_when_post_type_does_not_support_titles(): void {
+		$post_type      = 'kz_no_title';
+		$original_types = get_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, null );
+		register_post_type(
+			$post_type,
+			array(
+				'public'       => true,
+				'show_ui'      => true,
+				'show_in_rest' => true,
+				'supports'     => array( 'editor' ),
+			)
+		);
+
+		try {
+			update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, $post_type ) );
+			$post_id         = $this->create_enabled_post( $post_type );
+			$GLOBALS['post'] = get_post( $post_id );
+
+			set_current_screen( 'post' );
+			$screen                  = get_current_screen();
+			$screen->post_type       = $post_type;
+			$screen->is_block_editor = true;
+
+			Editor_Bridge::enqueue_block_assets();
+			$data = $this->get_inline_bridge_data();
+
+			$this->assertArrayHasKey( 'supportsTitle', $data );
+			$this->assertFalse( $data['supportsTitle'] );
+		} finally {
+			$this->reset_assets();
+			unregister_post_type( $post_type );
+			if ( null === $original_types ) {
+				delete_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES );
+			} else {
+				update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, $original_types );
+			}
+		}
 	}
 
 	public function test_core_rest_guard_preserves_managed_content(): void {

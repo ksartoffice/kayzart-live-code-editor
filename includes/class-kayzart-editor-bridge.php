@@ -100,15 +100,16 @@ class Editor_Bridge {
 		}
 
 		$data = array(
-			'postId'     => $post_id,
-			'postType'   => $post_type,
-			'actionUrl'  => Admin::get_action_redirect_url(),
-			'previewUrl' => $is_managed ? Preview::get_preview_url( $post_id, 'wordpress_editor' ) : '',
-			'viewUrl'    => $view_url,
-			'enabled'    => $is_managed,
-			'isManaged'  => $is_managed,
-			'canConvert' => false,
-			'labels'     => array(
+			'postId'        => $post_id,
+			'postType'      => $post_type,
+			'supportsTitle' => post_type_supports( $post_type, 'title' ),
+			'actionUrl'     => Admin::get_action_redirect_url(),
+			'previewUrl'    => $is_managed ? Preview::get_preview_url( $post_id, 'wordpress_editor' ) : '',
+			'viewUrl'       => $view_url,
+			'enabled'       => $is_managed,
+			'isManaged'     => $is_managed,
+			'canConvert'    => false,
+			'labels'        => array(
 				'edit'        => __( 'Edit with Kayzart', 'kayzart-live-code-editor' ),
 				'eyebrow'     => __( 'Managed by Kayzart', 'kayzart-live-code-editor' ),
 				'description' => __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor' ),

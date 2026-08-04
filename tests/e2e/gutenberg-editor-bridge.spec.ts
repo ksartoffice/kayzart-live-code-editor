@@ -62,6 +62,12 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     const bridge = page.locator('.kayzart-editor-preview');
     await expect(bridge).toBeVisible();
     await expect(page.locator('.kayzart-editor-preview__edit')).toHaveText('Edit with Kayzart');
+    const previewFrame = page.locator('.kayzart-editor-preview__frame');
+    await expect(previewFrame).toHaveAttribute('sandbox', 'allow-scripts');
+    await expect(previewFrame).toHaveAttribute(
+      'referrerpolicy',
+      'strict-origin-when-cross-origin'
+    );
     await expect(page.locator('.kayzart-editor-toolbar')).toHaveCount(0);
     await expect(page.locator('.block-editor-block-list__layout')).not.toBeVisible();
     const previewMarker = page.frameLocator('.kayzart-editor-preview__frame').locator(`#${marker}`);
@@ -69,6 +75,23 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     await expect
       .poll(() => previewMarker.evaluate((node) => getComputedStyle(node).color))
       .toBe('rgb(18, 52, 86)');
+    const previewFrameHandle = await previewFrame.elementHandle();
+    const previewContentFrame = await previewFrameHandle?.contentFrame();
+    expect(previewContentFrame).not.toBeNull();
+    await previewContentFrame!.evaluate(() => {
+      const script = document.createElement('script');
+      script.textContent = [
+        "document.documentElement.setAttribute('data-kayzart-preview-script', 'ran');",
+        "try { window.parent.document.documentElement.setAttribute('data-kayzart-frame-escape', '1'); } catch (error) {}",
+        "try { window.top.location.href = '/?kayzart_admin_escape=1'; } catch (error) {}",
+      ].join('\n');
+      document.body.appendChild(script);
+    });
+    await expect(
+      page.frameLocator('.kayzart-editor-preview__frame').locator('html')
+    ).toHaveAttribute('data-kayzart-preview-script', 'ran');
+    await expect(page.locator('html')).not.toHaveAttribute('data-kayzart-frame-escape', '1');
+    expect(new URL(page.url()).searchParams.has('kayzart_admin_escape')).toBe(false);
 
     const titleInput = page.locator('.kayzart-editor-preview__titleInput');
     const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));

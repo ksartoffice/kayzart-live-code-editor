@@ -377,12 +377,10 @@ class Post_Type {
 				esc_html__( 'Duplicate', 'kayzart-live-code-editor' )
 			);
 		} else {
-			// Same label as the managed case: the user is choosing an editor, not
-			// a conversion. The confirmation screen explains what happens.
 			$actions['kayzart_convert'] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( Admin::get_convert_screen_url( (int) $post->ID ) ),
-				esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' )
+				esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' )
 			);
 		}
 

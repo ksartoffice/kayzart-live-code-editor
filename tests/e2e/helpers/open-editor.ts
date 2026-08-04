@@ -24,7 +24,7 @@ export const baseUrl = (() => {
 
 export const missingEnv = !adminUser || !adminPass || !postId;
 
-async function login(page: Page) {
+export async function login(page: Page) {
   await page.goto(new URL('wp-login.php', baseUrl).toString());
   await page.fill('#user_login', adminUser);
   await page.fill('#user_pass', adminPass);

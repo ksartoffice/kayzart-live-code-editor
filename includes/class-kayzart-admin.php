@@ -668,7 +668,7 @@ class Admin {
 	/**
 	 * Turn off WordPress emoji replacement on the editor screen.
 	 *
-	 * wp-emoji watches the whole document and rewrites emoji text into <img>
+	 * The wp-emoji script watches the whole document and rewrites emoji text into <img>
 	 * elements. Inside CodeMirror that rewrite corrupts the rendered text, so
 	 * CodeMirror syncs its document to the damaged DOM and silently drops the
 	 * character. While the editor is locked for a running AI job it cannot
@@ -1107,7 +1107,6 @@ class Admin {
 			self::SETTINGS_SLUG,
 			'kayzart_post_types'
 		);
-
 	}
 
 	/**
@@ -1361,7 +1360,7 @@ class Admin {
 			echo '</label>';
 		}
 
-		echo '<p class="description">' . esc_html__( 'Existing posts start using Kayzart only when you choose Edit with Kayzart, or create one with Add with Kayzart.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Existing posts start using Kayzart only when you choose Start editing with Kayzart, or create one with Add with Kayzart.', 'kayzart-live-code-editor' ) . '</p>';
 	}
 
 	/**
@@ -1632,8 +1631,7 @@ class Admin {
 		$post    = $post_id > 0 ? get_post( $post_id ) : null;
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' ) . '</h1>';
-
+		echo '<h1>' . esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' ) . '</h1>';
 		if ( ! $post instanceof \WP_Post || ! Post_Type::is_editor_enabled_post( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
 			echo '<p>' . esc_html__( 'This page cannot be opened in Kayzart.', 'kayzart-live-code-editor' ) . '</p>';
 			echo '</div>';
@@ -1657,12 +1655,11 @@ class Admin {
 			esc_html(
 				sprintf(
 					/* translators: %s: post title. */
-					__( '"%s" will be opened in the Kayzart editor. Its existing content is kept as the initial HTML.', 'kayzart-live-code-editor' ),
+					__( 'The content editing for "%s" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a Kayzart management card instead of the content editor.', 'kayzart-live-code-editor' ),
 					get_the_title( $post )
 				)
 			)
 		);
-
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::CONVERT_POST_ACTION ) . '" />';
 		echo '<input type="hidden" name="post_id" value="' . esc_attr( (string) $post_id ) . '" />';
@@ -1670,7 +1667,7 @@ class Admin {
 		echo '<table class="form-table" role="presentation"><tbody>';
 		self::render_setup_mode_row();
 		echo '</tbody></table>';
-		submit_button( __( 'Open editor', 'kayzart-live-code-editor' ) );
+		submit_button( __( 'Convert and edit with Kayzart', 'kayzart-live-code-editor' ) );
 		echo '</form>';
 		echo '</div>';
 	}
@@ -1927,26 +1924,15 @@ class Admin {
 		$list_url     = self::get_editor_list_url( $post );
 		$list_label   = self::get_editor_list_label( $post );
 
-		$preview_token = $post_id ? wp_create_nonce( 'kayzart_preview_' . $post_id ) : '';
-		$permalink     = $post_id ? get_permalink( $post_id ) : '';
+		$permalink = $post_id ? get_permalink( $post_id ) : '';
 		if ( ! is_string( $permalink ) || '' === $permalink ) {
 			$permalink = home_url( '/' );
 		}
 		$preview_url        = add_query_arg( 'preview', 'true', $permalink );
-		$iframe_preview_url = $post_id
-			? add_query_arg(
-				array(
-					'kayzart_preview' => 1,
-					'post_id'         => $post_id,
-					'token'           => $preview_token,
-				),
-				$permalink
-			)
-			: $preview_url;
-
-		$ai_status              = Ai_Availability::get_status();
-		$initial_ai_request     = self::get_initial_ai_request( $post_id );
-		$data      = array(
+		$iframe_preview_url = $post_id ? Preview::get_preview_url( $post_id ) : $preview_url;
+		$ai_status          = Ai_Availability::get_status();
+		$initial_ai_request = self::get_initial_ai_request( $post_id );
+		$data               = array(
 			'post_id'                => $post_id,
 			'initialHtml'            => $html,
 			'initialCustomHead'      => $custom_head,
@@ -1997,10 +1983,10 @@ class Admin {
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => current_user_can( 'manage_options' ),
-				'initialRequest'       => $initial_ai_request,
+				'initialRequest'      => $initial_ai_request,
 			),
 		);
-		$json      = wp_json_encode( $data );
+		$json               = wp_json_encode( $data );
 		if ( false === $json ) {
 			$json = '{}';
 		}

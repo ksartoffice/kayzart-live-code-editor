@@ -103,6 +103,22 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( 'Invalid post type.', 'kayzart-live-code-editor'), $message );
 	}
 
+	public function test_get_preview_url_includes_nonce_and_context(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		wp_set_current_user( $admin_id );
+
+		$url   = Preview::get_preview_url( $post_id, 'test_context' );
+		$parts = wp_parse_url( $url );
+		$query = array();
+		parse_str( (string) ( $parts['query'] ?? '' ), $query );
+
+		$this->assertSame( '1', (string) ( $query['kayzart_preview'] ?? '' ) );
+		$this->assertSame( (string) $post_id, (string) ( $query['post_id'] ?? '' ) );
+		$this->assertSame( 'test_context', $query['kayzart_preview_context'] ?? '' );
+		$this->assertTrue( wp_verify_nonce( (string) ( $query['token'] ?? '' ), 'kayzart_preview_' . $post_id ) > 0 );
+	}
+
 	public function test_preview_registers_nocache_header_filter_for_valid_request(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );

@@ -1,22 +1,3 @@
-.kayzart-editor-bridge {
-  margin: 12px 0;
-}
-
-.kayzart-editor-bridge__title {
-  margin: 0 0 8px;
-  font-size: 16px;
-}
-
-.kayzart-editor-bridge__description {
-  margin: 0 0 16px;
-  color: #50575e;
-}
-
-.kayzart-editor-bridge__button.is-busy {
-  opacity: 0.7;
-  pointer-events: none;
-}
-
 .block-editor-page.post-type-kayzart .block-editor-inserter,
 .block-editor-page.post-type-kayzart .block-editor-inserter__toggle,
 .block-editor-page.post-type-kayzart .block-editor-default-block-appender,
@@ -38,9 +19,124 @@
   user-select: none;
 }
 
-.kayzart-editor-toolbar {
-  margin-left: 8px;
-  display: inline-flex;
-  align-items: center;
+.block-editor-page .kayzart-editor-bridge-host {
+  position: relative !important;
+  overflow: hidden !important;
 }
 
+.kayzart-editor-bridge {
+  box-sizing: border-box;
+  color: #1e1e1e;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.kayzart-editor-bridge--block {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f0f0f1;
+}
+
+#postdivrich.kayzart-classic-editor-source {
+  display: none !important;
+}
+
+.kayzart-editor-bridge--classic {
+  width: 100%;
+  margin: 16px 0;
+  color: #1d2327;
+}
+
+.kayzart-editor-bridge__card {
+  box-sizing: border-box;
+  width: min(720px, 100%);
+  padding: 28px;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+
+.kayzart-editor-bridge--classic .kayzart-editor-bridge__card {
+  width: 100%;
+}
+
+.kayzart-editor-bridge__copy {
+  min-width: 0;
+}
+
+.kayzart-editor-bridge__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.kayzart-editor-bridge__titleLabel {
+  display: block;
+  margin: 16px 0 4px;
+  color: #50575e;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.kayzart-editor-bridge__titleInput {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #949494;
+  border-radius: 2px;
+  background: #fff;
+  color: #1e1e1e;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.kayzart-editor-bridge__titleInput:focus {
+  border-color: var(--wp-admin-theme-color, #3858e9);
+  box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #3858e9);
+  outline: 2px solid transparent;
+}
+
+.kayzart-editor-bridge__description {
+  margin: 8px 0 0;
+  color: #50575e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.kayzart-editor-bridge__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.kayzart-editor-bridge__edit.is-busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+@media (max-width: 782px) {
+  .kayzart-editor-bridge--block {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .kayzart-editor-bridge__card {
+    padding: 20px 16px;
+  }
+
+  .kayzart-editor-bridge__actions {
+    flex-wrap: wrap;
+  }
+}

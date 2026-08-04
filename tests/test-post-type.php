@@ -172,8 +172,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 
 		$this->assertArrayNotHasKey( 'kayzart_edit', $actions );
 		$this->assertArrayHasKey( 'kayzart_convert', $actions );
-		// Same label as the managed case; only the destination differs.
-		$this->assertStringContainsString( esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
+		$this->assertStringContainsString( esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
 		$this->assertStringContainsString( 'page=' . \KayzArt\Admin::CONVERT_SLUG, $actions['kayzart_convert'] );
 		$this->assertStringNotContainsString( 'action=' . \KayzArt\Admin::CONVERT_POST_ACTION, $actions['kayzart_convert'] );
 	}

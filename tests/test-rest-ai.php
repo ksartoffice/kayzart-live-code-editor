@@ -7,6 +7,7 @@
 
 use KayzArt\Ai_Job_Store;
 use KayzArt\Ai_Immediate_Dispatcher;
+use KayzArt\Ai_Prompt;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
 use KayzArt\Admin;
@@ -110,6 +111,71 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 		$this->assertSame( 202, $response->get_status() );
 		$this->assertSame( '', get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
+	}
+
+	/** The initial Add New request is stored as a page-creation job. */
+	public function test_create_derives_the_create_intent_from_the_initial_request(): void {
+		$request_id = 'initial-intent-request';
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $request_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$payload                     = $this->payload( $request_id );
+		$payload['initialRequestId'] = $request_id;
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( Ai_Prompt::INTENT_CREATE, $this->stored_intent( $response->get_data()['jobId'] ) );
+	}
+
+	/** An ordinary edit request never becomes a page-creation job. */
+	public function test_create_derives_the_edit_intent_without_an_initial_request(): void {
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-edit-intent' ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( Ai_Prompt::INTENT_EDIT, $this->stored_intent( $response->get_data()['jobId'] ) );
+	}
+
+	/** The intent is server-derived, so a client cannot ask for the creation prompt. */
+	public function test_create_ignores_a_client_supplied_intent(): void {
+		$payload           = $this->payload( 'rest-spoofed-intent' );
+		$payload['intent'] = 'create';
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( Ai_Prompt::INTENT_EDIT, $this->stored_intent( $response->get_data()['jobId'] ) );
+	}
+
+	/** A retry after the initial marker is consumed stays idempotent. */
+	public function test_retrying_the_initial_request_does_not_conflict_on_intent(): void {
+		$request_id = 'initial-intent-retry';
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $request_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$payload                     = $this->payload( $request_id );
+		$payload['initialRequestId'] = $request_id;
+
+		$first = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+		$this->assertSame( 202, $first->get_status() );
+
+		// The marker is consumed, so the retry now derives the edit intent.
+		$again = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+		$this->assertSame( 200, $again->get_status() );
+		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
+		$this->assertSame( Ai_Prompt::INTENT_CREATE, $this->stored_intent( $first->get_data()['jobId'] ) );
 	}
 
 	/** A replacement job consumes the original initial request ID after a terminal creation failure. */
@@ -437,6 +503,16 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 			'baseHash'         => '',
 			'selectedContexts' => array(),
 		);
+	}
+
+	/** Read the intent recorded on a stored job payload.
+	 *
+	 * @param string $job_uuid Job UUID.
+	 */
+	private function stored_intent( string $job_uuid ): string {
+		$job     = ( new Ai_Job_Store() )->get( $job_uuid );
+		$payload = json_decode( (string) $job['payload_json'], true );
+		return isset( $payload['intent'] ) ? (string) $payload['intent'] : '';
 	}
 
 	/** Dispatch an authenticated JSON request.

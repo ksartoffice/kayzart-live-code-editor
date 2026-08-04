@@ -53,6 +53,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'recentEditContext' => array( array( 'summary' => 'Earlier context.' ) ),
 				'modelPreference'   => array( 'provider/model-a' ),
 				'canEditHead'       => false,
+				'intent'            => 'create',
 			)
 		);
 		$first          = $this->store->create( 10, 20, 'request-server-settings', $stored_payload );
@@ -63,6 +64,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'modelPreference'   => array( 'provider/model-b' ),
 				'maxAgentTurns'     => 20,
 				'canEditHead'       => true,
+				'intent'            => 'edit',
 			)
 		);
 		$again          = $this->store->create( 10, 20, 'request-server-settings', $retry_payload );

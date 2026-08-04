@@ -27,6 +27,9 @@ class Ai_Job_Store {
 		'modelPreference',
 		'maxAgentTurns',
 		'canEditHead',
+		// Derived from the initial-request meta, which a retry has already consumed,
+		// so the same client request can legitimately derive a different intent.
+		'intent',
 	);
 
 	const MAX_EVENTS               = 300;

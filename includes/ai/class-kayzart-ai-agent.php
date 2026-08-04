@@ -216,10 +216,12 @@ class Ai_Agent {
 			);
 		}
 
+		$intent                = Ai_Prompt::resolve_intent( $payload );
 		$edit_policy           = Ai_Tool_Schema::resolve_edit_policy(
 			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
 			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '',
-			! empty( $payload['canEditHead'] )
+			! empty( $payload['canEditHead'] ),
+			$intent
 		);
 		$editable_targets      = $edit_policy['editableTargets'];
 		$has_history_tool      = ! empty( $payload['historyTool'] );
@@ -229,7 +231,7 @@ class Ai_Agent {
 		$snapshot              = $state['snapshot'];
 
 		$turn_options     = array(
-			'systemInstruction' => Ai_Prompt::system_prompt(),
+			'systemInstruction' => Ai_Prompt::system_prompt( $intent ),
 		);
 		$model_preference = self::resolve_model_preference( $payload );
 		if ( count( $model_preference ) > 0 ) {
@@ -482,7 +484,7 @@ class Ai_Agent {
 			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true, 'max_turns' );
 		}
 		$options          = array(
-			'systemInstruction' => Ai_Prompt::system_prompt(),
+			'systemInstruction' => Ai_Prompt::system_prompt( Ai_Prompt::resolve_intent( $payload ) ),
 			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
 		);
 		$model_preference = self::resolve_model_preference( $payload );

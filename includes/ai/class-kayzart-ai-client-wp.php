@@ -68,15 +68,66 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	}
 
 	/**
+	 * Run a callback with a raised AI Client request timeout.
+	 *
+	 * Core reads wp_ai_client_default_request_timeout while constructing the
+	 * prompt builder, so the filter has to be in place around that construction
+	 * rather than around the HTTP call. It is removed in a finally block: a
+	 * filter left behind would raise the timeout for every other AI request on
+	 * the site, including other plugins'.
+	 *
+	 * @param float|null $timeout Timeout in seconds, or null to leave core's default.
+	 * @param callable   $run     Callback to run.
+	 * @return mixed Whatever the callback returns.
+	 */
+	public static function with_request_timeout( ?float $timeout, callable $run ) {
+		if ( null === $timeout || $timeout <= 0.0 ) {
+			return $run();
+		}
+
+		$filter = static function () use ( $timeout ) {
+			return $timeout;
+		};
+		add_filter( 'wp_ai_client_default_request_timeout', $filter );
+		try {
+			return $run();
+		} finally {
+			remove_filter( 'wp_ai_client_default_request_timeout', $filter );
+		}
+	}
+
+	/**
 	 * SDK-SEAM: run one turn through the AI Client and return the raw result.
 	 *
 	 * @param array $messages Normalized messages.
 	 * @param array $tools    Tool definitions.
-	 * @param array $options  Options (systemInstruction/jsonSchema/modelPreference).
+	 * @param array $options  Options (systemInstruction/jsonSchema/modelPreference/requestTimeout).
 	 * @return mixed SDK result object.
 	 * @throws Ai_Client_Exception When WordPress returns a generation error.
 	 */
 	private function run_sdk_turn( array $messages, array $tools, array $options ) {
+		$timeout = isset( $options['requestTimeout'] ) && is_numeric( $options['requestTimeout'] )
+			? (float) $options['requestTimeout']
+			: null;
+
+		return self::with_request_timeout(
+			$timeout,
+			function () use ( $messages, $tools, $options ) {
+				return $this->run_sdk_turn_now( $messages, $tools, $options );
+			}
+		);
+	}
+
+	/**
+	 * Build and run one prompt, assuming any timeout filter is already in place.
+	 *
+	 * @param array $messages Normalized messages.
+	 * @param array $tools    Tool definitions.
+	 * @param array $options  Generation options.
+	 * @return mixed SDK result object.
+	 * @throws Ai_Client_Exception When WordPress returns a generation error.
+	 */
+	private function run_sdk_turn_now( array $messages, array $tools, array $options ) {
 		$sdk_messages = $this->to_sdk_messages( $messages );
 		$declarations = $this->to_function_declarations( $tools );
 

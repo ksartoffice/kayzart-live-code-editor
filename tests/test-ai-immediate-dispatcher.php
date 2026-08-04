@@ -225,6 +225,60 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 		$this->assertSame( 0, $calls );
 	}
 
+	/** Only the first turn of a page-creation job waits for Action Scheduler. */
+	public function test_should_defer_to_scheduler(): void {
+		$row = static function ( $intent, int $version ): array {
+			$payload = array( 'editorMode' => 'normal' );
+			if ( null !== $intent ) {
+				$payload['intent'] = $intent;
+			}
+			return array(
+				'state_version' => $version,
+				'payload_json'  => wp_json_encode( $payload ),
+			);
+		};
+
+		$this->assertTrue( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $row( 'create', 0 ) ) );
+		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $row( 'create', 1 ) ) );
+		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $row( 'edit', 0 ) ) );
+		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $row( null, 0 ) ) );
+		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( null ) );
+	}
+
+	/** The pending-dispatch sweep must not pull a deferred first turn into a loopback. */
+	public function test_pending_dispatch_skips_a_create_first_turn(): void {
+		$uuid = $this->create_job( 'immediate-create', 24, array( 'intent' => 'create' ) );
+		Ai_Worker::enqueue( $uuid );
+		$calls = 0;
+		add_filter(
+			'pre_http_request',
+			static function ( $preempted ) use ( &$calls ) {
+				$calls++;
+				return $preempted;
+			}
+		);
+
+		$this->assertFalse( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
+		$this->assertSame( 0, $calls );
+	}
+
+	/** An ordinary edit job is still dispatched by the pending sweep. */
+	public function test_pending_dispatch_still_serves_edit_jobs(): void {
+		$uuid = $this->create_job( 'immediate-edit', 25, array( 'intent' => 'edit' ) );
+		Ai_Worker::enqueue( $uuid );
+		$calls = 0;
+		add_filter(
+			'pre_http_request',
+			static function ( $preempted ) use ( &$calls ) {
+				$calls++;
+				return $preempted;
+			}
+		);
+
+		$this->assertTrue( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
+		$this->assertSame( 1, $calls );
+	}
+
 	/** Invalid signatures and mismatched action identities are rejected. */
 	public function test_internal_route_rejects_invalid_signature_and_identity(): void {
 		$uuid      = $this->create_job( 'immediate-auth', 23 );
@@ -364,22 +418,26 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 	 *
 	 * @param string $request_id Request ID.
 	 * @param int    $post_id    Unique post ID.
+	 * @param array  $extra      Payload keys merged over the defaults.
 	 */
-	private function create_job( string $request_id, int $post_id ): string {
+	private function create_job( string $request_id, int $post_id, array $extra = array() ): string {
 		$result = $this->store->create(
 			1,
 			$post_id,
 			$request_id,
-			array(
-				'editorMode'       => 'normal',
-				'prompt'           => 'Change Hello to World.',
-				'html'             => '<h1>Hello</h1>',
-				'customHead'       => '',
-				'css'              => '',
-				'js'               => '',
-				'jsMode'           => 'classic',
-				'baseHash'         => '',
-				'selectedContexts' => array(),
+			array_merge(
+				array(
+					'editorMode'       => 'normal',
+					'prompt'           => 'Change Hello to World.',
+					'html'             => '<h1>Hello</h1>',
+					'customHead'       => '',
+					'css'              => '',
+					'js'               => '',
+					'jsMode'           => 'classic',
+					'baseHash'         => '',
+					'selectedContexts' => array(),
+				),
+				$extra
 			)
 		);
 		return $result['job']['job_uuid'];

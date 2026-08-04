@@ -135,6 +135,28 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( Ai_Prompt::INTENT_CREATE, $this->stored_intent( $response->get_data()['jobId'] ) );
 	}
 
+	/** The long first creation turn is left to Action Scheduler, not a loopback. */
+	public function test_create_intent_is_not_dispatched_over_the_loopback(): void {
+		$request_id = 'initial-deferred-dispatch';
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $request_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$payload                     = $this->payload( $request_id );
+		$payload['initialRequestId'] = $request_id;
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( Ai_Prompt::INTENT_CREATE, $this->stored_intent( $response->get_data()['jobId'] ) );
+		$this->assertSame( 0, $this->immediate_dispatches );
+	}
+
 	/** An ordinary edit request never becomes a page-creation job. */
 	public function test_create_derives_the_edit_intent_without_an_initial_request(): void {
 		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-edit-intent' ) );
@@ -233,7 +255,9 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 		$this->assertSame( 202, $replacement->get_status() );
 		$this->assertSame( 'replacement-terminal-request', $replacement->get_data()['requestId'] );
-		$this->assertSame( 1, $this->immediate_dispatches );
+		// The replacement still answers the initial request, so it is a creation
+		// job and its first turn is left to Action Scheduler like any other.
+		$this->assertSame( 0, $this->immediate_dispatches );
 		$this->assertSame( '', get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
 	}
 

@@ -51,6 +51,57 @@ class Ai_Immediate_Dispatcher {
 		return (bool) apply_filters( 'kayzart_ai_immediate_dispatch_enabled', true );
 	}
 
+	/** Whether a job's next step must wait for Action Scheduler instead of a loopback.
+	 *
+	 * The first turn of a page-creation job runs with a raised provider timeout
+	 * (see Ai_Agent::CREATE_REQUEST_TIMEOUT_SECONDS) because it authors a whole
+	 * page. Holding a web request open that long occupies a PHP worker and can
+	 * be cut by the web server's own timeout with no PHP-level error, so that
+	 * turn is left to the scheduler. Later turns are short and stay immediate.
+	 *
+	 * @param mixed $job Job database row.
+	 * @return bool
+	 */
+	public static function should_defer_to_scheduler( $job ): bool {
+		if ( ! is_array( $job ) || 0 !== (int) ( $job['state_version'] ?? 0 ) ) {
+			return false;
+		}
+		$payload = json_decode( (string) ( $job['payload_json'] ?? '' ), true );
+
+		return is_array( $payload ) && Ai_Prompt::INTENT_CREATE === Ai_Prompt::resolve_intent( $payload );
+	}
+
+	/** Record that a step was left to Action Scheduler on purpose.
+	 *
+	 * Without this the extra queue wait looks like a stall in the logs.
+	 *
+	 * @param string $job_uuid  Kayzart AI job UUID.
+	 * @param int    $action_id Action Scheduler action ID.
+	 */
+	public static function log_deferred( string $job_uuid, int $action_id ): void {
+		self::performance_log(
+			$job_uuid,
+			'loopback_deferred',
+			array(
+				'actionId' => $action_id,
+				'reason'   => 'create_first_turn',
+			)
+		);
+	}
+
+	/** Whether the job behind a UUID must wait for Action Scheduler.
+	 *
+	 * @param string $job_uuid Kayzart AI job UUID.
+	 * @return bool
+	 */
+	private static function uuid_defers_to_scheduler( string $job_uuid ): bool {
+		if ( ! self::valid_uuid( $job_uuid ) ) {
+			return false;
+		}
+
+		return self::should_defer_to_scheduler( ( new Ai_Job_Store() )->get( $job_uuid ) );
+	}
+
 	/** Send a signed, non-blocking loopback for one scheduled AI action.
 	 *
 	 * @param int    $action_id Action Scheduler action ID.
@@ -293,26 +344,43 @@ class Ai_Immediate_Dispatcher {
 		);
 		$action_id  = 0;
 		$oldest     = PHP_INT_MAX;
+		$uuid       = '';
 		foreach ( $candidates as $candidate ) {
-			$date      = $store->fetch_action( $candidate )->get_schedule()->get_date();
+			try {
+				$action         = $store->fetch_action( $candidate );
+				$date           = $action->get_schedule()->get_date();
+				$args           = $action->get_args();
+				$candidate_uuid = isset( $args[0] ) ? (string) $args[0] : '';
+			} catch ( \Throwable $error ) {
+				error_log( 'Kayzart AI pending dispatch lookup failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				continue;
+			}
+			// Skipped here as well as at creation time: this path would otherwise
+			// pick the deferred action up from any later request and run the long
+			// first turn in a loopback after all.
+			if ( self::uuid_defers_to_scheduler( $candidate_uuid ) ) {
+				self::performance_log(
+					$candidate_uuid,
+					'loopback_deferred',
+					array(
+						'actionId' => (int) $candidate,
+						'reason'   => 'create_first_turn',
+					)
+				);
+				continue;
+			}
 			$timestamp = $date instanceof \DateTimeInterface ? $date->getTimestamp() : 0;
 			if ( $timestamp < $oldest ) {
 				$oldest    = $timestamp;
 				$action_id = (int) $candidate;
+				$uuid      = $candidate_uuid;
 			}
 		}
 		if ( empty( $action_id ) ) {
 			return false;
 		}
-		try {
-			$action = $store->fetch_action( $action_id );
-			$args   = $action->get_args();
-			$uuid   = isset( $args[0] ) ? (string) $args[0] : '';
-			return self::dispatch( (int) $action_id, $uuid );
-		} catch ( \Throwable $error ) {
-			error_log( 'Kayzart AI pending dispatch lookup failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			return false;
-		}
+
+		return self::dispatch( $action_id, $uuid );
 	}
 
 	/** Clear request-local scheduling on deactivation. */

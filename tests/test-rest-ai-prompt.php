@@ -96,6 +96,23 @@ class Test_Kayzart_Rest_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Markup in an instruction remains plain-text source material for improvement.
+	 */
+	public function test_improve_preserves_markup_in_prompt(): void {
+		$prompt = "Use <header> and <main>.\nKeep </script> and `<section>` as instruction text.";
+		$this->fake->queue_final_text( 'Create a semantic page structure.' );
+
+		$response = $this->dispatch( array( 'prompt' => $prompt ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$message = $this->fake->calls()[0]['messages'][0]['text'];
+		$this->assertStringContainsString(
+			"<source-instruction>\n{$prompt}\n</source-instruction>",
+			$message
+		);
+	}
+
+	/**
 	 * Missing nonce, capability, and provider availability are rejected.
 	 */
 	public function test_improve_requires_nonce_capability_and_ai_availability(): void {

@@ -82,7 +82,7 @@ class Rest_Ai_Prompt {
 		}
 
 		$prompt = isset( $input['prompt'] ) && is_string( $input['prompt'] )
-			? trim( sanitize_textarea_field( $input['prompt'] ) )
+			? trim( wp_check_invalid_utf8( $input['prompt'], true ) )
 			: '';
 		$title  = isset( $input['title'] ) && is_string( $input['title'] )
 			? trim( sanitize_text_field( $input['title'] ) )

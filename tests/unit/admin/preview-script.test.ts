@@ -95,6 +95,37 @@ afterEach(() => {
   }
 });
 
+describe('WordPress editor preview context', () => {
+  afterEach(() => {
+    document.head.innerHTML = '';
+    document.body.innerHTML = '';
+    delete (window as any).KAYZART_PREVIEW;
+  });
+
+  it('disables element selection, link navigation, and form submission', () => {
+    setupPreviewDocument();
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<a id="preview-link" href="/elsewhere">Link</a><form id="preview-form"></form><div id="preview-target">Target</div>'
+    );
+    (window as any).KAYZART_PREVIEW.context = 'wordpress_editor';
+
+    window.eval(previewScript);
+
+    const linkEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+    document.querySelector('#preview-link')!.dispatchEvent(linkEvent);
+    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+    document.querySelector('#preview-form')!.dispatchEvent(submitEvent);
+    document
+      .querySelector('#preview-target')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(linkEvent.defaultPrevented).toBe(true);
+    expect(submitEvent.defaultPrevented).toBe(true);
+    expect(document.querySelector('#kayzart-select-box')).toBeNull();
+  });
+});
+
 describe('preview shortcode placeholders', () => {
   afterEach(() => {
     vi.restoreAllMocks();

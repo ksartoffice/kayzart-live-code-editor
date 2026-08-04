@@ -7,6 +7,7 @@
   const scriptId = 'kayzart-script';
   const KAYZART_ATTR_NAME = 'data-kayzart-id';
   const config = window.KAYZART_PREVIEW || {};
+  const isWordPressEditorPreview = config.context === 'wordpress_editor';
   const postId = config.post_id || null;
   const markerAttr =
     config.markers && config.markers.attr ? String(config.markers.attr) : 'data-kayzart-marker';
@@ -60,8 +61,11 @@
   const markerRetryMaxWaitMs = 10000;
   const scrollStorageKey = postId ? 'kayzart:preview-scroll:' + String(postId) : '';
   const overlayActionConfig = resolveOverlayActionConfig(config.overlayAction);
-  let domSelectorEnabled =
-    config.liveHighlightEnabled === undefined ? true : Boolean(config.liveHighlightEnabled);
+  let domSelectorEnabled = isWordPressEditorPreview
+    ? false
+    : config.liveHighlightEnabled === undefined
+      ? true
+      : Boolean(config.liveHighlightEnabled);
 
   function getAllowedOrigin() {
     if (!config.allowedOrigin) {
@@ -684,6 +688,28 @@
     document.addEventListener('click', handleSelectMenuDocumentClick, true);
     document.addEventListener('keydown', handleSelectMenuKeydown, true);
     document.addEventListener('click', handleClick, true);
+  }
+
+  function attachWordPressEditorPreviewGuards() {
+    document.addEventListener(
+      'click',
+      (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const link = target && target.closest ? target.closest('a[href]') : null;
+        if (!link) return;
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
+    document.addEventListener(
+      'submit',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true
+    );
   }
 
   function ensureStyleElement() {
@@ -2210,6 +2236,10 @@
     saveScrollPosition();
     stopJsRuntime();
   });
-  attachDomSelector();
+  if (isWordPressEditorPreview) {
+    attachWordPressEditorPreviewGuards();
+  } else {
+    attachDomSelector();
+  }
 })();
 

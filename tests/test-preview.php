@@ -103,6 +103,43 @@ class Test_Preview extends WP_UnitTestCase {
 		$this->assertStringContainsString( __( 'Invalid post type.', 'kayzart-live-code-editor'), $message );
 	}
 
+	public function test_get_preview_url_includes_nonce_and_context(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		wp_set_current_user( $admin_id );
+
+		$url   = Preview::get_preview_url( $post_id, 'wordpress_editor' );
+		$parts = wp_parse_url( $url );
+		$query = array();
+		parse_str( (string) ( $parts['query'] ?? '' ), $query );
+
+		$this->assertSame( '1', (string) ( $query['kayzart_preview'] ?? '' ) );
+		$this->assertSame( (string) $post_id, (string) ( $query['post_id'] ?? '' ) );
+		$this->assertSame( 'wordpress_editor', $query['kayzart_preview_context'] ?? '' );
+		$this->assertTrue( wp_verify_nonce( (string) ( $query['token'] ?? '' ), 'kayzart_preview_' . $post_id ) > 0 );
+	}
+
+	public function test_wordpress_editor_preview_disables_live_highlight(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+
+		$this->start_preview_request( $post_id, $admin_id );
+		global $wp_query;
+		$wp_query->set( 'kayzart_preview_context', 'wordpress_editor' );
+		Preview::enqueue_assets();
+
+		$scripts       = wp_scripts();
+		$registered    = $scripts->registered['kayzart-preview'] ?? null;
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", $before_inline );
+		preg_match_all( '/window\\.KAYZART_PREVIEW = (.+);/', $inline, $matches );
+		$payload_json = isset( $matches[1] ) && is_array( $matches[1] ) && ! empty( $matches[1] ) ? end( $matches[1] ) : '';
+		$payload      = json_decode( (string) $payload_json, true );
+
+		$this->assertSame( 'wordpress_editor', $payload['context'] ?? '' );
+		$this->assertFalse( (bool) ( $payload['liveHighlightEnabled'] ?? true ) );
+	}
+
 	public function test_preview_registers_nocache_header_filter_for_valid_request(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );

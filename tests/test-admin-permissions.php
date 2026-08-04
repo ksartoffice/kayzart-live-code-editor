@@ -599,6 +599,30 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_convert_screen_explains_one_way_content_editing(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+				'post_title'  => 'Translated page',
+			)
+		);
+		$original_get = $_GET;
+		$_GET         = array( 'post_id' => (string) $page_id );
+
+		ob_start();
+		Admin::render_convert_page();
+		$output = (string) ob_get_clean();
+		$_GET   = $original_get;
+
+		$this->assertStringContainsString( 'Start editing with Kayzart', $output );
+		$this->assertStringContainsString( 'Convert and edit with Kayzart', $output );
+		$this->assertStringContainsString( 'the WordPress editor will show a preview', $output );
+		$this->assertStringContainsString( 'name="_wpnonce"', $output );
+	}
+
 	public function test_action_create_new_page_requires_valid_nonce(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 

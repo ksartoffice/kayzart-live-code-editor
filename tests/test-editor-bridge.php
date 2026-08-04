@@ -166,6 +166,72 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertTrue( (bool) ( $data['isManaged'] ?? false ) );
 		$this->assertFalse( (bool) ( $data['canConvert'] ?? true ) );
 		$this->assertArrayNotHasKey( 'convertUrl', $data );
+		$this->assertNotEmpty( $data['viewUrl'] ?? '' );
+		$this->assertSame( 'Managed by Kayzart', $data['labels']['eyebrow'] ?? '' );
+
+		$preview_parts = wp_parse_url( (string) ( $data['previewUrl'] ?? '' ) );
+		$preview_query = array();
+		if ( ! empty( $preview_parts['query'] ) ) {
+			parse_str( (string) $preview_parts['query'], $preview_query );
+		}
+		$this->assertSame( '1', (string) ( $preview_query['kayzart_preview'] ?? '' ) );
+		$this->assertSame( (string) $post_id, (string) ( $preview_query['post_id'] ?? '' ) );
+		$this->assertSame( 'wordpress_editor', $preview_query['kayzart_preview_context'] ?? '' );
+		$this->assertNotEmpty( $preview_query['token'] ?? '' );
+	}
+
+	public function test_core_rest_guard_preserves_managed_content(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Stored Kayzart HTML',
+			)
+		);
+		$prepared               = new stdClass();
+		$prepared->post_content = 'Gutenberg replacement';
+		$request                = new WP_REST_Request( 'POST', '/wp/v2/pages/' . $post_id );
+		$request->set_param( 'id', $post_id );
+
+		$result = Editor_Bridge::preserve_managed_content( $prepared, $request );
+
+		$this->assertSame( 'Stored Kayzart HTML', $result->post_content );
+	}
+
+	public function test_core_rest_guard_leaves_unmanaged_content_unchanged(): void {
+		$post_id                 = $this->create_post( Post_Type::PAGE_TYPE );
+		$prepared               = new stdClass();
+		$prepared->post_content = 'Gutenberg replacement';
+		$request                = new WP_REST_Request( 'POST', '/wp/v2/pages/' . $post_id );
+		$request->set_param( 'id', $post_id );
+
+		$result = Editor_Bridge::preserve_managed_content( $prepared, $request );
+
+		$this->assertSame( 'Gutenberg replacement', $result->post_content );
+	}
+
+	public function test_core_rest_update_saves_title_but_not_managed_content(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_title'   => 'Before title',
+				'post_content' => 'Stored Kayzart HTML',
+			)
+		);
+		Editor_Bridge::register_rest_content_guards();
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/pages/' . $post_id );
+		$request->set_param( 'id', $post_id );
+		$request->set_param( 'title', 'Updated title' );
+		$request->set_param( 'content', 'Gutenberg replacement' );
+		$response = rest_do_request( $request );
+		$post     = get_post( $post_id );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( 'Updated title', $post->post_title );
+		$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
 	}
 
 	private function create_post( string $post_type ): int {

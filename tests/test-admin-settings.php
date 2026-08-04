@@ -606,7 +606,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_enabled_post_types_field();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( 'Edit with Kayzart', $output );
+		$this->assertStringContainsString( 'Start editing with Kayzart', $output );
 		$this->assertStringContainsString( 'Add with Kayzart', $output );
 		$this->assertStringNotContainsString( 'opened in the Kayzart editor', $output );
 	}

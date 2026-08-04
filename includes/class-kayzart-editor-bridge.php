@@ -24,6 +24,7 @@ class Editor_Bridge {
 	public static function init(): void {
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_block_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_classic_assets' ) );
+		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_content_guards' ) );
 	}
 
 	/**
@@ -91,14 +92,30 @@ class Editor_Bridge {
 
 		$is_managed = $post instanceof \WP_Post
 			&& ( Post_Type::POST_TYPE === $post->post_type || Post_Type::is_kayzart_enabled_post( (int) $post->ID ) );
+		$view_url   = $post instanceof \WP_Post ? get_preview_post_link( $post ) : '';
+		if ( ! is_string( $view_url ) ) {
+			$view_url = '';
+		}
 
 		$data = array(
 			'postId'     => $post_id,
 			'postType'   => $post_type,
 			'actionUrl'  => Admin::get_action_redirect_url(),
+			'previewUrl' => $is_managed ? Preview::get_preview_url( $post_id, 'wordpress_editor' ) : '',
+			'viewUrl'    => $view_url,
 			'enabled'    => $is_managed,
 			'isManaged'  => $is_managed,
 			'canConvert' => false,
+			'labels'     => array(
+				'edit'        => __( 'Edit with Kayzart', 'kayzart-live-code-editor' ),
+				'eyebrow'     => __( 'Managed by Kayzart', 'kayzart-live-code-editor' ),
+				'description' => __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor' ),
+				'titleLabel'  => __( 'Page title', 'kayzart-live-code-editor' ),
+				'view'        => __( 'View page', 'kayzart-live-code-editor' ),
+				'loading'     => __( 'Loading preview…', 'kayzart-live-code-editor' ),
+				'loadFailed'  => __( 'The preview is taking longer than expected to load.', 'kayzart-live-code-editor' ),
+				'reload'      => __( 'Reload preview', 'kayzart-live-code-editor' ),
+			),
 		);
 		$json = wp_json_encode( $data );
 		if ( false === $json ) {
@@ -116,6 +133,43 @@ class Editor_Bridge {
 			'kayzart-live-code-editor',
 			KAYZART_PATH . 'languages'
 		);
+	}
+
+	/**
+	 * Register guards for core REST updates to editor-enabled post types.
+	 */
+	public static function register_rest_content_guards(): void {
+		foreach ( Post_Type::get_enabled_post_types() as $post_type ) {
+			add_filter( 'rest_pre_insert_' . $post_type, array( __CLASS__, 'preserve_managed_content' ), 20, 2 );
+		}
+	}
+
+	/**
+	 * Keep KayzArt-owned HTML unchanged when Gutenberg saves page settings.
+	 *
+	 * KayzArt's own REST endpoint writes with wp_update_post() directly, so it
+	 * does not pass through this core REST controller filter.
+	 *
+	 * @param mixed            $prepared_post Prepared post object or error.
+	 * @param \WP_REST_Request $request REST request.
+	 * @return mixed
+	 */
+	public static function preserve_managed_content( $prepared_post, \WP_REST_Request $request ) {
+		if ( is_wp_error( $prepared_post ) || ! is_object( $prepared_post ) || ! isset( $prepared_post->post_content ) ) {
+			return $prepared_post;
+		}
+
+		$post_id = absint( $request->get_param( 'id' ) );
+		if ( ! $post_id || ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return $prepared_post;
+		}
+
+		$post = get_post( $post_id );
+		if ( $post instanceof \WP_Post ) {
+			$prepared_post->post_content = (string) $post->post_content;
+		}
+
+		return $prepared_post;
 	}
 
 	/**

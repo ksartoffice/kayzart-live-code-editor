@@ -95,67 +95,6 @@ afterEach(() => {
   }
 });
 
-describe('WordPress editor preview context', () => {
-  afterEach(() => {
-    document.head.innerHTML = '';
-    document.body.innerHTML = '';
-    delete (window as any).KAYZART_PREVIEW;
-  });
-
-  it('disables element selection, link navigation, and form submission', () => {
-    setupPreviewDocument();
-    document.body.insertAdjacentHTML(
-      'beforeend',
-      '<a id="preview-link" href="/elsewhere">Link</a><form id="preview-form"></form><div id="preview-target">Target</div>'
-    );
-    (window as any).KAYZART_PREVIEW.context = 'wordpress_editor';
-
-    window.eval(previewScript);
-
-    const linkEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
-    document.querySelector('#preview-link')!.dispatchEvent(linkEvent);
-    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-    document.querySelector('#preview-form')!.dispatchEvent(submitEvent);
-    document
-      .querySelector('#preview-target')!
-      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-
-    expect(linkEvent.defaultPrevented).toBe(true);
-    expect(submitEvent.defaultPrevented).toBe(true);
-    expect(document.querySelector('#kayzart-select-box')).toBeNull();
-  });
-
-  it('runs saved classic JavaScript once in the WordPress editor preview', async () => {
-    setupPreviewDocument();
-    (window as any).KAYZART_PREVIEW.context = 'wordpress_editor';
-    (window as any).KAYZART_PREVIEW.initialJs = [
-      'window.__kayzartInitialRuns = (window.__kayzartInitialRuns || 0) + 1;',
-      "document.body.setAttribute('data-initial-js', 'ran');",
-    ].join('\n');
-    (window as any).KAYZART_PREVIEW.initialJsMode = 'classic';
-
-    window.eval(previewScript);
-    await flushAsync();
-
-    const runtimeScripts = document.querySelectorAll<HTMLScriptElement>('#kayzart-script');
-    expect(runtimeScripts).toHaveLength(1);
-    expect(runtimeScripts[0]?.textContent).toContain('__kayzartInitialRuns');
-    expect(runtimeScripts[0]?.textContent).toContain('data-initial-js');
-  });
-
-  it('does not create a saved JavaScript runtime for empty source', async () => {
-    setupPreviewDocument();
-    (window as any).KAYZART_PREVIEW.context = 'wordpress_editor';
-    (window as any).KAYZART_PREVIEW.initialJs = '   ';
-    (window as any).KAYZART_PREVIEW.initialJsMode = 'classic';
-
-    window.eval(previewScript);
-    await flushAsync();
-
-    expect(document.querySelector('#kayzart-script')).toBeNull();
-  });
-});
-
 describe('preview shortcode placeholders', () => {
   afterEach(() => {
     vi.restoreAllMocks();

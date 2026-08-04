@@ -241,7 +241,7 @@ msgstr "TailwindCSS"
 
 #: includes/class-kayzart-admin.php:931
 #: includes/class-kayzart-admin.php:932
-#: includes/class-kayzart-editor-bridge.php:110
+#: includes/class-kayzart-editor-bridge.php:112
 #: includes/class-kayzart-post-type.php:372
 #: assets/admin/editor-bridge.js:19
 msgid "Edit with Kayzart"
@@ -286,23 +286,23 @@ msgstr "Tailwind CSS 入力が最大サイズを超えています。"
 msgid "Invalid setup mode."
 msgstr "セットアップモードが不正です。"
 
-#: includes/class-kayzart-preview.php:441
+#: includes/class-kayzart-preview.php:438
 msgid "Move to parent element"
 msgstr "親要素へ移動"
 
-#: includes/class-kayzart-preview.php:443
+#: includes/class-kayzart-preview.php:440
 msgid "Copy HTML"
 msgstr "HTMLをコピー"
 
-#: includes/class-kayzart-preview.php:444
+#: includes/class-kayzart-preview.php:441
 msgid "Delete"
 msgstr "削除"
 
-#: includes/class-kayzart-preview.php:445
+#: includes/class-kayzart-preview.php:442
 msgid "Shortcode"
 msgstr "ショートコード"
 
-#: includes/class-kayzart-preview.php:446
+#: includes/class-kayzart-preview.php:443
 msgid "Not available in preview. It will render on the front end."
 msgstr "プレビューでは表示されません。公開ページでは表示されます。"
 
@@ -316,7 +316,7 @@ msgstr "コードを表示"
 msgid "Hide code"
 msgstr "コードを隠す"
 
-#: assets/admin/editor-bridge.js:66
+#: assets/admin/editor-bridge.js:59
 #: assets/dist/main.js:2598
 #: assets/dist/main.js:6280
 #: assets/dist/main.js:6440
@@ -486,7 +486,7 @@ msgstr ""
 msgid "Auto follows the provider default and any newly added models automatically."
 msgstr ""
 
-#: includes/class-kayzart-preview.php:442
+#: includes/class-kayzart-preview.php:439
 #: assets/dist/main.js:512
 #: assets/dist/main.js:8928
 msgid "Replace image"
@@ -1449,8 +1449,6 @@ msgstr ""
 msgid "Close settings panel"
 msgstr ""
 
-#: includes/class-kayzart-editor-bridge.php:117
-#: assets/admin/editor-bridge.js:248
 #: assets/dist/main.js:2262
 msgid "Reload preview"
 msgstr "プレビューを再読み込み"
@@ -2091,39 +2089,23 @@ msgstr "「%s」の本文編集をKayzartに切り替えます。現在のコン
 msgid "Convert and edit with Kayzart"
 msgstr "Kayzartに変換して編集"
 
-#: includes/class-kayzart-editor-bridge.php:111
-#: assets/admin/editor-bridge.js:175
-#: assets/admin/editor-bridge.js:184
+#: includes/class-kayzart-editor-bridge.php:113
+#: assets/admin/editor-bridge.js:227
+#: assets/admin/editor-bridge.js:236
 msgid "Managed by Kayzart"
 msgstr "Kayzartで管理されています"
 
-#: includes/class-kayzart-editor-bridge.php:112
-#: assets/admin/editor-bridge.js:206
+#: includes/class-kayzart-editor-bridge.php:114
+#: assets/admin/editor-bridge.js:265
 msgid "Edit the page content in Kayzart. You can continue to change WordPress page settings here."
 msgstr "ページ本文はKayzartで編集します。WordPressのページ設定はここで引き続き変更できます。"
 
-#: includes/class-kayzart-editor-bridge.php:113
-#: assets/admin/editor-bridge.js:187
+#: includes/class-kayzart-editor-bridge.php:115
+#: assets/admin/editor-bridge.js:242
 msgid "Page title"
 msgstr "ページタイトル"
 
-#: includes/class-kayzart-editor-bridge.php:114
-#: assets/admin/editor-bridge.js:218
+#: includes/class-kayzart-editor-bridge.php:116
+#: assets/admin/editor-bridge.js:274
 msgid "View page"
 msgstr "ページを表示"
-
-#: includes/class-kayzart-editor-bridge.php:115
-#: assets/admin/editor-bridge.js:243
-#: assets/admin/editor-bridge.js:259
-msgid "Loading preview…"
-msgstr "プレビューを読み込んでいます…"
-
-#: includes/class-kayzart-editor-bridge.php:116
-#: assets/admin/editor-bridge.js:265
-#: assets/admin/editor-bridge.js:281
-msgid "The preview is taking longer than expected to load."
-msgstr "プレビューの読み込みに時間がかかっています。"
-
-#: assets/admin/editor-bridge.js:253
-msgid "Kayzart page preview"
-msgstr "Kayzartページのプレビュー"

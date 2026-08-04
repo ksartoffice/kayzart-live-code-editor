@@ -422,10 +422,7 @@ class Preview {
 		$preview_context        = sanitize_key( (string) get_query_var( 'kayzart_preview_context' ) );
 		$highlight_meta         = get_post_meta( self::$post_id, '_kayzart_live_highlight', true );
 		$live_highlight_enabled = '' === $highlight_meta ? true : rest_sanitize_boolean( $highlight_meta );
-		if ( 'wordpress_editor' === $preview_context ) {
-			$live_highlight_enabled = false;
-		}
-		$payload = array(
+		$payload                = array(
 			'allowedOrigin'        => $admin_origin,
 			'post_id'              => self::$post_id,
 			'context'              => $preview_context,
@@ -447,12 +444,6 @@ class Preview {
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
-		if ( 'wordpress_editor' === $preview_context ) {
-			$js_mode                  = strtolower( trim( (string) get_post_meta( self::$post_id, '_kayzart_js_mode', true ) ) );
-			$payload['initialJs']     = (string) get_post_meta( self::$post_id, '_kayzart_js', true );
-			$payload['initialJsMode'] = 'module' === $js_mode ? 'module' : 'classic';
-		}
-
 		/**
 		 * Filter preview script payload before it is injected into the iframe.
 		 *

@@ -5,7 +5,7 @@ import { createTemporaryPage, deleteTemporaryPage } from './helpers/temporary-pa
 test.skip(!adminUser || !adminPass, 'Set the WordPress E2E credentials.');
 test.setTimeout(60_000);
 
-test('shows a Kayzart preview while protecting Classic Editor content', async ({ page }) => {
+test('shows a Kayzart bridge card while protecting Classic Editor content', async ({ page }) => {
   await login(page);
   const marker = `kayzart-classic-bridge-${Date.now()}`;
   const originalHtml = `<main id="${marker}">Classic translated page</main>`;
@@ -30,23 +30,22 @@ test('shows a Kayzart preview while protecting Classic Editor content', async ({
       return;
     }
 
-    const bridge = page.locator('.kayzart-editor-preview--classic');
+    const bridge = page.locator('.kayzart-editor-bridge--classic');
     await expect(bridge).toBeVisible();
     await expect(page.locator('#postdivrich')).toBeHidden();
     await expect(page.locator('#title')).toBeVisible();
     await expect(page.locator('#submitdiv')).toBeVisible();
-    await expect(page.locator('.kayzart-editor-preview__titleInput')).toHaveCount(0);
-    await expect(page.locator('.kayzart-editor-preview__edit')).toHaveCount(1);
-    await expect(page.locator('.kayzart-editor-preview__view')).toHaveCount(1);
-
-    const previewMarker = page.frameLocator('.kayzart-editor-preview__frame').locator(`#${marker}`);
-    await expect(previewMarker).toBeVisible();
+    await expect(page.locator('.kayzart-editor-bridge__titleInput')).toHaveCount(0);
+    await expect(page.locator('.kayzart-editor-bridge__edit')).toHaveCount(1);
+    await expect(page.locator('.kayzart-editor-bridge__view')).toHaveCount(1);
+    await expect(bridge.locator('iframe')).toHaveCount(0);
+    await expect(bridge.locator('.kayzart-editor-bridge__reload')).toHaveCount(0);
 
     const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));
     await page.locator('#title').fill('Updated Classic translated page');
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-      page.locator('.kayzart-editor-preview__edit').click(),
+      page.locator('.kayzart-editor-bridge__edit').click(),
     ]);
     await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API));
 

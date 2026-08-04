@@ -5,7 +5,7 @@ import { createTemporaryPage, deleteTemporaryPage } from './helpers/temporary-pa
 test.skip(!adminUser || !adminPass, 'Set the WordPress E2E credentials.');
 test.setTimeout(60_000);
 
-test('shows a styled Kayzart preview while protecting Gutenberg content', async ({ page }) => {
+test('shows a Kayzart bridge card while protecting Gutenberg content', async ({ page }) => {
   await login(page);
   const marker = `kayzart-bridge-${Date.now()}`;
   const originalHtml = `<main id="${marker}">Translated page</main>`;
@@ -19,7 +19,7 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     unmanagedEditUrl.searchParams.set('post', String(postId));
     unmanagedEditUrl.searchParams.set('action', 'edit');
     await page.goto(unmanagedEditUrl.toString(), { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('.kayzart-editor-preview')).toHaveCount(0);
+    await expect(page.locator('.kayzart-editor-bridge')).toHaveCount(0);
     if (!(await page.locator('body.block-editor-page').count())) {
       test.info().annotations.push({
         type: 'skip-reason',
@@ -37,75 +37,21 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     expect(unmanagedEditor.content).toContain(marker);
 
     await openKayzartEditor(page, String(postId), 'normal');
-    const kayzartNonce = await page.evaluate(() => String((window as any).KAYZART.restNonce));
-    const saveResponse = await page.request.post(
-      new URL('wp-json/kayzart/v1/save', baseUrl).toString(),
-      {
-        headers: { 'X-WP-Nonce': kayzartNonce },
-        data: {
-          post_id: postId,
-          html: originalHtml,
-          css: `#${marker}{color:rgb(18,52,86)}`,
-          js: [
-            "document.documentElement.setAttribute('data-kayzart-saved-classic-js', 'ran');",
-            "try { window.parent.document.documentElement.setAttribute('data-kayzart-frame-escape', '1'); } catch (error) {}",
-            "try { window.top.location.href = '/?kayzart_admin_escape=1'; } catch (error) {}",
-          ].join('\n'),
-          jsMode: 'classic',
-          tailwindEnabled: false,
-        },
-      }
-    );
-    expect(saveResponse.status(), (await saveResponse.text()).slice(0, 500)).toBe(200);
-
     const editUrl = new URL('wp-admin/post.php', baseUrl);
     editUrl.searchParams.set('post', String(postId));
     editUrl.searchParams.set('action', 'edit');
     await page.goto(editUrl.toString(), { waitUntil: 'domcontentloaded' });
 
-    const bridge = page.locator('.kayzart-editor-preview');
+    const bridge = page.locator('.kayzart-editor-bridge');
     await expect(bridge).toBeVisible();
-    await expect(page.locator('.kayzart-editor-preview__edit')).toHaveText('Edit with Kayzart');
-    const previewFrame = page.locator('.kayzart-editor-preview__frame');
-    await expect(previewFrame).toHaveAttribute('sandbox', 'allow-scripts');
-    await expect(previewFrame).toHaveAttribute(
-      'referrerpolicy',
-      'strict-origin-when-cross-origin'
-    );
+    await expect(page.locator('.kayzart-editor-bridge__edit')).toHaveText('Edit with Kayzart');
+    await expect(page.locator('.kayzart-editor-bridge__view')).toHaveCount(1);
+    await expect(bridge.locator('iframe')).toHaveCount(0);
+    await expect(bridge.locator('.kayzart-editor-bridge__reload')).toHaveCount(0);
     await expect(page.locator('.kayzart-editor-toolbar')).toHaveCount(0);
     await expect(page.locator('.block-editor-block-list__layout')).not.toBeVisible();
-    const previewMarker = page.frameLocator('.kayzart-editor-preview__frame').locator(`#${marker}`);
-    await expect(previewMarker).toBeVisible();
-    await expect
-      .poll(() => previewMarker.evaluate((node) => getComputedStyle(node).color))
-      .toBe('rgb(18, 52, 86)');
-    await expect(
-      page.frameLocator('.kayzart-editor-preview__frame').locator('html')
-    ).toHaveAttribute('data-kayzart-saved-classic-js', 'ran');
-    await expect(page.locator('html')).not.toHaveAttribute('data-kayzart-frame-escape', '1');
-    expect(new URL(page.url()).searchParams.has('kayzart_admin_escape')).toBe(false);
 
-    const moduleSaveResponse = await page.request.post(
-      new URL('wp-json/kayzart/v1/save', baseUrl).toString(),
-      {
-        headers: { 'X-WP-Nonce': kayzartNonce },
-        data: {
-          post_id: postId,
-          html: originalHtml,
-          css: `#${marker}{color:rgb(18,52,86)}`,
-          js: "export default function () { document.documentElement.setAttribute('data-kayzart-saved-module-js', 'ran'); }",
-          jsMode: 'module',
-          tailwindEnabled: false,
-        },
-      }
-    );
-    expect(moduleSaveResponse.status(), (await moduleSaveResponse.text()).slice(0, 500)).toBe(200);
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(
-      page.frameLocator('.kayzart-editor-preview__frame').locator('html')
-    ).toHaveAttribute('data-kayzart-saved-module-js', 'ran');
-
-    const titleInput = page.locator('.kayzart-editor-preview__titleInput');
+    const titleInput = page.locator('.kayzart-editor-bridge__titleInput');
     const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));
     await titleInput.fill('Updated translated page');
     const [coreSave] = await Promise.all([
@@ -114,7 +60,7 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
           response.url().includes(`/wp-json/wp/v2/pages/${postId}`) &&
           response.request().method() === 'POST'
       ),
-      page.locator('.kayzart-editor-preview__edit').click(),
+      page.locator('.kayzart-editor-bridge__edit').click(),
     ]);
     expect(coreSave.status()).toBe(200);
     await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API));

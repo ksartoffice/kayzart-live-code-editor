@@ -170,18 +170,12 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertTrue( (bool) ( $data['supportsTitle'] ?? false ) );
 		$this->assertFalse( (bool) ( $data['canConvert'] ?? true ) );
 		$this->assertArrayNotHasKey( 'convertUrl', $data );
+		$this->assertArrayNotHasKey( 'previewUrl', $data );
 		$this->assertNotEmpty( $data['viewUrl'] ?? '' );
 		$this->assertSame( 'Managed by Kayzart', $data['labels']['eyebrow'] ?? '' );
-
-		$preview_parts = wp_parse_url( (string) ( $data['previewUrl'] ?? '' ) );
-		$preview_query = array();
-		if ( ! empty( $preview_parts['query'] ) ) {
-			parse_str( (string) $preview_parts['query'], $preview_query );
-		}
-		$this->assertSame( '1', (string) ( $preview_query['kayzart_preview'] ?? '' ) );
-		$this->assertSame( (string) $post_id, (string) ( $preview_query['post_id'] ?? '' ) );
-		$this->assertSame( 'wordpress_editor', $preview_query['kayzart_preview_context'] ?? '' );
-		$this->assertNotEmpty( $preview_query['token'] ?? '' );
+		$this->assertArrayNotHasKey( 'loading', $data['labels'] ?? array() );
+		$this->assertArrayNotHasKey( 'loadFailed', $data['labels'] ?? array() );
+		$this->assertArrayNotHasKey( 'reload', $data['labels'] ?? array() );
 	}
 
 	public function test_enqueue_assets_reports_when_post_type_does_not_support_titles(): void {

@@ -220,29 +220,29 @@
     }, 0);
   };
 
-  var createPreviewPanel = function (options) {
+  var createBridgeCard = function (options) {
     var editorUrl = buildActionUrl(actionUrl, options.getPostId());
     var panel = document.createElement('section');
-    panel.className = 'kayzart-editor-preview ' + options.modifierClass;
+    panel.className = 'kayzart-editor-bridge ' + options.modifierClass;
     panel.setAttribute('aria-label', labels.eyebrow || __( 'Managed by Kayzart', 'kayzart-live-code-editor'));
 
-    var header = document.createElement('div');
-    header.className = 'kayzart-editor-preview__header';
+    var card = document.createElement('div');
+    card.className = 'kayzart-editor-bridge__card';
 
     var copy = document.createElement('div');
-    copy.className = 'kayzart-editor-preview__copy';
+    copy.className = 'kayzart-editor-bridge__copy';
     var heading = document.createElement('h2');
-    heading.className = 'kayzart-editor-preview__title';
+    heading.className = 'kayzart-editor-bridge__title';
     heading.textContent = labels.eyebrow || __( 'Managed by Kayzart', 'kayzart-live-code-editor');
     copy.appendChild(heading);
 
     if (options.showTitleInput) {
       var titleLabel = document.createElement('label');
-      titleLabel.className = 'kayzart-editor-preview__titleLabel';
+      titleLabel.className = 'kayzart-editor-bridge__titleLabel';
       titleLabel.textContent = labels.titleLabel || __( 'Page title', 'kayzart-live-code-editor');
       var titleInput = document.createElement('input');
       titleInput.type = 'text';
-      titleInput.className = 'kayzart-editor-preview__titleInput';
+      titleInput.className = 'kayzart-editor-bridge__titleInput';
       titleInput.setAttribute('aria-label', titleLabel.textContent);
       var editorSelector = wpRef.data && wpRef.data.select ? wpRef.data.select('core/editor') : null;
       if (editorSelector && editorSelector.getEditedPostAttribute) {
@@ -259,17 +259,17 @@
     }
 
     var description = document.createElement('p');
-    description.className = 'kayzart-editor-preview__description';
+    description.className = 'kayzart-editor-bridge__description';
     description.textContent =
       labels.description ||
       __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor');
     copy.appendChild(description);
 
     var actions = document.createElement('div');
-    actions.className = 'kayzart-editor-preview__actions';
+    actions.className = 'kayzart-editor-bridge__actions';
     if (data.viewUrl) {
       var viewLink = createActionLink(
-        options.secondaryButtonClass + ' kayzart-editor-preview__view',
+        options.secondaryButtonClass + ' kayzart-editor-bridge__view',
         data.viewUrl,
         labels.view || __( 'View page', 'kayzart-live-code-editor')
       );
@@ -279,7 +279,7 @@
     }
     if (editorUrl) {
       var editLink = createActionLink(
-        options.primaryButtonClass + ' kayzart-editor-preview__edit',
+        options.primaryButtonClass + ' kayzart-editor-bridge__edit',
         editorUrl,
         buttonLabel
       );
@@ -291,70 +291,9 @@
       actions.appendChild(editLink);
     }
 
-    header.appendChild(copy);
-    header.appendChild(actions);
-
-    var frameWrap = document.createElement('div');
-    frameWrap.className = 'kayzart-editor-preview__frameWrap';
-    var status = document.createElement('div');
-    status.className = 'kayzart-editor-preview__status';
-    status.setAttribute('role', 'status');
-    status.setAttribute('aria-live', 'polite');
-    status.textContent = labels.loading || __( 'Loading preview…', 'kayzart-live-code-editor');
-
-    var reload = document.createElement('button');
-    reload.type = 'button';
-    reload.className = options.secondaryButtonClass + ' kayzart-editor-preview__reload';
-    reload.textContent = labels.reload || __( 'Reload preview', 'kayzart-live-code-editor');
-    reload.hidden = true;
-
-    var iframe = document.createElement('iframe');
-    iframe.className = 'kayzart-editor-preview__frame';
-    iframe.title = labels.eyebrow || __( 'Kayzart page preview', 'kayzart-live-code-editor');
-    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-    iframe.setAttribute('sandbox', 'allow-scripts');
-
-    var loadTimer = 0;
-    var startLoading = function () {
-      panel.classList.remove('is-loaded', 'has-load-warning');
-      reload.hidden = true;
-      status.textContent = labels.loading || __( 'Loading preview…', 'kayzart-live-code-editor');
-      window.clearTimeout(loadTimer);
-      loadTimer = window.setTimeout(function () {
-        panel.classList.add('has-load-warning');
-        status.textContent =
-          labels.loadFailed ||
-          __( 'The preview is taking longer than expected to load.', 'kayzart-live-code-editor');
-        reload.hidden = false;
-      }, 12000);
-    };
-
-    iframe.addEventListener('load', function () {
-      window.clearTimeout(loadTimer);
-      panel.classList.add('is-loaded');
-      panel.classList.remove('has-load-warning');
-      reload.hidden = true;
-    });
-    iframe.addEventListener('error', function () {
-      window.clearTimeout(loadTimer);
-      panel.classList.add('has-load-warning');
-      status.textContent =
-        labels.loadFailed ||
-        __( 'The preview is taking longer than expected to load.', 'kayzart-live-code-editor');
-      reload.hidden = false;
-    });
-    reload.addEventListener('click', function () {
-      startLoading();
-      iframe.src = data.previewUrl;
-    });
-
-    frameWrap.appendChild(status);
-    frameWrap.appendChild(reload);
-    frameWrap.appendChild(iframe);
-    panel.appendChild(header);
-    panel.appendChild(frameWrap);
-    startLoading();
-    iframe.src = data.previewUrl;
+    card.appendChild(copy);
+    card.appendChild(actions);
+    panel.appendChild(card);
 
     return panel;
   };
@@ -368,7 +307,7 @@
   };
 
   var setupBlockEditor = function () {
-    var findPreviewHost = function () {
+    var findBridgeHost = function () {
       return document.querySelector(
         [
           '.interface-interface-skeleton__content',
@@ -378,23 +317,19 @@
       );
     };
 
-    var mountPreview = function () {
-      if (!data.previewUrl) {
+    var mountBridge = function () {
+      var host = findBridgeHost();
+      if (!host || host.querySelector('.kayzart-editor-bridge')) {
         return;
       }
 
-      var host = findPreviewHost();
-      if (!host || host.querySelector('.kayzart-editor-preview')) {
-        return;
-      }
-
-      host.classList.add('kayzart-editor-preview-host');
+      host.classList.add('kayzart-editor-bridge-host');
       host.appendChild(
-        createPreviewPanel({
+        createBridgeCard({
           getPostId: function () {
             return Number(data.postId) || getPostIdFromBlock();
           },
-          modifierClass: 'kayzart-editor-preview--block',
+          modifierClass: 'kayzart-editor-bridge--block',
           primaryButtonClass: 'components-button is-primary',
           secondaryButtonClass: 'components-button is-secondary',
           showTitleInput: data.supportsTitle === true,
@@ -403,10 +338,10 @@
       );
     };
 
-    mountPreview();
+    mountBridge();
 
     var observerTarget = findBlockObserverTarget();
-    var observer = new MutationObserver(mountPreview);
+    var observer = new MutationObserver(mountBridge);
     observer.observe(observerTarget, { childList: true, subtree: true });
 
     window.addEventListener('unload', function () {
@@ -415,7 +350,7 @@
   };
 
   var setupClassicEditor = function () {
-    if (!data.previewUrl || document.querySelector('.kayzart-editor-preview--classic')) {
+    if (document.querySelector('.kayzart-editor-bridge--classic')) {
       return;
     }
 
@@ -437,11 +372,11 @@
       });
     }
 
-    var panel = createPreviewPanel({
+    var panel = createBridgeCard({
       getPostId: function () {
         return getPostIdFromClassic() || Number(data.postId) || 0;
       },
-      modifierClass: 'kayzart-editor-preview--classic',
+      modifierClass: 'kayzart-editor-bridge--classic',
       primaryButtonClass: 'button button-primary',
       secondaryButtonClass: 'button button-secondary',
       showTitleInput: false,

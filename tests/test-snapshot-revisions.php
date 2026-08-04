@@ -301,10 +301,15 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 
 		$generated_css = (string) get_post_meta( $page['post_id'], '_kayzart_generated_css', true );
 		$this->assertStringContainsString( '.text-sm', $generated_css );
+		$this->assertSame(
+			'["text-sm"]',
+			get_post_meta( $page['post_id'], \KayzArt\Tailwind_Compiler::CANDIDATES_META_KEY, true )
+		);
 
 		update_post_meta( $page['post_id'], '_kayzart_tailwind', '0' );
 		Snapshot::sync_generated_css_after_restore( $page['post_id'], 0 );
 		$this->assertSame( '', get_post_meta( $page['post_id'], '_kayzart_generated_css', true ) );
+		$this->assertSame( '', get_post_meta( $page['post_id'], \KayzArt\Tailwind_Compiler::CANDIDATES_META_KEY, true ) );
 	}
 
 	/**

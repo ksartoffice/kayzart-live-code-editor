@@ -41,6 +41,7 @@ require_once KAYZART_PATH . 'includes/class-kayzart-css-mode.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-admin.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-editor-bridge.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-limits.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-tailwind-compiler.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-html-document.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-custom-head.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-snapshot.php';

@@ -4,6 +4,10 @@ import type { ApiFetch } from './types/api-fetch';
 import type { CompileTailwindResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
 import type { CssByMode, EditorCssMode } from './types/css-mode';
+import {
+  createTailwindCompileSignature,
+  extractTailwindCandidates,
+} from './logic/tailwind-candidates';
 
 const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
   if (error instanceof Error && error.message.trim()) {
@@ -65,7 +69,7 @@ export async function compileTailwindSnapshot(
     method: 'POST',
     data: {
       post_id: params.postId,
-      html: params.html,
+      candidates: extractTailwindCandidates(params.html),
       css: params.css,
     },
   });
@@ -81,6 +85,7 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
   let tailwindCompileToken = 0;
   let tailwindCompileInFlight = false;
   let tailwindCompileQueued = false;
+  let lastSuccessfulSignature: string | null = null;
 
   const compile = async () => {
     if (!deps.isTailwindEnabled()) return;
@@ -91,6 +96,13 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
     tailwindCompileInFlight = true;
     tailwindCompileQueued = false;
     const currentToken = ++tailwindCompileToken;
+    const candidates = extractTailwindCandidates(deps.getHtml());
+    const css = deps.getCss();
+    const signature = createTailwindCompileSignature(candidates, css);
+    if (signature === lastSuccessfulSignature) {
+      tailwindCompileInFlight = false;
+      return;
+    }
 
     try {
       const res = await deps.apiFetch<CompileTailwindResponse>({
@@ -98,8 +110,8 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
         method: 'POST',
         data: {
           post_id: deps.postId,
-          html: deps.getHtml(),
-          css: deps.getCss(),
+          candidates,
+          css,
         },
       });
 
@@ -108,6 +120,7 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
       }
 
       if (res?.ok && typeof res.css === 'string') {
+        lastSuccessfulSignature = signature;
         deps.onCssCompiled(res.css);
         deps.onStatusClear();
       } else {
@@ -176,6 +189,9 @@ export async function saveKayzArt(
       editorMode: params.editorMode,
       cssByMode: params.cssByMode,
     };
+    if (params.tailwindEnabled) {
+      payload.tailwindCandidates = extractTailwindCandidates(params.html);
+    }
     if (params.canEditJs) {
       payload.customHead = params.customHead;
       payload.js = params.js;

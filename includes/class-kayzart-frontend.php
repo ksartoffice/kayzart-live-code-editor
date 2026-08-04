@@ -7,8 +7,6 @@
 
 namespace KayzArt;
 
-use TailwindPHP\tw;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -412,15 +410,12 @@ class Frontend {
 		if ( $should_compile ) {
 			$post = get_post( $post_id );
 			if ( $post instanceof \WP_Post ) {
-				try {
-					$css = tw::generate(
-						array(
-							'content' => (string) $post->post_content,
-							'css'     => '@import "tailwindcss";',
-						)
-					);
-				} catch ( \Throwable $e ) {
-					$css = $stored_css;
+				$candidates = Tailwind_Compiler::extract_candidates( (string) $post->post_content );
+				if ( ! is_wp_error( $candidates ) ) {
+					$generated_css = Tailwind_Compiler::generate( $candidates, '@import "tailwindcss";' );
+					if ( ! is_wp_error( $generated_css ) ) {
+						$css = $generated_css;
+					}
 				}
 			}
 		}

@@ -10,6 +10,7 @@ use KayzArt\Custom_Head;
 use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 use KayzArt\Rest_Settings;
+use KayzArt\Tailwind_Compiler;
 
 class Test_Rest_Success extends WP_UnitTestCase {
 	private const SETTINGS_PAYLOAD_KEYS = array(
@@ -354,10 +355,11 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$response = $this->dispatch_route(
 			'/kayzart/v1/save',
 			array(
-				'post_id'         => $post_id,
-				'html'            => $html,
-				'css'             => $css,
-				'tailwindEnabled' => true,
+				'post_id'            => $post_id,
+				'html'               => $html,
+				'css'                => $css,
+				'tailwindEnabled'    => true,
+				'tailwindCandidates' => array( 'text-sm' ),
 			)
 		);
 
@@ -368,6 +370,37 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertStringContainsString( '.text-sm', $generated_css, 'Generated CSS should include the expected utility.' );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame(
+			'["text-sm"]',
+			get_post_meta( $post_id, Tailwind_Compiler::CANDIDATES_META_KEY, true )
+		);
+	}
+
+	public function test_save_accepts_tailwind_html_larger_than_legacy_limit(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		$html     = '<div class="text-sm">Large</div>' . str_repeat( '<p>Large content</p>', 15000 );
+
+		$this->assertGreaterThan( 262144, strlen( $html ) );
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'            => $post_id,
+				'html'               => $html,
+				'css'                => '@import "tailwindcss";',
+				'tailwindEnabled'    => true,
+				'tailwindCandidates' => array( 'text-sm' ),
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( $html, (string) get_post_field( 'post_content', $post_id ) );
+		$this->assertStringContainsString(
+			'.text-sm',
+			(string) get_post_meta( $post_id, '_kayzart_generated_css', true )
+		);
 	}
 
 	public function test_save_can_switch_modes_and_preserves_css_for_each_mode(): void {
@@ -384,12 +417,13 @@ class Test_Rest_Success extends WP_UnitTestCase {
 			$response    = $this->dispatch_route(
 				'/kayzart/v1/save',
 				array(
-					'post_id'         => $post_id,
-					'html'            => '<div class="text-sm">Tailwind</div>',
-					'css'             => $tailwind_source,
-					'tailwindEnabled' => true,
-					'editorMode'      => 'tailwind',
-					'cssByMode'       => array(
+					'post_id'            => $post_id,
+					'html'               => '<div class="text-sm">Tailwind</div>',
+					'css'                => $tailwind_source,
+					'tailwindEnabled'    => true,
+					'tailwindCandidates' => array( 'text-sm' ),
+					'editorMode'         => 'tailwind',
+					'cssByMode'          => array(
 						'normal'   => '.normal{color:blue;}',
 						'tailwind' => $tailwind_source,
 					),
@@ -606,9 +640,9 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$response = $this->dispatch_route(
 			'/kayzart/v1/compile-tailwind',
 			array(
-				'post_id' => $post_id,
-				'html'    => '<div class="text-sm">Tailwind</div>',
-				'css'     => '@import "tailwindcss";',
+				'post_id'    => $post_id,
+				'candidates' => array( 'text-sm' ),
+				'css'        => '@import "tailwindcss";',
 			)
 		);
 

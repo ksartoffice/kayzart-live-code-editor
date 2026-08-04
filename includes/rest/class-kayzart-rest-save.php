@@ -7,8 +7,6 @@
 
 namespace KayzArt;
 
-use TailwindPHP\tw;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -40,6 +38,7 @@ class Rest_Save {
 		$has_js           = $request->has_param( 'js' );
 		$has_js_mode      = $request->has_param( 'jsMode' );
 		$tailwind_enabled = rest_sanitize_boolean( $request->get_param( 'tailwindEnabled' ) );
+		$candidate_input  = $request->get_param( 'tailwindCandidates' );
 		$has_mode_payload = $request->has_param( 'editorMode' ) || $request->has_param( 'cssByMode' );
 		$settings_updates = $request->get_param( 'settingsUpdates' );
 		$has_settings     = $request->has_param( 'settingsUpdates' );
@@ -174,43 +173,18 @@ class Rest_Save {
 			}
 		}
 
+		$compiled_css        = '';
+		$tailwind_candidates = array();
 		if ( $tailwind_enabled ) {
-			$size_validation = self::validate_tailwind_input_size( $content_html, $css_input );
-			if ( is_wp_error( $size_validation ) ) {
-				return new \WP_REST_Response(
-					array(
-						'ok'    => false,
-						'error' => $size_validation->get_error_message(),
-					),
-					400
-				);
+			$tailwind_candidates = Tailwind_Compiler::normalize_candidates( $candidate_input );
+			if ( is_wp_error( $tailwind_candidates ) ) {
+				return self::error_response( $tailwind_candidates );
+			}
+			$compiled_css = Tailwind_Compiler::generate( $tailwind_candidates, $css_input );
+			if ( is_wp_error( $compiled_css ) ) {
+				return self::error_response( $compiled_css );
 			}
 		}
-
-		$compiled_css = '';
-		if ( $tailwind_enabled ) {
-			try {
-				$compiled_css = tw::generate(
-					array(
-						'content' => $content_html,
-						'css'     => $css_input,
-					)
-				);
-			} catch ( \Throwable $e ) {
-				return new \WP_REST_Response(
-					array(
-						'ok'    => false,
-						'error' => sprintf(
-							/* translators: %s: error message. */
-							__( 'Tailwind compile failed: %s', 'kayzart-live-code-editor' ),
-							$e->getMessage()
-						),
-					),
-					500
-				);
-			}
-		}
-
 		$custom_head_result           = Custom_Head::sanitize( $custom_head );
 		$before_snapshot              = Snapshot::is_supported() ? Snapshot::for_post( $post_id ) : null;
 		$desired_snapshot             = Snapshot::normalize(
@@ -290,8 +264,14 @@ class Rest_Save {
 			delete_post_meta( $post_id, '_kayzart_js_enabled' );
 			if ( $tailwind_enabled ) {
 				update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $compiled_css ) );
+				update_post_meta(
+					$post_id,
+					Tailwind_Compiler::CANDIDATES_META_KEY,
+					wp_slash( Tailwind_Compiler::encode_candidates( $tailwind_candidates ) )
+				);
 			} else {
 				delete_post_meta( $post_id, '_kayzart_generated_css' );
+				delete_post_meta( $post_id, Tailwind_Compiler::CANDIDATES_META_KEY );
 			}
 			update_post_meta( $post_id, '_kayzart_tailwind', $tailwind_enabled ? '1' : '0' );
 			update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
@@ -424,43 +404,15 @@ class Rest_Save {
 	}
 
 	/**
-	 * Validate Tailwind compile input size.
-	 *
-	 * @param string $html HTML input.
-	 * @param string $css  CSS input.
-	 * @return true|\WP_Error
-	 */
-	private static function validate_tailwind_input_size( string $html, string $css ) {
-		if ( strlen( $html ) > Limits::MAX_TAILWIND_HTML_BYTES ) {
-			return new \WP_Error(
-				'kayzart_tailwind_html_too_large',
-				__( 'Tailwind HTML input exceeds the maximum size.', 'kayzart-live-code-editor' ),
-				array( 'status' => 400 )
-			);
-		}
-
-		if ( strlen( $css ) > Limits::MAX_TAILWIND_CSS_BYTES ) {
-			return new \WP_Error(
-				'kayzart_tailwind_css_too_large',
-				__( 'Tailwind CSS input exceeds the maximum size.', 'kayzart-live-code-editor' ),
-				array( 'status' => 400 )
-			);
-		}
-
-		return true;
-	}
-
-	/**
 	 * Compile Tailwind CSS for preview.
 	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @return \WP_REST_Response
 	 */
 	public static function compile_tailwind( \WP_REST_Request $request ): \WP_REST_Response {
-		$post_id   = absint( $request->get_param( 'post_id' ) );
-		$html      = (string) $request->get_param( 'html' );
-		$css_input = (string) $request->get_param( 'css' );
-
+		$post_id         = absint( $request->get_param( 'post_id' ) );
+		$candidate_input = $request->get_param( 'candidates' );
+		$css_input       = (string) $request->get_param( 'css' );
 		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
 			return new \WP_REST_Response(
 				array(
@@ -472,44 +424,39 @@ class Rest_Save {
 		}
 		Post_Type::enable_for_post( $post_id );
 
-		$size_validation = self::validate_tailwind_input_size( $html, $css_input );
-		if ( is_wp_error( $size_validation ) ) {
-			return new \WP_REST_Response(
-				array(
-					'ok'    => false,
-					'error' => $size_validation->get_error_message(),
-				),
-				400
-			);
+		$candidates = Tailwind_Compiler::normalize_candidates( $candidate_input );
+		if ( is_wp_error( $candidates ) ) {
+			return self::error_response( $candidates );
 		}
 
-		try {
-			$css = tw::generate(
-				array(
-					'content' => $html,
-					'css'     => $css_input,
-				)
-			);
-		} catch ( \Throwable $e ) {
-			return new \WP_REST_Response(
-				array(
-					'ok'    => false,
-					'error' => sprintf(
-						/* translators: %s: error message. */
-						__( 'Tailwind compile failed: %s', 'kayzart-live-code-editor' ),
-						$e->getMessage()
-					),
-				),
-				500
-			);
+		$css = Tailwind_Compiler::generate( $candidates, $css_input );
+		if ( is_wp_error( $css ) ) {
+				return self::error_response( $css );
 		}
-
 		return new \WP_REST_Response(
 			array(
 				'ok'  => true,
 				'css' => $css,
 			),
 			200
+		);
+	}
+
+	/**
+	 * Convert a compiler error to the REST response shape used by the editor.
+	 *
+	 * @param \WP_Error $error Compiler error.
+	 * @return \WP_REST_Response
+	 */
+	private static function error_response( \WP_Error $error ): \WP_REST_Response {
+		$error_data = $error->get_error_data();
+		$status     = is_array( $error_data ) && isset( $error_data['status'] ) ? (int) $error_data['status'] : 400;
+		return new \WP_REST_Response(
+			array(
+				'ok'    => false,
+				'error' => $error->get_error_message(),
+			),
+			$status
 		);
 	}
 }

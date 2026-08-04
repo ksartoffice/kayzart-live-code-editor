@@ -7,8 +7,6 @@
 
 namespace KayzArt;
 
-use TailwindPHP\tw;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -36,6 +34,7 @@ class Snapshot {
 		'_kayzart_normal_css',
 		'_kayzart_tailwind_css',
 		'_kayzart_tailwind',
+		Tailwind_Compiler::CANDIDATES_META_KEY,
 		'_kayzart_js',
 		'_kayzart_js_mode',
 		self::SCHEMA_META_KEY,
@@ -127,6 +126,7 @@ class Snapshot {
 		unset( $revision_id );
 		if ( '1' !== get_post_meta( $post_id, '_kayzart_tailwind', true ) ) {
 			delete_post_meta( $post_id, '_kayzart_generated_css' );
+			delete_post_meta( $post_id, Tailwind_Compiler::CANDIDATES_META_KEY );
 			return;
 		}
 
@@ -135,17 +135,34 @@ class Snapshot {
 			return;
 		}
 
-		try {
-			$generated_css = tw::generate(
-				array(
-					'content' => (string) $post->post_content,
-					'css'     => (string) get_post_meta( $post_id, '_kayzart_css', true ),
-				)
-			);
-			update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $generated_css ) );
-		} catch ( \Throwable $e ) {
-			delete_post_meta( $post_id, '_kayzart_generated_css' );
+		$candidates = Tailwind_Compiler::decode_candidates(
+			get_post_meta( $post_id, Tailwind_Compiler::CANDIDATES_META_KEY, true )
+		);
+		if ( is_wp_error( $candidates ) ) {
+			$candidates = Tailwind_Compiler::extract_candidates( (string) $post->post_content );
+			if ( ! is_wp_error( $candidates ) ) {
+				update_post_meta(
+					$post_id,
+					Tailwind_Compiler::CANDIDATES_META_KEY,
+					wp_slash( Tailwind_Compiler::encode_candidates( $candidates ) )
+				);
+			}
 		}
+
+		if ( is_wp_error( $candidates ) ) {
+			delete_post_meta( $post_id, '_kayzart_generated_css' );
+			return;
+		}
+
+		$generated_css = Tailwind_Compiler::generate(
+			$candidates,
+			(string) get_post_meta( $post_id, '_kayzart_css', true )
+		);
+		if ( is_wp_error( $generated_css ) ) {
+			delete_post_meta( $post_id, '_kayzart_generated_css' );
+			return;
+		}
+		update_post_meta( $post_id, '_kayzart_generated_css', wp_slash( $generated_css ) );
 	}
 
 	/**

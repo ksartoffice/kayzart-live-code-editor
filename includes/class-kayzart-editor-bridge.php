@@ -25,6 +25,7 @@ class Editor_Bridge {
 		add_action( 'enqueue_block_editor_assets', array( __CLASS__, 'enqueue_block_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_classic_assets' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_content_guards' ) );
+		add_filter( 'wp_insert_post_data', array( __CLASS__, 'preserve_classic_editor_content' ), 20, 4 );
 	}
 
 	/**
@@ -170,6 +171,42 @@ class Editor_Bridge {
 		}
 
 		return $prepared_post;
+	}
+
+	/**
+	 * Keep KayzArt-owned HTML unchanged when the Classic Editor saves settings.
+	 *
+	 * The editpost action is dispatched by wp-admin/post.php after WordPress has
+	 * verified the update nonce. Other wp_update_post() callers, including the
+	 * KayzArt REST endpoint, do not use this action and remain unaffected.
+	 *
+	 * @param array $data                Sanitized post data.
+	 * @param array $postarr             Sanitized post input.
+	 * @param array $unsanitized_postarr Unsanitized post input.
+	 * @param bool  $update              Whether this is an existing post update.
+	 * @return array
+	 */
+	public static function preserve_classic_editor_content( array $data, array $postarr, array $unsanitized_postarr, bool $update ): array {
+		unset( $unsanitized_postarr );
+
+		// WordPress verifies the editpost nonce before applying this filter.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$action = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+		if ( ! is_admin() || ! $update || 'editpost' !== $action ) {
+			return $data;
+		}
+
+		$post_id = isset( $postarr['ID'] ) ? absint( $postarr['ID'] ) : 0;
+		if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) || ! Post_Type::is_kayzart_post( $post_id ) ) {
+			return $data;
+		}
+
+		$post = get_post( $post_id );
+		if ( $post instanceof \WP_Post ) {
+			$data['post_content'] = (string) $post->post_content;
+		}
+
+		return $data;
 	}
 
 	/**

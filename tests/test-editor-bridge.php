@@ -10,6 +10,7 @@ use KayzArt\Post_Type;
 
 class Test_Editor_Bridge extends WP_UnitTestCase {
 	private array $original_get = array();
+	private array $original_post = array();
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -23,10 +24,12 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		}
 
 		$this->original_get = $_GET;
+		$this->original_post = $_POST;
 	}
 
 	protected function tearDown(): void {
 		$_GET = $this->original_get;
+		$_POST = $this->original_post;
 		unset( $GLOBALS['post'] );
 		set_current_screen( 'front' );
 		$this->reset_assets();
@@ -232,6 +235,74 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertInstanceOf( WP_Post::class, $post );
 		$this->assertSame( 'Updated title', $post->post_title );
 		$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
+	}
+
+	public function test_classic_editor_update_saves_title_but_not_managed_content(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_title'   => 'Before title',
+				'post_content' => 'Stored Kayzart HTML',
+			)
+		);
+		set_current_screen( 'post' );
+		$_POST['action'] = 'editpost';
+
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_title'   => 'Updated title',
+				'post_content' => 'Classic Editor replacement',
+			)
+		);
+		$post = get_post( $post_id );
+
+		$this->assertInstanceOf( WP_Post::class, $post );
+		$this->assertSame( 'Updated title', $post->post_title );
+		$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
+	}
+
+	public function test_classic_editor_guard_leaves_unmanaged_content_unchanged(): void {
+		$post_id = $this->create_post( Post_Type::PAGE_TYPE );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Original content',
+			)
+		);
+		set_current_screen( 'post' );
+		$_POST['action'] = 'editpost';
+
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Classic Editor replacement',
+			)
+		);
+
+		$this->assertSame( 'Classic Editor replacement', get_post( $post_id )->post_content );
+	}
+
+	public function test_classic_editor_guard_ignores_other_update_actions(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Stored Kayzart HTML',
+			)
+		);
+		set_current_screen( 'post' );
+		$_POST['action'] = 'kayzart_save';
+
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Kayzart REST replacement',
+			)
+		);
+
+		$this->assertSame( 'Kayzart REST replacement', get_post( $post_id )->post_content );
 	}
 
 	private function create_post( string $post_type ): int {

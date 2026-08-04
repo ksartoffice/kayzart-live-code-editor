@@ -44,144 +44,31 @@
     return baseUrl + '&post_id=' + postId;
   };
 
-  var redirectToKayzArt = function (postId) {
-    var url = buildActionUrl(actionUrl, postId);
-    if (!url) {
-      return;
-    }
-    window.location.href = url;
+  var createActionLink = function (className, href, text) {
+    var link = document.createElement('a');
+    link.className = className;
+    link.href = href;
+    link.textContent = text;
+    return link;
   };
 
-  var waitForPostAndRedirect = function (button, getPostId) {
-    if (!wpRef.data || !wpRef.data.dispatch) {
-      return;
-    }
+  var createPreviewPanel = function (options) {
+    var editorUrl = buildActionUrl(actionUrl, options.getPostId());
+    var panel = document.createElement('section');
+    panel.className = 'kayzart-editor-preview ' + options.modifierClass;
+    panel.setAttribute('aria-label', labels.eyebrow || __( 'Managed by Kayzart', 'kayzart-live-code-editor'));
 
-    var dispatch = wpRef.data.dispatch('core/editor');
-    if (!dispatch || !dispatch.savePost) {
-      return;
-    }
+    var header = document.createElement('div');
+    header.className = 'kayzart-editor-preview__header';
 
-    button.classList.add('is-busy');
-    button.textContent = __( 'Saving...', 'kayzart-live-code-editor');
+    var copy = document.createElement('div');
+    copy.className = 'kayzart-editor-preview__copy';
+    var heading = document.createElement('h2');
+    heading.className = 'kayzart-editor-preview__title';
+    heading.textContent = labels.eyebrow || __( 'Managed by Kayzart', 'kayzart-live-code-editor');
+    copy.appendChild(heading);
 
-    dispatch.savePost();
-    var unsubscribe = wpRef.data.subscribe(function () {
-      var selector = wpRef.data.select('core/editor');
-      var isSaving =
-        (selector && selector.isSavingPost && selector.isSavingPost()) ||
-        (selector && selector.isAutosavingPost && selector.isAutosavingPost());
-      var id = getPostId();
-      if (!isSaving && id) {
-        unsubscribe();
-        redirectToKayzArt(id);
-      }
-    });
-  };
-
-  var findBlockToolbar = function () {
-    return document.querySelector(
-      [
-        '.editor-document-tools',
-        '.edit-post-header__toolbar',
-        '.editor-header__toolbar',
-        '.edit-post-header-toolbar'
-      ].join(', ')
-    );
-  };
-
-  var findBlockObserverTarget = function () {
-    return (
-      document.querySelector('.interface-interface-skeleton') ||
-      document.querySelector('.interface-interface-skeleton__header') ||
-      document.querySelector('.editor-header') ||
-      document.querySelector('.edit-post-header') ||
-      document.body
-    );
-  };
-
-  var insertBlockToolbarButton = function () {
-    var toolbar = findBlockToolbar();
-    if (!toolbar) {
-      return;
-    }
-    if (document.querySelector('.kayzart-editor-toolbar')) {
-      return;
-    }
-
-    var container = document.createElement('div');
-    container.className = 'kayzart-editor-toolbar';
-
-    var button = document.createElement('a');
-    button.className = 'components-button is-primary kayzart-editor-toolbar__button';
-    button.href = '#';
-    button.textContent = buttonLabel;
-
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      var postId = getPostIdFromBlock() || Number(data.postId) || 0;
-      if (postId) {
-        redirectToKayzArt(postId);
-        return;
-      }
-
-      waitForPostAndRedirect(button, getPostIdFromBlock);
-    });
-
-    container.appendChild(button);
-
-    toolbar.appendChild(container);
-  };
-
-  var setupBlockEditor = function () {
-    insertBlockToolbarButton();
-
-    var findPreviewHost = function () {
-      return document.querySelector(
-        [
-          '.interface-interface-skeleton__content',
-          '.edit-post-layout__content',
-          '.editor-visual-editor'
-        ].join(', ')
-      );
-    };
-
-    var createActionLink = function (className, href, text) {
-      var link = document.createElement('a');
-      link.className = className;
-      link.href = href;
-      link.textContent = text;
-      return link;
-    };
-
-    var mountPreview = function () {
-      if (!data.previewUrl) {
-        return;
-      }
-
-      var host = findPreviewHost();
-      if (!host) {
-        return;
-      }
-      if (host.querySelector('.kayzart-editor-preview')) {
-        return;
-      }
-
-      host.classList.add('kayzart-editor-preview-host');
-
-      var editorUrl = buildActionUrl(actionUrl, Number(data.postId) || getPostIdFromBlock());
-      var panel = document.createElement('section');
-      panel.className = 'kayzart-editor-preview';
-      panel.setAttribute('aria-label', labels.eyebrow || __( 'Managed by Kayzart', 'kayzart-live-code-editor'));
-
-      var header = document.createElement('div');
-      header.className = 'kayzart-editor-preview__header';
-
-      var copy = document.createElement('div');
-      copy.className = 'kayzart-editor-preview__copy';
-      var heading = document.createElement('h2');
-      heading.className = 'kayzart-editor-preview__title';
-      heading.textContent = labels.eyebrow || __( 'Managed by Kayzart', 'kayzart-live-code-editor');
+    if (options.showTitleInput) {
       var titleLabel = document.createElement('label');
       titleLabel.className = 'kayzart-editor-preview__titleLabel';
       titleLabel.textContent = labels.titleLabel || __( 'Page title', 'kayzart-live-code-editor');
@@ -199,110 +86,152 @@
           editorDispatch.editPost({ title: titleInput.value });
         }
       });
-      var description = document.createElement('p');
-      description.className = 'kayzart-editor-preview__description';
-      description.textContent =
-        labels.description ||
-        __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor');
-      copy.appendChild(heading);
       copy.appendChild(titleLabel);
       copy.appendChild(titleInput);
-      copy.appendChild(description);
+    }
 
-      var actions = document.createElement('div');
-      actions.className = 'kayzart-editor-preview__actions';
-      if (data.viewUrl) {
-        var viewLink = createActionLink(
-          'components-button is-secondary kayzart-editor-preview__view',
-          data.viewUrl,
-          labels.view || __( 'View page', 'kayzart-live-code-editor')
-        );
-        viewLink.target = '_blank';
-        viewLink.rel = 'noopener noreferrer';
-        actions.appendChild(viewLink);
-      }
-      if (editorUrl) {
-        actions.appendChild(
-          createActionLink(
-            'components-button is-primary kayzart-editor-preview__edit',
-            editorUrl,
-            buttonLabel
-          )
-        );
-      }
+    var description = document.createElement('p');
+    description.className = 'kayzart-editor-preview__description';
+    description.textContent =
+      labels.description ||
+      __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor');
+    copy.appendChild(description);
 
-      header.appendChild(copy);
-      header.appendChild(actions);
+    var actions = document.createElement('div');
+    actions.className = 'kayzart-editor-preview__actions';
+    if (data.viewUrl) {
+      var viewLink = createActionLink(
+        options.secondaryButtonClass + ' kayzart-editor-preview__view',
+        data.viewUrl,
+        labels.view || __( 'View page', 'kayzart-live-code-editor')
+      );
+      viewLink.target = '_blank';
+      viewLink.rel = 'noopener noreferrer';
+      actions.appendChild(viewLink);
+    }
+    if (editorUrl) {
+      actions.appendChild(
+        createActionLink(
+          options.primaryButtonClass + ' kayzart-editor-preview__edit',
+          editorUrl,
+          buttonLabel
+        )
+      );
+    }
 
-      var frameWrap = document.createElement('div');
-      frameWrap.className = 'kayzart-editor-preview__frameWrap';
-      var status = document.createElement('div');
-      status.className = 'kayzart-editor-preview__status';
-      status.setAttribute('role', 'status');
-      status.setAttribute('aria-live', 'polite');
-      status.textContent = labels.loading || __( 'Loading preview…', 'kayzart-live-code-editor');
+    header.appendChild(copy);
+    header.appendChild(actions);
 
-      var reload = document.createElement('button');
-      reload.type = 'button';
-      reload.className = 'components-button is-secondary kayzart-editor-preview__reload';
-      reload.textContent = labels.reload || __( 'Reload preview', 'kayzart-live-code-editor');
+    var frameWrap = document.createElement('div');
+    frameWrap.className = 'kayzart-editor-preview__frameWrap';
+    var status = document.createElement('div');
+    status.className = 'kayzart-editor-preview__status';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.textContent = labels.loading || __( 'Loading preview…', 'kayzart-live-code-editor');
+
+    var reload = document.createElement('button');
+    reload.type = 'button';
+    reload.className = options.secondaryButtonClass + ' kayzart-editor-preview__reload';
+    reload.textContent = labels.reload || __( 'Reload preview', 'kayzart-live-code-editor');
+    reload.hidden = true;
+
+    var iframe = document.createElement('iframe');
+    iframe.className = 'kayzart-editor-preview__frame';
+    iframe.title = labels.eyebrow || __( 'Kayzart page preview', 'kayzart-live-code-editor');
+
+    var loadTimer = 0;
+    var startLoading = function () {
+      panel.classList.remove('is-loaded', 'has-load-warning');
       reload.hidden = true;
-
-      var iframe = document.createElement('iframe');
-      iframe.className = 'kayzart-editor-preview__frame';
-      iframe.title = labels.eyebrow || __( 'Kayzart page preview', 'kayzart-live-code-editor');
-
-      var loadTimer = 0;
-      var startLoading = function () {
-        panel.classList.remove('is-loaded', 'has-load-warning');
-        reload.hidden = true;
-        status.textContent = labels.loading || __( 'Loading preview…', 'kayzart-live-code-editor');
-        window.clearTimeout(loadTimer);
-        loadTimer = window.setTimeout(function () {
-          panel.classList.add('has-load-warning');
-          status.textContent =
-            labels.loadFailed ||
-            __( 'The preview is taking longer than expected to load.', 'kayzart-live-code-editor');
-          reload.hidden = false;
-        }, 12000);
-      };
-
-      iframe.addEventListener('load', function () {
-        window.clearTimeout(loadTimer);
-        panel.classList.add('is-loaded');
-        panel.classList.remove('has-load-warning');
-        reload.hidden = true;
-      });
-      iframe.addEventListener('error', function () {
-        window.clearTimeout(loadTimer);
+      status.textContent = labels.loading || __( 'Loading preview…', 'kayzart-live-code-editor');
+      window.clearTimeout(loadTimer);
+      loadTimer = window.setTimeout(function () {
         panel.classList.add('has-load-warning');
         status.textContent =
           labels.loadFailed ||
           __( 'The preview is taking longer than expected to load.', 'kayzart-live-code-editor');
         reload.hidden = false;
-      });
-      reload.addEventListener('click', function () {
-        startLoading();
-        iframe.src = data.previewUrl;
-      });
+      }, 12000);
+    };
 
-      frameWrap.appendChild(status);
-      frameWrap.appendChild(reload);
-      frameWrap.appendChild(iframe);
-      panel.appendChild(header);
-      panel.appendChild(frameWrap);
-      host.appendChild(panel);
+    iframe.addEventListener('load', function () {
+      window.clearTimeout(loadTimer);
+      panel.classList.add('is-loaded');
+      panel.classList.remove('has-load-warning');
+      reload.hidden = true;
+    });
+    iframe.addEventListener('error', function () {
+      window.clearTimeout(loadTimer);
+      panel.classList.add('has-load-warning');
+      status.textContent =
+        labels.loadFailed ||
+        __( 'The preview is taking longer than expected to load.', 'kayzart-live-code-editor');
+      reload.hidden = false;
+    });
+    reload.addEventListener('click', function () {
       startLoading();
       iframe.src = data.previewUrl;
+    });
+
+    frameWrap.appendChild(status);
+    frameWrap.appendChild(reload);
+    frameWrap.appendChild(iframe);
+    panel.appendChild(header);
+    panel.appendChild(frameWrap);
+    startLoading();
+    iframe.src = data.previewUrl;
+
+    return panel;
+  };
+
+  var findBlockObserverTarget = function () {
+    return (
+      document.querySelector('.interface-interface-skeleton') ||
+      document.querySelector('.interface-interface-skeleton__content') ||
+      document.body
+    );
+  };
+
+  var setupBlockEditor = function () {
+    var findPreviewHost = function () {
+      return document.querySelector(
+        [
+          '.interface-interface-skeleton__content',
+          '.edit-post-layout__content',
+          '.editor-visual-editor'
+        ].join(', ')
+      );
+    };
+
+    var mountPreview = function () {
+      if (!data.previewUrl) {
+        return;
+      }
+
+      var host = findPreviewHost();
+      if (!host || host.querySelector('.kayzart-editor-preview')) {
+        return;
+      }
+
+      host.classList.add('kayzart-editor-preview-host');
+      host.appendChild(
+        createPreviewPanel({
+          getPostId: function () {
+            return Number(data.postId) || getPostIdFromBlock();
+          },
+          modifierClass: 'kayzart-editor-preview--block',
+          primaryButtonClass: 'components-button is-primary',
+          secondaryButtonClass: 'components-button is-secondary',
+          showTitleInput: true
+        })
+      );
     };
 
     mountPreview();
 
     var observerTarget = findBlockObserverTarget();
-    var observer = new MutationObserver(function () {
-      insertBlockToolbarButton();
-      mountPreview();
-    });
+    var observer = new MutationObserver(mountPreview);
     observer.observe(observerTarget, { childList: true, subtree: true });
 
     window.addEventListener('unload', function () {
@@ -311,35 +240,29 @@
   };
 
   var setupClassicEditor = function () {
-    if (document.querySelector('.kayzart-editor-bridge')) {
+    if (!data.previewUrl || document.querySelector('.kayzart-editor-preview--classic')) {
       return;
     }
 
-    var container = document.createElement('div');
-    container.className = 'kayzart-editor-bridge';
-
-    var button = document.createElement('a');
-    button.className = 'button button-primary kayzart-editor-bridge__button';
-    button.textContent = buttonLabel;
-    button.href = '#';
-
-    container.appendChild(button);
-
-    var titleDiv = document.getElementById('titlediv');
-    if (titleDiv && titleDiv.parentNode) {
-      titleDiv.insertAdjacentElement('afterend', container);
-    } else {
-      var content = document.getElementById('post-body-content');
-      if (content) {
-        content.prepend(container);
-      }
+    var editor = document.getElementById('postdivrich');
+    if (!editor || !editor.parentNode) {
+      return;
     }
 
-    button.addEventListener('click', function (event) {
-      event.preventDefault();
-      var postId = getPostIdFromClassic() || Number(data.postId) || 0;
-      redirectToKayzArt(postId);
-    });
+    editor.classList.add('kayzart-classic-editor-source');
+    editor.setAttribute('aria-hidden', 'true');
+    editor.parentNode.insertBefore(
+      createPreviewPanel({
+        getPostId: function () {
+          return getPostIdFromClassic() || Number(data.postId) || 0;
+        },
+        modifierClass: 'kayzart-editor-preview--classic',
+        primaryButtonClass: 'button button-primary',
+        secondaryButtonClass: 'button button-secondary',
+        showTitleInput: false
+      }),
+      editor
+    );
   };
 
   domReady(function () {
@@ -358,5 +281,3 @@
     }
   });
 })(window.wp);
-
-

@@ -20,6 +20,13 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     unmanagedEditUrl.searchParams.set('action', 'edit');
     await page.goto(unmanagedEditUrl.toString(), { waitUntil: 'domcontentloaded' });
     await expect(page.locator('.kayzart-editor-preview')).toHaveCount(0);
+    if (!(await page.locator('body.block-editor-page').count())) {
+      test.info().annotations.push({
+        type: 'skip-reason',
+        description: 'The WordPress test site is configured to use the Classic Editor.',
+      });
+      return;
+    }
     const unmanagedEditor = await page.evaluate(() => ({
       isBlockEditor: document.body.classList.contains('block-editor-page'),
       hasBridge: Boolean((window as any).KAYZART_EDITOR),
@@ -55,6 +62,7 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     const bridge = page.locator('.kayzart-editor-preview');
     await expect(bridge).toBeVisible();
     await expect(page.locator('.kayzart-editor-preview__edit')).toHaveText('Edit with Kayzart');
+    await expect(page.locator('.kayzart-editor-toolbar')).toHaveCount(0);
     await expect(page.locator('.block-editor-block-list__layout')).not.toBeVisible();
     const previewMarker = page.frameLocator('.kayzart-editor-preview__frame').locator(`#${marker}`);
     await expect(previewMarker).toBeVisible();

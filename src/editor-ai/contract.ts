@@ -29,6 +29,10 @@ export type AiAvailability = {
   timelineBaseUrl: string;
   connectorsUrl: string;
   canManageConnectors: boolean;
+  initialRequest?: {
+    requestId: string;
+    prompt: string;
+  } | null;
 };
 
 export type AiJobStatus =
@@ -52,6 +56,12 @@ export type AiJobEvent = {
   requestId: string;
   message?: string;
   toolName?: string;
+  /* Absent on events stored before the agent started emitting them. */
+  turn?: number;
+  maxTurns?: number;
+  phase?: string;
+  target?: string;
+  ok?: boolean;
   inputSummary?: string;
   outputSummary?: string;
   summary?: string;
@@ -136,6 +146,7 @@ export type AiJobStatusResponse = {
 
 export type AiEditRequest = EditorSnapshot & {
   requestId: string;
+  initialRequestId?: string;
   post_id: number;
   editorMode: EditorMode;
   prompt: string;

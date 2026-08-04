@@ -29,14 +29,23 @@ class Ai_Agent_Error extends \Exception {
 	private $retryable;
 
 	/**
+	 * Machine-readable cause, used to pick a translated message for the user.
+	 *
+	 * @var string
+	 */
+	private $code_key;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string $message   Error message.
 	 * @param bool   $retryable Whether the request may be retried.
+	 * @param string $code_key  Machine-readable cause, e.g. 'max_turns'.
 	 */
-	public function __construct( string $message, bool $retryable = false ) {
+	public function __construct( string $message, bool $retryable = false, string $code_key = '' ) {
 		parent::__construct( $message );
 		$this->retryable = $retryable;
+		$this->code_key  = $code_key;
 	}
 
 	/**
@@ -46,5 +55,16 @@ class Ai_Agent_Error extends \Exception {
 	 */
 	public function is_retryable(): bool {
 		return $this->retryable;
+	}
+
+	/**
+	 * Machine-readable cause. Empty when the message is the only detail.
+	 *
+	 * `Exception::getCode()` is an int, so the key lives on its own accessor.
+	 *
+	 * @return string
+	 */
+	public function get_code_key(): string {
+		return $this->code_key;
 	}
 }

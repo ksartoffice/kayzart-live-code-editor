@@ -29,8 +29,20 @@ type PendingConflict = {
   activityId?: number;
 };
 
+type InitialRequestAttempt = {
+  initialRequestId: string;
+  requestId: string;
+  terminal: boolean;
+};
+
 const draftState = { prompt: '', contexts: [] as SelectedElementContext[] };
 const pendingContexts = new Map<string, SelectedElementContext>();
+const initialRequestAttempts = new Map<number, InitialRequestAttempt>();
+const TERMINAL_INITIAL_REQUEST_CODES = new Set([
+  'kayzart_ai_timeline_create_failed',
+  'kayzart_ai_enqueue_failed',
+  'kayzart_ai_initial_request_terminal',
+]);
 let promptFocusRequested = false;
 
 function makeId(prefix: string) {
@@ -40,6 +52,39 @@ function makeId(prefix: string) {
 
 function config(): AiAvailability | undefined { return window.KAYZART.ai; }
 function host() { return window.KAYZART_EXTENSION_API; }
+function getInitialRequestAttempt(postId: number) {
+  const ai = config();
+  const initialRequest = ai?.initialRequest;
+  if (!initialRequest) {
+    initialRequestAttempts.delete(postId);
+    return null;
+  }
+  const current = initialRequestAttempts.get(postId);
+  if (current?.initialRequestId === initialRequest.requestId) return current;
+  const attempt = { initialRequestId: initialRequest.requestId, requestId: initialRequest.requestId, terminal: false };
+  initialRequestAttempts.set(postId, attempt);
+  return attempt;
+}
+function clearRuntimeInitialRequest(postId: number, initialRequestId: string) {
+  const ai = config();
+  if (ai?.initialRequest?.requestId === initialRequestId) ai.initialRequest = null;
+  initialRequestAttempts.delete(postId);
+}
+function markInitialRequestAttemptTerminal(postId: number, requestId: string) {
+  const attempt = getInitialRequestAttempt(postId);
+  if (attempt?.requestId === requestId) attempt.terminal = true;
+}
+function reconcileRuntimeInitialRequest(postId: number, items: AiTimelineItem[]) {
+  const attempt = getInitialRequestAttempt(postId);
+  if (!attempt) return;
+  const item = items.find((candidate) => candidate.type === 'ai_edit' && candidate.requestId === attempt.requestId);
+  if (!item || item.executionStatus === null) return;
+  if (item.executionStatus === 'enqueue_failed') {
+    attempt.terminal = true;
+    return;
+  }
+  clearRuntimeInitialRequest(postId, attempt.initialRequestId);
+}
 function normalizeUrl(url: string) {
   try { return new URL(url, window.location.origin).toString(); } catch { return url; }
 }
@@ -67,18 +112,69 @@ function openAi(includeContext = false) {
   promptFocusRequested = true;
   host()?.openSettingsTab?.(AI_TAB_ID);
 }
+/* Show the attempt counter only near the limit, where it can change what the
+   user does (wait vs. stop and rewrite). Counting down from the limit keeps the
+   threshold meaningful once the limit becomes configurable. */
+const TURNS_LEFT_BEFORE_COUNTER = 3;
+const ELAPSED_VISIBLE_AFTER_SECONDS = 10;
+
+function targetLabel(target?: string) {
+  return target ? target.toUpperCase() : '';
+}
+function toolLabel(event: AiJobEvent) {
+  const target = targetLabel(event.target);
+  switch (event.toolName) {
+    case 'search_text':
+      return __('Searching the code…', 'kayzart-live-code-editor');
+    case 'read_document':
+      return target ? sprintf(
+        /* translators: %s: edit target such as HTML, CSS or JS. */
+        __('Reading the %s…', 'kayzart-live-code-editor'), target,
+      ) : __('Reading the code…', 'kayzart-live-code-editor');
+    case 'read_selection':
+      return __('Checking the selected element…', 'kayzart-live-code-editor');
+    case 'replace_string':
+    case 'replace_many':
+      return target ? sprintf(
+        /* translators: %s: edit target such as HTML, CSS or JS. */
+        __('Editing the %s…', 'kayzart-live-code-editor'), target,
+      ) : __('Editing the code…', 'kayzart-live-code-editor');
+    case 'finish_edit':
+      return __('Wrapping up the changes…', 'kayzart-live-code-editor');
+    case 'finish_without_edit':
+      return __('Preparing a reply…', 'kayzart-live-code-editor');
+    case 'list_ai_edits':
+    case 'get_ai_edit':
+      return __('Looking up past edits…', 'kayzart-live-code-editor');
+    default:
+      return __('Working…', 'kayzart-live-code-editor');
+  }
+}
+/* Returns '' for events with nothing worth saying, so the previous line stays. */
 function eventLabel(event: AiJobEvent) {
-  if (event.event === 'progress') return event.message || __('Working…', 'kayzart-live-code-editor');
-  if (event.event === 'tool_start') return sprintf(
-    /* translators: %s: AI tool name. */
-    __('Running %s', 'kayzart-live-code-editor'), event.toolName || __('tool', 'kayzart-live-code-editor'),
-  );
-  if (event.event === 'tool_end') return sprintf(
-    /* translators: %s: AI tool name. */
-    __('Finished %s', 'kayzart-live-code-editor'), event.toolName || __('tool', 'kayzart-live-code-editor'),
-  );
+  if (event.event === 'progress') {
+    if (event.phase === 'finalization') return __('Wrapping up the changes…', 'kayzart-live-code-editor');
+    if (event.turn && event.maxTurns && event.turn > event.maxTurns - TURNS_LEFT_BEFORE_COUNTER) return sprintf(
+      /* translators: 1: current attempt, 2: maximum attempts. */
+      __('Still working… (%1$d/%2$d)', 'kayzart-live-code-editor'), event.turn, event.maxTurns,
+    );
+    return __('Thinking…', 'kayzart-live-code-editor');
+  }
+  if (event.event === 'tool_start') return toolLabel(event);
+  /* A successful tool needs no line of its own; only a retry is worth showing. */
+  if (event.event === 'tool_end') return event.ok === false ? __('Retrying the edit…', 'kayzart-live-code-editor') : '';
   if (event.event === 'final') return __('Changes are ready.', 'kayzart-live-code-editor');
-  return event.message || event.event;
+  return event.message || '';
+}
+function liveStatusLabel(events: AiJobEvent[]) {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const label = eventLabel(events[index]);
+    if (label) return label;
+  }
+  return '';
+}
+function formatElapsed(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 function formatDate(value: string) {
   try { return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
@@ -138,15 +234,18 @@ function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   </div>;
 }
 
-export function AiEditorPanel() {
+export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const ai = config();
   const postId = Number(window.KAYZART.post_id || 0);
   const nonce = window.KAYZART.restNonce || '';
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const promptValueRef = useRef(draftState.prompt);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
+  const jobCreationInFlightRef = useRef(false);
   const mountedRef = useRef(true);
   const timelineRecoveryRef = useRef(false);
+  const initialRequestAttemptedRef = useRef(false);
   const blockedRecoveryJobIdsRef = useRef(new Set<string>());
   const [prompt, setPromptState] = useState(draftState.prompt);
   const [contexts, setContextsState] = useState<SelectedElementContext[]>(draftState.contexts);
@@ -154,10 +253,13 @@ export function AiEditorPanel() {
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialTimelineSettled, setInitialTimelineSettled] = useState(false);
+  const [initialRequestReconciled, setInitialRequestReconciled] = useState(!ai?.initialRequest);
   const [events, setEvents] = useState<AiJobEvent[]>([]);
   const [liveJob, setLiveJob] = useState<{ requestId: string; status: AiJobStatus } | null>(null);
   const [running, setRunning] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
@@ -167,18 +269,29 @@ export function AiEditorPanel() {
     return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
   });
 
-  const setPrompt = (value: string) => { draftState.prompt = value; setPromptState(value); };
+  const setPrompt = (value: string) => { promptValueRef.current = value; draftState.prompt = value; setPromptState(value); };
+  const restorePromptIfEmpty = (value: string) => {
+    if (promptValueRef.current === '') setPrompt(value);
+  };
   const setContexts = (value: SelectedElementContext[]) => { draftState.contexts = value; setContextsState(value); };
-  const refresh = async () => {
-    if (!ai?.timelineUrl) { setLoading(false); return; }
+  const refresh = async (settleInitialTimeline = false) => {
+    if (!ai?.timelineUrl) {
+      setLoading(false);
+      if (settleInitialTimeline) setInitialTimelineSettled(true);
+      return;
+    }
     try {
       const page = await getTimeline(ai.timelineUrl, nonce, postId);
       if (!mountedRef.current) return;
+      reconcileRuntimeInitialRequest(postId, page.items);
       setItems(page.items); setHasMore(page.hasMore); setCursor(page.nextCursor);
     } catch (caught) {
       if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor'));
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        if (settleInitialTimeline) setInitialTimelineSettled(true);
+      }
     }
   };
   const finish = () => {
@@ -240,7 +353,7 @@ export function AiEditorPanel() {
     const fallback = status.status === 'canceled' ? __('AI edit was canceled.', 'kayzart-live-code-editor')
       : status.status === 'timed_out' ? __('AI edit timed out.', 'kayzart-live-code-editor')
         : status.status === 'enqueue_failed' ? __('AI edit could not be scheduled.', 'kayzart-live-code-editor') : __('AI edit failed.', 'kayzart-live-code-editor');
-    setError(status.error?.message || fallback); finish();
+    restorePromptIfEmpty(active.prompt); setError(status.error?.message || fallback); finish();
   };
   const poll = async (active: ActiveJobRecord) => {
     pollAbortRef.current?.abort();
@@ -327,7 +440,7 @@ export function AiEditorPanel() {
     };
     const saved = () => { window.setTimeout(() => void refresh(), 150); };
     window.addEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.addEventListener(SAVE_EVENT, saved);
-    syncContexts(); void refresh();
+    syncContexts(); void refresh(true);
     const active = loadActiveJob(postId); if (active) void poll(active);
     return () => {
       mountedRef.current = false; window.removeEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.removeEventListener(SAVE_EVENT, saved);
@@ -344,6 +457,17 @@ export function AiEditorPanel() {
     syncEditorIdentity();
     return host()?.subscribeEditorSnapshot?.(syncEditorIdentity);
   }, []);
+
+  /* A long edit looks stalled when the status line sits still, so track how long
+     the job has been running and surface it once the wait is notable. */
+  useEffect(() => {
+    if (!running) { setElapsed(0); return; }
+    const startedAt = loadActiveJob(postId)?.startedAt || Date.now();
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [running, postId]);
 
   useEffect(() => {
     if (!ai || running || timelineRecoveryRef.current || loadActiveJob(postId)) return;
@@ -370,7 +494,7 @@ export function AiEditorPanel() {
   }, [items, running]);
 
   const promptBytes = useMemo(() => new TextEncoder().encode(prompt.trim()).length, [prompt]);
-  const canSend = Boolean(ai?.available && !running && !pendingConflict && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
+  const canSend = Boolean(ai?.available && initialTimelineSettled && !running && !pendingConflict && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
   const loadOlder = async () => {
     if (!ai || !cursor || !chatRef.current) return;
     const element = chatRef.current; const previousHeight = element.scrollHeight; setLoading(true);
@@ -381,15 +505,27 @@ export function AiEditorPanel() {
     } catch (caught) { setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor')); }
     finally { setLoading(false); }
   };
-  const send = async (override?: { prompt: string; contexts: SelectedElementContext[] }) => {
-    if ((!canSend && !override) || !ai) return;
+  const send = async (override?: { prompt: string; contexts: SelectedElementContext[]; requestId?: string; initialRequestId?: string }) => {
+    if ((!canSend && !override) || !ai || running || jobCreationInFlightRef.current) return;
+    jobCreationInFlightRef.current = true;
     const snapshot = host()?.getEditorSnapshot?.(); const editorMode = host()?.getEditorMode?.();
-    if (!snapshot || !editorMode) { setError(__('Editor state is unavailable.', 'kayzart-live-code-editor')); return; }
+    if (!snapshot || !editorMode) {
+      jobCreationInFlightRef.current = false;
+      setError(__('Editor state is unavailable.', 'kayzart-live-code-editor'));
+      return;
+    }
     const input = normalizeSnapshot(snapshot); const promptText = override?.prompt || prompt.trim(); const submittedContexts = override?.contexts || [...contexts];
-    const requestId = makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
+    const initialAttempt = !override ? getInitialRequestAttempt(postId) : null;
+    if (initialAttempt?.terminal) {
+      initialAttempt.requestId = makeId('request');
+      initialAttempt.terminal = false;
+    }
+    const initialRequestId = override?.initialRequestId || initialAttempt?.initialRequestId;
+    const requestId = override?.requestId || initialAttempt?.requestId || makeId('request'); setError(''); setEvents([]); setOptimistic({ requestId, prompt: promptText, contexts: submittedContexts });
     setPrompt(''); setContexts([]); setRunning(true); host()?.setEditorLock?.(true);
     try {
-      const created = await createJob(ai.jobsUrl, nonce, { ...input, requestId, post_id: postId, editorMode, prompt: promptText, selectedContexts: submittedContexts.length ? submittedContexts : undefined });
+      const created = await createJob(ai.jobsUrl, nonce, { ...input, requestId, initialRequestId, post_id: postId, editorMode, prompt: promptText, selectedContexts: submittedContexts.length ? submittedContexts : undefined });
+      if (initialRequestId) clearRuntimeInitialRequest(postId, initialRequestId);
       const active: ActiveJobRecord = {
         version: 1, postId, jobId: created.jobId, requestId: created.requestId,
         statusUrl: normalizeUrl(created.statusUrl), cancelUrl: normalizeUrl(created.cancelUrl),
@@ -397,12 +533,17 @@ export function AiEditorPanel() {
         startedAt: Date.now(), prompt: promptText, contexts: submittedContexts, inputSnapshot: input, activityId: created.timelineItem?.id,
       };
       saveActiveJob(active);
+      jobCreationInFlightRef.current = false;
       if (created.timelineItem) setItems((current) => current.some((item) => item.requestId === created.requestId) ? current : [...current, created.timelineItem as AiTimelineItem]);
       setOptimistic(null); setLiveJob({ requestId: created.requestId, status: created.status });
       void refresh(); await poll(active);
     } catch (caught) {
+      jobCreationInFlightRef.current = false;
+      if (initialRequestId && caught instanceof AiApiError && TERMINAL_INITIAL_REQUEST_CODES.has(caught.code)) {
+        markInitialRequestAttemptTerminal(postId, requestId);
+      }
       setError(caught instanceof AiApiError || caught instanceof Error ? caught.message : __('AI edit failed.', 'kayzart-live-code-editor'));
-      setPrompt(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
+      restorePromptIfEmpty(promptText); setOptimistic(null); setRunning(false); host()?.setEditorLock?.(false); void refresh();
     }
   };
   const rerun = (item: AiTimelineItem) => {
@@ -418,6 +559,23 @@ export function AiEditorPanel() {
     }
     void send({ prompt: item.prompt || '', contexts: retryContexts });
   };
+
+  useEffect(() => {
+    const initialRequest = ai?.initialRequest;
+    if (!initialRequest) {
+      setInitialRequestReconciled(true);
+      return;
+    }
+    if (initialRequestAttemptedRef.current || !initialTimelineSettled || running) return;
+    initialRequestAttemptedRef.current = true;
+    setPrompt(initialRequest.prompt);
+    setInitialRequestReconciled(true);
+    const initialAttempt = getInitialRequestAttempt(postId);
+    if (initialAttempt?.terminal) return;
+    const activeTimelineJob = items.some((item) => item.type === 'ai_edit' && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
+    if (!ai?.available || activeTimelineJob || loadActiveJob(postId)) return;
+    void send({ prompt: initialRequest.prompt, contexts: [], requestId: initialAttempt?.requestId || initialRequest.requestId, initialRequestId: initialRequest.requestId });
+  }, [ai?.initialRequest, ai?.available, items, initialTimelineSettled, postId, running]);
   const stop = async () => {
     const active = loadActiveJob(postId); if (!active || canceling) return;
     setCanceling(true);
@@ -457,6 +615,8 @@ export function AiEditorPanel() {
     } catch (caught) { setError(caught instanceof Error ? caught.message : __('The edit could not be restored.', 'kayzart-live-code-editor')); }
   };
 
+  const liveStatus = liveStatusLabel(events);
+
   const renderAi = (item: AiTimelineItem) => {
     const isLive = liveJob?.requestId === item.requestId;
     const executionStatus = isLive ? liveJob.status : item.executionStatus;
@@ -473,7 +633,16 @@ export function AiEditorPanel() {
           const stat = item.changeStats?.[value];
           return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;
         })}</div> : null}
-        {isLive && running && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
+        {isLive && running && liveStatus ? <p className="kayzart-ai-status">{elapsed >= ELAPSED_VISIBLE_AFTER_SECONDS ? sprintf(
+          /* translators: 1: what the AI is doing, 2: elapsed time as m:ss. */
+          __('%1$s (%2$s)', 'kayzart-live-code-editor'), liveStatus, formatElapsed(elapsed),
+        ) : liveStatus}</p> : null}
+        {isLive && events.length ? <details className="kayzart-ai-details is-log"><summary>{__('Run log', 'kayzart-live-code-editor')}</summary><dl>
+          {events.map((event, index) => <Fragment key={`${event.requestId}-${index}`}>
+            <dt>{event.toolName || event.event}</dt>
+            <dd>{[event.message, event.turn ? `${event.turn}/${event.maxTurns}` : '', event.inputSummary, event.outputSummary].filter(Boolean).join(' → ')}</dd>
+          </Fragment>)}
+        </dl></details> : null}
         {executionStatus === 'completed' && item.detailsAvailable ? <div className="kayzart-ai-result-actions">
           <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'before')}>{__('Restore before changes', 'kayzart-live-code-editor')}</button>
           <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'after')}>{__('Restore this result', 'kayzart-live-code-editor')}</button>
@@ -496,7 +665,7 @@ export function AiEditorPanel() {
     </div>;
   };
 
-  return <div className="kayzart-ai-panel">
+  return <div className="kayzart-ai-panel" hidden={!active}>
     {ai ? <AvailabilityNotice ai={ai} /> : null}
     {error ? <div className="kayzart-ai-error" role="alert">{error}</div> : null}
     {pendingConflict ? <div className="kayzart-ai-conflict" role="alert">
@@ -528,13 +697,13 @@ export function AiEditorPanel() {
       {optimistic && !items.some((item) => item.requestId === optimistic.requestId) ? <div className="kayzart-ai-exchange">
         <div className="kayzart-ai-message kayzart-ai-message-user"><p>{optimistic.prompt}</p><small>{optimistic.contexts.map(contextLabel).join(', ')}</small></div>
         <div className={`kayzart-ai-result is-${liveJob?.requestId === optimistic.requestId ? liveJob.status : 'pending'}`}><div className="kayzart-ai-result-heading"><AiIcon /><strong>{liveJob?.requestId === optimistic.requestId && liveJob.status === 'running' ? __('Applying changes.', 'kayzart-live-code-editor') : __('AI edit is waiting.', 'kayzart-live-code-editor')}</strong></div>
-          {liveJob?.requestId === optimistic.requestId && events.length ? <ul className="kayzart-ai-events">{events.slice(-8).map((event, index) => <li key={`${event.requestId}-${index}`}>{eventLabel(event)}</li>)}</ul> : null}
+          {liveJob?.requestId === optimistic.requestId && liveStatus ? <p className="kayzart-ai-status">{liveStatus}</p> : null}
         </div>
       </div> : null}
     </div>
     <div className="kayzart-ai-composer">
       {contexts.length ? <div className="kayzart-ai-contexts">{contexts.map((context) => <span key={context.lcId}>{contextLabel(context)}<button type="button" onClick={() => setContexts(contexts.filter((item) => item.lcId !== context.lcId))} aria-label={__('Remove context', 'kayzart-live-code-editor')}>×</button></span>)}</div> : null}
-      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available} maxLength={MAX_PROMPT_BYTES} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
+      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available || !initialRequestReconciled} maxLength={MAX_PROMPT_BYTES} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
       <div className="kayzart-ai-composer-footer"><small className={promptBytes > MAX_PROMPT_BYTES ? 'is-error' : ''}>{promptBytes}/{MAX_PROMPT_BYTES} bytes</small><div>
         {running ? <button type="button" className="is-stop" disabled={canceling} onClick={() => void stop()}>{canceling ? __('Canceling…', 'kayzart-live-code-editor') : __('Stop', 'kayzart-live-code-editor')}</button> : null}
         <button type="button" disabled={!canSend} onClick={() => void send()}>{__('Send', 'kayzart-live-code-editor')}</button>

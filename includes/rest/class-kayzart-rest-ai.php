@@ -74,15 +74,34 @@ class Rest_Ai {
 		// whichever user happens to run them.
 		$can_edit_head                                = current_user_can( 'unfiltered_html' );
 		$store                                        = new Ai_Job_Store();
+		$current_user                                 = get_current_user_id();
+		$initial_id                                   = $payload['initialRequestId'];
 		$payload['agentPayload']['canEditHead']       = $can_edit_head;
 		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'] );
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
-		$result                                       = $store->create( get_current_user_id(), $payload['postId'], $payload['requestId'], $payload['agentPayload'] );
+		$existing                                     = $store->get_by_request( $current_user, $payload['requestId'] );
+		if (
+			$existing
+			&& '' !== $initial_id
+			&& Admin::matches_initial_ai_request( $payload['postId'], $initial_id, $current_user )
+			&& in_array( (string) $existing['status'], Ai_Job_Store::TERMINAL_STATUSES, true )
+		) {
+			return self::terminal_initial_request_error();
+		}
+		$result = $store->create( $current_user, $payload['postId'], $payload['requestId'], $payload['agentPayload'] );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
-		$job            = $result['job'];
+		$job = $result['job'];
+		if (
+			! $result['is_new']
+			&& '' !== $initial_id
+			&& Admin::matches_initial_ai_request( $payload['postId'], $initial_id, $current_user )
+			&& in_array( (string) $job['status'], Ai_Job_Store::TERMINAL_STATUSES, true )
+		) {
+			return self::terminal_initial_request_error();
+		}
 		$timeline       = new Ai_Timeline_Store();
 		$stored_payload = json_decode( (string) $job['payload_json'], true );
 		$activity       = $timeline->create_ai_edit( $job, is_array( $stored_payload ) ? $stored_payload : $payload['agentPayload'] );
@@ -106,6 +125,7 @@ class Rest_Ai {
 			}
 			Ai_Immediate_Dispatcher::dispatch( $scheduled['run_action_id'], $job['job_uuid'] );
 		}
+		Admin::consume_initial_ai_request( $payload['postId'], '' !== $initial_id ? $initial_id : $payload['requestId'], $current_user );
 
 		$response = new \WP_REST_Response( self::creation_response( $store, $job, $activity ), $result['is_new'] ? 202 : 200 );
 		return $response;
@@ -208,6 +228,10 @@ class Rest_Ai {
 		if ( ! preg_match( '/^[A-Za-z0-9._:-]{1,64}$/', $request_id ) ) {
 			return self::invalid( __( 'requestId is invalid.', 'kayzart-live-code-editor' ) );
 		}
+		$initial_request_id = isset( $input['initialRequestId'] ) ? (string) $input['initialRequestId'] : '';
+		if ( '' !== $initial_request_id && ! preg_match( '/^[A-Za-z0-9._:-]{1,64}$/', $initial_request_id ) ) {
+			return self::invalid( __( 'initialRequestId is invalid.', 'kayzart-live-code-editor' ) );
+		}
 		$post_id = isset( $input['post_id'] ) ? absint( $input['post_id'] ) : 0;
 		if ( 0 >= $post_id ) {
 			return self::invalid( __( 'post_id is invalid.', 'kayzart-live-code-editor' ) );
@@ -257,9 +281,19 @@ class Rest_Ai {
 		$agent['selectionRecords'] = $selection_data['records'];
 
 		return array(
-			'requestId'    => $request_id,
-			'postId'       => $post_id,
-			'agentPayload' => $agent,
+			'requestId'        => $request_id,
+			'initialRequestId' => $initial_request_id,
+			'postId'           => $post_id,
+			'agentPayload'     => $agent,
+		);
+	}
+
+	/** Return the conflict used to rotate a persisted terminal initial request. */
+	private static function terminal_initial_request_error(): \WP_Error {
+		return new \WP_Error(
+			'kayzart_ai_initial_request_terminal',
+			__( 'The previous initial AI edit could not be started. Review the prompt and send it again.', 'kayzart-live-code-editor' ),
+			array( 'status' => 409 )
 		);
 	}
 

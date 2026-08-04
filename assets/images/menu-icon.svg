@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20" fill="#a7aaad">
+	<!-- Landing page card. Holes: browser bar, hero image, button. -->
+	<path fill-rule="evenodd" d="M2 2.5h6.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H2a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 2 2.5ZM0.5 5.8h9.5v1.1H0.5ZM2.2 8.4h6.1v3.4H2.2ZM2.2 13.4h4.2v1.8H2.2Z"/>
+	<!-- K chevron, solid bands. Left edge is cut flat so it reads as passing behind the card. -->
+	<path d="M18.6 1.2v4.6L14.4 10l4.2 4.2v4.6l-7.2-7.2V8.4Z"/>
+</svg>

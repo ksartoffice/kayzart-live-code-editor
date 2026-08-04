@@ -21,6 +21,24 @@ class Post_Type {
 	const ENABLED_META = '_kayzart_enabled';
 
 	/**
+	 * Admin menu icon: the Kayzart mark (landing page + K) as a monochrome SVG.
+	 *
+	 * WordPress renders a data URI icon as a CSS background image, so the SVG
+	 * cannot inherit the menu colour via currentColor. #a7aaad matches the
+	 * default Dashicons colour in the admin menu.
+	 *
+	 * @return string Base64 encoded data URI.
+	 */
+	public static function menu_icon(): string {
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20" fill="#a7aaad">'
+			. '<path fill-rule="evenodd" d="M2 2.5h6.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H2a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 2 2.5ZM0.5 5.8h9.5v1.1H0.5ZM2.2 8.4h6.1v3.4H2.2ZM2.2 13.4h4.2v1.8H2.2Z"/>'
+			. '<path d="M18.6 1.2v4.6L14.4 10l4.2 4.2v4.6l-7.2-7.2V8.4Z"/>'
+			. '</svg>';
+
+		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+	}
+
+	/**
 	 * Register hooks for the post type.
 	 */
 	public static function init(): void {
@@ -85,7 +103,7 @@ class Post_Type {
 			'supports'            => array( 'title', 'editor', 'author', 'thumbnail' ),
 			'show_in_rest'        => true,
 			'menu_position'       => 21,
-			'menu_icon'           => 'dashicons-editor-code',
+			'menu_icon'           => self::menu_icon(),
 		);
 
 		register_post_type( self::POST_TYPE, $args );

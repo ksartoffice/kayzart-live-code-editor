@@ -192,7 +192,7 @@ class Ai_Agent {
 		}
 		if ( (int) $state['turn'] >= self::MAX_AGENT_TURNS ) {
 			if ( empty( $state['appliedEditOperation'] ) ) {
-				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true );
+				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true, 'max_turns' );
 			}
 			$state['phase'] = 'finalization';
 			return array(
@@ -231,10 +231,14 @@ class Ai_Agent {
 		$provider_started       = microtime( true );
 		$tool_seconds           = 0.0;
 
+		// The UI builds its own wording from these fields; `message` stays empty so
+		// no internal phrasing reaches the chat.
 		$this->emit_event(
 			array(
-				'event'   => 'progress',
-				'message' => sprintf( 'AI turn %d/%d', $turn + 1, self::MAX_AGENT_TURNS ),
+				'event'    => 'progress',
+				'message'  => '',
+				'turn'     => $turn + 1,
+				'maxTurns' => self::MAX_AGENT_TURNS,
 			)
 		);
 
@@ -274,11 +278,15 @@ class Ai_Agent {
 			$name = isset( $call['name'] ) ? (string) $call['name'] : '';
 			$args = isset( $call['args'] ) && is_array( $call['args'] ) ? $call['args'] : array();
 			$id   = isset( $call['id'] ) ? (string) $call['id'] : '';
+			// `inputSummary` is truncated for the run log, so the edit target is
+			// emitted separately for the UI to name in its status line.
+			$target = isset( $args['target'] ) ? (string) $args['target'] : '';
 
 			$this->emit_event(
 				array(
 					'event'        => 'tool_start',
 					'toolName'     => $name,
+					'target'       => $target,
 					'inputSummary' => $this->preview( wp_json_encode( $args ), 180 ),
 				)
 			);
@@ -310,7 +318,8 @@ class Ai_Agent {
 				if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
 					$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
 				}
-				if ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] ) {
+				$tool_ok = ! ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] );
+				if ( ! $tool_ok ) {
 					$turn_had_error = true;
 				}
 				$tool_applied_edit      = ! empty( $tool_result['appliedEditOperation'] );
@@ -321,6 +330,8 @@ class Ai_Agent {
 					array(
 						'event'         => 'tool_end',
 						'toolName'      => $name,
+						'target'        => $target,
+						'ok'            => $tool_ok,
 						'outputSummary' => $this->preview( wp_json_encode( $tool_result['output'] ), 220 ),
 					)
 				);
@@ -351,6 +362,8 @@ class Ai_Agent {
 					array(
 						'event'         => 'tool_end',
 						'toolName'      => $name,
+						'target'        => $target,
+						'ok'            => false,
 						'outputSummary' => $this->preview( wp_json_encode( $recoverable ), 220 ),
 					)
 				);
@@ -435,7 +448,7 @@ class Ai_Agent {
 		$state['repeatedFailures']     = $repeated_failures;
 		if ( $state['turn'] >= self::MAX_AGENT_TURNS ) {
 			if ( ! $applied_edit_operation ) {
-				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true );
+				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true, 'max_turns' );
 			}
 			$state['phase'] = 'finalization';
 		}
@@ -452,7 +465,7 @@ class Ai_Agent {
 	private function advance_finalization( array $payload, array $state ): array {
 		$index = (int) $state['finalizationTurn'];
 		if ( $index >= self::FINALIZATION_TURNS ) {
-			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true );
+			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true, 'max_turns' );
 		}
 		$options          = array(
 			'systemInstruction' => Ai_Prompt::system_prompt(),
@@ -465,7 +478,8 @@ class Ai_Agent {
 		$this->emit_event(
 			array(
 				'event'   => 'progress',
-				'message' => 'Preparing final AI edit summary.',
+				'message' => '',
+				'phase'   => 'finalization',
 			)
 		);
 

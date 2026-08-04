@@ -241,6 +241,12 @@ class UnsavedDeletionMarker extends GutterMarker {
 
 const unsavedDeletionMarker = new UnsavedDeletionMarker();
 
+// The gutter below compares these sets by identity, so returning a new Set for
+// unchanged line numbers makes CodeMirror rebuild every gutter marker on every
+// transaction. Keep the previous instance whenever the contents match.
+const sameLineNumbers = (value: ReadonlySet<number>, next: readonly number[]) =>
+  value.size === next.length && next.every((lineNumber) => value.has(lineNumber));
+
 const unsavedChangeLinesField = StateField.define<ReadonlySet<number>>({
   create() {
     return new Set();
@@ -248,7 +254,7 @@ const unsavedChangeLinesField = StateField.define<ReadonlySet<number>>({
   update(value, transaction) {
     for (const effect of transaction.effects) {
       if (effect.is(UNSAVED_CHANGE_LINES_EFFECT)) {
-        return new Set(effect.value);
+        return sameLineNumbers(value, effect.value) ? value : new Set(effect.value);
       }
     }
     return value;
@@ -262,7 +268,7 @@ const unsavedDeletionLinesField = StateField.define<ReadonlySet<number>>({
   update(value, transaction) {
     for (const effect of transaction.effects) {
       if (effect.is(UNSAVED_DELETION_LINES_EFFECT)) {
-        return new Set(effect.value);
+        return sameLineNumbers(value, effect.value) ? value : new Set(effect.value);
       }
     }
     return value;
@@ -815,16 +821,22 @@ const createEditorWrapper = (options: {
     ).sort((a, b) => a - b);
   };
 
+  // These run on every keystroke for all four editors, so an unchanged marker
+  // set must not reach the view at all.
   const setUnsavedChangeLines = (lineNumbers: number[]) => {
-    view.dispatch({
-      effects: UNSAVED_CHANGE_LINES_EFFECT.of(normalizeUnsavedLineNumbers(lineNumbers)),
-    });
+    const next = normalizeUnsavedLineNumbers(lineNumbers);
+    if (sameLineNumbers(view.state.field(unsavedChangeLinesField), next)) {
+      return;
+    }
+    view.dispatch({ effects: UNSAVED_CHANGE_LINES_EFFECT.of(next) });
   };
 
   const setUnsavedDeletionLines = (lineNumbers: number[]) => {
-    view.dispatch({
-      effects: UNSAVED_DELETION_LINES_EFFECT.of(normalizeUnsavedLineNumbers(lineNumbers)),
-    });
+    const next = normalizeUnsavedLineNumbers(lineNumbers);
+    if (sameLineNumbers(view.state.field(unsavedDeletionLinesField), next)) {
+      return;
+    }
+    view.dispatch({ effects: UNSAVED_DELETION_LINES_EFFECT.of(next) });
   };
 
   const updateListener = EditorView.updateListener.of((update) => {

@@ -361,6 +361,94 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_render_new_page_uses_modern_sections_and_preserves_defaults(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, 'post' ) );
+
+		ob_start();
+		Admin::render_new_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'class="wrap kayzart-create-page"', $output );
+		$this->assertStringContainsString(
+			__( 'Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design.', 'kayzart-live-code-editor' ),
+			$output
+		);
+		$this->assertStringContainsString( 'name="post_type" value="page" checked=', $output );
+		$this->assertStringContainsString( 'name="mode" value="tailwind" checked=', $output );
+		$this->assertStringContainsString( __( 'Recommended', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( __( 'You can change this later in the editor.', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
+		$this->assertStringContainsString( 'name="_wpnonce"', $output );
+		$this->assertStringNotContainsString( 'class="form-table"', $output );
+
+		$title_position    = strpos( $output, 'name="post_title"' );
+		$prompt_position   = strpos( $output, 'name="initial_ai_prompt"' );
+		$page_position     = strpos( $output, 'name="post_type" value="page"' );
+		$post_position     = strpos( $output, 'name="post_type" value="post"' );
+		$tailwind_position = strpos( $output, 'name="mode" value="tailwind"' );
+		$normal_position   = strpos( $output, 'name="mode" value="normal"' );
+
+		$this->assertIsInt( $title_position );
+		$this->assertIsInt( $prompt_position );
+		$this->assertIsInt( $page_position );
+		$this->assertIsInt( $post_position );
+		$this->assertIsInt( $tailwind_position );
+		$this->assertIsInt( $normal_position );
+		$this->assertLessThan( $prompt_position, $title_position );
+		$this->assertLessThan( $page_position, $prompt_position );
+		$this->assertLessThan( $post_position, $page_position );
+		$this->assertLessThan( $normal_position, $tailwind_position );
+	}
+
+	public function test_enqueue_assets_loads_only_new_page_assets_on_new_screen(): void {
+		Admin::enqueue_assets( 'toplevel_page_' . Admin::NEW_SLUG );
+
+		$this->assertTrue( wp_style_is( 'kayzart-new-page', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-new-page', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-admin', 'enqueued' ) );
+
+		$registered = wp_scripts()->registered['kayzart-new-page'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = isset( $registered->extra['before'] ) ? (array) $registered->extra['before'] : array();
+		$inline        = implode( "\n", $before_inline );
+		$this->assertStringContainsString( 'maxPromptBytes', $inline );
+		$this->assertStringContainsString( 'ai\\/prompts\\/improve', $inline );
+		$this->assertStringContainsString( 'restNonce', $inline );
+	}
+
+	public function test_render_new_page_shows_prompt_improver_only_when_ai_is_available(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+		wp_set_current_user( $admin_id );
+
+		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		ob_start();
+		Admin::render_new_page();
+		$available_output = (string) ob_get_clean();
+		$this->assertStringContainsString( 'id="kayzart-ai-improve"', $available_output );
+		$this->assertStringContainsString( 'id="kayzart-ai-improve-undo"', $available_output );
+
+		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		ob_start();
+		Admin::render_new_page();
+		$unavailable_output = (string) ob_get_clean();
+		$this->assertStringNotContainsString( 'id="kayzart-ai-improve"', $unavailable_output );
+
+		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+	}
+
 	public function test_get_settings_url_points_at_the_hub_and_keeps_tab_support(): void {
 		$this->assertSame(
 			admin_url( 'admin.php?page=' . Admin::SETTINGS_SLUG ),
@@ -660,6 +748,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => true,
+				'initialRequest'      => null,
 			),
 			$payload['ai'] ?? null
 		);

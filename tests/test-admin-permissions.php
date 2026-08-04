@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
 if ( ! class_exists( 'KayzArt_Admin_Die_Exception' ) ) {
@@ -466,6 +467,79 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 'Autumn campaign', get_post( $created_id )->post_title );
 		$this->assertSame( '0', get_post_meta( $created_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '', get_post_meta( $created_id, '_kayzart_setup_required', true ) );
+	}
+
+	public function test_action_create_new_page_stores_an_initial_ai_request_for_an_ai_editor(): void {
+		Ai_Setup::activate();
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids    = $this->get_page_ids();
+		$original_get  = $_GET;
+		$original_post = $_POST;
+		$_GET          = array();
+		$prompt        = "Use <header> and <main>.\nKeep </script> and `<section>` as instruction text.";
+		$_POST         = array(
+			'post_type'         => Post_Type::PAGE_TYPE,
+			'mode'              => 'normal',
+			'initial_ai_prompt' => $prompt,
+			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET      = $original_get;
+		$_POST     = $original_post;
+		$created   = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$this->assertCount( 1, $created );
+		$request = get_post_meta( (int) $created[0], Admin::INITIAL_AI_REQUEST_META_KEY, true );
+
+		$this->assertIsArray( $request );
+		$this->assertSame( $prompt, $request['prompt'] );
+		$this->assertSame( $admin_id, $request['userId'] );
+		$this->assertStringStartsWith( 'initial-', $request['requestId'] );
+	}
+
+	public function test_action_create_new_page_removes_invalid_utf8_from_initial_ai_request(): void {
+		$original_post = $_POST;
+		$_POST         = array( 'initial_ai_prompt' => "Keep \xC3\x28 this text" );
+		$method        = new ReflectionMethod( Admin::class, 'read_requested_initial_ai_prompt' );
+		$method->setAccessible( true );
+
+		$prompt = (string) $method->invoke( null );
+		$_POST  = $original_post;
+
+		$this->assertSame( $prompt, wp_check_invalid_utf8( $prompt ) );
+		$this->assertStringNotContainsString( "\xC3", $prompt );
+	}
+
+	public function test_action_create_new_page_rejects_an_initial_ai_request_over_the_byte_limit(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$original_get  = $_GET;
+		$original_post = $_POST;
+		$_GET          = array();
+		$_POST         = array(
+			'post_type'         => Post_Type::PAGE_TYPE,
+			'mode'              => 'normal',
+			'initial_ai_prompt' => str_repeat( 'a', Admin::INITIAL_AI_PROMPT_MAX_BYTES + 1 ),
+			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+		$_GET    = $original_get;
+		$_POST   = $original_post;
+
+		$this->assertStringContainsString( 'The initial AI instruction is too large.', $message );
 	}
 
 	public function test_maybe_skip_convert_screen_redirects_already_managed_posts(): void {

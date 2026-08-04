@@ -251,11 +251,7 @@ describe('AiEditorPanel', () => {
     await act(async () => root.render(<AiEditorPanel />));
     const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
     const sendButton = Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement;
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-      setter?.call(textarea, 'Send this manually.');
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    expect(textarea.disabled).toBe(true);
     expect(sendButton.disabled).toBe(true);
     sendButton.click();
     expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/jobs')).toHaveLength(0);
@@ -269,7 +265,72 @@ describe('AiEditorPanel', () => {
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({
       requestId: 'initial-request-slow', initialRequestId: 'initial-request-slow', prompt: 'Create the stored landing page.',
     });
+    await vi.waitFor(() => expect(textarea.disabled).toBe(false));
     await act(async () => root.unmount());
+  });
+
+  it('submits the initial request after switching away from the AI tab during timeline loading', async () => {
+    (window as any).KAYZART.ai.initialRequest = { requestId: 'initial-request-hidden', prompt: 'Create the hidden landing page.' };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot: vi.fn(() => true), setEditorLock: vi.fn(),
+    };
+    const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+    let resolveTimeline!: (response: Response) => void;
+    const timelineResponse = new Promise<Response>((resolve) => { resolveTimeline = resolve; });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return timelineResponse;
+      if (url === '/jobs' && method === 'POST') return Promise.resolve(json({
+        ok: true, jobId: 'job-initial-hidden', requestId: 'initial-request-hidden', status: 'pending', statusUrl: '/jobs/job-initial-hidden', cancelUrl: '/jobs/job-initial-hidden/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: null,
+      }, 202));
+      if (url.includes('/jobs/job-initial-hidden')) return Promise.resolve(json({
+        ok: true, jobId: 'job-initial-hidden', requestId: 'initial-request-hidden', status: 'completed', events: [], snapshot: afterSnapshot, error: null, usage: null,
+        cancelRequested: false, createdAt: timelineItem.createdAt, updatedAt: timelineItem.updatedAt, startedAt: timelineItem.createdAt, finishedAt: timelineItem.updatedAt, pollIntervalMs: 1, timeoutMs: 600000,
+      }));
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { initSettings } = await import('../../../src/admin/settings');
+    const container = document.createElement('div'); document.body.append(container);
+    let settings!: ReturnType<typeof initSettings>;
+    await act(async () => {
+      settings = initSettings({
+        container,
+        data: { title: 'Page', slug: 'page', status: 'draft', liveHighlightEnabled: true, canEditJs: true },
+        postId: 7,
+        apiFetch: vi.fn(),
+        revisionsRestUrl: '/revisions',
+        revisionsSupported: true,
+        wpVersion: '6.9',
+        canUpdateCore: false,
+        updateCoreUrl: '',
+        hasUnsavedChanges: () => false,
+        onLoadSnapshot: () => true,
+        editorMode: 'normal',
+        aiEnabled: true,
+      });
+    });
+    const panel = container.querySelector('.kayzart-ai-panel') as HTMLElement;
+    expect(panel.hidden).toBe(false);
+
+    await act(async () => settings.openTab('elements'));
+    expect(container.querySelector('.kayzart-ai-panel')).toBe(panel);
+    expect(panel.hidden).toBe(true);
+    expect(window.getComputedStyle(panel).display).toBe('none');
+
+    await act(async () => {
+      resolveTimeline(json({ ok: true, items: [], hasMore: false, nextCursor: null }));
+      await timelineResponse;
+    });
+    await vi.waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/jobs')).toHaveLength(1));
+    const createCall = fetchMock.mock.calls.find(([url]) => String(url) === '/jobs');
+    expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({
+      requestId: 'initial-request-hidden', initialRequestId: 'initial-request-hidden', prompt: 'Create the hidden landing page.',
+    });
+    await vi.waitFor(() => expect((window as any).KAYZART_EXTENSION_API.replaceEditorSnapshot).toHaveBeenCalledWith(afterSnapshot));
+    expect(container.querySelector('.kayzart-ai-panel')).toBe(panel);
+    expect(panel.hidden).toBe(true);
   });
 
   it('starts only one job when send is invoked twice before React rerenders', async () => {

@@ -337,7 +337,7 @@ function SettingsSidebar({
     <Fragment>
       {tabsNode}
 
-      {aiEnabled && activeTab === 'kayzart-ai' ? <AiEditorPanel /> : null}
+      {aiEnabled ? <AiEditorPanel active={activeTab === 'kayzart-ai'} /> : null}
 
       {activeTab === 'settings' ? (
         <SettingsPanel

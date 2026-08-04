@@ -234,7 +234,7 @@ function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   </div>;
 }
 
-export function AiEditorPanel() {
+export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const ai = config();
   const postId = Number(window.KAYZART.post_id || 0);
   const nonce = window.KAYZART.restNonce || '';
@@ -254,6 +254,7 @@ export function AiEditorPanel() {
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialTimelineSettled, setInitialTimelineSettled] = useState(false);
+  const [initialRequestReconciled, setInitialRequestReconciled] = useState(!ai?.initialRequest);
   const [events, setEvents] = useState<AiJobEvent[]>([]);
   const [liveJob, setLiveJob] = useState<{ requestId: string; status: AiJobStatus } | null>(null);
   const [running, setRunning] = useState(false);
@@ -561,9 +562,14 @@ export function AiEditorPanel() {
 
   useEffect(() => {
     const initialRequest = ai?.initialRequest;
-    if (!initialRequest || initialRequestAttemptedRef.current || !initialTimelineSettled || running) return;
+    if (!initialRequest) {
+      setInitialRequestReconciled(true);
+      return;
+    }
+    if (initialRequestAttemptedRef.current || !initialTimelineSettled || running) return;
     initialRequestAttemptedRef.current = true;
     setPrompt(initialRequest.prompt);
+    setInitialRequestReconciled(true);
     const initialAttempt = getInitialRequestAttempt(postId);
     if (initialAttempt?.terminal) return;
     const activeTimelineJob = items.some((item) => item.type === 'ai_edit' && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
@@ -659,7 +665,7 @@ export function AiEditorPanel() {
     </div>;
   };
 
-  return <div className="kayzart-ai-panel">
+  return <div className="kayzart-ai-panel" hidden={!active}>
     {ai ? <AvailabilityNotice ai={ai} /> : null}
     {error ? <div className="kayzart-ai-error" role="alert">{error}</div> : null}
     {pendingConflict ? <div className="kayzart-ai-conflict" role="alert">
@@ -697,7 +703,7 @@ export function AiEditorPanel() {
     </div>
     <div className="kayzart-ai-composer">
       {contexts.length ? <div className="kayzart-ai-contexts">{contexts.map((context) => <span key={context.lcId}>{contextLabel(context)}<button type="button" onClick={() => setContexts(contexts.filter((item) => item.lcId !== context.lcId))} aria-label={__('Remove context', 'kayzart-live-code-editor')}>×</button></span>)}</div> : null}
-      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available} maxLength={MAX_PROMPT_BYTES} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
+      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available || !initialRequestReconciled} maxLength={MAX_PROMPT_BYTES} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
       <div className="kayzart-ai-composer-footer"><small className={promptBytes > MAX_PROMPT_BYTES ? 'is-error' : ''}>{promptBytes}/{MAX_PROMPT_BYTES} bytes</small><div>
         {running ? <button type="button" className="is-stop" disabled={canceling} onClick={() => void stop()}>{canceling ? __('Canceling…', 'kayzart-live-code-editor') : __('Stop', 'kayzart-live-code-editor')}</button> : null}
         <button type="button" disabled={!canSend} onClick={() => void send()}>{__('Send', 'kayzart-live-code-editor')}</button>

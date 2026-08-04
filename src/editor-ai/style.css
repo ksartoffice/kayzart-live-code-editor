@@ -17,6 +17,7 @@
   color: var(--ai-text);
   background: var(--ai-bg);
 }
+.kayzart-ai-panel[hidden] { display: none; }
 .kayzart-ai-notice, .kayzart-ai-error, .kayzart-ai-conflict, .kayzart-ai-result {
   padding: 11px;
   border: 1px solid var(--ai-border);

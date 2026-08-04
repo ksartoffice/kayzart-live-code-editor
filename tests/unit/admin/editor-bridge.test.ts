@@ -61,7 +61,13 @@ const renderClassicEditor = ({
   includeEditor = true,
   includeTitle = true,
   postStatus = 'draft',
-}: { includeEditor?: boolean; includeTitle?: boolean; postStatus?: string } = {}) => {
+  originalPostStatus = postStatus,
+}: {
+  includeEditor?: boolean;
+  includeTitle?: boolean;
+  postStatus?: string;
+  originalPostStatus?: string;
+} = {}) => {
   document.body.className = 'wp-admin post-php';
   document.body.innerHTML = [
     '<form id="post">',
@@ -76,7 +82,8 @@ const renderClassicEditor = ({
     '<div id="postbox-container-1"><div id="submitdiv">Publish settings</div></div>',
     '<div id="acf-group">ACF settings</div>',
     '<input id="post_ID" value="42">',
-    `<input id="post_status" value="${postStatus}">`,
+    `<input id="post_status" name="post_status" value="${postStatus}">`,
+    `<input id="original_post_status" value="${originalPostStatus}">`,
     '<button id="save-post" type="submit">Save draft</button>',
     '<button id="publish" type="submit">Update</button>',
     '</form>',
@@ -89,6 +96,7 @@ const rerenderClassicEditor = (options: {
   includeEditor?: boolean;
   includeTitle?: boolean;
   postStatus?: string;
+  originalPostStatus?: string;
 }) => {
   vi.clearAllTimers();
   document.body.className = '';
@@ -328,6 +336,7 @@ describe('Classic Editor bridge', () => {
   });
 
   it.each([
+    ['auto-draft', 'save-post'],
     ['draft', 'save-post'],
     ['pending', 'save-post'],
     ['publish', 'publish'],
@@ -348,6 +357,54 @@ describe('Classic Editor bridge', () => {
     expect(expectedClick).toHaveBeenCalledTimes(1);
     expect(unexpectedClick).not.toHaveBeenCalled();
     expect(form.querySelector<HTMLInputElement>('[name="kayzart_open_after_save"]')?.value).toBe('1');
+  });
+
+  it('submits a custom status without draft or publish button semantics', () => {
+    rerenderClassicEditor({ postStatus: 'pending', originalPostStatus: 'in-review' });
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    const statusInput = document.querySelector<HTMLInputElement>('#post_status')!;
+    const saveClick = vi.fn();
+    const publishClick = vi.fn();
+    document.querySelector('#save-post')!.addEventListener('click', saveClick);
+    document.querySelector('#publish')!.addEventListener('click', publishClick);
+    let submittedStatus = '';
+    let submittedPreserveStatus = '';
+    let submitterName: string | null = null;
+    form.addEventListener('submit', (event) => {
+      const formData = new FormData(form);
+      submittedStatus = String(formData.get('post_status') || '');
+      submittedPreserveStatus = String(formData.get('kayzart_preserve_post_status') || '');
+      submitterName = (event as SubmitEvent).submitter?.getAttribute('name') || null;
+      event.preventDefault();
+    });
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!.click();
+
+    expect(saveClick).not.toHaveBeenCalled();
+    expect(publishClick).not.toHaveBeenCalled();
+    expect(submittedStatus).toBe('in-review');
+    expect(submittedPreserveStatus).toBe('in-review');
+    expect(submitterName).toBeNull();
+    expect(statusInput.disabled).toBe(true);
+
+    vi.runOnlyPendingTimers();
+    expect(statusInput.disabled).toBe(false);
+    expect(form.querySelector('[name="kayzart_preserve_post_status"]')).toBeNull();
+  });
+
+  it('honors an explicit change from a custom status to draft', () => {
+    rerenderClassicEditor({ postStatus: 'pending', originalPostStatus: 'in-review' });
+    const statusInput = document.querySelector<HTMLInputElement>('#post_status')!;
+    const save = document.querySelector<HTMLElement>('#save-post')!;
+    const saveClick = vi.fn((event: Event) => event.preventDefault());
+    save.addEventListener('click', saveClick);
+    statusInput.value = 'draft';
+    statusInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-preview__edit')!.click();
+
+    expect(saveClick).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[name="kayzart_preserve_post_status"]')).toBeNull();
   });
 
   it('clears the redirect flag and busy state when form submission is rejected', () => {

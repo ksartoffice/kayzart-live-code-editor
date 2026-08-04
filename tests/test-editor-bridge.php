@@ -419,6 +419,73 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( 'Kayzart REST replacement', get_post( $post_id )->post_content );
 	}
 
+	public function test_classic_editor_navigation_preserves_registered_custom_status(): void {
+		$status = 'kz_in_review';
+		register_post_status( $status, array( 'label' => 'In review' ) );
+
+		try {
+			$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+			wp_update_post(
+				array(
+					'ID'           => $post_id,
+					'post_status'  => $status,
+					'post_title'   => 'Before title',
+					'post_content' => 'Stored Kayzart HTML',
+				)
+			);
+			set_current_screen( 'post' );
+			$_POST['action']                       = 'editpost';
+			$_POST['kayzart_open_after_save']      = '1';
+			$_POST['kayzart_preserve_post_status'] = $status;
+
+			wp_update_post(
+				array(
+					'ID'           => $post_id,
+					'post_status'  => 'draft',
+					'post_title'   => 'Updated title',
+					'post_content' => 'Classic Editor replacement',
+				)
+			);
+			$post = get_post( $post_id );
+
+			$this->assertInstanceOf( WP_Post::class, $post );
+			$this->assertSame( $status, $post->post_status );
+			$this->assertSame( 'Updated title', $post->post_title );
+			$this->assertSame( 'Stored Kayzart HTML', $post->post_content );
+		} finally {
+			$this->unregister_test_post_status( $status );
+		}
+	}
+
+	public function test_classic_editor_navigation_allows_explicit_standard_status_change(): void {
+		$status = 'kz_approved';
+		register_post_status( $status, array( 'label' => 'Approved' ) );
+
+		try {
+			$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => $status,
+				)
+			);
+			set_current_screen( 'post' );
+			$_POST['action']                  = 'editpost';
+			$_POST['kayzart_open_after_save'] = '1';
+
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => 'draft',
+				)
+			);
+
+			$this->assertSame( 'draft', get_post_status( $post_id ) );
+		} finally {
+			$this->unregister_test_post_status( $status );
+		}
+	}
+
 	public function test_classic_editor_save_redirects_to_kayzart_when_requested(): void {
 		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
 		$this->set_valid_classic_redirect_request( $post_id );
@@ -501,6 +568,14 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$_POST['action']                  = 'editpost';
 		$_POST['_wpnonce']                = wp_create_nonce( 'update-post_' . $post_id );
 		$_POST['kayzart_open_after_save'] = '1';
+	}
+
+	private function unregister_test_post_status( string $status ): void {
+		global $wp_post_statuses;
+
+		if ( isset( $wp_post_statuses[ $status ] ) ) {
+			unset( $wp_post_statuses[ $status ] );
+		}
 	}
 
 	private function invoke_private_int_method( string $method_name ): int {

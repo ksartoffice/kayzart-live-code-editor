@@ -46,7 +46,11 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
           post_id: postId,
           html: originalHtml,
           css: `#${marker}{color:rgb(18,52,86)}`,
-          js: '',
+          js: [
+            "document.documentElement.setAttribute('data-kayzart-saved-classic-js', 'ran');",
+            "try { window.parent.document.documentElement.setAttribute('data-kayzart-frame-escape', '1'); } catch (error) {}",
+            "try { window.top.location.href = '/?kayzart_admin_escape=1'; } catch (error) {}",
+          ].join('\n'),
           jsMode: 'classic',
           tailwindEnabled: false,
         },
@@ -75,23 +79,31 @@ test('shows a styled Kayzart preview while protecting Gutenberg content', async 
     await expect
       .poll(() => previewMarker.evaluate((node) => getComputedStyle(node).color))
       .toBe('rgb(18, 52, 86)');
-    const previewFrameHandle = await previewFrame.elementHandle();
-    const previewContentFrame = await previewFrameHandle?.contentFrame();
-    expect(previewContentFrame).not.toBeNull();
-    await previewContentFrame!.evaluate(() => {
-      const script = document.createElement('script');
-      script.textContent = [
-        "document.documentElement.setAttribute('data-kayzart-preview-script', 'ran');",
-        "try { window.parent.document.documentElement.setAttribute('data-kayzart-frame-escape', '1'); } catch (error) {}",
-        "try { window.top.location.href = '/?kayzart_admin_escape=1'; } catch (error) {}",
-      ].join('\n');
-      document.body.appendChild(script);
-    });
     await expect(
       page.frameLocator('.kayzart-editor-preview__frame').locator('html')
-    ).toHaveAttribute('data-kayzart-preview-script', 'ran');
+    ).toHaveAttribute('data-kayzart-saved-classic-js', 'ran');
     await expect(page.locator('html')).not.toHaveAttribute('data-kayzart-frame-escape', '1');
     expect(new URL(page.url()).searchParams.has('kayzart_admin_escape')).toBe(false);
+
+    const moduleSaveResponse = await page.request.post(
+      new URL('wp-json/kayzart/v1/save', baseUrl).toString(),
+      {
+        headers: { 'X-WP-Nonce': kayzartNonce },
+        data: {
+          post_id: postId,
+          html: originalHtml,
+          css: `#${marker}{color:rgb(18,52,86)}`,
+          js: "export default function () { document.documentElement.setAttribute('data-kayzart-saved-module-js', 'ran'); }",
+          jsMode: 'module',
+          tailwindEnabled: false,
+        },
+      }
+    );
+    expect(moduleSaveResponse.status(), (await moduleSaveResponse.text()).slice(0, 500)).toBe(200);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(
+      page.frameLocator('.kayzart-editor-preview__frame').locator('html')
+    ).toHaveAttribute('data-kayzart-saved-module-js', 'ran');
 
     const titleInput = page.locator('.kayzart-editor-preview__titleInput');
     const restNonce = await page.evaluate(() => String((window as any).wpApiSettings.nonce));

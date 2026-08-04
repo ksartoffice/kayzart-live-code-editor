@@ -2238,6 +2238,11 @@
   });
   if (isWordPressEditorPreview) {
     attachWordPressEditorPreviewGuards();
+    const initialJs = String(config.initialJs || '');
+    if (initialJs.trim()) {
+      jsEnabled = true;
+      runJs(initialJs, config.initialJsMode);
+    }
   } else {
     attachDomSelector();
   }

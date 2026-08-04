@@ -447,6 +447,11 @@ class Preview {
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
+		if ( 'wordpress_editor' === $preview_context ) {
+			$js_mode                  = strtolower( trim( (string) get_post_meta( self::$post_id, '_kayzart_js_mode', true ) ) );
+			$payload['initialJs']     = (string) get_post_meta( self::$post_id, '_kayzart_js', true );
+			$payload['initialJsMode'] = 'module' === $js_mode ? 'module' : 'classic';
+		}
 
 		/**
 		 * Filter preview script payload before it is injected into the iframe.
@@ -456,7 +461,7 @@ class Preview {
 		 */
 		$payload = apply_filters( 'kayzart_preview_payload', $payload, self::$post_id );
 
-		$json = wp_json_encode( $payload );
+		$json = wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
 		if ( false === $json ) {
 			$json = '{}';
 		}

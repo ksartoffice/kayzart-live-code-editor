@@ -207,6 +207,15 @@ class Editor_Bridge {
 		$post = get_post( $post_id );
 		if ( $post instanceof \WP_Post ) {
 			$data['post_content'] = wp_slash( (string) $post->post_content );
+
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- WordPress verifies editpost before this filter.
+			$redirect_requested = isset( $_POST['kayzart_open_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_open_after_save'] ) );
+			$preserved_status   = isset( $_POST['kayzart_preserve_post_status'] ) ? sanitize_key( wp_unslash( $_POST['kayzart_preserve_post_status'] ) ) : '';
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			$standard_statuses = array( 'auto-draft', 'draft', 'pending', 'publish', 'private', 'future' );
+			if ( $redirect_requested && $preserved_status && ! in_array( $preserved_status, $standard_statuses, true ) && get_post_status_object( $preserved_status ) ) {
+				$data['post_status'] = $preserved_status;
+			}
 		}
 
 		return $data;

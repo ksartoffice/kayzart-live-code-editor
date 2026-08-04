@@ -122,6 +122,9 @@ class Test_Preview extends WP_UnitTestCase {
 	public function test_wordpress_editor_preview_disables_live_highlight(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
+		$saved_js = 'document.body.dataset.savedJs = "yes"; /* </script> */';
+		update_post_meta( $post_id, '_kayzart_js', $saved_js );
+		update_post_meta( $post_id, '_kayzart_js_mode', 'module' );
 
 		$this->start_preview_request( $post_id, $admin_id );
 		global $wp_query;
@@ -138,6 +141,29 @@ class Test_Preview extends WP_UnitTestCase {
 
 		$this->assertSame( 'wordpress_editor', $payload['context'] ?? '' );
 		$this->assertFalse( (bool) ( $payload['liveHighlightEnabled'] ?? true ) );
+		$this->assertSame( $saved_js, $payload['initialJs'] ?? '' );
+		$this->assertSame( 'module', $payload['initialJsMode'] ?? '' );
+		$this->assertStringNotContainsString( '</script>', $inline );
+	}
+
+	public function test_standard_preview_does_not_include_initial_saved_javascript(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		update_post_meta( $post_id, '_kayzart_js', 'document.body.dataset.savedJs = "yes";' );
+
+		$this->start_preview_request( $post_id, $admin_id );
+		Preview::enqueue_assets();
+
+		$scripts       = wp_scripts();
+		$registered    = $scripts->registered['kayzart-preview'] ?? null;
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", $before_inline );
+		preg_match_all( '/window\\.KAYZART_PREVIEW = (.+);/', $inline, $matches );
+		$payload_json = isset( $matches[1] ) && is_array( $matches[1] ) && ! empty( $matches[1] ) ? end( $matches[1] ) : '';
+		$payload      = json_decode( (string) $payload_json, true );
+
+		$this->assertArrayNotHasKey( 'initialJs', $payload );
+		$this->assertArrayNotHasKey( 'initialJsMode', $payload );
 	}
 
 	public function test_preview_registers_nocache_header_filter_for_valid_request(): void {

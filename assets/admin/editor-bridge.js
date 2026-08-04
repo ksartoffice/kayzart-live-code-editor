@@ -131,11 +131,60 @@
     event.preventDefault();
     var statusInput = document.getElementById('post_status');
     var originalStatusInput = document.getElementById('original_post_status');
-    var postStatus = statusInput ? statusInput.value : originalStatusInput ? originalStatusInput.value : '';
+    var statusWasChanged =
+      statusInput && statusInput.getAttribute('data-kayzart-status-changed') === 'true';
+    var postStatus = statusWasChanged
+      ? statusInput.value
+      : originalStatusInput
+        ? originalStatusInput.value
+        : statusInput
+          ? statusInput.value
+          : '';
+    var draftStatuses = ['auto-draft', 'draft', 'pending'];
     var updateStatuses = ['publish', 'private', 'future'];
-    var submitterId = updateStatuses.indexOf(postStatus) >= 0 ? 'publish' : 'save-post';
-    var submitter = document.getElementById(submitterId);
+    var isCustomStatus =
+      postStatus &&
+      draftStatuses.indexOf(postStatus) < 0 &&
+      updateStatuses.indexOf(postStatus) < 0;
+    var submitter = null;
+    var temporaryFields = [];
+    var statusInputWasDisabled = false;
+
+    if (isCustomStatus) {
+      if (statusInput) {
+        statusInputWasDisabled = statusInput.disabled;
+        statusInput.disabled = true;
+      }
+      var customStatusInput = document.createElement('input');
+      customStatusInput.type = 'hidden';
+      customStatusInput.name = 'post_status';
+      customStatusInput.value = postStatus;
+      form.appendChild(customStatusInput);
+      temporaryFields.push(customStatusInput);
+
+      var preserveStatusInput = document.createElement('input');
+      preserveStatusInput.type = 'hidden';
+      preserveStatusInput.name = 'kayzart_preserve_post_status';
+      preserveStatusInput.value = postStatus;
+      form.appendChild(preserveStatusInput);
+      temporaryFields.push(preserveStatusInput);
+
+      submitter = document.createElement('button');
+      submitter.type = 'submit';
+      submitter.hidden = true;
+      form.appendChild(submitter);
+      temporaryFields.push(submitter);
+    } else {
+      var submitterId = updateStatuses.indexOf(postStatus) >= 0 ? 'publish' : 'save-post';
+      submitter = document.getElementById(submitterId);
+    }
     if (!submitter || submitter.disabled || submitter.classList.contains('disabled')) {
+      if (statusInput && isCustomStatus) {
+        statusInput.disabled = statusInputWasDisabled;
+      }
+      temporaryFields.forEach(function (field) {
+        field.remove();
+      });
       return;
     }
 
@@ -160,6 +209,12 @@
       form.removeEventListener('submit', captureSubmit);
       if (!submitEvent || submitEvent.defaultPrevented) {
         redirectFlag.remove();
+        if (statusInput && isCustomStatus) {
+          statusInput.disabled = statusInputWasDisabled;
+        }
+        temporaryFields.forEach(function (field) {
+          field.remove();
+        });
         setEditActionBusy(link, false);
       }
     }, 0);
@@ -373,6 +428,13 @@
       !content
     ) {
       return;
+    }
+
+    var statusInput = document.getElementById('post_status');
+    if (statusInput) {
+      statusInput.addEventListener('change', function () {
+        statusInput.setAttribute('data-kayzart-status-changed', 'true');
+      });
     }
 
     var panel = createPreviewPanel({

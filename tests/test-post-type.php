@@ -102,7 +102,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
 
 		$states = Post_Type::add_post_states( array(), $page );
-		$this->assertSame( __( 'Landing page', 'kayzart-live-code-editor' ), $states['kayzart_lp'] ?? '' );
+		$this->assertSame( 'Kayzart', $states['kayzart_lp'] ?? '' );
 	}
 
 	public function test_row_action_uses_landing_page_edit_label_for_marked_pages(): void {
@@ -175,6 +175,10 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertStringContainsString( esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
 		$this->assertStringContainsString( 'page=' . \KayzArt\Admin::CONVERT_SLUG, $actions['kayzart_convert'] );
 		$this->assertStringNotContainsString( 'action=' . \KayzArt\Admin::CONVERT_POST_ACTION, $actions['kayzart_convert'] );
+
+		// Unlike the managed actions, conversion stays at the end of the list.
+		$actions = Post_Type::add_kayzart_row_action( array( 'edit' => '<a href="#">Edit</a>' ), $page );
+		$this->assertSame( array( 'edit', 'kayzart_convert' ), array_keys( $actions ) );
 	}
 
 	public function test_row_action_ignores_unmarked_pages_without_edit_permission(): void {

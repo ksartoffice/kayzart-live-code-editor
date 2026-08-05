@@ -338,12 +338,7 @@ class Post_Type {
 			return $states;
 		}
 
-		$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
-
-		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
-		if ( $is_tailwind ) {
-			$states['kayzart_tailwind'] = __( 'TailwindCSS', 'kayzart-live-code-editor' );
-		}
+		$states['kayzart_lp'] = 'Kayzart';
 
 		return $states;
 	}
@@ -365,26 +360,30 @@ class Post_Type {
 		}
 
 		$is_managed = self::POST_TYPE === $post->post_type || self::is_kayzart_enabled_post( (int) $post->ID );
-		if ( $is_managed ) {
-			$actions['kayzart_edit']      = sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( self::get_editor_url( $post->ID ) ),
-				esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' )
-			);
-			$actions['kayzart_duplicate'] = sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( Admin::get_duplicate_post_action_url( (int) $post->ID ) ),
-				esc_html__( 'Duplicate', 'kayzart-live-code-editor' )
-			);
-		} else {
+		if ( ! $is_managed ) {
 			$actions['kayzart_convert'] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( Admin::get_convert_screen_url( (int) $post->ID ) ),
 				esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' )
 			);
+
+			return $actions;
 		}
 
-		return $actions;
+		$kayzart_actions                      = array();
+		$kayzart_actions['kayzart_edit']      = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( self::get_editor_url( $post->ID ) ),
+			esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' )
+		);
+		$kayzart_actions['kayzart_duplicate'] = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( Admin::get_duplicate_post_action_url( (int) $post->ID ) ),
+			esc_html__( 'Duplicate with Kayzart', 'kayzart-live-code-editor' )
+		);
+
+		// Show the Kayzart actions before the default row actions.
+		return array_merge( $kayzart_actions, $actions );
 	}
 
 	/**

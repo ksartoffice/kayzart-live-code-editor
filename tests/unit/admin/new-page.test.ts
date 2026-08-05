@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const newPageScript = readFileSync('assets/admin/new-page.js', 'utf8');
 
-const renderForm = (maxPromptBytes = 8192) => {
+const renderForm = (maxPromptChars = 8000) => {
   document.body.innerHTML = [
     '<form class="kayzart-create-form">',
     '<input id="kayzart-create-title" value="Salon launch" />',
@@ -22,8 +22,8 @@ const renderForm = (maxPromptBytes = 8192) => {
     domReady: (callback: () => void) => callback(),
   };
   (window as any).KAYZART_NEW_PAGE = {
-    maxPromptBytes,
-    bytesLabel: 'bytes',
+    maxPromptChars,
+    charsLabel: 'characters',
     improveUrl: '/wp-json/kayzart/v1/ai/prompts/improve',
     restNonce: 'rest-nonce',
     improveLabel: 'Improve with AI',
@@ -49,17 +49,44 @@ describe('new page form', () => {
     vi.restoreAllMocks();
   });
 
-  it('counts UTF-8 bytes and blocks a prompt over the byte limit', () => {
+  it('counts characters rather than bytes, so the limit does not depend on the language', () => {
+    renderForm(5);
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const counter = document.querySelector<HTMLElement>('#kayzart-initial-ai-prompt-count')!;
+    const submit = document.querySelector<HTMLInputElement>('#submit')!;
+
+    // Six UTF-8 bytes, but only two characters, so this stays within a five-character limit.
+    prompt.value = 'あい';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(counter.textContent).toBe('2 / 5 characters');
+    expect(counter.classList.contains('is-error')).toBe(false);
+    expect(prompt.getAttribute('aria-invalid')).toBe('false');
+    expect(submit.disabled).toBe(false);
+  });
+
+  it('counts a surrogate pair as one character, matching mb_strlen on the server', () => {
+    renderForm(5);
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const counter = document.querySelector<HTMLElement>('#kayzart-initial-ai-prompt-count')!;
+
+    prompt.value = '🎨🎨';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(counter.textContent).toBe('2 / 5 characters');
+  });
+
+  it('blocks a prompt over the character limit', () => {
     renderForm(5);
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
     const counter = document.querySelector<HTMLElement>('#kayzart-initial-ai-prompt-count')!;
     const submit = document.querySelector<HTMLInputElement>('#submit')!;
     const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
 
-    prompt.value = 'あい';
+    prompt.value = 'あいうえおか';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
 
-    expect(counter.textContent).toBe('6 / 5 bytes');
+    expect(counter.textContent).toBe('6 / 5 characters');
     expect(counter.classList.contains('is-error')).toBe(true);
     expect(prompt.getAttribute('aria-invalid')).toBe('true');
     expect(submit.disabled).toBe(true);

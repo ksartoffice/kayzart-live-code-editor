@@ -29,6 +29,7 @@ export type AiAvailability = {
   timelineBaseUrl: string;
   connectorsUrl: string;
   canManageConnectors: boolean;
+  maxPromptChars?: number;
   initialRequest?: {
     requestId: string;
     prompt: string;

@@ -42,7 +42,10 @@ class Admin {
 	const AI_MAX_TURNS_MIN             = 10;
 	const AI_MAX_TURNS_MAX             = 30;
 	const INITIAL_AI_REQUEST_META_KEY  = '_kayzart_initial_ai_request';
-	const INITIAL_AI_PROMPT_MAX_BYTES  = 8192;
+	const OPTION_AI_MAX_PROMPT_CHARS   = 'kayzart_ai_max_prompt_chars';
+	const AI_MAX_PROMPT_CHARS_DEFAULT  = 8000;
+	const AI_MAX_PROMPT_CHARS_MIN      = 1000;
+	const AI_MAX_PROMPT_CHARS_MAX      = 50000;
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
@@ -320,7 +323,7 @@ class Admin {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
 		$prompt = trim( wp_check_invalid_utf8( wp_unslash( (string) $_POST['initial_ai_prompt'] ), true ) );
-		if ( strlen( $prompt ) > self::INITIAL_AI_PROMPT_MAX_BYTES ) {
+		if ( mb_strlen( $prompt, 'UTF-8' ) > self::get_ai_max_prompt_chars() ) {
 			wp_die( esc_html__( 'The initial AI instruction is too large.', 'kayzart-live-code-editor' ) );
 		}
 
@@ -1021,6 +1024,16 @@ class Admin {
 			)
 		);
 
+		register_setting(
+			self::SETTINGS_GROUP,
+			self::OPTION_AI_MAX_PROMPT_CHARS,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_ai_max_prompt_chars' ),
+				'default'           => self::AI_MAX_PROMPT_CHARS_DEFAULT,
+			)
+		);
+
 		add_settings_section(
 			'kayzart_ai',
 			__( 'AI editing', 'kayzart-live-code-editor' ),
@@ -1040,6 +1053,14 @@ class Admin {
 			self::OPTION_AI_MAX_TURNS,
 			__( 'Maximum AI turns', 'kayzart-live-code-editor' ),
 			array( __CLASS__, 'render_ai_max_turns_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai'
+		);
+
+		add_settings_field(
+			self::OPTION_AI_MAX_PROMPT_CHARS,
+			__( 'Maximum instruction length', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_max_prompt_chars_field' ),
 			self::SETTINGS_SLUG,
 			'kayzart_ai'
 		);
@@ -1194,6 +1215,42 @@ class Admin {
 	 */
 	public static function get_ai_max_turns(): int {
 		return self::sanitize_ai_max_turns( get_option( self::OPTION_AI_MAX_TURNS, self::AI_MAX_TURNS_DEFAULT ) );
+	}
+
+	/**
+	 * Sanitize the maximum number of characters allowed in an AI instruction.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return int
+	 */
+	public static function sanitize_ai_max_prompt_chars( $value ): int {
+		if ( ! is_scalar( $value ) || '' === trim( (string) $value ) || ! is_numeric( $value ) ) {
+			return self::AI_MAX_PROMPT_CHARS_DEFAULT;
+		}
+
+		return max( self::AI_MAX_PROMPT_CHARS_MIN, min( self::AI_MAX_PROMPT_CHARS_MAX, (int) $value ) );
+	}
+
+	/**
+	 * Get the configured maximum number of characters for an AI instruction.
+	 *
+	 * Counted in characters rather than bytes so the limit is the same in every
+	 * language. The filter is the escape hatch for sites that need a value
+	 * outside the range offered on the settings screen.
+	 *
+	 * @return int
+	 */
+	public static function get_ai_max_prompt_chars(): int {
+		$value = self::sanitize_ai_max_prompt_chars( get_option( self::OPTION_AI_MAX_PROMPT_CHARS, self::AI_MAX_PROMPT_CHARS_DEFAULT ) );
+
+		/**
+		 * Filter the maximum number of characters allowed in an AI instruction.
+		 *
+		 * @param int $value Maximum characters, already clamped to the settings range.
+		 */
+		$filtered = (int) apply_filters( 'kayzart_ai_max_prompt_chars', $value );
+
+		return $filtered > 0 ? $filtered : $value;
 	}
 
 	/**
@@ -1417,6 +1474,26 @@ class Admin {
 	}
 
 	/**
+	 * Render the maximum AI instruction length field.
+	 */
+	public static function render_ai_max_prompt_chars_field(): void {
+		$value = self::get_ai_max_prompt_chars();
+
+		echo '<input type="number" class="small-text" name="' . esc_attr( self::OPTION_AI_MAX_PROMPT_CHARS ) . '" value="' . esc_attr( $value ) . '" min="' . esc_attr( self::AI_MAX_PROMPT_CHARS_MIN ) . '" max="' . esc_attr( self::AI_MAX_PROMPT_CHARS_MAX ) . '" step="1" />';
+		printf(
+			'<p class="description">%s</p>',
+			esc_html(
+				sprintf(
+					/* translators: 1: minimum number of characters, 2: maximum number of characters. */
+					__( 'Choose between %1$d and %2$d characters per AI instruction. The limit is counted in characters, so it is the same in every language. Longer instructions increase AI usage.', 'kayzart-live-code-editor' ),
+					self::AI_MAX_PROMPT_CHARS_MIN,
+					self::AI_MAX_PROMPT_CHARS_MAX
+				)
+			)
+		);
+	}
+
+	/**
 	 * Render the admin editor container.
 	 */
 	public static function render_page(): void {
@@ -1531,7 +1608,7 @@ class Admin {
 		echo '<div class="kayzart-create-field">';
 		echo '<label class="screen-reader-text" for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label>';
 		echo '<div class="kayzart-ai-prompt-control' . ( $ai_is_available ? ' has-improver' : '' ) . '">';
-		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7" maxlength="' . esc_attr( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . '"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count kayzart-ai-improve-status" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
+		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count kayzart-ai-improve-status" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
 		if ( $ai_is_available ) {
 			echo '<button id="kayzart-ai-improve" class="kayzart-ai-improve" type="button" disabled="disabled"><span class="kayzart-ai-improve__spinner" aria-hidden="true"></span><span class="kayzart-ai-improve__label">' . esc_html__( 'Improve with AI', 'kayzart-live-code-editor' ) . '</span></button>';
 		}
@@ -1548,7 +1625,7 @@ class Admin {
 		if ( $ai_is_available ) {
 			echo '<button id="kayzart-ai-improve-undo" class="kayzart-ai-improve-undo" type="button" hidden="hidden">' . esc_html__( 'Undo improvement', 'kayzart-live-code-editor' ) . '</button>';
 		}
-		echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::INITIAL_AI_PROMPT_MAX_BYTES ) . ' ' . esc_html__( 'bytes', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::get_ai_max_prompt_chars() ) . ' ' . esc_html__( 'characters', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</div>';
 		echo '</div>';
 		echo '</section>';
@@ -1983,6 +2060,7 @@ class Admin {
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => current_user_can( 'manage_options' ),
+				'maxPromptChars'      => self::get_ai_max_prompt_chars(),
 				'initialRequest'      => $initial_ai_request,
 			),
 		);
@@ -2053,8 +2131,8 @@ class Admin {
 			$handle,
 			'window.KAYZART_NEW_PAGE = ' . wp_json_encode(
 				array(
-					'maxPromptBytes'  => self::INITIAL_AI_PROMPT_MAX_BYTES,
-					'bytesLabel'      => __( 'bytes', 'kayzart-live-code-editor' ),
+					'maxPromptChars'  => self::get_ai_max_prompt_chars(),
+					'charsLabel'      => __( 'characters', 'kayzart-live-code-editor' ),
 					'improveUrl'      => rest_url( 'kayzart/v1' . Rest_Ai_Prompt::ROUTE ),
 					'restNonce'       => wp_create_nonce( 'wp_rest' ),
 					'improveLabel'    => __( 'Improve with AI', 'kayzart-live-code-editor' ),

@@ -9,12 +9,21 @@
         }
       };
 
-  function getByteLength(value) {
-    if (window.TextEncoder) {
-      return new window.TextEncoder().encode(value).length;
+  // Counted in code points so the number matches PHP's mb_strlen(), which is what the server enforces.
+  function getCharLength(value) {
+    var length = 0;
+    for (var index = 0; index < value.length; index += 1) {
+      var code = value.charCodeAt(index);
+      if (code >= 0xd800 && code <= 0xdbff && index + 1 < value.length) {
+        var next = value.charCodeAt(index + 1);
+        if (next >= 0xdc00 && next <= 0xdfff) {
+          index += 1;
+        }
+      }
+      length += 1;
     }
 
-    return unescape(encodeURIComponent(value)).length;
+    return length;
   }
 
   domReady(function () {
@@ -32,10 +41,10 @@
     var undo = form.querySelector('#kayzart-ai-improve-undo');
     var improveStatus = form.querySelector('#kayzart-ai-improve-status');
     var config = window.KAYZART_NEW_PAGE || {};
-    var maxBytes = Number(config.maxPromptBytes) || 8192;
-    var bytesLabel = config.bytesLabel || 'bytes';
+    var maxChars = Number(config.maxPromptChars) || 8000;
+    var charsLabel = config.charsLabel || 'characters';
     var promptIsValid = true;
-    var promptBytes = 0;
+    var promptChars = 0;
     var improving = false;
     var previousPrompt = null;
     var applyingPromptValue = false;
@@ -61,9 +70,9 @@
         return;
       }
 
-      promptBytes = getByteLength(prompt.value.trim());
-      promptIsValid = promptBytes <= maxBytes;
-      counter.textContent = promptBytes + ' / ' + maxBytes + ' ' + bytesLabel;
+      promptChars = getCharLength(prompt.value.trim());
+      promptIsValid = promptChars <= maxChars;
+      counter.textContent = promptChars + ' / ' + maxChars + ' ' + charsLabel;
       counter.classList.toggle('is-error', !promptIsValid);
       prompt.setAttribute('aria-invalid', promptIsValid ? 'false' : 'true');
 
@@ -71,7 +80,7 @@
         submit.disabled = !promptIsValid;
       }
       if (improve) {
-        improve.disabled = improving || promptBytes === 0 || !promptIsValid;
+        improve.disabled = improving || promptChars === 0 || !promptIsValid;
       }
     }
 

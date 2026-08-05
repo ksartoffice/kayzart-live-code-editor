@@ -13,7 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Creates, reads, and cancels AI jobs. */
 class Rest_Ai {
-	const MAX_PROMPT_BYTES               = 8192;
 	const MAX_CODE_BYTES                 = 262144;
 	const MAX_CONTEXTS                   = 20;
 	const MAX_SELECTION_DESCRIPTOR_BYTES = 8000;
@@ -251,7 +250,7 @@ class Rest_Ai {
 			return self::invalid( __( 'editorMode is invalid.', 'kayzart-live-code-editor' ) );
 		}
 		$prompt = isset( $input['prompt'] ) ? trim( (string) $input['prompt'] ) : '';
-		if ( '' === $prompt || strlen( $prompt ) > self::MAX_PROMPT_BYTES ) {
+		if ( '' === $prompt || mb_strlen( $prompt, 'UTF-8' ) > Admin::get_ai_max_prompt_chars() ) {
 			return self::invalid( __( 'prompt is empty or too large.', 'kayzart-live-code-editor' ) );
 		}
 

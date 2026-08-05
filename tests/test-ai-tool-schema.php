@@ -157,7 +157,8 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'css' ), false, false, true );
 		$font  = $this->find_tool( $tools, 'list_available_fonts' );
 		$this->assertNotNull( $font );
-		$this->assertSame( array(), $font['parameters']['properties'] );
+		$this->assertArrayNotHasKey( 'properties', $font['parameters'] );
+		$this->assertSame( '{"type":"object","additionalProperties":false}', wp_json_encode( $font['parameters'] ) );
 		$this->assertStringContainsString( 'cssValue', $font['description'] );
 	}
 

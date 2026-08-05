@@ -313,6 +313,29 @@ class Test_Kayzart_Snapshot_Revisions extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The restore path re-extracts candidates from post content when no stored
+	 * list is usable, so it has to keep quoted arbitrary values intact.
+	 */
+	public function test_revision_restore_recovers_quoted_arbitrary_candidates(): void {
+		$page = $this->create_page();
+		wp_update_post(
+			array(
+				'ID'           => $page['post_id'],
+				'post_content' => '<div class="font-[\'Noto_Sans_JP\'] text-sm">Restored</div>',
+			)
+		);
+		update_post_meta( $page['post_id'], '_kayzart_tailwind', '1' );
+		update_post_meta( $page['post_id'], '_kayzart_css', '@import "tailwindcss";' );
+		delete_post_meta( $page['post_id'], \KayzArt\Tailwind_Compiler::CANDIDATES_META_KEY );
+
+		Snapshot::sync_generated_css_after_restore( $page['post_id'], 0 );
+
+		$generated_css = (string) get_post_meta( $page['post_id'], '_kayzart_generated_css', true );
+		$this->assertStringContainsString( 'Noto_Sans_JP', $generated_css );
+		$this->assertStringContainsString( '.text-sm', $generated_css );
+	}
+
+	/**
 	 * Meta-only changes are revisioned while identical saves are ignored.
 	 */
 	public function test_meta_only_change_creates_revision_and_identical_save_does_not(): void {

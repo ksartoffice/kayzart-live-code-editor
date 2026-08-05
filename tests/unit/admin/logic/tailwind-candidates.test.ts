@@ -17,6 +17,28 @@ describe('extractTailwindCandidates', () => {
     ]);
   });
 
+  it('keeps quoted arbitrary values and the classes listed after them', () => {
+    const html = `<div class="font-['Noto_Sans_JP'] flex md:grid-cols-3"></div>`;
+
+    expect(extractTailwindCandidates(html)).toEqual([
+      "font-['Noto_Sans_JP']",
+      'flex',
+      'md:grid-cols-3',
+    ]);
+  });
+
+  it('reads double quotes inside a single-quoted attribute', () => {
+    const html = `<div class='bg-[url("a.png")] p-4'></div>`;
+
+    expect(extractTailwindCandidates(html)).toEqual(['bg-[url("a.png")]', 'p-4']);
+  });
+
+  it('skips empty class attributes', () => {
+    expect(extractTailwindCandidates('<div class=""></div><span class="flex"></span>')).toEqual([
+      'flex',
+    ]);
+  });
+
   it('extracts a compact candidate set from HTML larger than two megabytes', () => {
     const html = `<div class="flex text-sm">Large</div>${'x'.repeat(2 * 1024 * 1024)}`;
 

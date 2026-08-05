@@ -39,7 +39,6 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 	protected function tearDown(): void {
 		remove_all_filters( 'kayzart_ai_client' );
 		remove_all_filters( 'kayzart_ai_immediate_dispatch_enabled' );
-		remove_all_filters( 'kayzart_ai_defer_create_first_turn' );
 		remove_all_filters( 'kayzart_ai_performance_logging_enabled' );
 		remove_all_filters( 'pre_http_request' );
 		Ai_Worker::deactivate();
@@ -226,76 +225,6 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 		$this->assertSame( 0, $calls );
 	}
 
-	/** Deferring is off by default, so nothing waits for the scheduler. */
-	public function test_should_defer_to_scheduler_is_off_by_default(): void {
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $this->job_row( 'create', 0 ) ) );
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $this->job_row( 'edit', 0 ) ) );
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( null ) );
-	}
-
-	/** Once enabled, only the first turn of a page-creation job defers. */
-	public function test_should_defer_to_scheduler_when_the_filter_enables_it(): void {
-		add_filter( 'kayzart_ai_defer_create_first_turn', '__return_true' );
-
-		$this->assertTrue( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $this->job_row( 'create', 0 ) ) );
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $this->job_row( 'create', 1 ) ) );
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $this->job_row( 'edit', 0 ) ) );
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $this->job_row( null, 0 ) ) );
-		$this->assertFalse( Ai_Immediate_Dispatcher::should_defer_to_scheduler( null ) );
-	}
-
-	/** With deferring enabled the pending sweep leaves the first turn alone. */
-	public function test_pending_dispatch_skips_a_deferred_create_first_turn(): void {
-		add_filter( 'kayzart_ai_defer_create_first_turn', '__return_true' );
-		$uuid = $this->create_job( 'immediate-create', 24, array( 'intent' => 'create' ) );
-		Ai_Worker::enqueue( $uuid );
-		$calls = 0;
-		add_filter(
-			'pre_http_request',
-			static function ( $preempted ) use ( &$calls ) {
-				$calls++;
-				return $preempted;
-			}
-		);
-
-		$this->assertFalse( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
-		$this->assertSame( 0, $calls );
-	}
-
-	/** By default a creation job is dispatched immediately like any other. */
-	public function test_pending_dispatch_serves_create_jobs_by_default(): void {
-		$uuid = $this->create_job( 'immediate-create-default', 26, array( 'intent' => 'create' ) );
-		Ai_Worker::enqueue( $uuid );
-		$calls = 0;
-		add_filter(
-			'pre_http_request',
-			static function ( $preempted ) use ( &$calls ) {
-				$calls++;
-				return $preempted;
-			}
-		);
-
-		$this->assertTrue( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
-		$this->assertSame( 1, $calls );
-	}
-
-	/** An ordinary edit job is still dispatched by the pending sweep. */
-	public function test_pending_dispatch_still_serves_edit_jobs(): void {
-		$uuid = $this->create_job( 'immediate-edit', 25, array( 'intent' => 'edit' ) );
-		Ai_Worker::enqueue( $uuid );
-		$calls = 0;
-		add_filter(
-			'pre_http_request',
-			static function ( $preempted ) use ( &$calls ) {
-				$calls++;
-				return $preempted;
-			}
-		);
-
-		$this->assertTrue( Ai_Immediate_Dispatcher::dispatch_oldest_pending() );
-		$this->assertSame( 1, $calls );
-	}
-
 	/** Invalid signatures and mismatched action identities are rejected. */
 	public function test_internal_route_rejects_invalid_signature_and_identity(): void {
 		$uuid      = $this->create_job( 'immediate-auth', 23 );
@@ -431,48 +360,26 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 		return $this->http_response();
 	}
 
-	/** Build a job row shaped the way should_defer_to_scheduler() reads it.
-	 *
-	 * @param string|null $intent  Payload intent, or null to omit the key.
-	 * @param int         $version Persisted state version.
-	 * @return array
-	 */
-	private function job_row( ?string $intent, int $version ): array {
-		$payload = array( 'editorMode' => 'normal' );
-		if ( null !== $intent ) {
-			$payload['intent'] = $intent;
-		}
-
-		return array(
-			'state_version' => $version,
-			'payload_json'  => wp_json_encode( $payload ),
-		);
-	}
-
 	/** Create one pending test job.
 	 *
 	 * @param string $request_id Request ID.
 	 * @param int    $post_id    Unique post ID.
-	 * @param array  $extra      Payload keys merged over the defaults.
 	 */
-	private function create_job( string $request_id, int $post_id, array $extra = array() ): string {
+	private function create_job( string $request_id, int $post_id ): string {
 		$result = $this->store->create(
 			1,
 			$post_id,
 			$request_id,
-			array_merge(
-				array(
-					'editorMode'       => 'normal',
-					'prompt'           => 'Change Hello to World.',
-					'html'             => '<h1>Hello</h1>',
-					'customHead'       => '',
-					'css'              => '',
-					'js'               => '',
-					'jsMode'           => 'classic',
-					'baseHash'         => '',
-					'selectedContexts' => array(),
-				),
-				$extra
+			array(
+				'editorMode'       => 'normal',
+				'prompt'           => 'Change Hello to World.',
+				'html'             => '<h1>Hello</h1>',
+				'customHead'       => '',
+				'css'              => '',
+				'js'               => '',
+				'jsMode'           => 'classic',
+				'baseHash'         => '',
+				'selectedContexts' => array(),
 			)
 		);
 		return $result['job']['job_uuid'];

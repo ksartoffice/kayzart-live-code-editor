@@ -133,11 +133,7 @@ class Rest_Ai {
 					)
 				);
 			}
-			if ( Ai_Immediate_Dispatcher::should_defer_to_scheduler( $job ) ) {
-				Ai_Immediate_Dispatcher::log_deferred( $job['job_uuid'], (int) $scheduled['run_action_id'] );
-			} else {
-				Ai_Immediate_Dispatcher::dispatch( $scheduled['run_action_id'], $job['job_uuid'] );
-			}
+			Ai_Immediate_Dispatcher::dispatch( $scheduled['run_action_id'], $job['job_uuid'] );
 		}
 		Admin::consume_initial_ai_request( $payload['postId'], '' !== $initial_id ? $initial_id : $payload['requestId'], $current_user );
 

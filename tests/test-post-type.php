@@ -102,7 +102,7 @@ class Test_Post_Type extends WP_UnitTestCase {
 		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
 
 		$states = Post_Type::add_post_states( array(), $page );
-		$this->assertSame( __( 'Landing page', 'kayzart-live-code-editor' ), $states['kayzart_lp'] ?? '' );
+		$this->assertSame( 'Kayzart', $states['kayzart_lp'] ?? '' );
 	}
 
 	public function test_row_action_uses_landing_page_edit_label_for_marked_pages(): void {

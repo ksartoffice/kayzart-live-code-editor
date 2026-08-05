@@ -334,8 +334,8 @@ msgid "Landing page duplicated. The copy was saved as a draft."
 msgstr "ランディングページを複製しました。コピーは下書きとして保存されました。"
 
 #: includes/class-kayzart-post-type.php:377
-msgid "Duplicate"
-msgstr "複製"
+msgid "Duplicate with Kayzart"
+msgstr "Kayzart で複製"
 
 #: includes/rest/class-kayzart-rest-revisions.php:77
 #: assets/dist/main.js:668

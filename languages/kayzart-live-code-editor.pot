@@ -672,7 +672,7 @@ msgid "Landing page"
 msgstr ""
 
 #: includes/class-kayzart-post-type.php:377
-msgid "Duplicate"
+msgid "Duplicate with Kayzart"
 msgstr ""
 
 #: includes/class-kayzart-preview.php:194

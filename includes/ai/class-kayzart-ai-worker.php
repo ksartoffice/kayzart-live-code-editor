@@ -615,6 +615,10 @@ class Ai_Worker {
 	 * @param array               $job      Job database row.
 	 */
 	private static function create_agent( Ai_Client_Interface $client, Ai_Job_Store $store, string $job_uuid, array $job ): Ai_Agent {
+		$timeline = new Ai_Timeline_Store();
+		$post_id  = isset( $job['post_id'] ) ? (int) $job['post_id'] : 0;
+		$payload  = isset( $job['payload_json'] ) ? json_decode( (string) $job['payload_json'], true ) : null;
+		$fonts    = is_array( $payload ) && isset( $payload['availableFonts'] ) && is_array( $payload['availableFonts'] ) ? $payload['availableFonts'] : array();
 		return new Ai_Agent(
 			$client,
 			array(
@@ -627,6 +631,21 @@ class Ai_Worker {
 				'debugId'     => $job_uuid,
 				'observeStep' => function ( array $metrics ) use ( $job ) {
 					self::performance_log( $job, 'model_step', $metrics );
+				},
+				'historyTool' => function ( string $name, array $args ) use ( $timeline, $post_id ): array {
+					if ( 'list_ai_edits' === $name ) {
+						return $timeline->list_ai_edits_for_tool( $post_id, $args );
+					}
+					if ( 'get_ai_edit' === $name ) {
+						return $timeline->get_ai_edit_for_tool( $post_id, $args );
+					}
+					return array(
+						'ok'    => false,
+						'error' => 'Unknown AI edit history tool.',
+					);
+				},
+				'fontTool'    => function () use ( $fonts ): array {
+					return Ai_Fonts::catalog_for_tool( $fonts );
 				},
 			)
 		);

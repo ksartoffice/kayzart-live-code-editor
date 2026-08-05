@@ -51,12 +51,52 @@ class Ai_Fonts {
 	 * @return array{registered:array<int,array{name:string,fontFamily:string}>,systemStacks:array<string,string>}
 	 */
 	public static function resolve_for_payload(): array {
+
 		return array(
 			'registered'   => self::registered_families(),
 			'systemStacks' => self::SYSTEM_STACKS,
 		);
 	}
 
+	/**
+	 * Build the compact, structured catalog returned to an editing agent.
+	 *
+	 * @param array $fonts Job-captured availableFonts payload.
+	 * @return array
+	 */
+	public static function catalog_for_tool( array $fonts ): array {
+
+		$registered = isset( $fonts['registered'] ) && is_array( $fonts['registered'] ) ? $fonts['registered'] : array();
+		$stacks     = isset( $fonts['systemStacks'] ) && is_array( $fonts['systemStacks'] ) && count( $fonts['systemStacks'] ) > 0
+		? $fonts['systemStacks']
+			: self::SYSTEM_STACKS;
+		$result     = array(
+			'ok'         => true,
+			'registered' => array(),
+			'system'     => array(),
+			'rules'      => array(
+				'useCssValueExactly'       => true,
+				'externalResourcesAllowed' => false,
+			),
+		);
+		foreach ( $registered as $family ) {
+			if ( ! is_array( $family ) || empty( $family['name'] ) || empty( $family['fontFamily'] ) ) {
+				continue;
+			}
+			$result['registered'][] = array(
+				'name'     => (string) $family['name'],
+				'cssValue' => (string) $family['fontFamily'],
+			);
+		}
+		foreach ( $stacks as $name => $css_value ) {
+			$result['system'][] = array(
+				'name'     => (string) $name,
+				'cssValue' => (string) $css_value,
+			);
+		}
+
+		return $result;
+	}
 	/**
 	 * List font families WordPress will emit a font-face rule for.
 	 *

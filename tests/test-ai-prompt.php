@@ -114,14 +114,14 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'User prompt: make the heading blue', $prompt );
 		$this->assertStringContainsString( 'Editor mode: normal', $prompt );
 		$this->assertStringContainsString( 'Editable targets for this request: html, head, css', $prompt );
-		$this->assertStringContainsString( 'Selected contexts: none', $prompt );
-		$this->assertStringContainsString( 'Recent edit context: none', $prompt );
-		$this->assertStringContainsString( 'History tools available: none', $prompt );
+		$this->assertStringNotContainsString( 'Selected contexts:', $prompt );
+		$this->assertStringNotContainsString( 'Recent edit context:', $prompt );
+		$this->assertStringNotContainsString( 'History tools available:', $prompt );
 		$this->assertStringNotContainsString( 'Tailwind mode policy:', $prompt );
 	}
 
 	/**
-	 * Tailwind mode without CSS intent adds the tailwind policy and trims CSS.
+	 * Tailwind mode without CSS intent trims CSS while policy stays in system.
 	 */
 	public function test_build_user_prompt_tailwind_mode(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
@@ -135,11 +135,12 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Editor mode: tailwind', $prompt );
 		$this->assertStringContainsString( 'Editable targets for this request: html, head', $prompt );
-		$this->assertStringContainsString( 'Tailwind mode policy:', $prompt );
+		$this->assertStringNotContainsString( 'Tailwind mode rules:', $prompt );
+		$this->assertStringContainsString( 'Tailwind mode rules:', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'tailwind' ) );
 	}
 
 	/**
-	 * Creating a page adds the creation policy and never appears while editing.
+	 * Creation policy stays in the creation system prompt, not request data.
 	 */
 	public function test_build_user_prompt_creation_policy(): void {
 		$payload = array(
@@ -149,12 +150,11 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 
 		$editing = Ai_Prompt::build_user_prompt( $payload );
-		$this->assertStringNotContainsString( 'Page creation policy:', $editing );
-
+		$this->assertStringNotContainsString( 'Build one complete, publishable landing page', $editing );
 		$payload['intent'] = 'create';
 		$creating          = Ai_Prompt::build_user_prompt( $payload );
-		$this->assertStringContainsString( 'Page creation policy:', $creating );
-		$this->assertStringContainsString( 'creates a new page from an empty or nearly empty document', $creating );
+		$this->assertStringNotContainsString( 'Page creation policy:', $creating );
+		$this->assertStringContainsString( 'Build one complete, publishable landing page', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ) );
 	}
 
 	/**
@@ -171,7 +171,8 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString( 'Editable targets for this request: html, head, css', $prompt );
-		$this->assertStringContainsString( 'Define the page theme in the CSS tab with @theme', $prompt );
+		$system = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE, 'tailwind' );
+		$this->assertStringContainsString( 'Define the page theme in the CSS tab with @theme', $system );
 		$this->assertStringNotContainsString( 'Edit CSS only when the user explicitly asks', $prompt );
 	}
 
@@ -209,6 +210,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 			array(
 				'editorMode' => 'normal',
 				'prompt'     => 'A landing page for a bakery.',
+				'intent'     => 'create',
 			)
 		);
 
@@ -219,7 +221,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Font guidance applies to editing too, so restyle requests can resolve.
+	 * Font guidance is inline for creation and tool-backed for editing.
 	 */
 	public function test_build_user_prompt_fonts_policy_applies_to_both_intents(): void {
 		$payload = array(
@@ -227,8 +229,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 			'prompt'     => 'Make the headings mincho.',
 		);
 
-		$this->assertStringContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
-
+		$this->assertStringNotContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
 		$payload['intent'] = 'create';
 		$this->assertStringContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
 	}
@@ -306,33 +307,17 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 
 		$this->assertStringContainsString(
 			$expected,
-			Ai_Prompt::build_user_prompt(
-				array(
-					'editorMode' => 'tailwind',
-					'prompt'     => 'Make the hero bigger.',
-				)
-			)
+			Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'tailwind' )
 		);
 
 		$this->assertStringContainsString(
 			$expected,
-			Ai_Prompt::build_user_prompt(
-				array(
-					'editorMode' => 'tailwind',
-					'prompt'     => 'A landing page for an apple grower.',
-					'intent'     => 'create',
-				)
-			)
+			Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE, 'tailwind' )
 		);
 
 		$this->assertStringNotContainsString(
 			$expected,
-			Ai_Prompt::build_user_prompt(
-				array(
-					'editorMode' => 'normal',
-					'prompt'     => 'Make the hero bigger.',
-				)
-			)
+			Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'normal' )
 		);
 	}
 
@@ -358,7 +343,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Selected contexts add the context list and its edit policy.
+	 * Selected contexts add request data while their policy stays in system.
 	 */
 	public function test_build_user_prompt_with_selected_contexts(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
@@ -376,12 +361,13 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Selected contexts:', $prompt );
 		$this->assertStringContainsString( '"lcId": "el-1"', $prompt );
-		$this->assertStringContainsString( 'Selected context edit policy:', $prompt );
+		$this->assertStringNotContainsString( 'Selected context edit policy:', $prompt );
+		$this->assertStringContainsString( 'treat the selected context list as the primary edit target', Ai_Prompt::system_prompt() );
 		$this->assertStringNotContainsString( 'Selected contexts: none', $prompt );
 	}
 
 	/**
-	 * History availability switches the history tool guidance.
+	 * History availability is represented by tool declarations, not user text.
 	 */
 	public function test_build_user_prompt_history_tool_available(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
@@ -391,7 +377,8 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 				'historyTool' => array( 'token' => 'abc' ),
 			)
 		);
-		$this->assertStringContainsString( 'History tools available: list_ai_edits and get_ai_edit', $prompt );
+		$this->assertStringNotContainsString( 'History tools available:', $prompt );
+		$this->assertStringContainsString( 'Use list_ai_edits/get_ai_edit only', Ai_Prompt::system_prompt() );
 	}
 
 	/**

@@ -223,19 +223,27 @@ class Ai_Timeline_Store {
 	}
 
 	/** Recent lightweight successful context for the next AI request. */
-	public function recent_context( int $post_id, array $current_snapshot = array() ): array {
+	public function recent_context( int $post_id, array $current_snapshot = array(), int $limit = self::CONTEXT_LIMIT ): array {
+
+		$limit = max( 0, min( self::CONTEXT_LIMIT, $limit ) );
+		if ( 0 === $limit ) {
+			return array();
+		}
 		global $wpdb;
 		$timeline = Ai_Setup::get_timeline_table_name();
 		$jobs     = Ai_Setup::get_jobs_table_name();
-		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type = 'ai_edit' AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT 10", $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type = 'ai_edit' AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT %d", $post_id, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$context  = array_map(
 			static function ( array $row ): array {
+
 				return array(
+					'versionId'         => (string) $row['activity_uuid'],
 					'prompt'            => self::truncate( (string) $row['prompt'], 1024 ),
 					'summary'           => self::truncate( (string) $row['summary'], 512 ),
 					'changedTargets'    => self::decode_array( $row['changed_targets'] ),
 					'applicationStatus' => (string) $row['application_status'],
 					'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
+					'detailsAvailable'  => ! empty( $row['retained_job_uuid'] ),
 				);
 			},
 			$rows
@@ -253,6 +261,112 @@ class Ai_Timeline_Store {
 		return array_reverse( $context );
 	}
 
+	/** Return completed AI edit metadata for the model-facing history tool. */
+	public function list_ai_edits_for_tool( int $post_id, array $args ): array {
+
+		global $wpdb;
+		$requested = isset( $args['limit'] ) && is_numeric( $args['limit'] ) ? (int) $args['limit'] : 10;
+		$limit     = max( 1, min( self::PAGE_SIZE, $requested ) );
+		$timeline  = Ai_Setup::get_timeline_table_name();
+		$jobs      = Ai_Setup::get_jobs_table_name();
+		$rows      = $wpdb->get_results( $wpdb->prepare( "SELECT t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, j.job_uuid AS retained_job_uuid FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type = 'ai_edit' AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT %d", $post_id, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+
+		return array(
+			'ok'    => true,
+			'items' => array_map( array( __CLASS__, 'history_tool_metadata' ), $rows ),
+		);
+	}
+
+	/** Return metadata or one bounded source page for a prior completed edit. */
+	public function get_ai_edit_for_tool( int $post_id, array $args ): array {
+
+		global $wpdb;
+		$version_id = isset( $args['versionId'] ) ? trim( (string) $args['versionId'] ) : '';
+		if ( '' === $version_id ) {
+			return array(
+				'ok'    => false,
+				'error' => 'versionId is required.',
+			);
+		}
+		$timeline = Ai_Setup::get_timeline_table_name();
+		$jobs     = Ai_Setup::get_jobs_table_name();
+		$row      = $wpdb->get_row( $wpdb->prepare( "SELECT t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_uuid = %s AND t.activity_type = 'ai_edit' AND t.execution_status = 'completed' LIMIT 1", $post_id, $version_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		if ( ! is_array( $row ) ) {
+			return array(
+				'ok'    => false,
+				'error' => 'AI edit history item was not found.',
+			);
+		}
+
+		$metadata = self::history_tool_metadata( $row );
+		$snapshot = isset( $args['snapshot'] ) ? (string) $args['snapshot'] : '';
+		$target   = isset( $args['target'] ) ? (string) $args['target'] : '';
+		if ( '' === $snapshot && '' === $target && empty( $args['cursor'] ) ) {
+			return array_merge( array( 'ok' => true ), $metadata );
+		}
+		if ( ! in_array( $snapshot, array( 'before', 'after' ), true ) || ! in_array( $target, array( 'html', 'head', 'css', 'js' ), true ) ) {
+			return array(
+				'ok'    => false,
+				'error' => 'snapshot and target are required to read retained source.',
+			);
+		}
+		if ( empty( $row['retained_job_uuid'] ) ) {
+			return array(
+				'ok'               => false,
+				'error'            => 'AI edit source details are no longer available.',
+				'detailsAvailable' => false,
+			);
+		}
+
+		$raw_snapshot = json_decode( 'after' === $snapshot ? (string) $row['retained_snapshot_json'] : (string) $row['retained_payload_json'], true );
+		if ( ! is_array( $raw_snapshot ) ) {
+			return array(
+				'ok'    => false,
+				'error' => 'AI edit source details are invalid.',
+			);
+		}
+		$normalized = self::snapshot_from_payload( $raw_snapshot );
+		$key        = 'head' === $target ? 'customHead' : $target;
+		$source     = isset( $normalized[ $key ] ) ? (string) $normalized[ $key ] : '';
+		$hash       = hash( 'sha256', $source );
+		$offset     = 0;
+		if ( ! empty( $args['cursor'] ) ) {
+			$cursor = self::decode_history_cursor( (string) $args['cursor'] );
+			if ( ! is_array( $cursor ) || ( $cursor['versionId'] ?? '' ) !== $version_id || ( $cursor['snapshot'] ?? '' ) !== $snapshot || ( $cursor['target'] ?? '' ) !== $target || ( $cursor['contentHash'] ?? '' ) !== $hash ) {
+				return array(
+					'ok'    => false,
+					'error' => 'History source cursor is invalid or stale.',
+				);
+			}
+			$offset = max( 0, (int) ( $cursor['nextCharOffset'] ?? 0 ) );
+		}
+		$requested = isset( $args['maxChars'] ) && is_numeric( $args['maxChars'] ) ? (int) $args['maxChars'] : Ai_Tools::DEFAULT_READ_CHARS;
+		$max_chars = max( 1, min( Ai_Tools::MAX_READ_CHARS, $requested ) );
+		$content   = mb_substr( $source, $offset, $max_chars );
+		$next      = $offset + mb_strlen( $content );
+		$truncated = $next < mb_strlen( $source );
+
+		return array_merge(
+			array( 'ok' => true ),
+			$metadata,
+			array(
+				'snapshot'    => $snapshot,
+				'target'      => $target,
+				'content'     => $content,
+				'contentHash' => $hash,
+				'truncated'   => $truncated,
+				'nextCursor'  => $truncated ? self::encode_history_cursor(
+					array(
+						'versionId'      => $version_id,
+						'snapshot'       => $snapshot,
+						'target'         => $target,
+						'contentHash'    => $hash,
+						'nextCharOffset' => $next,
+					)
+				) : null,
+			)
+		);
+	}
 	/** Delete timeline data only when a post is permanently deleted. */
 	public function delete_for_post( int $post_id ): int {
 		global $wpdb;
@@ -781,8 +895,45 @@ class Ai_Timeline_Store {
 
 	/** Decode a JSON array safely. */
 	private static function decode_array( $value ): array {
+
 		$data = json_decode( (string) $value, true );
 		return is_array( $data ) ? $data : array();
+	}
+
+	/** Build a compact history-tool record from a timeline query row. */
+	private static function history_tool_metadata( array $row ): array {
+
+		return array(
+			'versionId'         => (string) $row['activity_uuid'],
+			'prompt'            => self::truncate( (string) $row['prompt'], 1024 ),
+			'summary'           => self::truncate( (string) $row['summary'], 512 ),
+			'changedTargets'    => self::decode_array( $row['changed_targets'] ),
+			'applicationStatus' => (string) $row['application_status'],
+			'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
+			'detailsAvailable'  => ! empty( $row['retained_job_uuid'] ),
+		);
+	}
+
+	/** Encode a history source cursor without exposing database identifiers. */
+	private static function encode_history_cursor( array $cursor ): string {
+
+		$json = wp_json_encode( $cursor );
+		return rtrim( strtr( base64_encode( (string) $json ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Opaque pagination cursor, not executable code.
+	}
+
+	/** Decode an opaque history source cursor. */
+	private static function decode_history_cursor( string $cursor ) {
+
+		$padding = strlen( $cursor ) % 4;
+		if ( $padding > 0 ) {
+			$cursor .= str_repeat( '=', 4 - $padding );
+		}
+		$json = base64_decode( strtr( $cursor, '-_', '+/' ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decodes the opaque pagination cursor above.
+		if ( false === $json ) {
+			return null;
+		}
+		$data = json_decode( $json, true );
+		return is_array( $data ) ? $data : null;
 	}
 
 	/** Byte-bound stored display text while preserving valid UTF-8 where possible. */

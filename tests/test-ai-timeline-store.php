@@ -30,6 +30,7 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 
 	/** Job-backed activity creation is idempotent and completion stays lightweight. */
 	public function test_ai_edit_is_idempotent_and_builds_recent_context(): void {
+
 		$job     = $this->job( 'request-context' );
 		$payload = $this->payload( 'Make the heading stronger.' );
 		$first   = $this->store->create_ai_edit( $job, $payload );
@@ -45,8 +46,73 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$context = $this->store->recent_context( 42 );
 		$this->assertCount( 1, $context );
 		$this->assertLessThanOrEqual( 512, strlen( $context[0]['summary'] ) );
+		$this->assertSame( $first['activity_uuid'], $context[0]['versionId'] );
+		$this->assertFalse( $context[0]['detailsAvailable'] );
 	}
 
+	/** Recent context can be reduced to the single latest successful edit. */
+	public function test_recent_context_accepts_a_limit(): void {
+
+		$first_after         = $this->payload( 'First edit.' );
+		$first_after['html'] = '<h1>First</h1>';
+			$this->complete_retained_edit( 'request-context-limit-1', $this->payload( 'First edit.' ), $first_after );
+		$second               = $first_after;
+			$second['prompt'] = 'Second edit.';
+		$second_after         = $second;
+		$second_after['html'] = '<h1>Second</h1>';
+		$this->complete_retained_edit( 'request-context-limit-2', $second, $second_after );
+
+			$context = $this->store->recent_context( 42, $second_after, 1 );
+			$this->assertCount( 1, $context );
+		$this->assertSame( 'Second edit.', $context[0]['prompt'] );
+		$this->assertTrue( $context[0]['detailsAvailable'] );
+		$this->assertSame( array(), $this->store->recent_context( 42, $second_after, 0 ) );
+	}
+
+	/** History tools stay post-scoped and page retained source with opaque cursors. */
+	public function test_history_tools_list_and_page_retained_source(): void {
+
+		$before         = $this->payload( 'Expand the heading.' );
+		$before['html'] = '<h1>Before history source</h1>';
+		$after          = $before;
+		$after['html']  = '<h1>After history source</h1>';
+		$this->complete_retained_edit( 'request-history-tool', $before, $after );
+
+		$list = $this->store->list_ai_edits_for_tool( 42, array( 'limit' => 1 ) );
+		$this->assertTrue( $list['ok'] );
+		$this->assertCount( 1, $list['items'] );
+		$this->assertTrue( $list['items'][0]['detailsAvailable'] );
+		$version_id = $list['items'][0]['versionId'];
+
+		$metadata = $this->store->get_ai_edit_for_tool( 42, array( 'versionId' => $version_id ) );
+		$this->assertTrue( $metadata['ok'] );
+		$this->assertSame( 'Expand the heading.', $metadata['prompt'] );
+		$this->assertFalse( $this->store->get_ai_edit_for_tool( 99, array( 'versionId' => $version_id ) )['ok'] );
+
+		$first = $this->store->get_ai_edit_for_tool(
+			42,
+			array(
+				'versionId' => $version_id,
+				'snapshot'  => 'after',
+				'target'    => 'html',
+				'maxChars'  => 8,
+			)
+		);
+		$this->assertTrue( $first['truncated'] );
+		$this->assertSame( '<h1>Afte', $first['content'] );
+		$second = $this->store->get_ai_edit_for_tool(
+			42,
+			array(
+				'versionId' => $version_id,
+				'snapshot'  => 'after',
+				'target'    => 'html',
+				'cursor'    => $first['nextCursor'],
+				'maxChars'  => 100,
+			)
+		);
+		$this->assertStringStartsWith( 'r history', $second['content'] );
+		$this->assertFalse( $second['truncated'] );
+	}
 	/** Completing an edit persists the model and input/output token counts. */
 	public function test_complete_persists_model_and_token_usage(): void {
 		$job     = $this->job( 'request-usage' );
@@ -84,8 +150,19 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$expired = $this->store->list_for_post( 42 )['items'][0];
 		$this->assertNull( $expired['beforeJsMode'] );
 		$this->assertNull( $expired['afterJsMode'] );
+		$history = $this->store->list_ai_edits_for_tool( 42, array( 'limit' => 1 ) );
+		$this->assertFalse( $history['items'][0]['detailsAvailable'] );
+		$detail = $this->store->get_ai_edit_for_tool(
+			42,
+			array(
+				'versionId' => $history['items'][0]['versionId'],
+				'snapshot'  => 'after',
+				'target'    => 'html',
+			)
+		);
+		$this->assertFalse( $detail['ok'] );
+		$this->assertFalse( $detail['detailsAvailable'] );
 	}
-
 	/** Retained input snapshots recompute their browser identity hash. */
 	public function test_retained_before_snapshot_includes_computed_base_hash(): void {
 		$before             = $this->payload( 'Keep this input identity.' );

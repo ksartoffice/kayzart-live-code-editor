@@ -257,7 +257,30 @@ class Test_Kayzart_Ai_Fonts extends WP_UnitTestCase {
 	 * A filter returning a non-array must not break job creation.
 	 */
 	public function test_non_array_filter_result_is_ignored(): void {
+
 		add_filter( 'kayzart_ai_available_fonts', '__return_false' );
 		$this->assertSame( array(), Ai_Fonts::registered_families() );
+	}
+
+	/** The agent tool gets compact names and exact CSS values from job data. */
+	public function test_catalog_for_tool_uses_captured_fonts(): void {
+
+		$catalog = Ai_Fonts::catalog_for_tool(
+			array(
+				'registered'   => array(
+					array(
+						'name'       => 'Captured Font',
+						'fontFamily' => '"Captured Font", sans-serif',
+					),
+				),
+				'systemStacks' => array( 'compact' => 'system-ui, sans-serif' ),
+			)
+		);
+
+		$this->assertTrue( $catalog['ok'] );
+		$this->assertSame( 'Captured Font', $catalog['registered'][0]['name'] );
+		$this->assertSame( '"Captured Font", sans-serif', $catalog['registered'][0]['cssValue'] );
+		$this->assertSame( 'system-ui, sans-serif', $catalog['system'][0]['cssValue'] );
+		$this->assertFalse( $catalog['rules']['externalResourcesAllowed'] );
 	}
 }

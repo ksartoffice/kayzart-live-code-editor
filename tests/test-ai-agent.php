@@ -80,7 +80,11 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		return Ai_Message::tool_call( $id, 'finish_edit', array( 'summary' => $summary ) );
 	}
 
-	/** Build a finish_without_edit marker call. */
+	/** Build a finish_without_edit marker call.
+	 *
+	 * @param string $id      Call ID.
+	 * @param string $summary Summary argument.
+	 */
 	private function finish_without_edit_call( string $id, string $summary ): array {
 		return Ai_Message::tool_call( $id, 'finish_without_edit', array( 'summary' => $summary ) );
 	}
@@ -145,6 +149,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 	/** Selection tools appear only when the payload carries resolvable selections. */
 	public function test_agent_builds_selection_aware_tool_schema(): void {
+
 		$without_selection = new Ai_Client_Fake();
 		$without_selection->queue_final_text( '{"summary":"not edited"}' );
 		try {
@@ -185,6 +190,66 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertContains( 'read_selection', $with_names );
 	}
 
+	/** Editing exposes and executes scoped history/font readers; creation does not. */
+	public function test_agent_builds_context_tools_for_editing_only(): void {
+
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call( 'h1', 'list_ai_edits', array( 'limit' => 3 ) ),
+				Ai_Message::tool_call( 'f1', 'list_available_fonts', array() ),
+			)
+		);
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ), $this->finish_call( 'done', 'Updated.' ) ) );
+		$history_args  = null;
+		$agent         = new Ai_Agent(
+			$fake,
+			array(
+				'historyTool' => static function ( string $name, array $args ) use ( &$history_args ): array {
+
+					$history_args = array( $name, $args );
+					return array(
+						'ok'    => true,
+						'items' => array(),
+					);
+				},
+				'fontTool'    => static function (): array {
+
+						return array(
+							'ok'         => true,
+							'registered' => array(),
+							'system'     => array(),
+						);
+				},
+			)
+		);
+		$result        = $agent->run( $this->payload() );
+		$editing_names = array_column( $fake->calls()[0]['tools'], 'name' );
+		$this->assertContains( 'list_ai_edits', $editing_names );
+		$this->assertContains( 'get_ai_edit', $editing_names );
+		$this->assertContains( 'list_available_fonts', $editing_names );
+		$this->assertSame( array( 'list_ai_edits', array( 'limit' => 3 ) ), $history_args );
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+
+		$creation           = $this->payload( '' );
+		$creation['intent'] = 'create';
+		$create_fake        = new Ai_Client_Fake();
+		$create_fake->queue_final_text( '{"summary":"not edited"}' );
+		try {
+			( new Ai_Agent(
+				$create_fake,
+				array(
+					'historyTool' => '__return_empty_array',
+					'fontTool'    => '__return_empty_array',
+				)
+			) )->run( $creation );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
+		}
+		$creation_names = array_column( $create_fake->calls()[0]['tools'], 'name' );
+		$this->assertNotContains( 'list_ai_edits', $creation_names );
+		$this->assertNotContains( 'list_available_fonts', $creation_names );
+	}
 	/** A final edit and finish marker complete in the same model turn. */
 	public function test_edit_and_finish_complete_in_one_turn(): void {
 		$fake = new Ai_Client_Fake();
@@ -219,7 +284,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertCount( 1, $fake->calls() );
 	}
 
-	/** finish_without_edit cannot hide a prior snapshot mutation. */
+	/** Finish_without_edit cannot hide a prior snapshot mutation. */
 	public function test_finish_without_edit_rejects_changed_snapshot(): void {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ) ) );
@@ -234,11 +299,11 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 	/** Finalization revalidates unsafe content even if a checkpoint is tampered with. */
 	public function test_completed_snapshot_is_revalidated_against_original_input(): void {
-		$fake  = new Ai_Client_Fake();
-		$agent = new Ai_Agent( $fake );
-		$input = $this->payload();
-		$state = $agent->create_state( $input );
-		$state['snapshot']['html'] = '<main>Hello</main><script>alert(1)</script>';
+		$fake                          = new Ai_Client_Fake();
+		$agent                         = new Ai_Agent( $fake );
+		$input                         = $this->payload();
+		$state                         = $agent->create_state( $input );
+		$state['snapshot']['html']     = '<main>Hello</main><script>alert(1)</script>';
 		$state['appliedEditOperation'] = true;
 		$state['finishReady']          = true;
 		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Unsafe result.' ) ) );
@@ -734,8 +799,8 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
 		$fake->queue_final_text( '{"summary":"ok"}' );
-		$events  = array();
-		$payload = $this->payload();
+		$events                   = array();
+		$payload                  = $this->payload();
 		$payload['maxAgentTurns'] = 20;
 
 		( new Ai_Agent(

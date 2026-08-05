@@ -116,9 +116,11 @@ class Ai_Tool_Schema {
 	 * @param array<int,string> $editable_targets Editable target allow list.
 	 * @param bool              $has_history_tool Whether to expose history tools.
 	 * @param bool              $has_selection_context Whether resolvable selection context exists.
+	 * @param bool              $has_font_tool Whether to expose the font catalog tool.
 	 * @return array<int,array> Tool definitions.
 	 */
-	public static function build_tool_definitions( array $editable_targets, bool $has_history_tool = false, bool $has_selection_context = true ): array {
+	public static function build_tool_definitions( array $editable_targets, bool $has_history_tool = false, bool $has_selection_context = true, bool $has_font_tool = false ): array {
+
 		$editable_target_enum = array_values( array_intersect( $editable_targets, self::ALL_EDITABLE_TARGETS ) );
 		$replace_properties   = array(
 			'target'     => array(
@@ -314,11 +316,25 @@ class Ai_Tool_Schema {
 			$tools[] = array(
 				'type'        => 'function',
 				'name'        => 'get_ai_edit',
-				'description' => 'Fetch one previous AI edit detail, including input/output snapshots. Use only when a specific prior version is needed.',
+				'description' => 'Fetch metadata for one previous AI edit. To inspect retained source, provide snapshot and target; omit cursor on the first read and copy nextCursor exactly for continuation.',
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(
 						'versionId' => array( 'type' => 'string' ),
+						'snapshot'  => array(
+							'type' => 'string',
+							'enum' => array( 'before', 'after' ),
+						),
+						'target'    => array(
+							'type' => 'string',
+							'enum' => array( 'html', 'head', 'css', 'js' ),
+						),
+						'cursor'    => array( 'type' => 'string' ),
+						'maxChars'  => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+							'maximum' => Ai_Tools::MAX_READ_CHARS,
+						),
 					),
 					'required'             => array( 'versionId' ),
 					'additionalProperties' => false,
@@ -326,6 +342,18 @@ class Ai_Tool_Schema {
 			);
 		}
 
+		if ( $has_font_tool ) {
+			$tools[] = array(
+				'type'        => 'function',
+				'name'        => 'list_available_fonts',
+				'description' => 'List font families that can render on this page. Call once before introducing or changing a font family or Tailwind --font-* token, then use a returned cssValue exactly.',
+				'parameters'  => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
+			);
+		}
 		return $tools;
 	}
 }

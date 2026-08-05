@@ -234,6 +234,27 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The stack labels read like usable values, and a model that copies one
+	 * ships `font-family: gothic`, which resolves to nothing. The policy has to
+	 * say the label is not the value.
+	 */
+	public function test_build_user_prompt_fonts_policy_separates_labels_from_values(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode' => 'tailwind',
+				'prompt'     => 'A landing page for an apple grower.',
+				'intent'     => 'create',
+			)
+		);
+
+		$this->assertStringContainsString( 'The label is only a name for choosing; the value is the CSS.', $prompt );
+		$this->assertStringContainsString( 'Always write the value verbatim.', $prompt );
+		$this->assertStringContainsString( '`gothic`', $prompt );
+		$this->assertStringContainsString( '--font-* theme token', $prompt );
+		$this->assertStringContainsString( "Then write that stack's value, not its label.", $prompt );
+	}
+
+	/**
 	 * Selected contexts add the context list and its edit policy.
 	 */
 	public function test_build_user_prompt_with_selected_contexts(): void {

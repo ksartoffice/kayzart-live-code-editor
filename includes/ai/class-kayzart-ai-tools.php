@@ -864,17 +864,37 @@ class Ai_Tools {
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
 				$result         = self::run_replace_string( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
 				Ai_Output_Policy::assert_safe_transition( $snapshot, $result['snapshot'] );
+				self::assert_css_structure( $snapshot, $result['snapshot'] );
 				return $result;
 			case 'replace_many':
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
 				$result         = self::run_replace_many( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
 				Ai_Output_Policy::assert_safe_transition( $snapshot, $result['snapshot'] );
+				self::assert_css_structure( $snapshot, $result['snapshot'] );
 				return $result;
 			case 'set_js_mode':
 				throw new Ai_Tool_Error( 'JavaScript mode is read-only for AI edits.', false );
 		}
 		// Internal tool error surfaced to the model as JSON, not HTML output.
 		throw new Ai_Tool_Error( 'Unknown tool: ' . $name, false );
+	}
+
+	/**
+	 * Reject a completed tool call that left the CSS structurally broken.
+	 *
+	 * This runs on the result of the whole tool call rather than on each
+	 * replace_many step, because a transaction is allowed to move a brace in one
+	 * step and restore it in the next.
+	 *
+	 * @param array $before Snapshot before the tool call.
+	 * @param array $after  Snapshot after the tool call.
+	 * @throws Ai_Tool_Error When the call introduced a bracket imbalance.
+	 */
+	private static function assert_css_structure( array $before, array $after ): void {
+		Ai_Css_Syntax::assert_no_new_imbalance(
+			(string) ( $before['css'] ?? '' ),
+			(string) ( $after['css'] ?? '' )
+		);
 	}
 
 	/**

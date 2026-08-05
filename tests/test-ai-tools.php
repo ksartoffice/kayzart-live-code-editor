@@ -667,4 +667,81 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 			array( 's1' => array( 'resolvable' => true ) )
 		);
 	}
+
+	/**
+	 * CSS that cannot compile must not reach the editor. Without this the tool
+	 * call succeeds, the job completes, and the failure only appears when the
+	 * Tailwind compiler rejects the stylesheet on preview and on save.
+	 */
+	public function test_run_tool_rejects_css_with_a_stray_brace(): void {
+		$snapshot = $this->snapshot( '', '', "@theme {\n  --color-a: #fff;\n}\n" );
+
+		try {
+			Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => 'css',
+					'from'   => "@theme {\n  --color-a: #fff;\n}\n",
+					'to'     => "@theme {\n  --color-a: #fff;\n}\n.a { color: red; }\n}\n",
+				),
+				$snapshot,
+				array(),
+				array( 'html', 'head', 'css' )
+			);
+			$this->fail( 'Expected the unbalanced CSS to be rejected.' );
+		} catch ( Ai_Tool_Error $error ) {
+			$details = $error->get_details();
+			$this->assertSame( 'css_bracket_imbalance', $details['code'] );
+			$this->assertTrue( $error->is_retryable() );
+		}
+	}
+
+	/**
+	 * The check runs on the finished tool call, so a transaction may open a
+	 * block in one step and close it in the next.
+	 */
+	public function test_run_tool_allows_replace_many_to_pass_through_an_imbalance(): void {
+		$snapshot = $this->snapshot( '', '', ".a { color: red; }\n.b { color: blue; }\n" );
+
+		$result = Ai_Tools::run_tool(
+			'replace_many',
+			array(
+				'target'       => 'css',
+				'replacements' => array(
+					array(
+						'from' => '.a { color: red; }',
+						'to'   => '.a { color: red;',
+					),
+					array(
+						'from' => '.a { color: red;',
+						'to'   => '.a { color: green; }',
+					),
+				),
+			),
+			$snapshot,
+			array(),
+			array( 'html', 'head', 'css' )
+		);
+
+		$this->assertSame( ".a { color: green; }\n.b { color: blue; }\n", $result['snapshot']['css'] );
+	}
+
+	/** An HTML edit is never judged against CSS structure. */
+	public function test_run_tool_ignores_css_structure_for_html_edits(): void {
+		$snapshot = $this->snapshot( '<p>Hello</p>', '', ".a { color: red; }\n}\n" );
+
+		$result = Ai_Tools::run_tool(
+			'replace_string',
+			array(
+				'target' => 'html',
+				'from'   => 'Hello',
+				'to'     => 'World',
+			),
+			$snapshot,
+			array(),
+			array( 'html', 'head', 'css' )
+		);
+
+		$this->assertSame( '<p>World</p>', $result['snapshot']['html'] );
+	}
 }

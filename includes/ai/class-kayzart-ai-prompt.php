@@ -390,12 +390,29 @@ PROMPT;
 		}
 
 		$lines[] = 'Font rules:';
+		$lines[] = '- Every entry above reads `label -> font-family: value`. The label is only a name for choosing; the value is the CSS.';
+		$lines[] = '- Always write the value verbatim. A label such as ' . self::font_label_examples( $stacks ) . ' is not a font family and resolves to nothing, so it must never appear in a font-family declaration, a --font-* theme token, or a font utility.';
 		$lines[] = '- Use only the families listed above. Any other family name will not resolve on the visitor device.';
 		$lines[] = '- Never add a stylesheet link, @import, or @font-face for a font. Remote font resources are rejected.';
 		$lines[] = '- A registered family covering only Latin glyphs must be placed first and followed by a system stack so Japanese text still renders.';
-		$lines[] = '- Pick the stack whose character matches the page: gothic for general and modern, mincho for formal or premium, rounded for friendly and casual.';
+		$lines[] = '- Pick the stack whose character matches the page: gothic for general and modern, mincho for formal or premium, rounded for friendly and casual. Then write that stack\'s value, not its label.';
 
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Quote a couple of stack labels so the "labels are not values" rule has
+	 * concrete names attached to it.
+	 *
+	 * @param array<string,string> $stacks System font stacks.
+	 * @return string
+	 */
+	private static function font_label_examples( array $stacks ): string {
+		$labels = array_slice( array_keys( $stacks ), 0, 2 );
+		if ( 0 === count( $labels ) ) {
+			return '`gothic`';
+		}
+		return '`' . implode( '` or `', array_map( 'strval', $labels ) ) . '`';
 	}
 
 	/**

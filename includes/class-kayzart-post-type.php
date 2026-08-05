@@ -21,18 +21,6 @@ class Post_Type {
 	const ENABLED_META = '_kayzart_enabled';
 
 	/**
-	 * ID of the post whose title is currently being rendered in a list table.
-	 *
-	 * The post list prints the row title through `get_the_title()` and then
-	 * immediately builds its link with `get_edit_post_link()`. Remembering the ID
-	 * between those two calls lets us rewrite the title link only, leaving the
-	 * "Edit" row action pointing at the block editor.
-	 *
-	 * @var int
-	 */
-	private static $list_title_post_id = 0;
-
-	/**
 	 * Admin menu icon: the Kayzart mark (landing page + K) as a monochrome SVG.
 	 *
 	 * WordPress renders a data URI icon as a CSS background image, so the SVG
@@ -59,7 +47,6 @@ class Post_Type {
 		add_filter( 'get_edit_post_link', array( __CLASS__, 'filter_edit_post_link' ), 10, 2 );
 		add_filter( 'post_row_actions', array( __CLASS__, 'add_kayzart_row_action' ), 10, 2 );
 		add_filter( 'page_row_actions', array( __CLASS__, 'add_kayzart_row_action' ), 10, 2 );
-		add_action( 'current_screen', array( __CLASS__, 'maybe_track_list_titles' ) );
 	}
 
 	/**
@@ -400,40 +387,7 @@ class Post_Type {
 	}
 
 	/**
-	 * Start tracking row titles while a post list table is rendered.
-	 *
-	 * @param \WP_Screen $screen Current admin screen.
-	 */
-	public static function maybe_track_list_titles( $screen ): void {
-		if ( ! isset( $screen->base ) || 'edit' !== $screen->base ) {
-			return;
-		}
-
-		if ( ! self::is_post_type_enabled( (string) $screen->post_type ) ) {
-			return;
-		}
-
-		add_filter( 'the_title', array( __CLASS__, 'remember_list_title_post' ), PHP_INT_MAX, 2 );
-	}
-
-	/**
-	 * Remember which post the list table is about to link from its row title.
-	 *
-	 * @param string $title Post title.
-	 * @param int    $post_id Post ID.
-	 * @return string
-	 */
-	public static function remember_list_title_post( string $title, int $post_id = 0 ): string {
-		self::$list_title_post_id = $post_id;
-
-		return $title;
-	}
-
-	/**
-	 * Override the edit link to point to the KayzArt editor.
-	 *
-	 * On the front end every edit link is replaced. In the admin only the post
-	 * list row title is, so the "Edit" row action still opens the block editor.
+	 * Override the edit link to point to the KayzArt editor on the front end.
 	 *
 	 * @param string $link Default edit link.
 	 * @param int    $post_id Post ID.
@@ -441,12 +395,7 @@ class Post_Type {
 	 */
 	public static function filter_edit_post_link( string $link, int $post_id ): string {
 		if ( is_admin() ) {
-			$is_row_title             = $post_id > 0 && $post_id === self::$list_title_post_id;
-			self::$list_title_post_id = 0;
-
-			if ( ! $is_row_title ) {
-				return $link;
-			}
+			return $link;
 		}
 
 		if ( ! self::is_kayzart_post( $post_id ) ) {

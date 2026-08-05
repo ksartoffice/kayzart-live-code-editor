@@ -81,6 +81,7 @@ class Test_Kayzart_Ai_Css_Imports extends WP_UnitTestCase {
 			'block comment'   => array( 'block comment', "/*\n  @import \"tailwindcss\";\n*/\n.a { color: red; }" ),
 			'disabled note'   => array( 'disabled note', "/* disabled for now: @import 'tailwindcss'; */\n@theme {}" ),
 			'commented first' => array( 'commented first', "/* @import \"tailwindcss\"; */\n@import \"tailwindcss/theme\";" ),
+			'unterminated'    => array( 'unterminated', "/* work in progress\n@import \"tailwindcss\";\n.a { color: red; }" ),
 		);
 	}
 

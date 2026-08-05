@@ -39,10 +39,16 @@ class Tailwind_Compiler {
 
 		foreach ( $input as $candidate ) {
 			// Whitespace can never appear inside a single candidate (Tailwind
-			// encodes it as `_`), and angle brackets or control characters have
-			// no business travelling through REST and post meta. Quotes are
-			// legal: `font-['Noto_Sans_JP']` is a valid arbitrary value.
-			if ( ! is_string( $candidate ) || '' === $candidate || preg_match( '/[\s<>]|[\x00-\x1F\x7F]/', $candidate ) ) {
+			// encodes it as `_`), and control characters have no business
+			// travelling through REST and post meta.
+			//
+			// Quotes are legal: `font-['Noto_Sans_JP']` is a valid arbitrary
+			// value. So are angle brackets, which child-combinator arbitrary
+			// variants such as `[&>svg]:size-4` depend on. Only `</` is
+			// rejected, because that is the one sequence that can terminate the
+			// <style> element the generated CSS is printed into. Frontend
+			// escaping remains the second layer.
+			if ( ! is_string( $candidate ) || '' === $candidate || preg_match( '/\s|<\/|[\x00-\x1F\x7F]/', $candidate ) ) {
 				return self::error( 'kayzart_tailwind_candidate_invalid', __( 'Tailwind candidate contains an invalid value.', 'kayzart-live-code-editor' ) );
 			}
 

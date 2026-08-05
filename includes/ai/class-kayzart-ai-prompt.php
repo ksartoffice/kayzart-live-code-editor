@@ -441,7 +441,7 @@ PROMPT;
 				'- <picture> and <source> are dropped; only the inner <img> survives. Write a plain <img> with its src, alt, width and height.',
 				'- <style> is removed but its text is not: the CSS becomes visible body text on the page. Never write a <style> element; put all CSS in the CSS tab.',
 				'- <template> is unwrapped, so anything you hide inside it becomes visible. Do not use it.',
-				'- <script> in HTML is also removed. Do not write one.',
+				'- <script> is rejected outright by the edit tools and removed on save. Do not write one.',
 				'- These survive and are the tools to use: <main>, <section>, <article>, <nav>, <aside>, <figure>, <dl>, and all data-* and aria-* attributes.',
 			)
 		);

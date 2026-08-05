@@ -46,12 +46,18 @@ class Ai_Css_Imports {
 	const COMMENT_PATTERN = '!/\*.*?\*/!s';
 
 	/**
+	 * Matches an unterminated comment, which swallows the rest of the source.
+	 */
+	const UNTERMINATED_COMMENT_PATTERN = '!/\*.*$!s';
+
+	/**
 	 * Whether a stylesheet pulls in the Tailwind entry point.
 	 *
 	 * Comments are removed first. A commented-out import still matches the
 	 * pattern but means nothing to the compiler, which would then emit no
 	 * utilities at all -- precisely the silent failure this class exists to
-	 * catch.
+	 * catch. An unterminated comment counts too: the CSS parser runs it to the
+	 * end of the source, so everything after it is inert.
 	 *
 	 * Stripping comments without tracking string literals is imprecise in
 	 * general, but harmless here: an @import is only honoured before any rule,
@@ -67,10 +73,11 @@ class Ai_Css_Imports {
 			return false;
 		}
 		$without_comments = preg_replace( self::COMMENT_PATTERN, '', $css );
-		if ( ! is_string( $without_comments ) ) {
-			$without_comments = $css;
-		}
-		return 1 === preg_match( self::TAILWIND_IMPORT_PATTERN, $without_comments );
+		$without_comments = is_string( $without_comments ) ? $without_comments : $css;
+		$live_source      = preg_replace( self::UNTERMINATED_COMMENT_PATTERN, '', $without_comments );
+		$live_source      = is_string( $live_source ) ? $live_source : $without_comments;
+
+		return 1 === preg_match( self::TAILWIND_IMPORT_PATTERN, $live_source );
 	}
 
 	/**

@@ -19,6 +19,7 @@ describe('CSS mode changes', () => {
     expect(hasTailwindImport('/* theme */\n@import "tailwindcss";')).toBe(true);
     expect(hasTailwindImport('/* @import "tailwindcss"; */')).toBe(false);
     expect(hasTailwindImport('/*\n  @import "tailwindcss";\n*/')).toBe(false);
+    expect(hasTailwindImport('/* wip\n@import "tailwindcss";')).toBe(false);
   });
 
   it('seeds the default source when the only import is commented out', () => {

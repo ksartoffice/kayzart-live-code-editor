@@ -120,13 +120,24 @@ class KayzArt_Tailwind_Compiler_Test extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Candidates travel through REST and post meta, so nothing that could be
-	 * read as markup or a control sequence is accepted.
+	 * Control characters have no place in a candidate travelling through REST
+	 * and post meta.
 	 */
-	public function test_normalize_candidates_rejects_angle_brackets_and_control_characters(): void {
-		$this->assertWPError( Tailwind_Compiler::normalize_candidates( array( 'flex<span>' ) ) );
+	public function test_normalize_candidates_rejects_control_characters(): void {
 		$this->assertWPError( Tailwind_Compiler::normalize_candidates( array( "flex\x00" ) ) );
 		$this->assertWPError( Tailwind_Compiler::normalize_candidates( array( "flex\x7F" ) ) );
+	}
+
+	/**
+	 * Child-combinator arbitrary variants carry a literal `>` and are ordinary
+	 * Tailwind v4 syntax. Rejecting angle brackets outright would fail the save
+	 * of any page using them.
+	 */
+	public function test_normalize_candidates_accepts_child_combinator_variants(): void {
+		$candidates = array( '[&>*]:mt-4', '[&>svg]:size-4', 'peer-checked:[&>span]:translate-x-5' );
+
+		$this->assertSame( $candidates, Tailwind_Compiler::normalize_candidates( $candidates ) );
+		$this->assertIsString( Tailwind_Compiler::generate( $candidates, '@import "tailwindcss";' ) );
 	}
 
 	/**
@@ -175,11 +186,12 @@ class KayzArt_Tailwind_Compiler_Test extends WP_UnitTestCase {
 	/**
 	 * Allowing quotes would otherwise make `content-['</style>']` compilable for
 	 * the first time and let a closing style tag reach the generated stylesheet.
-	 * The angle-bracket rule is what stops it at the door; Frontend's
-	 * `</style` escaping remains the second layer.
+	 * `</` is the one sequence that can terminate the element the CSS is printed
+	 * into; Frontend's `</style` escaping remains the second layer.
 	 */
 	public function test_normalize_candidates_rejects_a_quoted_closing_style_tag(): void {
 		$this->assertWPError( Tailwind_Compiler::normalize_candidates( array( "before:content-['</style>']" ) ) );
+		$this->assertWPError( Tailwind_Compiler::normalize_candidates( array( "content-['</StYlE>']" ) ) );
 	}
 
 	/**

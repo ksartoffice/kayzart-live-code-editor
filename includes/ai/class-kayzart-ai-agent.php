@@ -85,6 +85,13 @@ class Ai_Agent {
 	private $history_handler;
 
 	/**
+	 * Font catalog handler: function(): mixed.
+	 *
+	 * @var callable|null
+	 */
+	private $font_handler;
+
+	/**
 	 * Identifier included in debug token logs.
 	 *
 	 * @var string
@@ -129,13 +136,15 @@ class Ai_Agent {
 	 * @param array               $hooks  Optional hooks: 'emit'
 	 *                                     callable(array $event), 'isCanceled'
 	 *                                     callable():bool, 'historyTool'
-	 *                                     callable(string,array):mixed.
+	 *                                     callable(string,array):mixed, and
+	 *                                     'fontTool' callable():mixed.
 	 */
 	public function __construct( Ai_Client_Interface $client, array $hooks = array() ) {
 		$this->client           = $client;
 		$this->emit             = isset( $hooks['emit'] ) && is_callable( $hooks['emit'] ) ? $hooks['emit'] : null;
 		$this->is_canceled      = isset( $hooks['isCanceled'] ) && is_callable( $hooks['isCanceled'] ) ? $hooks['isCanceled'] : null;
 		$this->history_handler  = isset( $hooks['historyTool'] ) && is_callable( $hooks['historyTool'] ) ? $hooks['historyTool'] : null;
+		$this->font_handler     = isset( $hooks['fontTool'] ) && is_callable( $hooks['fontTool'] ) ? $hooks['fontTool'] : null;
 		$this->debug_id         = isset( $hooks['debugId'] ) ? (string) $hooks['debugId'] : '';
 		$this->debug_trace_mode = self::resolve_debug_trace_mode();
 		$this->observe_step     = isset( $hooks['observeStep'] ) && is_callable( $hooks['observeStep'] ) ? $hooks['observeStep'] : null;
@@ -145,7 +154,7 @@ class Ai_Agent {
 	 * Run the agent loop for a request payload.
 	 *
 	 * @param array $payload Request payload (see Ai_Prompt for the shape, plus
-	 *                       jsMode/baseHash and an optional truthy historyTool).
+	 *                       jsMode/baseHash).
 	 * @return array{snapshot:array,summary:string,usage:array}
 	 *
 	 * @throws Ai_Agent_Error On an unrecoverable loop outcome.
@@ -254,14 +263,15 @@ class Ai_Agent {
 			$intent
 		);
 		$editable_targets      = $edit_policy['editableTargets'];
-		$has_history_tool      = ! empty( $payload['historyTool'] );
+		$has_history_tool      = Ai_Prompt::INTENT_EDIT === $intent && null !== $this->history_handler;
+		$has_font_tool         = Ai_Prompt::INTENT_EDIT === $intent && null !== $this->font_handler;
 		$selection_records     = $state['selectionRecords'];
 		$has_selection_context = $this->has_resolvable_selection( $selection_records );
-		$tools                 = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
+		$tools                 = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context, $has_font_tool );
 		$snapshot              = $state['snapshot'];
 
 		$turn_options    = array(
-			'systemInstruction' => Ai_Prompt::system_prompt( $intent ),
+			'systemInstruction' => Ai_Prompt::system_prompt( $intent, isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : 'normal' ),
 		);
 		$request_timeout = self::resolve_request_timeout( $payload );
 		if ( null !== $request_timeout ) {
@@ -351,7 +361,11 @@ class Ai_Agent {
 			}
 
 			try {
-				if ( 'read_document' === $name || 'read_selection' === $name ) {
+				$is_history_source_read = 'get_ai_edit' === $name
+					&& isset( $args['snapshot'], $args['target'] )
+					&& in_array( $args['snapshot'], array( 'before', 'after' ), true )
+					&& in_array( $args['target'], array( 'html', 'head', 'css', 'js' ), true );
+				if ( 'read_document' === $name || 'read_selection' === $name || $is_history_source_read ) {
 					if ( $remaining_read_budget <= 0 ) {
 						$this->throw_read_budget_exhausted();
 					}
@@ -365,7 +379,7 @@ class Ai_Agent {
 				if ( isset( $tool_result['selectionRecords'] ) && is_array( $tool_result['selectionRecords'] ) ) {
 					$selection_records = $tool_result['selectionRecords'];
 				}
-				if ( ( 'read_document' === $name || 'read_selection' === $name ) && isset( $tool_result['output']['content'] ) ) {
+				if ( isset( $tool_result['output']['content'] ) && ( 'read_document' === $name || 'read_selection' === $name || $is_history_source_read ) ) {
 					$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
 				}
 				$tool_ok = ! ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] );
@@ -518,7 +532,7 @@ class Ai_Agent {
 			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true, 'max_turns' );
 		}
 		$options         = array(
-			'systemInstruction' => Ai_Prompt::system_prompt( Ai_Prompt::resolve_intent( $payload ) ),
+			'systemInstruction' => Ai_Prompt::system_prompt( Ai_Prompt::resolve_intent( $payload ), isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : 'normal' ),
 			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
 		);
 		$request_timeout = self::resolve_request_timeout( $payload );
@@ -685,7 +699,21 @@ class Ai_Agent {
 				'appliedEditOperation' => false,
 			);
 		}
-
+		if ( 'list_available_fonts' === $name ) {
+			if ( null === $this->font_handler ) {
+				return array(
+					'output'               => array(
+						'ok'    => false,
+						'error' => 'Available font tool is not available.',
+					),
+					'appliedEditOperation' => false,
+				);
+			}
+			return array(
+				'output'               => call_user_func( $this->font_handler ),
+				'appliedEditOperation' => false,
+			);
+		}
 		return Ai_Tools::run_tool( $name, $args, $snapshot, $selected_contexts, $editable_targets );
 	}
 

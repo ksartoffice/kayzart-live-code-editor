@@ -58,6 +58,47 @@ class Ai_Fonts {
 	}
 
 	/**
+	 * Build the compact, structured catalog returned to an editing agent.
+	 *
+	 * @param array $fonts Job-captured availableFonts payload.
+	 * @return array
+	 */
+	public static function catalog_for_tool( array $fonts ): array {
+		$registered_available = isset( $fonts['registered'] ) && is_array( $fonts['registered'] );
+		$registered           = $registered_available ? $fonts['registered'] : array();
+		$stacks               = isset( $fonts['systemStacks'] ) && is_array( $fonts['systemStacks'] ) && count( $fonts['systemStacks'] ) > 0
+			? $fonts['systemStacks']
+			: self::SYSTEM_STACKS;
+		$result               = array(
+			'ok'                    => true,
+			'registeredUnavailable' => ! $registered_available,
+			'registered'            => array(),
+			'system'                => array(),
+			'rules'                 => array(
+				'useCssValueExactly'       => true,
+				'externalResourcesAllowed' => false,
+			),
+		);
+		foreach ( $registered as $family ) {
+			if ( ! is_array( $family ) || empty( $family['name'] ) || empty( $family['fontFamily'] ) ) {
+				continue;
+			}
+			$result['registered'][] = array(
+				'name'     => (string) $family['name'],
+				'cssValue' => (string) $family['fontFamily'],
+			);
+		}
+		foreach ( $stacks as $name => $css_value ) {
+			$result['system'][] = array(
+				'name'     => (string) $name,
+				'cssValue' => (string) $css_value,
+			);
+		}
+
+		return $result;
+	}
+
+	/**
 	 * List font families WordPress will emit a font-face rule for.
 	 *
 	 * @return array<int,array{name:string,fontFamily:string}>

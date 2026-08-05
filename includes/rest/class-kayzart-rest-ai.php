@@ -85,7 +85,8 @@ class Rest_Ai {
 			: Ai_Prompt::INTENT_EDIT;
 		$payload['agentPayload']['availableFonts']    = Ai_Fonts::resolve_for_payload();
 		$payload['agentPayload']['canEditHead']       = $can_edit_head;
-		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'] );
+		$recent_context_limit                         = Ai_Prompt::INTENT_CREATE === $payload['agentPayload']['intent'] ? 0 : 1;
+		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'], $recent_context_limit );
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
 		$payload['agentPayload']['maxAgentTurns']     = Admin::get_ai_max_turns();
 		$existing                                     = $store->get_by_request( $current_user, $payload['requestId'] );

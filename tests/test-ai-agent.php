@@ -80,7 +80,11 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		return Ai_Message::tool_call( $id, 'finish_edit', array( 'summary' => $summary ) );
 	}
 
-	/** Build a finish_without_edit marker call. */
+	/** Build a finish_without_edit marker call.
+	 *
+	 * @param string $id      Call ID.
+	 * @param string $summary Summary argument.
+	 */
 	private function finish_without_edit_call( string $id, string $summary ): array {
 		return Ai_Message::tool_call( $id, 'finish_without_edit', array( 'summary' => $summary ) );
 	}
@@ -185,6 +189,79 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertContains( 'read_selection', $with_names );
 	}
 
+	/** Editing exposes and executes scoped history/font readers; creation does not. */
+	public function test_agent_builds_context_tools_for_editing_only(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call( 'h1', 'list_ai_edits', array( 'limit' => 3 ) ),
+				Ai_Message::tool_call( 'f1', 'list_available_fonts', array() ),
+			)
+		);
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ), $this->finish_call( 'done', 'Updated.' ) ) );
+		$history_args  = null;
+		$agent         = new Ai_Agent(
+			$fake,
+			array(
+				'historyTool' => static function ( string $name, array $args ) use ( &$history_args ): array {
+					$history_args = array( $name, $args );
+					return array(
+						'ok'    => true,
+						'items' => array(),
+					);
+				},
+				'fontTool'    => static function (): array {
+					return array(
+						'ok'         => true,
+						'registered' => array(),
+						'system'     => array(),
+					);
+				},
+			)
+		);
+		$result        = $agent->run( $this->payload() );
+		$editing_names = array_column( $fake->calls()[0]['tools'], 'name' );
+		$this->assertContains( 'list_ai_edits', $editing_names );
+		$this->assertContains( 'get_ai_edit', $editing_names );
+		$this->assertContains( 'list_available_fonts', $editing_names );
+		$this->assertSame( array( 'list_ai_edits', array( 'limit' => 3 ) ), $history_args );
+		$this->assertSame( '<main>World</main>', $result['snapshot']['html'] );
+
+		$creation           = $this->payload( '' );
+		$creation['intent'] = 'create';
+		$create_fake        = new Ai_Client_Fake();
+		$create_fake->queue_final_text( '{"summary":"not edited"}' );
+		try {
+			( new Ai_Agent(
+				$create_fake,
+				array(
+					'historyTool' => '__return_empty_array',
+					'fontTool'    => '__return_empty_array',
+				)
+			) )->run( $creation );
+			$this->fail( 'Expected creation without an edit operation to fail.' );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
+		}
+		$creation_names = array_column( $create_fake->calls()[0]['tools'], 'name' );
+		$this->assertNotContains( 'list_ai_edits', $creation_names );
+		$this->assertNotContains( 'list_available_fonts', $creation_names );
+	}
+
+	/** Missing font handlers return the defensive tool error. */
+	public function test_font_tool_without_handler_returns_error(): void {
+		$agent  = new Ai_Agent( new Ai_Client_Fake() );
+		$result = $this->invoke_agent_helper(
+			$agent,
+			'run_tool_call',
+			array( 'list_available_fonts', array(), array(), array(), array( 'html' ) )
+		);
+
+		$this->assertFalse( $result['output']['ok'] );
+		$this->assertSame( 'Available font tool is not available.', $result['output']['error'] );
+		$this->assertFalse( $result['appliedEditOperation'] );
+	}
+
 	/** A final edit and finish marker complete in the same model turn. */
 	public function test_edit_and_finish_complete_in_one_turn(): void {
 		$fake = new Ai_Client_Fake();
@@ -219,7 +296,7 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertCount( 1, $fake->calls() );
 	}
 
-	/** finish_without_edit cannot hide a prior snapshot mutation. */
+	/** The finish_without_edit tool cannot hide a prior snapshot mutation. */
 	public function test_finish_without_edit_rejects_changed_snapshot(): void {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'World' ) ) );
@@ -924,6 +1001,41 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'content', $outputs[2] );
 	}
 
+	/** Font catalogs remain available after larger observations consume the budget. */
+	public function test_model_context_preserves_font_catalog_observations(): void {
+		$catalog  = array(
+			'ok'         => true,
+			'registered' => array(
+				array(
+					'name'     => 'Captured Font',
+					'cssValue' => '"Captured Font", sans-serif',
+				),
+			),
+		);
+		$messages = array(
+			Ai_Message::tool(
+				array(
+					Ai_Message::tool_response( 'font-1', 'list_available_fonts', $catalog ),
+				)
+			),
+			Ai_Message::tool(
+				array(
+					Ai_Message::tool_response(
+						'read-1',
+						'read_document',
+						array(
+							'ok'      => true,
+							'content' => str_repeat( 'x', Ai_Agent::OBSERVATION_CONTEXT_CHARS ),
+						)
+					),
+				)
+			),
+		);
+
+		$projected = $this->invoke_agent_helper( new Ai_Agent( new Ai_Client_Fake() ), 'build_model_context', array( $messages ) );
+		$this->assertSame( '"Captured Font", sans-serif', $projected[0]['toolResponses'][0]['output']['registered'][0]['cssValue'] );
+	}
+
 	/** Parallel reads share one 12k-character budget for the model turn. */
 	public function test_parallel_reads_share_turn_budget(): void {
 		$fake = new Ai_Client_Fake();
@@ -940,6 +1052,60 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
 		$this->assertSame( 8000, mb_strlen( $responses[1]['output']['content'] ) );
 		$this->assertSame( 4000, mb_strlen( $responses[2]['output']['content'] ) );
+	}
+
+	/** History metadata bypasses an exhausted source budget while source reads do not. */
+	public function test_history_metadata_does_not_consume_source_read_budget(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'r1',
+					'read_document',
+					array(
+						'target'   => 'html',
+						'maxChars' => 12000,
+					)
+				),
+				Ai_Message::tool_call( 'h1', 'get_ai_edit', array( 'versionId' => 'version-1' ) ),
+				Ai_Message::tool_call(
+					'h2',
+					'get_ai_edit',
+					array(
+						'versionId' => 'version-1',
+						'snapshot'  => 'after',
+						'target'    => 'html',
+					)
+				),
+				$this->replace_call( 'e1', 'Hello', 'World' ),
+			)
+		);
+		$agent = new Ai_Agent(
+			$fake,
+			array(
+				'historyTool' => static function ( string $name, array $args ): array {
+					unset( $name );
+					if ( isset( $args['snapshot'], $args['target'] ) ) {
+						return array(
+							'ok'      => true,
+							'content' => 'retained source',
+						);
+					}
+					return array(
+						'ok'        => true,
+						'versionId' => $args['versionId'],
+					);
+				},
+			)
+		);
+
+		$payload   = $this->payload( '<main>Hello' . str_repeat( 'x', 13000 ) . '</main>' );
+		$step      = $agent->advance( $payload, $agent->create_state( $payload ) );
+		$responses = $step['state']['messages'][2]['toolResponses'];
+		$this->assertTrue( $responses[1]['output']['ok'] );
+		$this->assertSame( 'version-1', $responses[1]['output']['versionId'] );
+		$this->assertFalse( $responses[2]['output']['ok'] );
+		$this->assertStringContainsString( 'read_budget_exhausted', $responses[2]['output']['error']['message'] );
 	}
 
 	/** Replacement diagnostics count against the bounded observation budget. */

@@ -5,6 +5,7 @@
  * @package KayzArt
  */
 
+use KayzArt\Ai_Prompt;
 use KayzArt\Ai_Tool_Schema;
 
 /**
@@ -81,6 +82,23 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 
 		$tailwind_policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', false );
 		$this->assertSame( array( 'html' ), $tailwind_policy['editableTargets'] );
+	}
+
+	/** Creating a page needs CSS in tailwind mode, where the theme tokens live. */
+	public function test_resolve_edit_policy_create_intent_always_unlocks_css(): void {
+		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'A landing page for a bakery.', true, Ai_Prompt::INTENT_CREATE );
+		$this->assertSame( array( 'html', 'head', 'css' ), $policy['editableTargets'] );
+		$this->assertTrue( $policy['cssExplicitlyRequested'] );
+
+		$without_head = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'A landing page for a bakery.', false, Ai_Prompt::INTENT_CREATE );
+		$this->assertSame( array( 'html', 'css' ), $without_head['editableTargets'] );
+	}
+
+	/** The edit intent keeps the keyword gate that creation bypasses. */
+	public function test_resolve_edit_policy_edit_intent_keeps_the_tailwind_css_gate(): void {
+		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', true, Ai_Prompt::INTENT_EDIT );
+		$this->assertSame( array( 'html', 'head' ), $policy['editableTargets'] );
+		$this->assertFalse( $policy['cssExplicitlyRequested'] );
 	}
 
 	/**

@@ -21,6 +21,9 @@ class Ai_Worker {
 	const RECOVERY_HOOK         = 'kayzart_recover_ai_steps';
 	const EXECUTION_LOCK_OPTION = 'kayzart_ai_execution_lock';
 
+	/** Maximum characters kept from a retried provider error message. */
+	const RETRY_REASON_CHARS = 200;
+
 	/** Action Scheduler action currently invoking the worker.
 	 *
 	 * @var int
@@ -203,6 +206,13 @@ class Ai_Worker {
 			return;
 		}
 
+		// A step can run inside the immediate loopback request, where the default
+		// max_execution_time applies. Page-creation turns routinely take tens of
+		// seconds, so lift the limit here exactly as the legacy run() path does.
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		}
+
 		$lease_token = '';
 		try {
 			if ( 'pending' === $job['status'] ) {
@@ -349,6 +359,9 @@ class Ai_Worker {
 						'delaySeconds' => $delay,
 					)
 				);
+				// Without the reason a retried turn is indistinguishable from a stall:
+				// the same turn number is re-emitted to the UI with nothing recorded.
+				// This is provider transport text, never page content.
 				self::performance_log(
 					$job,
 					'retry_scheduled',
@@ -356,6 +369,7 @@ class Ai_Worker {
 						'stateVersion' => $expected_version,
 						'attempt'      => $attempt,
 						'delaySeconds' => $delay,
+						'reason'       => self::compact_error_reason( $error->getMessage() ),
 					)
 				);
 			} else {
@@ -779,6 +793,18 @@ class Ai_Worker {
 		if ( is_string( $encoded ) ) {
 			error_log( '[Kayzart AI performance] ' . $encoded ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
+	}
+
+	/** Reduce a provider exception message to a bounded single-line diagnostic.
+	 *
+	 * @param string $message Exception message.
+	 */
+	private static function compact_error_reason( string $message ): string {
+		$collapsed = trim( (string) preg_replace( '/\s+/u', ' ', $message ) );
+		if ( function_exists( 'mb_strlen' ) && mb_strlen( $collapsed ) > self::RETRY_REASON_CHARS ) {
+			return mb_substr( $collapsed, 0, self::RETRY_REASON_CHARS ) . '...';
+		}
+		return $collapsed;
 	}
 
 	/** Milliseconds elapsed since a UTC database timestamp.

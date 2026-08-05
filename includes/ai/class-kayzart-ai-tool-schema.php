@@ -76,13 +76,21 @@ class Ai_Tool_Schema {
 	/**
 	 * Resolve which targets are editable for a request.
 	 *
+	 * Creating a page always needs CSS. In tailwind mode the theme tokens live in
+	 * the CSS tab, so gating CSS behind a keyword would leave a new page with no
+	 * theme at all. The keyword gate therefore applies to editing only.
+	 *
 	 * @param string $editor_mode   Editor mode ('normal' or 'tailwind').
 	 * @param string $prompt        User prompt.
 	 * @param bool   $can_edit_head Whether the job creator may persist custom-head edits.
+	 * @param string $intent        Ai_Prompt::INTENT_CREATE or Ai_Prompt::INTENT_EDIT.
 	 * @return array{editableTargets:array<int,string>,cssExplicitlyRequested:bool}
 	 */
-	public static function resolve_edit_policy( string $editor_mode, string $prompt, bool $can_edit_head ): array {
-		if ( 'normal' === $editor_mode ) {
+	public static function resolve_edit_policy( string $editor_mode, string $prompt, bool $can_edit_head, string $intent = Ai_Prompt::INTENT_EDIT ): array {
+		if ( Ai_Prompt::INTENT_CREATE === $intent ) {
+			$editable_targets         = self::ALL_EDITABLE_TARGETS;
+			$css_explicitly_requested = true;
+		} elseif ( 'normal' === $editor_mode ) {
 			$editable_targets         = self::ALL_EDITABLE_TARGETS;
 			$css_explicitly_requested = true;
 		} else {

@@ -27,6 +27,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ai_Agent {
 
+	/**
+	 * Request timeout in seconds for page-creation turns.
+	 *
+	 * Core defaults to 30 seconds, which suits small edits. Authoring a whole
+	 * page measures 28-29 seconds of provider time, so the default aborts the
+	 * call at the boundary and the retry pays for a second generation.
+	 */
+	const CREATE_REQUEST_TIMEOUT_SECONDS = 120.0;
+
 	const MAX_AGENT_TURNS             = 15;
 	const FINALIZATION_TURNS          = 1;
 	const REPEATED_TOOL_FAILURE_LIMIT = 3;
@@ -186,6 +195,27 @@ class Ai_Agent {
 		return Admin::sanitize_ai_max_turns( $value );
 	}
 
+	/** Resolve the provider request timeout for a job, in seconds.
+	 *
+	 * @param array $payload AI job payload.
+	 * @return float|null Timeout in seconds, or null to keep core's default.
+	 */
+	public static function resolve_request_timeout( array $payload ): ?float {
+		if ( Ai_Prompt::INTENT_CREATE !== Ai_Prompt::resolve_intent( $payload ) ) {
+			return null;
+		}
+
+		/**
+		 * Filter the provider request timeout used for page-creation turns.
+		 *
+		 * @param float $timeout Timeout in seconds.
+		 * @param array $payload AI job payload.
+		 */
+		$timeout = apply_filters( 'kayzart_ai_create_request_timeout', self::CREATE_REQUEST_TIMEOUT_SECONDS, $payload );
+
+		return is_numeric( $timeout ) && (float) $timeout > 0.0 ? (float) $timeout : null;
+	}
+
 	/** Execute at most one provider call and return the next checkpoint.
 	 *
 	 * @param array $payload Request payload.
@@ -216,10 +246,12 @@ class Ai_Agent {
 			);
 		}
 
+		$intent                = Ai_Prompt::resolve_intent( $payload );
 		$edit_policy           = Ai_Tool_Schema::resolve_edit_policy(
 			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
 			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '',
-			! empty( $payload['canEditHead'] )
+			! empty( $payload['canEditHead'] ),
+			$intent
 		);
 		$editable_targets      = $edit_policy['editableTargets'];
 		$has_history_tool      = ! empty( $payload['historyTool'] );
@@ -228,9 +260,13 @@ class Ai_Agent {
 		$tools                 = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context );
 		$snapshot              = $state['snapshot'];
 
-		$turn_options     = array(
-			'systemInstruction' => Ai_Prompt::system_prompt(),
+		$turn_options    = array(
+			'systemInstruction' => Ai_Prompt::system_prompt( $intent ),
 		);
+		$request_timeout = self::resolve_request_timeout( $payload );
+		if ( null !== $request_timeout ) {
+			$turn_options['requestTimeout'] = $request_timeout;
+		}
 		$model_preference = self::resolve_model_preference( $payload );
 		if ( count( $model_preference ) > 0 ) {
 			$turn_options['modelPreference'] = $model_preference;
@@ -481,10 +517,14 @@ class Ai_Agent {
 		if ( $index >= self::FINALIZATION_TURNS ) {
 			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true, 'max_turns' );
 		}
-		$options          = array(
-			'systemInstruction' => Ai_Prompt::system_prompt(),
+		$options         = array(
+			'systemInstruction' => Ai_Prompt::system_prompt( Ai_Prompt::resolve_intent( $payload ) ),
 			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
 		);
+		$request_timeout = self::resolve_request_timeout( $payload );
+		if ( null !== $request_timeout ) {
+			$options['requestTimeout'] = $request_timeout;
+		}
 		$model_preference = self::resolve_model_preference( $payload );
 		if ( count( $model_preference ) > 0 ) {
 			$options['modelPreference'] = $model_preference;

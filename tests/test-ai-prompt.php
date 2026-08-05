@@ -5,6 +5,7 @@
  * @package KayzArt
  */
 
+use KayzArt\Ai_Fonts;
 use KayzArt\Ai_Prompt;
 
 /**
@@ -29,6 +30,69 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( '{"summary":"..."}', $prompt );
 		// trim() removes the leading/trailing blank lines from the source block.
 		$this->assertSame( trim( $prompt ), $prompt );
+	}
+
+	/**
+	 * The edit prompt is unchanged whether or not the intent is passed.
+	 */
+	public function test_system_prompt_defaults_to_the_editing_intent(): void {
+		$this->assertSame( Ai_Prompt::system_prompt(), Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT ) );
+		$this->assertStringContainsString( 'Keep changes minimal and relevant to the user request.', Ai_Prompt::system_prompt() );
+		$this->assertStringContainsString( 'Search first and read only the smallest relevant range.', Ai_Prompt::system_prompt() );
+	}
+
+	/**
+	 * Line endings are normalized so a CRLF checkout sends the same bytes.
+	 */
+	public function test_system_prompt_uses_normalized_line_endings(): void {
+		$this->assertStringNotContainsString( "\r", Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT ) );
+		$this->assertStringNotContainsString( "\r", Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ) );
+	}
+
+	/**
+	 * The creation prompt drops the minimal-diff rules and asks for a whole page.
+	 */
+	public function test_system_prompt_creation_intent(): void {
+		$prompt = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
+
+		$this->assertStringContainsString( 'You are the Kayzart AI page generation engine.', $prompt );
+		$this->assertStringContainsString( 'Build one complete, publishable landing page', $prompt );
+		$this->assertStringContainsString( 'Compose the page from multiple distinct sections.', $prompt );
+		$this->assertStringContainsString( 'Do not invent prices, results, testimonials', $prompt );
+
+		$this->assertStringNotContainsString( 'Keep changes minimal and relevant to the user request.', $prompt );
+		$this->assertStringNotContainsString( 'Search first and read only the smallest relevant range.', $prompt );
+		$this->assertStringNotContainsString( 'Preserve existing content by default.', $prompt );
+		$this->assertStringNotContainsString( 'validated editFootprint', $prompt );
+		$this->assertStringNotContainsString( 'list_ai_edits', $prompt );
+		$this->assertSame( trim( $prompt ), $prompt );
+	}
+
+	/**
+	 * Security and output constraints are shared by both intents.
+	 */
+	public function test_system_prompt_shares_security_and_output_rules(): void {
+		$shared = array(
+			'Do not create or preserve <script> tags',
+			'Do not exfiltrate data or submit forms to external URLs.',
+			'HTML must be a body fragment only.',
+			'Ensure the result is responsive and looks good on both mobile and desktop screens.',
+			'{"summary":"..."}',
+		);
+		foreach ( $shared as $rule ) {
+			$this->assertStringContainsString( $rule, Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT ), $rule );
+			$this->assertStringContainsString( $rule, Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ), $rule );
+		}
+	}
+
+	/**
+	 * Only an explicit create intent switches the prompt away from editing.
+	 */
+	public function test_resolve_intent(): void {
+		$this->assertSame( Ai_Prompt::INTENT_CREATE, Ai_Prompt::resolve_intent( array( 'intent' => 'create' ) ) );
+		$this->assertSame( Ai_Prompt::INTENT_EDIT, Ai_Prompt::resolve_intent( array( 'intent' => 'edit' ) ) );
+		$this->assertSame( Ai_Prompt::INTENT_EDIT, Ai_Prompt::resolve_intent( array( 'intent' => 'anything-else' ) ) );
+		$this->assertSame( Ai_Prompt::INTENT_EDIT, Ai_Prompt::resolve_intent( array() ) );
 	}
 
 	/**
@@ -72,6 +136,101 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Editor mode: tailwind', $prompt );
 		$this->assertStringContainsString( 'Editable targets for this request: html, head', $prompt );
 		$this->assertStringContainsString( 'Tailwind mode policy:', $prompt );
+	}
+
+	/**
+	 * Creating a page adds the creation policy and never appears while editing.
+	 */
+	public function test_build_user_prompt_creation_policy(): void {
+		$payload = array(
+			'editorMode'  => 'normal',
+			'prompt'      => 'A landing page for a bakery.',
+			'canEditHead' => true,
+		);
+
+		$editing = Ai_Prompt::build_user_prompt( $payload );
+		$this->assertStringNotContainsString( 'Page creation policy:', $editing );
+
+		$payload['intent'] = 'create';
+		$creating          = Ai_Prompt::build_user_prompt( $payload );
+		$this->assertStringContainsString( 'Page creation policy:', $creating );
+		$this->assertStringContainsString( 'creates a new page from an empty or nearly empty document', $creating );
+	}
+
+	/**
+	 * Tailwind creation unlocks CSS and asks for theme tokens instead of gating it.
+	 */
+	public function test_build_user_prompt_tailwind_creation_unlocks_css(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode'  => 'tailwind',
+				'prompt'      => 'A landing page for a bakery.',
+				'canEditHead' => true,
+				'intent'      => 'create',
+			)
+		);
+
+		$this->assertStringContainsString( 'Editable targets for this request: html, head, css', $prompt );
+		$this->assertStringContainsString( 'Define the page theme in the CSS tab with @theme', $prompt );
+		$this->assertStringNotContainsString( 'Edit CSS only when the user explicitly asks', $prompt );
+	}
+
+	/**
+	 * Registered families are offered alongside the always-available stacks.
+	 */
+	public function test_build_user_prompt_lists_registered_fonts(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode'     => 'normal',
+				'prompt'         => 'A landing page for a bakery.',
+				'intent'         => 'create',
+				'availableFonts' => array(
+					'registered'   => array(
+						array(
+							'name'       => 'Test Sans JP',
+							'fontFamily' => '"Test Sans JP", sans-serif',
+						),
+					),
+					'systemStacks' => Ai_Fonts::SYSTEM_STACKS,
+				),
+			)
+		);
+
+		$this->assertStringContainsString( 'Fonts available for this page:', $prompt );
+		$this->assertStringContainsString( 'Test Sans JP -> font-family: "Test Sans JP", sans-serif', $prompt );
+		$this->assertStringContainsString( 'Never add a stylesheet link, @import, or @font-face', $prompt );
+	}
+
+	/**
+	 * Without site fonts the prompt still offers every system stack.
+	 */
+	public function test_build_user_prompt_falls_back_to_system_stacks(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode' => 'normal',
+				'prompt'     => 'A landing page for a bakery.',
+			)
+		);
+
+		$this->assertStringContainsString( 'Registered on this site: none.', $prompt );
+		foreach ( array_keys( Ai_Fonts::SYSTEM_STACKS ) as $name ) {
+			$this->assertStringContainsString( $name . ' -> font-family:', $prompt );
+		}
+	}
+
+	/**
+	 * Font guidance applies to editing too, so restyle requests can resolve.
+	 */
+	public function test_build_user_prompt_fonts_policy_applies_to_both_intents(): void {
+		$payload = array(
+			'editorMode' => 'normal',
+			'prompt'     => 'Make the headings mincho.',
+		);
+
+		$this->assertStringContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
+
+		$payload['intent'] = 'create';
+		$this->assertStringContainsString( 'Fonts available for this page:', Ai_Prompt::build_user_prompt( $payload ) );
 	}
 
 	/**

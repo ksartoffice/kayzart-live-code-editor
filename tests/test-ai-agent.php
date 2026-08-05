@@ -86,6 +86,64 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 	}
 
 	/** Agent tool exposure follows the presence of a resolvable selection. */
+	/**
+	 * Page creation raises the provider timeout; editing keeps core's default.
+	 */
+	public function test_create_intent_raises_the_request_timeout(): void {
+		$creating           = $this->payload();
+		$creating['intent'] = 'create';
+
+		$this->assertSame( Ai_Agent::CREATE_REQUEST_TIMEOUT_SECONDS, Ai_Agent::resolve_request_timeout( $creating ) );
+		$this->assertNull( Ai_Agent::resolve_request_timeout( $this->payload() ) );
+
+		$editing           = $this->payload();
+		$editing['intent'] = 'edit';
+		$this->assertNull( Ai_Agent::resolve_request_timeout( $editing ) );
+	}
+
+	/**
+	 * Sites can tune the creation timeout, and a bad value falls back to default.
+	 */
+	public function test_create_request_timeout_filter(): void {
+		$payload           = $this->payload();
+		$payload['intent'] = 'create';
+
+		add_filter( 'kayzart_ai_create_request_timeout', static fn() => 45 );
+		$this->assertSame( 45.0, Ai_Agent::resolve_request_timeout( $payload ) );
+		remove_all_filters( 'kayzart_ai_create_request_timeout' );
+
+		add_filter( 'kayzart_ai_create_request_timeout', '__return_zero' );
+		$this->assertNull( Ai_Agent::resolve_request_timeout( $payload ) );
+		remove_all_filters( 'kayzart_ai_create_request_timeout' );
+	}
+
+	/**
+	 * The resolved timeout reaches the client as a generation option.
+	 */
+	public function test_request_timeout_is_passed_to_the_client(): void {
+		$creating           = $this->payload();
+		$creating['intent'] = 'create';
+
+		$client = new Ai_Client_Fake();
+		$client->queue_final_text( '{"summary":"not edited"}' );
+		try {
+			( new Ai_Agent( $client ) )->run( $creating );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
+		}
+		$this->assertSame( Ai_Agent::CREATE_REQUEST_TIMEOUT_SECONDS, $client->calls()[0]['options']['requestTimeout'] );
+
+		$editor = new Ai_Client_Fake();
+		$editor->queue_final_text( '{"summary":"not edited"}' );
+		try {
+			( new Ai_Agent( $editor ) )->run( $this->payload() );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
+		}
+		$this->assertArrayNotHasKey( 'requestTimeout', $editor->calls()[0]['options'] );
+	}
+
+	/** Selection tools appear only when the payload carries resolvable selections. */
 	public function test_agent_builds_selection_aware_tool_schema(): void {
 		$without_selection = new Ai_Client_Fake();
 		$without_selection->queue_final_text( '{"summary":"not edited"}' );

@@ -72,10 +72,19 @@ class Rest_Ai {
 
 		// This is derived at creation time so asynchronous workers never depend on
 		// whichever user happens to run them.
-		$can_edit_head                                = current_user_can( 'unfiltered_html' );
-		$store                                        = new Ai_Job_Store();
-		$current_user                                 = get_current_user_id();
-		$initial_id                                   = $payload['initialRequestId'];
+		$can_edit_head = current_user_can( 'unfiltered_html' );
+		$store         = new Ai_Job_Store();
+		$current_user  = get_current_user_id();
+		$initial_id    = $payload['initialRequestId'];
+		// Derived here, never accepted from the client: normalize_payload() rebuilds
+		// the agent payload key by key, so a client-supplied intent is discarded.
+		// The marker resolves the same way consume_initial_ai_request() resolves it
+		// below, and must be read before that call clears the meta.
+		$initial_marker                               = '' !== $initial_id ? $initial_id : $payload['requestId'];
+		$payload['agentPayload']['intent']            = Admin::matches_initial_ai_request( $payload['postId'], $initial_marker, $current_user )
+			? Ai_Prompt::INTENT_CREATE
+			: Ai_Prompt::INTENT_EDIT;
+		$payload['agentPayload']['availableFonts']    = Ai_Fonts::resolve_for_payload();
 		$payload['agentPayload']['canEditHead']       = $can_edit_head;
 		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'] );
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();

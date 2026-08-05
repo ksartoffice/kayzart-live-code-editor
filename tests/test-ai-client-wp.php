@@ -25,6 +25,57 @@ class Test_Kayzart_Ai_Client_Wp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The raised timeout applies only while the callback runs.
+	 */
+	public function test_with_request_timeout_scopes_the_filter(): void {
+		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
+
+		$inside = Ai_Client_Wp::with_request_timeout(
+			120.0,
+			static function () {
+				return apply_filters( 'wp_ai_client_default_request_timeout', 30.0 );
+			}
+		);
+
+		$this->assertSame( 120.0, $inside );
+		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
+	}
+
+	/**
+	 * A failing turn must not leave the raised timeout behind for other callers.
+	 */
+	public function test_with_request_timeout_is_removed_after_an_exception(): void {
+		try {
+			Ai_Client_Wp::with_request_timeout(
+				120.0,
+				static function () {
+					throw new RuntimeException( 'provider exploded' );
+				}
+			);
+			$this->fail( 'The callback exception should propagate.' );
+		} catch ( RuntimeException $error ) {
+			$this->assertSame( 'provider exploded', $error->getMessage() );
+		}
+
+		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
+	}
+
+	/**
+	 * Without a timeout the core default is left untouched.
+	 */
+	public function test_with_request_timeout_ignores_empty_values(): void {
+		foreach ( array( null, 0.0, -1.0 ) as $timeout ) {
+			$inside = Ai_Client_Wp::with_request_timeout(
+				$timeout,
+				static function () {
+					return apply_filters( 'wp_ai_client_default_request_timeout', 30.0 );
+				}
+			);
+			$this->assertSame( 30.0, $inside );
+		}
+	}
+
+	/**
 	 * Convert normalized messages through the adapter's private SDK seam.
 	 *
 	 * @param array $messages Normalized messages.

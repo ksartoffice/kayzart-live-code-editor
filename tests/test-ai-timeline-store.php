@@ -30,7 +30,6 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 
 	/** Job-backed activity creation is idempotent and completion stays lightweight. */
 	public function test_ai_edit_is_idempotent_and_builds_recent_context(): void {
-
 		$job     = $this->job( 'request-context' );
 		$payload = $this->payload( 'Make the heading stronger.' );
 		$first   = $this->store->create_ai_edit( $job, $payload );
@@ -52,18 +51,17 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 
 	/** Recent context can be reduced to the single latest successful edit. */
 	public function test_recent_context_accepts_a_limit(): void {
-
 		$first_after         = $this->payload( 'First edit.' );
 		$first_after['html'] = '<h1>First</h1>';
-			$this->complete_retained_edit( 'request-context-limit-1', $this->payload( 'First edit.' ), $first_after );
+		$this->complete_retained_edit( 'request-context-limit-1', $this->payload( 'First edit.' ), $first_after );
 		$second               = $first_after;
-			$second['prompt'] = 'Second edit.';
+		$second['prompt']     = 'Second edit.';
 		$second_after         = $second;
 		$second_after['html'] = '<h1>Second</h1>';
 		$this->complete_retained_edit( 'request-context-limit-2', $second, $second_after );
 
-			$context = $this->store->recent_context( 42, $second_after, 1 );
-			$this->assertCount( 1, $context );
+		$context = $this->store->recent_context( 42, $second_after, 1 );
+		$this->assertCount( 1, $context );
 		$this->assertSame( 'Second edit.', $context[0]['prompt'] );
 		$this->assertTrue( $context[0]['detailsAvailable'] );
 		$this->assertSame( array(), $this->store->recent_context( 42, $second_after, 0 ) );
@@ -71,12 +69,11 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 
 	/** History tools stay post-scoped and page retained source with opaque cursors. */
 	public function test_history_tools_list_and_page_retained_source(): void {
-
 		$before         = $this->payload( 'Expand the heading.' );
 		$before['html'] = '<h1>Before history source</h1>';
 		$after          = $before;
 		$after['html']  = '<h1>After history source</h1>';
-		$this->complete_retained_edit( 'request-history-tool', $before, $after );
+		$job            = $this->complete_retained_edit( 'request-history-tool', $before, $after );
 
 		$list = $this->store->list_ai_edits_for_tool( 42, array( 'limit' => 1 ) );
 		$this->assertTrue( $list['ok'] );
@@ -112,7 +109,83 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		);
 		$this->assertStringStartsWith( 'r history', $second['content'] );
 		$this->assertFalse( $second['truncated'] );
+
+		$changed_after         = $after;
+		$changed_after['html'] = '<h1>Changed after cursor creation</h1>';
+		global $wpdb;
+		$wpdb->update(
+			Ai_Setup::get_jobs_table_name(),
+			array( 'snapshot_json' => wp_json_encode( $changed_after ) ),
+			array( 'job_uuid' => $job['job_uuid'] )
+		);
+		$stale_cursor = $this->store->get_ai_edit_for_tool(
+			42,
+			array(
+				'versionId' => $version_id,
+				'snapshot'  => 'after',
+				'target'    => 'html',
+				'cursor'    => $first['nextCursor'],
+			)
+		);
+		$this->assertFalse( $stale_cursor['ok'] );
+		$this->assertSame( 'History source cursor is invalid or stale.', $stale_cursor['error'] );
+
+		$invalid_cursor = $this->store->get_ai_edit_for_tool(
+			42,
+			array(
+				'versionId' => $version_id,
+				'snapshot'  => 'after',
+				'target'    => 'html',
+				'cursor'    => 'invalid-cursor',
+			)
+		);
+		$this->assertFalse( $invalid_cursor['ok'] );
+		$this->assertSame( 'History source cursor is invalid or stale.', $invalid_cursor['error'] );
+
+		$missing_target = $this->store->get_ai_edit_for_tool(
+			42,
+			array(
+				'versionId' => $version_id,
+				'snapshot'  => 'after',
+			)
+		);
+		$this->assertFalse( $missing_target['ok'] );
+		$this->assertSame( 'snapshot and target are required to read retained source.', $missing_target['error'] );
 	}
+
+	/** AI history metadata uses bounded, post-scoped cursor pages. */
+	public function test_ai_history_tool_pages_ten_compact_items(): void {
+		for ( $index = 1; $index <= 12; $index++ ) {
+			$prompt  = 'Prompt ' . $index . ' ' . str_repeat( 'p', 300 );
+			$payload = $this->payload( $prompt );
+			$this->complete_retained_edit( 'request-ai-history-page-' . $index, $payload, $payload, str_repeat( 's', 300 ) );
+		}
+
+		$newest = $this->store->list_ai_edits_for_tool( 42, array() );
+		$this->assertTrue( $newest['ok'] );
+		$this->assertCount( 10, $newest['items'] );
+		$this->assertTrue( $newest['hasMore'] );
+		$this->assertNotEmpty( $newest['nextCursor'] );
+		$this->assertStringStartsWith( 'Prompt 12 ', $newest['items'][0]['prompt'] );
+		$this->assertStringStartsWith( 'Prompt 3 ', $newest['items'][9]['prompt'] );
+		$this->assertLessThanOrEqual( 256, strlen( $newest['items'][0]['prompt'] ) );
+		$this->assertLessThanOrEqual( 256, strlen( $newest['items'][0]['summary'] ) );
+		$this->assertCount( 10, $this->store->list_ai_edits_for_tool( 42, array( 'limit' => 50 ) )['items'] );
+
+		$older = $this->store->list_ai_edits_for_tool( 42, array( 'cursor' => $newest['nextCursor'] ) );
+		$this->assertTrue( $older['ok'] );
+		$this->assertCount( 2, $older['items'] );
+		$this->assertFalse( $older['hasMore'] );
+		$this->assertNull( $older['nextCursor'] );
+		$this->assertStringStartsWith( 'Prompt 2 ', $older['items'][0]['prompt'] );
+		$this->assertStringStartsWith( 'Prompt 1 ', $older['items'][1]['prompt'] );
+
+		$invalid = $this->store->list_ai_edits_for_tool( 42, array( 'cursor' => 'invalid-cursor' ) );
+		$this->assertFalse( $invalid['ok'] );
+		$cross_post = $this->store->list_ai_edits_for_tool( 99, array( 'cursor' => $newest['nextCursor'] ) );
+		$this->assertFalse( $cross_post['ok'] );
+	}
+
 	/** Completing an edit persists the model and input/output token counts. */
 	public function test_complete_persists_model_and_token_usage(): void {
 		$job     = $this->job( 'request-usage' );
@@ -163,6 +236,7 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertFalse( $detail['ok'] );
 		$this->assertFalse( $detail['detailsAvailable'] );
 	}
+
 	/** Retained input snapshots recompute their browser identity hash. */
 	public function test_retained_before_snapshot_includes_computed_base_hash(): void {
 		$before             = $this->payload( 'Keep this input identity.' );
@@ -446,14 +520,15 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 	 * @param string $request_id Unique request ID.
 	 * @param array  $before     Input snapshot.
 	 * @param array  $after      Completed snapshot.
+	 * @param string $summary    Completion summary.
 	 */
-	private function complete_retained_edit( string $request_id, array $before, array $after ): array {
+	private function complete_retained_edit( string $request_id, array $before, array $after, string $summary = 'Completed edit.' ): array {
 		$jobs    = new Ai_Job_Store();
 		$created = $jobs->create( 1, 42, $request_id, $before );
 		$job     = $created['job'];
 		$this->store->create_ai_edit( $job, $before );
 		$this->assertTrue( $jobs->claim( (string) $job['job_uuid'] ) );
-		$this->assertTrue( $jobs->complete( (string) $job['job_uuid'], $after, 'Completed edit.', array() ) );
+		$this->assertTrue( $jobs->complete( (string) $job['job_uuid'], $after, $summary, array() ) );
 		return $job;
 	}
 }

@@ -361,7 +361,11 @@ class Ai_Agent {
 			}
 
 			try {
-				if ( 'read_document' === $name || 'read_selection' === $name || 'get_ai_edit' === $name ) {
+				$is_history_source_read = 'get_ai_edit' === $name
+					&& isset( $args['snapshot'], $args['target'] )
+					&& in_array( $args['snapshot'], array( 'before', 'after' ), true )
+					&& in_array( $args['target'], array( 'html', 'head', 'css', 'js' ), true );
+				if ( 'read_document' === $name || 'read_selection' === $name || $is_history_source_read ) {
 					if ( $remaining_read_budget <= 0 ) {
 						$this->throw_read_budget_exhausted();
 					}
@@ -375,7 +379,7 @@ class Ai_Agent {
 				if ( isset( $tool_result['selectionRecords'] ) && is_array( $tool_result['selectionRecords'] ) ) {
 					$selection_records = $tool_result['selectionRecords'];
 				}
-				if ( in_array( $name, array( 'read_document', 'read_selection', 'get_ai_edit' ), true ) && isset( $tool_result['output']['content'] ) ) {
+				if ( isset( $tool_result['output']['content'] ) && ( 'read_document' === $name || 'read_selection' === $name || $is_history_source_read ) ) {
 					$remaining_read_budget -= mb_strlen( (string) $tool_result['output']['content'] );
 				}
 				$tool_ok = ! ( isset( $tool_result['output'] ) && is_array( $tool_result['output'] ) && array_key_exists( 'ok', $tool_result['output'] ) && false === $tool_result['output']['ok'] );
@@ -841,7 +845,7 @@ class Ai_Agent {
 			for ( $response_index = count( $projected[ $message_index ]['toolResponses'] ) - 1; $response_index >= 0; $response_index-- ) {
 				$response = $projected[ $message_index ]['toolResponses'][ $response_index ];
 				$name     = isset( $response['name'] ) ? (string) $response['name'] : '';
-				if ( ! in_array( $name, array( 'read_document', 'read_selection', 'search_text', 'replace_string', 'replace_many', 'list_ai_edits', 'get_ai_edit', 'list_available_fonts' ), true ) ) {
+				if ( ! in_array( $name, array( 'read_document', 'read_selection', 'search_text', 'replace_string', 'replace_many', 'list_ai_edits', 'get_ai_edit' ), true ) ) {
 					continue;
 				}
 				$output                   = isset( $response['output'] ) ? $response['output'] : null;

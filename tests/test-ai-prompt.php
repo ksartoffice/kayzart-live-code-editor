@@ -223,7 +223,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	/**
 	 * Font guidance is inline for creation and tool-backed for editing.
 	 */
-	public function test_build_user_prompt_fonts_policy_applies_to_both_intents(): void {
+	public function test_build_user_prompt_fonts_policy_applies_to_creation_only(): void {
 		$payload = array(
 			'editorMode' => 'normal',
 			'prompt'     => 'Make the headings mincho.',
@@ -372,13 +372,17 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	public function test_build_user_prompt_history_tool_available(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
 			array(
-				'editorMode'  => 'normal',
-				'prompt'      => 'restore previous change',
-				'historyTool' => array( 'token' => 'abc' ),
+				'editorMode' => 'normal',
+				'prompt'     => 'restore previous change',
 			)
 		);
 		$this->assertStringNotContainsString( 'History tools available:', $prompt );
 		$this->assertStringContainsString( 'Use list_ai_edits/get_ai_edit only', Ai_Prompt::system_prompt() );
+	}
+
+	/** Normal mode joins system sections without a blank placeholder section. */
+	public function test_system_prompt_normal_mode_has_no_empty_mode_section(): void {
+		$this->assertStringNotContainsString( "\n\n- Security rules", Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'normal' ) );
 	}
 
 	/**

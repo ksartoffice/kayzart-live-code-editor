@@ -120,7 +120,6 @@ class Ai_Tool_Schema {
 	 * @return array<int,array> Tool definitions.
 	 */
 	public static function build_tool_definitions( array $editable_targets, bool $has_history_tool = false, bool $has_selection_context = true, bool $has_font_tool = false ): array {
-
 		$editable_target_enum = array_values( array_intersect( $editable_targets, self::ALL_EDITABLE_TARGETS ) );
 		$replace_properties   = array(
 			'target'     => array(
@@ -300,15 +299,16 @@ class Ai_Tool_Schema {
 			$tools[] = array(
 				'type'        => 'function',
 				'name'        => 'list_ai_edits',
-				'description' => 'List previous AI edit history summaries for this post. Use only when recent context is insufficient to identify an earlier edit.',
+				'description' => 'List previous AI edit history summaries for this post, newest first. Omit cursor on the first page; when older results are needed, copy nextCursor exactly.',
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(
-						'limit' => array(
+						'limit'  => array(
 							'type'    => 'integer',
 							'minimum' => 1,
-							'maximum' => 50,
+							'maximum' => Ai_Timeline_Store::AI_HISTORY_PAGE_SIZE,
 						),
+						'cursor' => array( 'type' => 'string' ),
 					),
 					'additionalProperties' => false,
 				),
@@ -354,6 +354,7 @@ class Ai_Tool_Schema {
 				),
 			);
 		}
+
 		return $tools;
 	}
 }

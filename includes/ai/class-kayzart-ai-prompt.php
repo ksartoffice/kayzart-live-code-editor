@@ -75,9 +75,13 @@ class Ai_Prompt {
 	 * @return string
 	 */
 	public static function system_prompt( string $intent = self::INTENT_EDIT, string $editor_mode = 'normal' ): string {
-
-		$head   = self::INTENT_CREATE === $intent ? self::creation_rules() : self::editing_rules();
-		$prompt = $head . "\n" . self::editor_mode_rules( $intent, $editor_mode ) . "\n" . self::security_rules() . "\n" . self::common_output_rules();
+		$parts  = array(
+			self::INTENT_CREATE === $intent ? self::creation_rules() : self::editing_rules(),
+			self::editor_mode_rules( $intent, $editor_mode ),
+			self::security_rules(),
+			self::common_output_rules(),
+		);
+		$prompt = implode( "\n", array_filter( $parts, 'strlen' ) );
 		// Heredoc bodies carry whatever line endings the checked-out file has, so
 		// normalize to keep the prompt byte-identical across platforms.
 		return trim( str_replace( "\r\n", "\n", $prompt ) );
@@ -249,7 +253,6 @@ PROMPT;
 	 * @return string
 	 */
 	public static function build_user_prompt( array $payload ): string {
-
 		return implode( "\n\n", array_values( self::debug_input_parts( $payload ) ) );
 	}
 
@@ -306,7 +309,6 @@ PROMPT;
 		$segments                 = array_filter(
 			$segments,
 			static function ( $segment ) {
-
 				return null !== $segment && '' !== $segment;
 			}
 		);

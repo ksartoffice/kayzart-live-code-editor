@@ -138,12 +138,14 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	 * History tools are appended only when requested.
 	 */
 	public function test_build_tool_definitions_with_history_tools(): void {
-
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ), true );
 		$names = $this->tool_names( $tools );
 		$this->assertContains( 'list_ai_edits', $names );
 		$this->assertContains( 'get_ai_edit', $names );
 		$this->assertCount( 9, $tools );
+		$list = $this->find_tool( $tools, 'list_ai_edits' );
+		$this->assertSame( 10, $list['parameters']['properties']['limit']['maximum'] );
+		$this->assertArrayHasKey( 'cursor', $list['parameters']['properties'] );
 		$get = $this->find_tool( $tools, 'get_ai_edit' );
 		$this->assertArrayHasKey( 'snapshot', $get['parameters']['properties'] );
 		$this->assertArrayHasKey( 'target', $get['parameters']['properties'] );
@@ -152,13 +154,13 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 
 	/** Font discovery is an independent optional read-only tool. */
 	public function test_build_tool_definitions_with_font_tool(): void {
-
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'css' ), false, false, true );
 		$font  = $this->find_tool( $tools, 'list_available_fonts' );
 		$this->assertNotNull( $font );
 		$this->assertSame( array(), $font['parameters']['properties'] );
 		$this->assertStringContainsString( 'cssValue', $font['description'] );
 	}
+
 	/**
 	 * The replace tools advertise exactly the editable targets in their enum.
 	 */

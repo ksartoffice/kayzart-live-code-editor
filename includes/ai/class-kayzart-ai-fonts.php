@@ -51,7 +51,6 @@ class Ai_Fonts {
 	 * @return array{registered:array<int,array{name:string,fontFamily:string}>,systemStacks:array<string,string>}
 	 */
 	public static function resolve_for_payload(): array {
-
 		return array(
 			'registered'   => self::registered_families(),
 			'systemStacks' => self::SYSTEM_STACKS,
@@ -65,16 +64,17 @@ class Ai_Fonts {
 	 * @return array
 	 */
 	public static function catalog_for_tool( array $fonts ): array {
-
-		$registered = isset( $fonts['registered'] ) && is_array( $fonts['registered'] ) ? $fonts['registered'] : array();
-		$stacks     = isset( $fonts['systemStacks'] ) && is_array( $fonts['systemStacks'] ) && count( $fonts['systemStacks'] ) > 0
-		? $fonts['systemStacks']
+		$registered_available = isset( $fonts['registered'] ) && is_array( $fonts['registered'] );
+		$registered           = $registered_available ? $fonts['registered'] : array();
+		$stacks               = isset( $fonts['systemStacks'] ) && is_array( $fonts['systemStacks'] ) && count( $fonts['systemStacks'] ) > 0
+			? $fonts['systemStacks']
 			: self::SYSTEM_STACKS;
-		$result     = array(
-			'ok'         => true,
-			'registered' => array(),
-			'system'     => array(),
-			'rules'      => array(
+		$result               = array(
+			'ok'                    => true,
+			'registeredUnavailable' => ! $registered_available,
+			'registered'            => array(),
+			'system'                => array(),
+			'rules'                 => array(
 				'useCssValueExactly'       => true,
 				'externalResourcesAllowed' => false,
 			),
@@ -97,6 +97,7 @@ class Ai_Fonts {
 
 		return $result;
 	}
+
 	/**
 	 * List font families WordPress will emit a font-face rule for.
 	 *

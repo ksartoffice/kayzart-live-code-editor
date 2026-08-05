@@ -160,7 +160,6 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 	/** An ordinary edit request never becomes a page-creation job. */
 	public function test_create_derives_the_edit_intent_without_an_initial_request(): void {
-
 		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-edit-intent' ) );
 		$this->assertSame( 202, $response->get_status() );
 		$this->assertSame( Ai_Prompt::INTENT_EDIT, $this->stored_intent( $response->get_data()['jobId'] ) );
@@ -168,7 +167,6 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 	/** Ordinary edits capture only the latest successful edit as prompt context. */
 	public function test_create_stores_only_one_recent_edit_context(): void {
-
 		$this->seed_completed_edit( 'prior-one', 'First prior edit.' );
 		$this->seed_completed_edit( 'prior-two', 'Second prior edit.' );
 
@@ -183,7 +181,6 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 	/** Initial page generation never carries edit history from the post. */
 	public function test_initial_creation_omits_recent_edit_context(): void {
-
 		$this->seed_completed_edit( 'prior-create-context', 'Prior edit.' );
 		$request_id = 'initial-no-context';
 		update_post_meta(
@@ -567,7 +564,6 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	 * @param string $request_id Request ID.
 	 */
 	private function payload( string $request_id ): array {
-
 		return array(
 			'requestId'        => $request_id,
 			'post_id'          => $this->post_id,
@@ -589,7 +585,6 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	 * @param string $prompt     Stored prompt.
 	 */
 	private function seed_completed_edit( string $request_id, string $prompt ): void {
-
 		$jobs              = new Ai_Job_Store();
 		$payload           = $this->payload( $request_id );
 		$payload['prompt'] = $prompt;

@@ -92,6 +92,55 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 		$this->assertSame( 'Changed the heading.', end( $response['events'] )['summary'] );
 	}
 
+	/** Worker font tools use the catalog captured in the persisted job payload. */
+	public function test_worker_exposes_job_captured_fonts_to_agent(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( Ai_Message::tool_call( 'font-1', 'list_available_fonts', array() ) ) );
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'edit-1',
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => 'Hello',
+						'to'     => 'World',
+					)
+				),
+				Ai_Message::tool_call( 'done', 'finish_edit', array( 'summary' => 'Updated.' ) ),
+			)
+		);
+		add_filter(
+			'kayzart_ai_client',
+			static function () use ( $fake ) {
+				return $fake;
+			}
+		);
+		$uuid = $this->create_job(
+			'worker-captured-fonts',
+			20,
+			array(
+				'availableFonts' => array(
+					'registered'   => array(
+						array(
+							'name'       => 'Worker Font',
+							'fontFamily' => '"Worker Font", sans-serif',
+						),
+					),
+					'systemStacks' => array( 'compact' => 'system-ui, sans-serif' ),
+				),
+			)
+		);
+
+		Ai_Worker::run( $uuid );
+
+		$responses = $fake->calls()[1]['messages'][2]['toolResponses'];
+		$this->assertSame( 'list_available_fonts', $responses[0]['name'] );
+		$this->assertSame( '"Worker Font", sans-serif', $responses[0]['output']['registered'][0]['cssValue'] );
+		$this->assertFalse( $responses[0]['output']['registeredUnavailable'] );
+		$this->assertSame( 'completed', $this->store->get( $uuid )['status'] );
+	}
+
 	/** Client errors become safe terminal job errors. */
 	public function test_client_failure_releases_lock_and_is_retryable_false(): void {
 		$fake = new Ai_Client_Fake();
@@ -369,14 +418,12 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 
 	/** Create a pending test job.
 	 *
-	 * @param string $request_id Request ID.
-	 * @param int    $post_id    Post ID.
+	 * @param string $request_id       Request ID.
+	 * @param int    $post_id          Post ID.
+	 * @param array  $payload_overrides Payload values to replace.
 	 */
-	private function create_job( string $request_id, int $post_id = 20 ): string {
-		$result = $this->store->create(
-			1,
-			$post_id,
-			$request_id,
+	private function create_job( string $request_id, int $post_id = 20, array $payload_overrides = array() ): string {
+		$payload = array_merge(
 			array(
 				'editorMode'       => 'normal',
 				'prompt'           => 'Change Hello to World.',
@@ -387,7 +434,14 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 				'jsMode'           => 'classic',
 				'baseHash'         => '',
 				'selectedContexts' => array(),
-			)
+			),
+			$payload_overrides
+		);
+		$result  = $this->store->create(
+			1,
+			$post_id,
+			$request_id,
+			$payload
 		);
 		return $result['job']['job_uuid'];
 	}

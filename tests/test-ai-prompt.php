@@ -234,6 +234,45 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Losing the entry import produces no compiler error at all, only an
+	 * unstyled page, so the policy states it in both create and edit wording.
+	 */
+	public function test_build_user_prompt_tailwind_policy_pins_the_entry_import(): void {
+		$expected = '- The CSS must always keep its `@import "tailwindcss";` line.';
+
+		$this->assertStringContainsString(
+			$expected,
+			Ai_Prompt::build_user_prompt(
+				array(
+					'editorMode' => 'tailwind',
+					'prompt'     => 'Make the hero bigger.',
+				)
+			)
+		);
+
+		$this->assertStringContainsString(
+			$expected,
+			Ai_Prompt::build_user_prompt(
+				array(
+					'editorMode' => 'tailwind',
+					'prompt'     => 'A landing page for an apple grower.',
+					'intent'     => 'create',
+				)
+			)
+		);
+
+		$this->assertStringNotContainsString(
+			$expected,
+			Ai_Prompt::build_user_prompt(
+				array(
+					'editorMode' => 'normal',
+					'prompt'     => 'Make the hero bigger.',
+				)
+			)
+		);
+	}
+
+	/**
 	 * The stack labels read like usable values, and a model that copies one
 	 * ships `font-family: gothic`, which resolves to nothing. The policy has to
 	 * say the label is not the value.

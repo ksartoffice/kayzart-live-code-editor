@@ -267,6 +267,7 @@ PROMPT;
 						'- Define the page theme in the CSS tab with @theme so the design is driven by named tokens.',
 						'- Build layout and styling in HTML with utility classes that reference those tokens.',
 						'- Treat the CSS tab as Tailwind input source. Generated compiled CSS is not the editing target.',
+						'- The CSS must always keep its `@import "tailwindcss";` line. Removing it disables every utility class.',
 					)
 				)
 				: implode(
@@ -277,6 +278,7 @@ PROMPT;
 						'- Prefer editing HTML classes and structure first.',
 						'- Edit CSS only when the user explicitly asks for CSS/stylesheet changes.',
 						'- Treat the CSS tab as Tailwind input source. Generated compiled CSS is not the editing target.',
+						'- The CSS must always keep its `@import "tailwindcss";` line. Removing it disables every utility class.',
 					)
 				);
 		}

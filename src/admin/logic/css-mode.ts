@@ -2,8 +2,14 @@ import { cloneCssByMode, type CssByMode, type EditorCssMode } from '../types/css
 
 export const TAILWIND_DEFAULT_CSS = '@import "tailwindcss";\n\n@theme {\n  /* ... */\n}\n';
 
+/**
+ * Matches the Tailwind entry import. Kept in sync by hand with
+ * Ai_Css_Imports::TAILWIND_IMPORT_PATTERN, which rejects AI edits that drop it.
+ */
+export const TAILWIND_IMPORT_PATTERN = /@import\s+(?:url\(\s*)?["']tailwindcss["']/i;
+
 export const createInitialTailwindSource = (normalCss: string): string => {
-  if (/@import\s+(?:url\(\s*)?["']tailwindcss["']/i.test(normalCss)) {
+  if (TAILWIND_IMPORT_PATTERN.test(normalCss)) {
     return normalCss;
   }
   return normalCss.trim()

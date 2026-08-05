@@ -76,6 +76,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
 		remove_filter( 'pre_http_request', array( $this, 'mock_immediate_loopback' ), 10 );
 		remove_filter( 'query', array( $this, 'fail_timeline_write' ) );
+		remove_all_filters( 'kayzart_ai_defer_create_first_turn' );
 		Ai_Worker::deactivate();
 		wp_set_current_user( 0 );
 		parent::tearDown();
@@ -135,8 +136,31 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$this->assertSame( Ai_Prompt::INTENT_CREATE, $this->stored_intent( $response->get_data()['jobId'] ) );
 	}
 
-	/** The long first creation turn is left to Action Scheduler, not a loopback. */
-	public function test_create_intent_is_not_dispatched_over_the_loopback(): void {
+	/** Deferring is opt-in, so a creation job is dispatched immediately by default. */
+	public function test_create_intent_is_dispatched_immediately_by_default(): void {
+		$request_id = 'initial-immediate-dispatch';
+		update_post_meta(
+			$this->post_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => $request_id,
+				'prompt'    => 'Create a landing page.',
+				'userId'    => $this->admin_id,
+			)
+		);
+		$payload                     = $this->payload( $request_id );
+		$payload['initialRequestId'] = $request_id;
+
+		$response = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( Ai_Prompt::INTENT_CREATE, $this->stored_intent( $response->get_data()['jobId'] ) );
+		$this->assertSame( 1, $this->immediate_dispatches );
+	}
+
+	/** With the filter enabled the long first creation turn waits for the scheduler. */
+	public function test_create_intent_is_not_dispatched_when_deferring_is_enabled(): void {
+		add_filter( 'kayzart_ai_defer_create_first_turn', '__return_true' );
 		$request_id = 'initial-deferred-dispatch';
 		update_post_meta(
 			$this->post_id,
@@ -255,9 +279,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 
 		$this->assertSame( 202, $replacement->get_status() );
 		$this->assertSame( 'replacement-terminal-request', $replacement->get_data()['requestId'] );
-		// The replacement still answers the initial request, so it is a creation
-		// job and its first turn is left to Action Scheduler like any other.
-		$this->assertSame( 0, $this->immediate_dispatches );
+		$this->assertSame( 1, $this->immediate_dispatches );
 		$this->assertSame( '', get_post_meta( $this->post_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
 	}
 

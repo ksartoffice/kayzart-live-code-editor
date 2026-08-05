@@ -53,11 +53,17 @@ class Ai_Immediate_Dispatcher {
 
 	/** Whether a job's next step must wait for Action Scheduler instead of a loopback.
 	 *
-	 * The first turn of a page-creation job runs with a raised provider timeout
-	 * (see Ai_Agent::CREATE_REQUEST_TIMEOUT_SECONDS) because it authors a whole
-	 * page. Holding a web request open that long occupies a PHP worker and can
-	 * be cut by the web server's own timeout with no PHP-level error, so that
-	 * turn is left to the scheduler. Later turns are short and stay immediate.
+	 * The first turn of a page-creation job is the long one: it authors a whole
+	 * page and runs with a raised provider timeout (see
+	 * Ai_Agent::CREATE_REQUEST_TIMEOUT_SECONDS). Leaving it to the scheduler was
+	 * measured to add roughly 40 seconds of queue wait while buying very little:
+	 * Action Scheduler's own runner is a WP_Async_Request loopback, so it is the
+	 * same kind of web request with the same exposure to a web server timeout,
+	 * and Ai_Worker::recover_steps() already re-runs a step whose lease expired
+	 * because its request died. Deferring therefore defaults to off.
+	 *
+	 * It stays available for sites that drive Action Scheduler from a real cron
+	 * or WP-CLI, where the scheduler genuinely is a different execution context.
 	 *
 	 * @param mixed $job Job database row.
 	 * @return bool
@@ -67,8 +73,20 @@ class Ai_Immediate_Dispatcher {
 			return false;
 		}
 		$payload = json_decode( (string) ( $job['payload_json'] ?? '' ), true );
+		if ( ! is_array( $payload ) || Ai_Prompt::INTENT_CREATE !== Ai_Prompt::resolve_intent( $payload ) ) {
+			return false;
+		}
 
-		return is_array( $payload ) && Ai_Prompt::INTENT_CREATE === Ai_Prompt::resolve_intent( $payload );
+		/**
+		 * Filter whether the first page-creation turn waits for Action Scheduler.
+		 *
+		 * Enable this when Action Scheduler runs from a system cron or WP-CLI
+		 * rather than from a loopback request.
+		 *
+		 * @param bool  $defer Whether to skip the immediate loopback.
+		 * @param array $job   Job database row.
+		 */
+		return (bool) apply_filters( 'kayzart_ai_defer_create_first_turn', false, $job );
 	}
 
 	/** Record that a step was left to Action Scheduler on purpose.

@@ -105,6 +105,41 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertSame( 'Kayzart', $states['kayzart_lp'] ?? '' );
 	}
 
+	public function test_list_table_row_title_links_to_the_kayzart_editor(): void {
+		$user_id = (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user_id );
+
+		$page_id = (int) self::factory()->post->create( array( 'post_type' => Post_Type::PAGE_TYPE ) );
+		update_post_meta( $page_id, Post_Type::ENABLED_META, '1' );
+
+		set_current_screen( 'edit-page' );
+		Post_Type::maybe_track_list_titles( get_current_screen() );
+
+		// The list table renders the row title first, then builds its link.
+		get_the_title( $page_id );
+		$this->assertSame( Post_Type::get_editor_url( $page_id ), get_edit_post_link( $page_id, 'raw' ) );
+
+		// The following "Edit" row action keeps the default editor link.
+		$this->assertStringContainsString( 'post.php', (string) get_edit_post_link( $page_id, 'raw' ) );
+
+		set_current_screen( 'front' );
+	}
+
+	public function test_list_table_row_title_keeps_default_link_for_non_kayzart_posts(): void {
+		$user_id = (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user_id );
+
+		$page_id = (int) self::factory()->post->create( array( 'post_type' => Post_Type::PAGE_TYPE ) );
+
+		set_current_screen( 'edit-page' );
+		Post_Type::maybe_track_list_titles( get_current_screen() );
+
+		get_the_title( $page_id );
+		$this->assertStringContainsString( 'post.php', (string) get_edit_post_link( $page_id, 'raw' ) );
+
+		set_current_screen( 'front' );
+	}
+
 	public function test_row_action_uses_landing_page_edit_label_for_marked_pages(): void {
 		$user_id = (int) self::factory()->user->create(
 			array(
@@ -175,6 +210,10 @@ class Test_Post_Type extends WP_UnitTestCase {
 		$this->assertStringContainsString( esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_convert'] );
 		$this->assertStringContainsString( 'page=' . \KayzArt\Admin::CONVERT_SLUG, $actions['kayzart_convert'] );
 		$this->assertStringNotContainsString( 'action=' . \KayzArt\Admin::CONVERT_POST_ACTION, $actions['kayzart_convert'] );
+
+		// Unlike the managed actions, conversion stays at the end of the list.
+		$actions = Post_Type::add_kayzart_row_action( array( 'edit' => '<a href="#">Edit</a>' ), $page );
+		$this->assertSame( array( 'edit', 'kayzart_convert' ), array_keys( $actions ) );
 	}
 
 	public function test_row_action_ignores_unmarked_pages_without_edit_permission(): void {

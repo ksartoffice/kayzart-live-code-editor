@@ -864,13 +864,13 @@ class Ai_Tools {
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
 				$result         = self::run_replace_string( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
 				Ai_Output_Policy::assert_safe_transition( $snapshot, $result['snapshot'] );
-				self::assert_css_structure( $snapshot, $result['snapshot'] );
+				self::assert_css_invariants( $snapshot, $result['snapshot'] );
 				return $result;
 			case 'replace_many':
 				$args['target'] = self::parse_snapshot_target( $args['target'] ?? null, $allowed_targets );
 				$result         = self::run_replace_many( $args, $snapshot, is_array( $selected_contexts ) ? $selected_contexts : array() );
 				Ai_Output_Policy::assert_safe_transition( $snapshot, $result['snapshot'] );
-				self::assert_css_structure( $snapshot, $result['snapshot'] );
+				self::assert_css_invariants( $snapshot, $result['snapshot'] );
 				return $result;
 			case 'set_js_mode':
 				throw new Ai_Tool_Error( 'JavaScript mode is read-only for AI edits.', false );
@@ -880,21 +880,25 @@ class Ai_Tools {
 	}
 
 	/**
-	 * Reject a completed tool call that left the CSS structurally broken.
+	 * Reject a completed tool call that left the CSS unusable.
 	 *
 	 * This runs on the result of the whole tool call rather than on each
 	 * replace_many step, because a transaction is allowed to move a brace in one
 	 * step and restore it in the next.
 	 *
+	 * Structure is checked first: when an edit both breaks a brace and drops the
+	 * Tailwind import, the brace is the more actionable message, and the import
+	 * is re-checked on the retry anyway.
+	 *
 	 * @param array $before Snapshot before the tool call.
 	 * @param array $after  Snapshot after the tool call.
-	 * @throws Ai_Tool_Error When the call introduced a bracket imbalance.
+	 * @throws Ai_Tool_Error When the call broke the CSS structure or its entry import.
 	 */
-	private static function assert_css_structure( array $before, array $after ): void {
-		Ai_Css_Syntax::assert_no_new_imbalance(
-			(string) ( $before['css'] ?? '' ),
-			(string) ( $after['css'] ?? '' )
-		);
+	private static function assert_css_invariants( array $before, array $after ): void {
+		$before_css = (string) ( $before['css'] ?? '' );
+		$after_css  = (string) ( $after['css'] ?? '' );
+		Ai_Css_Syntax::assert_no_new_imbalance( $before_css, $after_css );
+		Ai_Css_Imports::assert_tailwind_import_kept( $before_css, $after_css );
 	}
 
 	/**

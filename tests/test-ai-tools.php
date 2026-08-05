@@ -744,4 +744,68 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 
 		$this->assertSame( '<p>World</p>', $result['snapshot']['html'] );
 	}
+
+	/**
+	 * Dropping the entry import compiles cleanly and emits nothing, so the page
+	 * would reach the user unstyled with no error at any layer.
+	 */
+	public function test_run_tool_rejects_css_that_drops_the_tailwind_import(): void {
+		$snapshot = $this->snapshot( '', '', "@import \"tailwindcss\";\n\n@theme {\n  --color-a: #fff;\n}\n" );
+
+		try {
+			Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => 'css',
+					'from'   => "@import \"tailwindcss\";\n\n",
+					'to'     => '',
+				),
+				$snapshot,
+				array(),
+				array( 'html', 'head', 'css' )
+			);
+			$this->fail( 'Expected the removed Tailwind import to be rejected.' );
+		} catch ( Ai_Tool_Error $error ) {
+			$details = $error->get_details();
+			$this->assertSame( 'css_tailwind_import_removed', $details['code'] );
+			$this->assertTrue( $error->is_retryable() );
+		}
+	}
+
+	/**
+	 * A multi-step CSS transaction that keeps the import throughout must not
+	 * trip the guard.
+	 *
+	 * Note the guard cannot be exercised with a remove-then-restore transaction:
+	 * Ai_Output_Policy treats each @import as a finding and already rejects the
+	 * step that re-adds one, independently of this check.
+	 */
+	public function test_run_tool_allows_replace_many_while_the_tailwind_import_stays(): void {
+		$snapshot = $this->snapshot( '', '', "@import \"tailwindcss\";\n.a { color: red; }\n.b { color: blue; }\n" );
+
+		$result = Ai_Tools::run_tool(
+			'replace_many',
+			array(
+				'target'       => 'css',
+				'replacements' => array(
+					array(
+						'from' => '.a { color: red; }',
+						'to'   => '.a { color: green; }',
+					),
+					array(
+						'from' => '.b { color: blue; }',
+						'to'   => '.b { color: teal; }',
+					),
+				),
+			),
+			$snapshot,
+			array(),
+			array( 'html', 'head', 'css' )
+		);
+
+		$this->assertSame(
+			"@import \"tailwindcss\";\n.a { color: green; }\n.b { color: teal; }\n",
+			$result['snapshot']['css']
+		);
+	}
 }

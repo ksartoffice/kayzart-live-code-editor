@@ -234,6 +234,109 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Without unfiltered_html the save strips markup after the job has already
+	 * reported success, so the model has to know before it writes.
+	 */
+	public function test_build_user_prompt_warns_about_filtered_markup(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode'  => 'tailwind',
+				'prompt'      => 'Add feature icons to the hero.',
+				'canEditHead' => false,
+			)
+		);
+
+		$this->assertStringContainsString( 'Markup restrictions for this request:', $prompt );
+		$this->assertStringContainsString( '<svg> and its children are deleted entirely', $prompt );
+		$this->assertStringContainsString( 'the CSS becomes visible body text on the page', $prompt );
+		$this->assertStringContainsString( '<picture> and <source> are dropped', $prompt );
+		$this->assertStringContainsString( '<template> is unwrapped', $prompt );
+	}
+
+	/**
+	 * A user whose HTML is saved unfiltered must not be constrained.
+	 */
+	public function test_build_user_prompt_omits_markup_policy_for_unfiltered_users(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode'  => 'tailwind',
+				'prompt'      => 'Add feature icons to the hero.',
+				'canEditHead' => true,
+			)
+		);
+
+		$this->assertStringNotContainsString( 'Markup restrictions for this request:', $prompt );
+	}
+
+	/**
+	 * Payloads stored before canEditHead existed get no policy. This is
+	 * deliberately the opposite default from resolve_edit_policy(), which fails
+	 * closed: guessing wrong here would tell an administrator to avoid SVG.
+	 */
+	public function test_build_user_prompt_omits_markup_policy_for_legacy_payloads(): void {
+		$prompt = Ai_Prompt::build_user_prompt(
+			array(
+				'editorMode' => 'tailwind',
+				'prompt'     => 'Add feature icons to the hero.',
+			)
+		);
+
+		$this->assertStringNotContainsString( 'Markup restrictions for this request:', $prompt );
+	}
+
+	/**
+	 * The system prompt points at the user-message section so the two are not
+	 * read as unrelated.
+	 */
+	public function test_system_prompt_defers_to_the_markup_restrictions(): void {
+		foreach ( array( Ai_Prompt::INTENT_EDIT, Ai_Prompt::INTENT_CREATE ) as $intent ) {
+			$this->assertStringContainsString(
+				'any markup restrictions provided in the user message',
+				Ai_Prompt::system_prompt( $intent )
+			);
+		}
+	}
+
+	/**
+	 * Losing the entry import produces no compiler error at all, only an
+	 * unstyled page, so the policy states it in both create and edit wording.
+	 */
+	public function test_build_user_prompt_tailwind_policy_pins_the_entry_import(): void {
+		$expected = '- The CSS must always keep its `@import "tailwindcss";` line.';
+
+		$this->assertStringContainsString(
+			$expected,
+			Ai_Prompt::build_user_prompt(
+				array(
+					'editorMode' => 'tailwind',
+					'prompt'     => 'Make the hero bigger.',
+				)
+			)
+		);
+
+		$this->assertStringContainsString(
+			$expected,
+			Ai_Prompt::build_user_prompt(
+				array(
+					'editorMode' => 'tailwind',
+					'prompt'     => 'A landing page for an apple grower.',
+					'intent'     => 'create',
+				)
+			)
+		);
+
+		$this->assertStringNotContainsString(
+			$expected,
+			Ai_Prompt::build_user_prompt(
+				array(
+					'editorMode' => 'normal',
+					'prompt'     => 'Make the hero bigger.',
+				)
+			)
+		);
+	}
+
+	/**
 	 * The stack labels read like usable values, and a model that copies one
 	 * ships `font-family: gothic`, which resolves to nothing. The policy has to
 	 * say the label is not the value.

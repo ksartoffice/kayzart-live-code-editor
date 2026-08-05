@@ -1,10 +1,25 @@
+/**
+ * One alternative per delimiter rather than a single `["']` class.
+ *
+ * A double-quoted attribute value may legally contain apostrophes and vice
+ * versa, and Tailwind v4 arbitrary values use both: `font-['Noto_Sans_JP']`,
+ * `bg-[url("a.png")]`, `before:content-['x']`. Matching `[^"']+` stops at the
+ * first inner quote, which yields a truncated candidate and silently drops
+ * every remaining class in that attribute.
+ *
+ * A backreference (`(["'])(.*?)\1`) would read better but lets an unbalanced
+ * quote anywhere in the document run to the next matching quote and flood the
+ * candidate list; bounded classes keep the failure local.
+ *
+ * Kept in sync by hand with Tailwind_Compiler::extract_candidates().
+ */
 const CLASS_ATTRIBUTE_PATTERNS = [
-  /class\s*=\s*["']([^"']+)["']/g,
-  /className\s*=\s*["']([^"']+)["']/g,
+  /class\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
+  /className\s*=\s*(?:"([^"]*)"|'([^']*)')/g,
 ];
 
 /**
- * Mirror TailwindPHP 1.3.2.2 candidate extraction while avoiding duplicate
+ * Extract Tailwind candidates from class attributes, avoiding duplicate
  * utility names in compile requests.
  */
 export function extractTailwindCandidates(html: string): string[] {
@@ -15,7 +30,8 @@ export function extractTailwindCandidates(html: string): string[] {
     pattern.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(html)) !== null) {
-      for (const token of match[1].split(/\s+/)) {
+      const value = match[1] ?? match[2] ?? '';
+      for (const token of value.split(/\s+/)) {
         const candidate = token.trim();
         if (!candidate || seen.has(candidate)) continue;
         seen.add(candidate);

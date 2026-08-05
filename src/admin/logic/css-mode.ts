@@ -2,8 +2,30 @@ import { cloneCssByMode, type CssByMode, type EditorCssMode } from '../types/css
 
 export const TAILWIND_DEFAULT_CSS = '@import "tailwindcss";\n\n@theme {\n  /* ... */\n}\n';
 
+/**
+ * Matches the Tailwind entry import. Kept in sync by hand with
+ * Ai_Css_Imports::TAILWIND_IMPORT_PATTERN, which rejects AI edits that drop it.
+ */
+export const TAILWIND_IMPORT_PATTERN = /@import\s+(?:url\(\s*)?["']tailwindcss["']/i;
+
+const CSS_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
+const CSS_UNTERMINATED_COMMENT_PATTERN = /\/\*[\s\S]*$/;
+
+/**
+ * Whether the source pulls in the Tailwind entry point.
+ *
+ * Comments are stripped first: a commented-out import matches the pattern but
+ * compiles to nothing, so treating it as present would seed a Tailwind page
+ * that produces no utilities at all. An unterminated comment runs to the end of
+ * the source, so everything after it is inert too.
+ */
+export const hasTailwindImport = (css: string): boolean =>
+  TAILWIND_IMPORT_PATTERN.test(
+    css.replace(CSS_COMMENT_PATTERN, '').replace(CSS_UNTERMINATED_COMMENT_PATTERN, '')
+  );
+
 export const createInitialTailwindSource = (normalCss: string): string => {
-  if (/@import\s+(?:url\(\s*)?["']tailwindcss["']/i.test(normalCss)) {
+  if (hasTailwindImport(normalCss)) {
     return normalCss;
   }
   return normalCss.trim()

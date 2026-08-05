@@ -7,8 +7,6 @@
 
 namespace KayzArt;
 
-use TailwindPHP\tw;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -40,7 +38,17 @@ class Tailwind_Compiler {
 		$total_bytes = 0;
 
 		foreach ( $input as $candidate ) {
-			if ( ! is_string( $candidate ) || '' === $candidate || preg_match( '/[\s"\']/', $candidate ) ) {
+			// Whitespace can never appear inside a single candidate (Tailwind
+			// encodes it as `_`), and control characters have no business
+			// travelling through REST and post meta.
+			//
+			// Quotes are legal: `font-['Noto_Sans_JP']` is a valid arbitrary
+			// value. So are angle brackets, which child-combinator arbitrary
+			// variants such as `[&>svg]:size-4` depend on. Only `</` is
+			// rejected, because that is the one sequence that can terminate the
+			// <style> element the generated CSS is printed into. Frontend
+			// escaping remains the second layer.
+			if ( ! is_string( $candidate ) || '' === $candidate || preg_match( '/\s|<\/|[\x00-\x1F\x7F]/', $candidate ) ) {
 				return self::error( 'kayzart_tailwind_candidate_invalid', __( 'Tailwind candidate contains an invalid value.', 'kayzart-live-code-editor' ) );
 			}
 
@@ -67,7 +75,19 @@ class Tailwind_Compiler {
 	/**
 	 * Extract candidates without retaining every matching attribute in memory.
 	 *
-	 * This intentionally mirrors TailwindPHP 1.3.2.2 extraction semantics.
+	 * One alternative per delimiter rather than a single `["\']` class: a
+	 * double-quoted attribute value may legally contain apostrophes and vice
+	 * versa, and Tailwind v4 arbitrary values use both (`font-['Noto_Sans_JP']`,
+	 * `bg-[url("a.png")]`). Matching `[^"\']+` stops at the first inner quote,
+	 * truncating that candidate and silently dropping every later class in the
+	 * attribute.
+	 *
+	 * This is deliberately more correct than TailwindPHP's own extractor, which
+	 * still carries the narrow pattern. Tailwind_Compiler::generate() therefore
+	 * hands candidates to the compiler directly instead of letting it re-extract
+	 * them from HTML.
+	 *
+	 * Kept in sync by hand with src/admin/logic/tailwind-candidates.ts.
 	 *
 	 * @param string $html HTML source.
 	 * @return array<int,string>|\WP_Error
@@ -77,8 +97,8 @@ class Tailwind_Compiler {
 		$seen        = array();
 		$total_bytes = 0;
 		$patterns    = array(
-			'/class\s*=\s*["\']([^"\']+)["\']/',
-			'/className\s*=\s*["\']([^"\']+)["\']/',
+			'/class\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/',
+			'/className\s*=\s*(?:"([^"]*)"|\'([^\']*)\')/',
 		);
 
 		foreach ( $patterns as $pattern ) {
@@ -88,7 +108,10 @@ class Tailwind_Compiler {
 				$full_match = $matches[0][0];
 				$match_at   = $matches[0][1];
 				$offset     = $match_at + max( 1, strlen( $full_match ) );
-				$tokens     = preg_split( '/\s+/', $matches[1][0] );
+				// An unmatched group reports offset -1; an empty but matched
+				// group reports a real offset, so class="" yields no tokens.
+				$value  = ( isset( $matches[1] ) && -1 !== $matches[1][1] ) ? $matches[1][0] : ( isset( $matches[2] ) ? $matches[2][0] : '' );
+				$tokens = preg_split( '/\s+/', $value );
 				if ( false === $tokens ) {
 					continue;
 				}
@@ -125,14 +148,19 @@ class Tailwind_Compiler {
 			return self::error( 'kayzart_tailwind_css_too_large', __( 'Tailwind CSS input exceeds the maximum size.', 'kayzart-live-code-editor' ) );
 		}
 
-		$content = '<div class="' . implode( ' ', $candidates ) . '"></div>';
+		// tw::generate() re-extracts candidates from an HTML string with the
+		// narrow `["\']([^"\']+)["\']` pattern, so round-tripping through
+		// `<div class="...">` would truncate any candidate containing a quote
+		// and drop everything after it. compile() is the same code path minus
+		// that extraction step, so it takes the candidate list as-is.
+		//
+		// The source expression replicates generate()'s own handling: it
+		// defaults only on an exactly empty string, and appends the newline
+		// that generate() produces when joining inline and imported CSS.
+		$source = ( '' === $css ) ? '@import "tailwindcss";' : $css . "\n";
 		try {
-			$generated_css = tw::generate(
-				array(
-					'content' => $content,
-					'css'     => $css,
-				)
-			);
+			$compiled      = \TailwindPHP\compile( $source, array() );
+			$generated_css = $compiled['build']( $candidates );
 		} catch ( \Throwable $e ) {
 			return new \WP_Error(
 				'kayzart_tailwind_compile_failed',

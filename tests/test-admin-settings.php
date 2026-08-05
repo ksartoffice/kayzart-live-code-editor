@@ -30,6 +30,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
 		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
+		delete_option( Admin::OPTION_AI_MAX_PROMPT_CHARS );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -107,6 +108,36 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 30, Admin::sanitize_ai_max_turns( 100 ) );
 	}
 
+	public function test_sanitize_ai_max_prompt_chars_uses_default_and_clamps_to_the_supported_range(): void {
+		$this->assertSame( 8000, Admin::sanitize_ai_max_prompt_chars( '' ) );
+		$this->assertSame( 8000, Admin::sanitize_ai_max_prompt_chars( 'invalid' ) );
+		$this->assertSame( 1000, Admin::sanitize_ai_max_prompt_chars( 1 ) );
+		$this->assertSame( 1000, Admin::sanitize_ai_max_prompt_chars( 1000 ) );
+		$this->assertSame( 12000, Admin::sanitize_ai_max_prompt_chars( '12000' ) );
+		$this->assertSame( 50000, Admin::sanitize_ai_max_prompt_chars( 50000 ) );
+		$this->assertSame( 50000, Admin::sanitize_ai_max_prompt_chars( 999999 ) );
+	}
+
+	public function test_get_ai_max_prompt_chars_reads_the_option_and_honors_the_filter(): void {
+		$this->assertSame( 8000, Admin::get_ai_max_prompt_chars() );
+
+		update_option( Admin::OPTION_AI_MAX_PROMPT_CHARS, 20000 );
+		$this->assertSame( 20000, Admin::get_ai_max_prompt_chars() );
+
+		// The filter is the escape hatch for values outside the settings range.
+		$filter = static function () {
+			return 120000;
+		};
+		add_filter( 'kayzart_ai_max_prompt_chars', $filter );
+
+		try {
+			$this->assertSame( 120000, Admin::get_ai_max_prompt_chars() );
+			$this->assertSame( 20000, Admin::get_stored_ai_max_prompt_chars() );
+		} finally {
+			remove_filter( 'kayzart_ai_max_prompt_chars', $filter );
+		}
+	}
+
 	public function test_render_ai_default_model_field_discovers_models_once(): void {
 		$calls  = 0;
 		$filter = static function ( $models ) use ( &$calls ) {
@@ -146,6 +177,44 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'min="10"', $output );
 		$this->assertStringContainsString( 'max="30"', $output );
 		$this->assertStringContainsString( 'step="1"', $output );
+	}
+
+	public function test_render_ai_max_prompt_chars_field_shows_the_configured_value_and_range(): void {
+		update_option( Admin::OPTION_AI_MAX_PROMPT_CHARS, 12000 );
+
+		ob_start();
+		Admin::render_ai_max_prompt_chars_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_MAX_PROMPT_CHARS . '"', $output );
+		$this->assertStringContainsString( 'value="12000"', $output );
+		$this->assertStringContainsString( 'min="1000"', $output );
+		$this->assertStringContainsString( 'max="50000"', $output );
+		$this->assertStringContainsString( 'step="1"', $output );
+		$this->assertStringNotContainsString( 'A filter currently overrides', $output );
+	}
+
+	public function test_render_ai_max_prompt_chars_field_shows_the_stored_value_when_a_filter_overrides_it(): void {
+		update_option( Admin::OPTION_AI_MAX_PROMPT_CHARS, 12000 );
+
+		$filter = static function () {
+			return 120000;
+		};
+		add_filter( 'kayzart_ai_max_prompt_chars', $filter );
+
+		try {
+			ob_start();
+			Admin::render_ai_max_prompt_chars_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_max_prompt_chars', $filter );
+		}
+
+		// The input is bound to the option, so it must stay inside min/max and must
+		// not write the filtered value back when another setting is saved.
+		$this->assertStringContainsString( 'value="12000"', $output );
+		$this->assertStringNotContainsString( 'value="120000"', $output );
+		$this->assertStringContainsString( 'The limit in use is 120000 characters.', $output );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -438,7 +507,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertNotNull( $registered );
 		$before_inline = isset( $registered->extra['before'] ) ? (array) $registered->extra['before'] : array();
 		$inline        = implode( "\n", $before_inline );
-		$this->assertStringContainsString( 'maxPromptBytes', $inline );
+		$this->assertStringContainsString( 'maxPromptChars', $inline );
 		$this->assertStringContainsString( 'ai\\/prompts\\/improve', $inline );
 		$this->assertStringContainsString( 'restNonce', $inline );
 	}
@@ -790,6 +859,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'canManageConnectors' => true,
+				'maxPromptChars'      => Admin::AI_MAX_PROMPT_CHARS_DEFAULT,
 				'initialRequest'      => null,
 			),
 			$payload['ai'] ?? null

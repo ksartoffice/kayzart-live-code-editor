@@ -19,7 +19,7 @@ const PREVIEW_ACTION_EVENT = 'kayzart-preview-overlay-action';
 const PREVIEW_ACTION_ID = 'kayzart-ai-edit-context';
 const CONTEXT_SYNC_EVENT = 'kayzart-ai-context-sync';
 const SAVE_EVENT = 'kayzart-editor-saved';
-const MAX_PROMPT_BYTES = 8192;
+const DEFAULT_MAX_PROMPT_CHARS = 8000;
 const MAX_CONTEXTS = 20;
 const ELEMENTS_PANEL_SELECTOR = '[data-kayzart-panel="elements"]';
 const ELEMENTS_BUTTON_CLASS = 'kayzart-ai-elements-button';
@@ -493,8 +493,10 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     });
   }, [items, running]);
 
-  const promptBytes = useMemo(() => new TextEncoder().encode(prompt.trim()).length, [prompt]);
-  const canSend = Boolean(ai?.available && initialTimelineSettled && !running && !pendingConflict && prompt.trim() && promptBytes <= MAX_PROMPT_BYTES);
+  // Counted in code points so the number matches PHP's mb_strlen(), which is what the server enforces.
+  const promptChars = useMemo(() => [...prompt.trim()].length, [prompt]);
+  const maxPromptChars = positiveInteger(Number(ai?.maxPromptChars), DEFAULT_MAX_PROMPT_CHARS);
+  const canSend = Boolean(ai?.available && initialTimelineSettled && !running && !pendingConflict && prompt.trim() && promptChars <= maxPromptChars);
   const loadOlder = async () => {
     if (!ai || !cursor || !chatRef.current) return;
     const element = chatRef.current; const previousHeight = element.scrollHeight; setLoading(true);
@@ -703,8 +705,11 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     </div>
     <div className="kayzart-ai-composer">
       {contexts.length ? <div className="kayzart-ai-contexts">{contexts.map((context) => <span key={context.lcId}>{contextLabel(context)}<button type="button" onClick={() => setContexts(contexts.filter((item) => item.lcId !== context.lcId))} aria-label={__('Remove context', 'kayzart-live-code-editor')}>×</button></span>)}</div> : null}
-      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available || !initialRequestReconciled} maxLength={MAX_PROMPT_BYTES} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
-      <div className="kayzart-ai-composer-footer"><small className={promptBytes > MAX_PROMPT_BYTES ? 'is-error' : ''}>{promptBytes}/{MAX_PROMPT_BYTES} bytes</small><div>
+      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available || !initialRequestReconciled} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
+      <div className="kayzart-ai-composer-footer"><small className={promptChars > maxPromptChars ? 'is-error' : ''}>{sprintf(
+        /* translators: 1: current instruction length, 2: maximum instruction length. */
+        __('%1$d/%2$d characters', 'kayzart-live-code-editor'), promptChars, maxPromptChars,
+      )}</small><div>
         {running ? <button type="button" className="is-stop" disabled={canceling} onClick={() => void stop()}>{canceling ? __('Canceling…', 'kayzart-live-code-editor') : __('Stop', 'kayzart-live-code-editor')}</button> : null}
         <button type="button" disabled={!canSend} onClick={() => void send()}>{__('Send', 'kayzart-live-code-editor')}</button>
       </div></div>

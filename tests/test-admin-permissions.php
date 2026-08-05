@@ -517,7 +517,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( "\xC3", $prompt );
 	}
 
-	public function test_action_create_new_page_rejects_an_initial_ai_request_over_the_byte_limit(): void {
+	public function test_action_create_new_page_rejects_an_initial_ai_request_over_the_character_limit(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -527,7 +527,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$_POST         = array(
 			'post_type'         => Post_Type::PAGE_TYPE,
 			'mode'              => 'normal',
-			'initial_ai_prompt' => str_repeat( 'a', Admin::INITIAL_AI_PROMPT_MAX_BYTES + 1 ),
+			'initial_ai_prompt' => str_repeat( 'a', Admin::get_ai_max_prompt_chars() + 1 ),
 			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
 		);
 

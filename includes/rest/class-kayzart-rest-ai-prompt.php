@@ -17,7 +17,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Rest_Ai_Prompt {
 
 	const ROUTE            = '/ai/prompts/improve';
-	const MAX_PROMPT_BYTES = 8192;
 	const MAX_TITLE_BYTES  = 1024;
 	const RATE_LIMIT       = 5;
 	const RATE_WINDOW      = 60;
@@ -87,7 +86,7 @@ class Rest_Ai_Prompt {
 		$title  = isset( $input['title'] ) && is_string( $input['title'] )
 			? trim( sanitize_text_field( $input['title'] ) )
 			: '';
-		if ( '' === $prompt || strlen( $prompt ) > self::MAX_PROMPT_BYTES ) {
+		if ( '' === $prompt || mb_strlen( $prompt, 'UTF-8' ) > Admin::get_ai_max_prompt_chars() ) {
 			return self::invalid( __( 'The instruction is empty or too large.', 'kayzart-live-code-editor' ) );
 		}
 		if ( strlen( $title ) > self::MAX_TITLE_BYTES ) {

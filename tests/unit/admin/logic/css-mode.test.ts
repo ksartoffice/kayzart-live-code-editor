@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createInitialTailwindSource,
+  hasTailwindImport,
   resolveCssModeChange,
 } from '../../../../src/admin/logic/css-mode';
 
@@ -11,6 +12,22 @@ describe('CSS mode changes', () => {
     );
     const existing = '@import "tailwindcss";\n.card { color: red; }';
     expect(createInitialTailwindSource(existing)).toBe(existing);
+  });
+
+  it('does not treat a commented-out import as present', () => {
+    expect(hasTailwindImport('@import "tailwindcss";')).toBe(true);
+    expect(hasTailwindImport('/* theme */\n@import "tailwindcss";')).toBe(true);
+    expect(hasTailwindImport('/* @import "tailwindcss"; */')).toBe(false);
+    expect(hasTailwindImport('/*\n  @import "tailwindcss";\n*/')).toBe(false);
+  });
+
+  it('seeds the default source when the only import is commented out', () => {
+    const commented = '/* @import "tailwindcss"; */\n.card { color: red; }';
+
+    const seeded = createInitialTailwindSource(commented);
+
+    expect(seeded.startsWith('@import "tailwindcss";')).toBe(true);
+    expect(seeded).toContain('.card { color: red; }');
   });
 
   it('compiles Tailwind output the first time Normal mode is entered', async () => {

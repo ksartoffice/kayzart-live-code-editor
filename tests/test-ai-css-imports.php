@@ -59,6 +59,57 @@ class Test_Kayzart_Ai_Css_Imports extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A commented-out import matches the pattern but compiles to nothing, which
+	 * is the same unstyled page the guard exists to prevent.
+	 *
+	 * @dataProvider provide_commented_out_imports
+	 * @param string $label Case description.
+	 * @param string $css   CSS source.
+	 */
+	public function test_has_tailwind_import_ignores_commented_out_imports( string $label, string $css ): void {
+		$this->assertFalse( Ai_Css_Imports::has_tailwind_import( $css ), $label );
+	}
+
+	/**
+	 * Ways the entry import can be present as text but absent as code.
+	 *
+	 * @return array<string,array{0:string,1:string}>
+	 */
+	public function provide_commented_out_imports(): array {
+		return array(
+			'inline comment'  => array( 'inline comment', '/* @import "tailwindcss"; */' ),
+			'block comment'   => array( 'block comment', "/*\n  @import \"tailwindcss\";\n*/\n.a { color: red; }" ),
+			'disabled note'   => array( 'disabled note', "/* disabled for now: @import 'tailwindcss'; */\n@theme {}" ),
+			'commented first' => array( 'commented first', "/* @import \"tailwindcss\"; */\n@import \"tailwindcss/theme\";" ),
+		);
+	}
+
+	/**
+	 * A live import still counts when a comment merely sits next to it.
+	 */
+	public function test_has_tailwind_import_accepts_an_import_beside_a_comment(): void {
+		$this->assertTrue(
+			Ai_Css_Imports::has_tailwind_import( "/* theme entry */\n@import \"tailwindcss\";\n/* tokens below */" )
+		);
+	}
+
+	/**
+	 * Commenting the import out is a removal, not a formatting change.
+	 */
+	public function test_assert_tailwind_import_kept_rejects_a_commented_out_import(): void {
+		try {
+			Ai_Css_Imports::assert_tailwind_import_kept(
+				self::TAILWIND_DEFAULT_CSS,
+				"/* @import \"tailwindcss\"; */\n\n@theme {\n  /* ... */\n}\n"
+			);
+			$this->fail( 'Expected the commented-out import to be rejected.' );
+		} catch ( Ai_Tool_Error $error ) {
+			$this->assertSame( 'css_tailwind_import_removed', $error->get_details()['code'] );
+			$this->assertTrue( $error->is_retryable() );
+		}
+	}
+
+	/**
 	 * Dropping the import compiles cleanly and emits no utilities at all, so the
 	 * model has to be told before the page reaches the user unstyled.
 	 */

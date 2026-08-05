@@ -8,8 +8,20 @@ export const TAILWIND_DEFAULT_CSS = '@import "tailwindcss";\n\n@theme {\n  /* ..
  */
 export const TAILWIND_IMPORT_PATTERN = /@import\s+(?:url\(\s*)?["']tailwindcss["']/i;
 
+const CSS_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//g;
+
+/**
+ * Whether the source pulls in the Tailwind entry point.
+ *
+ * Comments are stripped first: a commented-out import matches the pattern but
+ * compiles to nothing, so treating it as present would seed a Tailwind page
+ * that produces no utilities at all.
+ */
+export const hasTailwindImport = (css: string): boolean =>
+  TAILWIND_IMPORT_PATTERN.test(css.replace(CSS_COMMENT_PATTERN, ''));
+
 export const createInitialTailwindSource = (normalCss: string): string => {
-  if (TAILWIND_IMPORT_PATTERN.test(normalCss)) {
+  if (hasTailwindImport(normalCss)) {
     return normalCss;
   }
   return normalCss.trim()

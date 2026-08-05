@@ -41,7 +41,23 @@ class Ai_Css_Imports {
 	const TAILWIND_IMPORT_PATTERN = '/@import\s+(?:url\(\s*)?["\']tailwindcss["\']/i';
 
 	/**
+	 * Matches a CSS block comment, including one spanning several lines.
+	 */
+	const COMMENT_PATTERN = '!/\*.*?\*/!s';
+
+	/**
 	 * Whether a stylesheet pulls in the Tailwind entry point.
+	 *
+	 * Comments are removed first. A commented-out import still matches the
+	 * pattern but means nothing to the compiler, which would then emit no
+	 * utilities at all -- precisely the silent failure this class exists to
+	 * catch.
+	 *
+	 * Stripping comments without tracking string literals is imprecise in
+	 * general, but harmless here: an @import is only honoured before any rule,
+	 * so no string that could open a comment can legitimately precede it. In the
+	 * pathological case the cost is a retryable message asking the model to
+	 * restore an import it already has, against CSS that was broken regardless.
 	 *
 	 * @param string $css CSS source.
 	 * @return bool
@@ -50,7 +66,11 @@ class Ai_Css_Imports {
 		if ( '' === $css ) {
 			return false;
 		}
-		return 1 === preg_match( self::TAILWIND_IMPORT_PATTERN, $css );
+		$without_comments = preg_replace( self::COMMENT_PATTERN, '', $css );
+		if ( ! is_string( $without_comments ) ) {
+			$without_comments = $css;
+		}
+		return 1 === preg_match( self::TAILWIND_IMPORT_PATTERN, $without_comments );
 	}
 
 	/**

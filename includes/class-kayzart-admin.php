@@ -1232,7 +1232,21 @@ class Admin {
 	}
 
 	/**
-	 * Get the configured maximum number of characters for an AI instruction.
+	 * Get the stored maximum number of characters, before any filter is applied.
+	 *
+	 * The settings field renders this rather than the effective limit. The field
+	 * is bound to the option, so showing a filtered value would both put a number
+	 * outside min/max into the input and write that number back to the option the
+	 * next time any setting on the page is saved.
+	 *
+	 * @return int
+	 */
+	public static function get_stored_ai_max_prompt_chars(): int {
+		return self::sanitize_ai_max_prompt_chars( get_option( self::OPTION_AI_MAX_PROMPT_CHARS, self::AI_MAX_PROMPT_CHARS_DEFAULT ) );
+	}
+
+	/**
+	 * Get the effective maximum number of characters for an AI instruction.
 	 *
 	 * Counted in characters rather than bytes so the limit is the same in every
 	 * language. The filter is the escape hatch for sites that need a value
@@ -1241,7 +1255,7 @@ class Admin {
 	 * @return int
 	 */
 	public static function get_ai_max_prompt_chars(): int {
-		$value = self::sanitize_ai_max_prompt_chars( get_option( self::OPTION_AI_MAX_PROMPT_CHARS, self::AI_MAX_PROMPT_CHARS_DEFAULT ) );
+		$value = self::get_stored_ai_max_prompt_chars();
 
 		/**
 		 * Filter the maximum number of characters allowed in an AI instruction.
@@ -1477,9 +1491,10 @@ class Admin {
 	 * Render the maximum AI instruction length field.
 	 */
 	public static function render_ai_max_prompt_chars_field(): void {
-		$value = self::get_ai_max_prompt_chars();
+		$stored    = self::get_stored_ai_max_prompt_chars();
+		$effective = self::get_ai_max_prompt_chars();
 
-		echo '<input type="number" class="small-text" name="' . esc_attr( self::OPTION_AI_MAX_PROMPT_CHARS ) . '" value="' . esc_attr( $value ) . '" min="' . esc_attr( self::AI_MAX_PROMPT_CHARS_MIN ) . '" max="' . esc_attr( self::AI_MAX_PROMPT_CHARS_MAX ) . '" step="1" />';
+		echo '<input type="number" class="small-text" name="' . esc_attr( self::OPTION_AI_MAX_PROMPT_CHARS ) . '" value="' . esc_attr( $stored ) . '" min="' . esc_attr( self::AI_MAX_PROMPT_CHARS_MIN ) . '" max="' . esc_attr( self::AI_MAX_PROMPT_CHARS_MAX ) . '" step="1" />';
 		printf(
 			'<p class="description">%s</p>',
 			esc_html(
@@ -1491,6 +1506,20 @@ class Admin {
 				)
 			)
 		);
+
+		// Without this, a filtered site shows one number here and enforces another.
+		if ( $effective !== $stored ) {
+			printf(
+				'<p class="description">%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: %d: number of characters currently enforced. */
+						__( 'A filter currently overrides this setting. The limit in use is %d characters.', 'kayzart-live-code-editor' ),
+						$effective
+					)
+				)
+			);
+		}
 	}
 
 	/**

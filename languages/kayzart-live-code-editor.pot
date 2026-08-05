@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-04T07:54:21+02:00\n"
+"POT-Creation-Date: 2026-08-05T03:29:08+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -58,41 +58,41 @@ msgstr ""
 #: includes/class-kayzart-rest.php:182
 #: includes/rest/class-kayzart-rest-ai-prompt.php:57
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
-#: includes/rest/class-kayzart-rest-ai.php:214
+#: includes/rest/class-kayzart-rest-ai.php:223
 #: includes/rest/class-kayzart-rest-revisions.php:88
 #: includes/rest/class-kayzart-rest-save.php:62
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:60
-#: includes/ai/class-kayzart-ai-job-store.php:102
+#: includes/ai/class-kayzart-ai-job-store.php:65
+#: includes/ai/class-kayzart-ai-job-store.php:107
 msgid "An AI edit is already active for this post."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:104
+#: includes/ai/class-kayzart-ai-job-store.php:109
 msgid "The AI edit job could not be created."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:359
+#: includes/ai/class-kayzart-ai-job-store.php:364
 msgid "The AI edit job was canceled."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:367
-#: includes/ai/class-kayzart-ai-job-store.php:397
+#: includes/ai/class-kayzart-ai-job-store.php:372
+#: includes/ai/class-kayzart-ai-job-store.php:402
 msgid "The AI edit job timed out."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:375
-#: includes/rest/class-kayzart-rest-ai.php:120
+#: includes/ai/class-kayzart-ai-job-store.php:380
+#: includes/rest/class-kayzart-rest-ai.php:129
 msgid "The AI edit job could not be scheduled."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:428
+#: includes/ai/class-kayzart-ai-job-store.php:433
 msgid "The plugin was deactivated."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-job-store.php:489
+#: includes/ai/class-kayzart-ai-job-store.php:494
 msgid "This request ID was already used for different input."
 msgstr ""
 
@@ -100,35 +100,35 @@ msgstr ""
 msgid "Deleted user"
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:118
-#: includes/ai/class-kayzart-ai-worker.php:221
+#: includes/ai/class-kayzart-ai-worker.php:121
+#: includes/ai/class-kayzart-ai-worker.php:231
 msgid "The AI job payload is invalid."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:145
-#: includes/ai/class-kayzart-ai-worker.php:363
+#: includes/ai/class-kayzart-ai-worker.php:148
+#: includes/ai/class-kayzart-ai-worker.php:377
 msgid "The AI provider request failed."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:150
-#: includes/ai/class-kayzart-ai-worker.php:387
+#: includes/ai/class-kayzart-ai-worker.php:153
+#: includes/ai/class-kayzart-ai-worker.php:401
 msgid "The AI edit job failed unexpectedly."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:254
+#: includes/ai/class-kayzart-ai-worker.php:264
 msgid "The AI provider request failed after retries."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:439
+#: includes/ai/class-kayzart-ai-worker.php:453
 msgid "The AI step failed repeatedly before it could save progress."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:558
+#: includes/ai/class-kayzart-ai-worker.php:572
 msgid "The scheduled AI worker failed."
 msgstr ""
 
 #. translators: %d: maximum number of AI attempts per edit.
-#: includes/ai/class-kayzart-ai-worker.php:589
+#: includes/ai/class-kayzart-ai-worker.php:603
 #, php-format
 msgid "Could not finish after %d attempts. Try splitting the instruction into smaller steps."
 msgstr ""
@@ -207,7 +207,7 @@ msgstr ""
 #: includes/class-kayzart-admin.php:931
 #: includes/class-kayzart-admin.php:932
 #: includes/class-kayzart-editor-bridge.php:112
-#: includes/class-kayzart-post-type.php:372
+#: includes/class-kayzart-post-type.php:377
 #: assets/admin/editor-bridge.js:19
 msgid "Edit with Kayzart"
 msgstr ""
@@ -482,7 +482,6 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:1584
 #: includes/class-kayzart-admin.php:1689
-#: includes/class-kayzart-post-type.php:345
 #: assets/dist/main.js:54
 #: assets/dist/main.js:6432
 msgid "TailwindCSS"
@@ -525,7 +524,7 @@ msgid "Creating…"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1634
-#: includes/class-kayzart-post-type.php:383
+#: includes/class-kayzart-post-type.php:367
 msgid "Start editing with Kayzart"
 msgstr ""
 
@@ -667,11 +666,7 @@ msgstr ""
 msgid "旧Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-post-type.php:341
-msgid "Landing page"
-msgstr ""
-
-#: includes/class-kayzart-post-type.php:377
+#: includes/class-kayzart-post-type.php:382
 msgid "Duplicate with Kayzart"
 msgstr ""
 
@@ -764,7 +759,7 @@ msgid "AI editing is not currently available."
 msgstr ""
 
 #: includes/rest/class-kayzart-rest-ai-prompt.php:81
-#: includes/rest/class-kayzart-rest-ai.php:226
+#: includes/rest/class-kayzart-rest-ai.php:235
 msgid "A JSON request body is required."
 msgstr ""
 
@@ -807,52 +802,52 @@ msgstr ""
 msgid "The AI edit restore target is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:110
-#: includes/rest/class-kayzart-rest-ai.php:111
+#: includes/rest/class-kayzart-rest-ai.php:119
+#: includes/rest/class-kayzart-rest-ai.php:120
 msgid "The AI edit history could not be created."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:199
+#: includes/rest/class-kayzart-rest-ai.php:208
 msgid "AI edit job not found."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:230
+#: includes/rest/class-kayzart-rest-ai.php:239
 msgid "requestId is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:234
+#: includes/rest/class-kayzart-rest-ai.php:243
 msgid "initialRequestId is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:238
+#: includes/rest/class-kayzart-rest-ai.php:247
 msgid "post_id is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:242
+#: includes/rest/class-kayzart-rest-ai.php:251
 msgid "editorMode is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:246
+#: includes/rest/class-kayzart-rest-ai.php:255
 msgid "prompt is empty or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:256
+#: includes/rest/class-kayzart-rest-ai.php:265
 msgid "A code field is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:266
+#: includes/rest/class-kayzart-rest-ai.php:275
 msgid "selectedContexts is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:270
+#: includes/rest/class-kayzart-rest-ai.php:279
 msgid "A selected context is invalid or too large."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:276
+#: includes/rest/class-kayzart-rest-ai.php:285
 msgid "selectedContext is invalid."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-ai.php:296
+#: includes/rest/class-kayzart-rest-ai.php:305
 msgid "The previous initial AI edit could not be started. Review the prompt and send it again."
 msgstr ""
 

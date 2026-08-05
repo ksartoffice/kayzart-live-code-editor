@@ -349,7 +349,6 @@ class Ai_Tool_Schema {
 				'description' => 'List font families that can render on this page. Call once before introducing or changing a font family or Tailwind --font-* token, then use a returned cssValue exactly.',
 				'parameters'  => array(
 					'type'                 => 'object',
-					'properties'           => array(),
 					'additionalProperties' => false,
 				),
 			);

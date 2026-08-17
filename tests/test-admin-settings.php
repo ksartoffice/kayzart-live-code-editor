@@ -1173,4 +1173,382 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertNotSame( '', $page_title );
 		$this->assertSame( 'Kayzart', $page_title );
 	}
+
+	/**
+	 * WordPress version in place before a test overrode it.
+	 *
+	 * @var string|null
+	 */
+	private $original_wp_version = null;
+
+	/**
+	 * Apply the shared AI runtime gates with an explicit connector state.
+	 *
+	 * @param bool   $sdk_present         Whether the AI Client SDK is present.
+	 * @param bool   $provider_configured Whether a Connector is configured.
+	 * @param string $version             WordPress version to run the test under.
+	 */
+	private function set_ai_gates( bool $sdk_present, bool $provider_configured, string $version = '7.0' ): void {
+		global $wp_version;
+
+		$this->original_wp_version = (string) $wp_version;
+		$wp_version                = $version;
+
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', $sdk_present ? '__return_true' : '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', $provider_configured ? '__return_true' : '__return_false' );
+	}
+
+	/**
+	 * Remove every AI gate override applied by a test.
+	 */
+	private function clear_ai_gates(): void {
+		global $wp_version;
+
+		if ( null !== $this->original_wp_version ) {
+			$wp_version                = $this->original_wp_version;
+			$this->original_wp_version = null;
+		}
+
+		remove_all_filters( 'kayzart_ai_feature_enabled' );
+		remove_all_filters( 'kayzart_ai_scheduler_present' );
+		remove_all_filters( 'kayzart_ai_mbstring_present' );
+		remove_all_filters( 'kayzart_ai_dom_present' );
+		remove_all_filters( 'kayzart_ai_sdk_present' );
+		remove_all_filters( 'kayzart_ai_provider_configured' );
+		remove_all_filters( 'kayzart_ai_show_direct_key_field' );
+		delete_option( Admin::OPTION_DORMANT_KEY_NOTICE );
+		delete_option( Admin::OPTION_CONNECTOR_NOTICE );
+		Admin::flush_cached_ai_backend();
+	}
+
+	/**
+	 * Evaluate the direct field gate as if the settings screen were being rendered.
+	 *
+	 * @return bool
+	 */
+	private function should_show_direct_field_on_settings_screen(): bool {
+		$original_get = $_GET;
+		$_GET['page'] = Admin::SETTINGS_SLUG;
+		$result       = Admin::should_show_direct_openai_field();
+		$_GET         = $original_get;
+
+		return $result;
+	}
+
+	/** A Connector-configured site with no stored key is not offered the field. */
+	public function test_direct_openai_field_is_hidden_once_a_connector_serves_the_site(): void {
+		$this->set_ai_gates( true, true );
+
+		try {
+			$this->assertFalse( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** A stored key keeps the field reachable so it can be reviewed and removed. */
+	public function test_direct_openai_field_stays_visible_while_a_key_is_stored(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-dormant' );
+		$this->set_ai_gates( true, true );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** Sites without the AI Client SDK still need the direct field. */
+	public function test_direct_openai_field_is_offered_without_the_sdk(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** WordPress 7.0 without a ready Connector keeps the direct fallback available. */
+	public function test_direct_openai_field_is_offered_when_no_connector_is_configured(): void {
+		$this->set_ai_gates( true, false );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** The gate is filterable for bespoke integrations. */
+	public function test_direct_openai_field_visibility_is_filterable(): void {
+		$this->set_ai_gates( true, true );
+		add_filter( 'kayzart_ai_show_direct_key_field', '__return_true' );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** The probe is skipped outside the settings screen so admin_init stays cheap. */
+	public function test_direct_openai_field_gate_does_not_probe_outside_the_settings_screen(): void {
+		$this->set_ai_gates( true, true );
+		$probes = 0;
+		$filter = function ( $configured ) use ( &$probes ) {
+			++$probes;
+			return $configured;
+		};
+		add_filter( 'kayzart_ai_provider_configured', $filter );
+
+		try {
+			$this->assertTrue( Admin::should_show_direct_openai_field() );
+			$this->assertSame( 0, $probes );
+		} finally {
+			remove_filter( 'kayzart_ai_provider_configured', $filter );
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** A dormant key is flagged for removal instead of reading as configuration. */
+	public function test_render_openai_api_key_field_flags_a_dormant_key(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-dormant-render' );
+		$this->set_ai_gates( true, true );
+
+		try {
+			ob_start();
+			Admin::render_openai_api_key_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'This key is not in use.', $output );
+		$this->assertStringContainsString( '<details open>', $output );
+		$this->assertStringContainsString( 'Remove saved API key', $output );
+	}
+
+	/** Without a Connector the field renders plainly, with no disclosure wrapper. */
+	public function test_render_openai_api_key_field_stays_plain_without_a_connector(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			ob_start();
+			Admin::render_openai_api_key_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringNotContainsString( '<details', $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_OPENAI_API_KEY . '"', $output );
+	}
+
+	/** The dormant-key notice fires once and only for a database-stored key. */
+	public function test_dormant_openai_key_notice_is_shown_once(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-dormant-notice' );
+		$this->set_ai_gates( true, true );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$first = (string) ob_get_clean();
+
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$second = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'no longer used', $first );
+		$this->assertSame( '', $second );
+	}
+
+	/** No Connector means the saved key is still in use, so nothing is announced. */
+	public function test_dormant_openai_key_notice_is_silent_while_the_key_is_in_use(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-active-notice' );
+		$this->set_ai_gates( true, false );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertSame( '', $output );
+	}
+
+	/**
+	 * A Connector below WordPress 7.0 still loses to the direct backend.
+	 *
+	 * The AI Client can be present and configured on 5.9-6.9, where
+	 * Ai_Availability rejects it on version, so the stored key is still serving
+	 * every request and must not be presented as unused.
+	 */
+	public function test_configured_connector_below_wp_70_leaves_the_direct_key_active(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-legacy-connector' );
+		$this->set_ai_gates( true, true, '6.9' );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+
+			ob_start();
+			Admin::render_openai_api_key_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringNotContainsString( 'This key is not in use.', $output );
+		$this->assertStringNotContainsString( '<details', $output );
+	}
+
+	/** Hiding the field below WordPress 7.0 would lock AI editing out entirely. */
+	public function test_direct_openai_field_is_offered_below_wp_70_even_with_a_configured_sdk(): void {
+		$this->set_ai_gates( true, true, '6.9' );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** The notice probe is bounded, not repeated on every admin page load. */
+	public function test_dormant_openai_key_notice_probes_the_provider_at_most_once(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-probe-budget' );
+		// The direct-key fallback state: SDK present, no Connector, key in use.
+		$this->set_ai_gates( true, false );
+		$probes = 0;
+		$filter = function ( $configured ) use ( &$probes ) {
+			++$probes;
+			return $configured;
+		};
+		add_filter( 'kayzart_ai_provider_configured', $filter );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			Admin::maybe_render_dormant_openai_key_notice();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_provider_configured', $filter );
+			$this->clear_ai_gates();
+		}
+
+		$this->assertSame( '', $output );
+		$this->assertSame( 1, $probes );
+	}
+
+	/** Below WordPress 7.0 the dormant notice never probes at all. */
+	public function test_dormant_openai_key_notice_skips_the_probe_below_wp_70(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-legacy-probe' );
+		$this->set_ai_gates( true, true, '6.9' );
+		$probes = 0;
+		$filter = function ( $configured ) use ( &$probes ) {
+			++$probes;
+			return $configured;
+		};
+		add_filter( 'kayzart_ai_provider_configured', $filter );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_provider_configured', $filter );
+			$this->clear_ai_gates();
+		}
+
+		$this->assertSame( '', $output );
+		$this->assertSame( 0, $probes );
+	}
+
+	/**
+	 * Setup advice below WordPress 7.0 names the only action that can work.
+	 *
+	 * A separately loaded AI Client does not make Connectors reachable there:
+	 * the backend is rejected on version and options-connectors.php does not
+	 * exist, so entering a direct key is the only way to enable AI editing.
+	 */
+	public function test_setup_advice_below_wp_70_points_at_the_direct_key(): void {
+		$this->set_ai_gates( true, false, '6.9' );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Enter an OpenAI API key below.', $output );
+		$this->assertStringNotContainsString( 'Configure a WordPress Connector', $output );
+		$this->assertStringNotContainsString( 'options-connectors.php', $output );
+	}
+
+	/** On WordPress 7.0 the checklist points at Connectors instead. */
+	public function test_setup_advice_on_wp_70_points_at_connectors(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->set_ai_gates( true, false );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Configure a WordPress Connector', $output );
+		$this->assertStringContainsString( 'options-connectors.php', $output );
+	}
+
+	/** Without the SDK the advice stays on the direct key. */
+	public function test_setup_advice_without_the_sdk_points_at_the_direct_key(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Enter an OpenAI API key below.', $output );
+		$this->assertStringNotContainsString( 'Configure a WordPress Connector', $output );
+	}
+
+	/** Saving or removing the key invalidates the cached backend. */
+	public function test_cached_ai_backend_is_flushed_when_the_direct_key_changes(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->set_ai_gates( true, false );
+
+		try {
+			update_option( 'kayzart_openai_api_key', 'sk-test-cache-flush' );
+			ob_start();
+			Admin::maybe_render_connector_migration_notice();
+			ob_end_clean();
+			$this->assertNotFalse( get_transient( Admin::TRANSIENT_AI_BACKEND ) );
+
+			delete_option( 'kayzart_openai_api_key' );
+			$this->assertFalse( get_transient( Admin::TRANSIENT_AI_BACKEND ) );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
 }

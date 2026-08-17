@@ -1,10 +1,10 @@
 <?php
 /**
- * Plugin Name: AI Landing Page Builder — Kayzart
+ * Plugin Name: Kayzart — Live HTML Landing Pages with AI
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
- * Description: Build landing pages with AI inside WordPress. It writes real HTML/CSS/JS you can edit live — theme-independent output, bring your own AI key, no drag-and-drop.
+ * Description: Build AI-assisted landing pages with real HTML/CSS/JS you can edit live, with no drag-and-drop or builder lock-in.
  * Version: 3.0.0
- * Requires at least: 7.0
+ * Requires at least: 5.9
  * Tested up to: 7.0
  * Requires PHP: 7.4
  * Author: K's Art Office
@@ -56,10 +56,13 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-prompt.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-message.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-exception.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-interface.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-openai-key.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-setup.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-availability.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-models.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-wp.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-openai.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-factory.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-prompt-improver.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-error.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-agent-canceled.php';

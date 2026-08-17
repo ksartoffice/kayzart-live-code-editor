@@ -12,9 +12,10 @@ use KayzArt\Ai_Setup;
 class Test_Kayzart_Ai_Editor extends WP_UnitTestCase {
 	/** Reset availability filters. */
 	protected function tearDown(): void {
+		delete_option( 'kayzart_openai_api_key' );
 		remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
-		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -27,9 +28,10 @@ class Test_Kayzart_Ai_Editor extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+		update_option( 'kayzart_openai_api_key', 'sk-test-ai-editor' );
 		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
-		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );

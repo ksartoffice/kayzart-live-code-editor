@@ -93,8 +93,34 @@ const COMPACT_EDITOR_BREAKPOINT = 900;
 const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.wordWrap.html';
 const LEGACY_HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
 const SETTINGS_PANEL_WIDTH_STORAGE_KEY = 'kayzart.settingsPanelWidth';
+const SETTINGS_PANEL_STATE_STORAGE_KEY = 'kayzart.settingsPanelState';
 const PREVIEW_OVERLAY_ACTION_EVENT = 'kayzart-preview-overlay-action';
 type HtmlWordWrapMode = 'off' | 'on';
+
+type SettingsPanelState = { open: boolean; tab: string };
+
+const readSettingsPanelState = (aiEnabled: boolean): SettingsPanelState => {
+	try {
+		const parsed = JSON.parse(window.localStorage.getItem(SETTINGS_PANEL_STATE_STORAGE_KEY) || 'null');
+		if (parsed && typeof parsed.open === 'boolean' && typeof parsed.tab === 'string') {
+			return {
+				open: parsed.open,
+				tab: !aiEnabled && parsed.tab === 'kayzart-ai' ? 'elements' : parsed.tab,
+			};
+		}
+	} catch {
+		// Fall through to the editing-first default.
+	}
+	return { open: false, tab: 'elements' };
+};
+
+const saveSettingsPanelState = (state: SettingsPanelState) => {
+	try {
+		window.localStorage.setItem(SETTINGS_PANEL_STATE_STORAGE_KEY, JSON.stringify(state));
+	} catch {
+		// Ignore storage errors and keep editing.
+	}
+};
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
   try {
@@ -261,8 +287,10 @@ async function main() {
   let jsEditor: CodeEditorInstance;
   let tailwindCss = '';
   const canEditAi = Boolean(cfg.ai?.canEdit);
-  let settingsOpen = true;
-  let activeSettingsTab = canEditAi ? 'kayzart-ai' : 'elements';
+	const storedSettingsPanelState = readSettingsPanelState(canEditAi);
+	const forceAiPanel = Boolean(cfg.ai?.initialRequest);
+  let settingsOpen = forceAiPanel ? true : storedSettingsPanelState.open;
+  let activeSettingsTab = forceAiPanel ? 'kayzart-ai' : storedSettingsPanelState.tab;
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
@@ -404,6 +432,7 @@ async function main() {
     toolbarApi?.update({ settingsOpen: open });
     syncElementsTabState();
     viewportController.applyViewportLayout();
+	saveSettingsPanelState({ open: settingsOpen, tab: activeSettingsTab });
   };
 
   const applySavedSettings = (nextSettings: SettingsData, refreshPreview: boolean) => {
@@ -2089,6 +2118,7 @@ async function main() {
     header: ui.settingsHeader,
     data: initialState.settingsData,
     aiEnabled: canEditAi,
+	initialTab: activeSettingsTab,
     postId,
     apiFetch: wp.apiFetch,
     revisionsRestUrl: cfg.revisionsRestUrl,
@@ -2109,6 +2139,7 @@ async function main() {
     onLiveHighlightToggle: setLiveHighlightEnabled,
     onTabChange: (tab) => {
       activeSettingsTab = tab;
+	  saveSettingsPanelState({ open: settingsOpen, tab: activeSettingsTab });
       syncElementsTabState();
     },
     onPendingUpdatesChange: (nextState: PendingSettingsState) => {
@@ -2126,7 +2157,7 @@ async function main() {
   });
   syncEditorModeControl();
   publishExtensionApi();
-  setSettingsOpen(true);
+	setSettingsOpen(settingsOpen);
   if (canEditAi) {
     initAiEditorIntegration();
   }

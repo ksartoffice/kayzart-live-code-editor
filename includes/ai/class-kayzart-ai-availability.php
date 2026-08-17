@@ -1,9 +1,9 @@
 <?php
 /**
- * Detects whether the WordPress AI Client is usable on this site.
+ * Detects whether an AI editing backend is usable on this site.
  *
- * The AI editing feature is gated on the WordPress 7.0 AI Client SDK, a
- * configured provider, Action Scheduler, and the Kayzart feature gate.
+ * WordPress 7.0 and later prefer the WordPress AI Client. Sites without a
+ * configured connector can fall back to Kayzart's direct OpenAI integration.
  *
  * @package KayzArt
  */
@@ -132,9 +132,33 @@ class Ai_Availability {
 	}
 
 	/**
+	 * Whether the shared background and output-policy runtime is usable.
+	 */
+	private static function is_runtime_available(): bool {
+
+		return self::is_feature_enabled() && self::is_scheduler_present() && self::is_mbstring_present() && self::is_dom_present();
+	}
+
+	/** Whether the WordPress AI Client backend can serve a request. */
+	public static function is_wp_client_available(): bool {
+
+		global $wp_version;
+		return version_compare( (string) $wp_version, '7.0', '>=' )
+			&& self::is_runtime_available()
+			&& self::is_sdk_present()
+			&& self::is_provider_configured();
+	}
+
+	/** Whether the direct OpenAI backend can serve a request. */
+	public static function is_direct_client_available(): bool {
+
+		return self::is_runtime_available() && Ai_OpenAI_Key::is_configured();
+	}
+
+	/**
 	 * Return all AI availability checks and their combined result.
 	 *
-	 * @return array{feature_enabled:bool,sdk_present:bool,provider_configured:bool,scheduler_present:bool,mbstring_present:bool,dom_present:bool,available:bool}
+	 * @return array<string,mixed>
 	 */
 	public static function get_status(): array {
 		$feature_enabled     = self::is_feature_enabled();
@@ -144,14 +168,25 @@ class Ai_Availability {
 		$mbstring_present    = self::is_mbstring_present();
 		$dom_present         = self::is_dom_present();
 
+		$connector_configured = $sdk_present && $provider_configured;
+		$direct_configured    = Ai_OpenAI_Key::is_configured();
+		$backend              = Ai_Client_Factory::resolve_backend();
+		$system_available     = $feature_enabled && $scheduler_present && $mbstring_present && $dom_present;
+		$available            = Ai_Client_Factory::NONE !== $backend;
+
 		return array(
-			'feature_enabled'     => $feature_enabled,
-			'sdk_present'         => $sdk_present,
-			'provider_configured' => $provider_configured,
-			'scheduler_present'   => $scheduler_present,
-			'mbstring_present'    => $mbstring_present,
-			'dom_present'         => $dom_present,
-			'available'           => $feature_enabled && $sdk_present && $provider_configured && $scheduler_present && $mbstring_present && $dom_present,
+			'feature_enabled'       => $feature_enabled,
+			'sdk_present'           => $sdk_present,
+			'provider_configured'   => $connector_configured || $direct_configured,
+			'connector_configured'  => $connector_configured,
+			'direct_key_configured' => $direct_configured,
+			'direct_key_source'     => Ai_OpenAI_Key::source(),
+			'backend'               => $backend,
+			'scheduler_present'     => $scheduler_present,
+			'mbstring_present'      => $mbstring_present,
+			'dom_present'           => $dom_present,
+			'setup_state'           => $available ? 'ready' : ( $system_available ? 'setup_required' : 'system_unavailable' ),
+			'available'             => $available,
 		);
 	}
 

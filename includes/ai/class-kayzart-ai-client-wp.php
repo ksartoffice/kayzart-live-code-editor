@@ -30,9 +30,9 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	 * @return bool
 	 */
 	public function is_available(): bool {
-		return Ai_Availability::is_available();
-	}
 
+		return Ai_Availability::is_wp_client_available();
+	}
 	/**
 	 * Run one model turn against the WordPress AI Client.
 	 *

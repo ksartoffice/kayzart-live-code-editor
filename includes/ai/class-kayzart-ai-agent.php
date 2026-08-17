@@ -326,7 +326,8 @@ class Ai_Agent {
 			return $this->continued_step( $state, 'agent', $turn + 1, $provider_seconds, 0.0 );
 		}
 
-		$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls );
+		$provider_data  = isset( $result['providerData'] ) && is_array( $result['providerData'] ) ? $result['providerData'] : array();
+		$messages[]     = Ai_Message::assistant( isset( $result['text'] ) ? (string) $result['text'] : '', $calls, $provider_data );
 		$tool_responses = array();
 		$finish_calls   = array();
 		$turn_had_error = false;
@@ -1450,6 +1451,7 @@ class Ai_Agent {
 			strtolower( $key ),
 			array(
 				'thoughtsignature',
+				'encrypted_content',
 				'cursor',
 				'nextcursor',
 				'authorization',

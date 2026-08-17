@@ -54,7 +54,7 @@ class Ai_Client_Fake implements Ai_Client_Interface {
 	/**
 	 * Queue a result (raw shape; normalized on return).
 	 *
-	 * @param array $result Result with optional toolCalls/text/usage keys.
+	 * @param array $result Result with optional toolCalls/text/usage/providerData keys.
 	 * @return void
 	 */
 	public function queue_result( array $result ): void {
@@ -152,12 +152,16 @@ class Ai_Client_Fake implements Ai_Client_Interface {
 			}
 		}
 
-		return array(
+		$normalized = array(
 			'toolCalls' => $tool_calls,
 			'text'      => isset( $result['text'] ) ? (string) $result['text'] : '',
 			'usage'     => self::normalize_usage( isset( $result['usage'] ) ? $result['usage'] : array() ),
 			'model'     => isset( $result['model'] ) ? (string) $result['model'] : '',
 		);
+		if ( ! empty( $result['providerData'] ) && is_array( $result['providerData'] ) ) {
+			$normalized['providerData'] = $result['providerData'];
+		}
+		return $normalized;
 	}
 
 	/**

@@ -10,7 +10,7 @@
  * Message shapes:
  *   system    : array{role:'system', text:string}
  *   user      : array{role:'user', text:string}
- *   assistant : array{role:'assistant', text:string, toolCalls:array<int,ToolCall>}
+ *   assistant : array{role:'assistant', text:string, toolCalls:array<int,ToolCall>, providerData?:array}
  *   tool      : array{role:'tool', toolResponses:array<int,ToolResponse>}
  *
  *   ToolCall     : array{id:string, name:string, args:array}
@@ -64,16 +64,21 @@ class Ai_Message {
 	/**
 	 * Build an assistant message, optionally carrying tool calls.
 	 *
-	 * @param string $text       Assistant text (may be empty when only calling tools).
-	 * @param array  $tool_calls List of tool calls (see tool_call()).
+	 * @param string $text          Assistant text (may be empty when only calling tools).
+	 * @param array  $tool_calls    List of tool calls (see tool_call()).
+	 * @param array  $provider_data Optional provider-owned continuation data.
 	 * @return array
 	 */
-	public static function assistant( string $text, array $tool_calls = array() ): array {
-		return array(
+	public static function assistant( string $text, array $tool_calls = array(), array $provider_data = array() ): array {
+		$message = array(
 			'role'      => self::ROLE_ASSISTANT,
 			'text'      => $text,
 			'toolCalls' => array_values( $tool_calls ),
 		);
+		if ( ! empty( $provider_data ) ) {
+			$message['providerData'] = $provider_data;
+		}
+		return $message;
 	}
 
 	/**

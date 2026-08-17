@@ -16,9 +16,14 @@ export type ChangeStat = { added: number; removed: number };
 
 export type AiAvailability = {
   available: boolean;
+	setupState?: 'ready' | 'setup_required' | 'system_unavailable';
+	backend?: 'wordpress_ai_client' | 'openai_direct' | 'none';
   featureEnabled: boolean;
   sdkPresent: boolean;
   providerConfigured: boolean;
+	connectorConfigured?: boolean;
+	directKeyConfigured?: boolean;
+	directKeySource?: 'environment' | 'constant' | 'database' | 'none';
   schedulerPresent: boolean;
   mbstringPresent: boolean;
   domPresent: boolean;
@@ -28,7 +33,9 @@ export type AiAvailability = {
   timelineUrl: string;
   timelineBaseUrl: string;
   connectorsUrl: string;
+	settingsUrl?: string;
   canManageConnectors: boolean;
+	canManageSettings?: boolean;
   maxPromptChars?: number;
   initialRequest?: {
     requestId: string;

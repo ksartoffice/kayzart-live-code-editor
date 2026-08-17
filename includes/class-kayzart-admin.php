@@ -37,6 +37,7 @@ class Admin {
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_DEFAULT_EDITOR_LAYOUT = 'kayzart_default_editor_layout';
 	const OPTION_AI_DEFAULT_MODEL      = 'kayzart_ai_default_model';
+	const OPTION_OPENAI_API_KEY        = 'kayzart_openai_api_key';
 	const OPTION_AI_MAX_TURNS          = 'kayzart_ai_max_turns';
 	const AI_MAX_TURNS_DEFAULT         = 15;
 	const AI_MAX_TURNS_MIN             = 10;
@@ -47,6 +48,9 @@ class Admin {
 	const AI_MAX_PROMPT_CHARS_MIN      = 1000;
 	const AI_MAX_PROMPT_CHARS_MAX      = 50000;
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
+	const REMOVE_OPENAI_KEY_ACTION     = 'kayzart_remove_openai_key';
+	const REMOVE_OPENAI_KEY_NONCE      = 'kayzart_remove_openai_key';
+	const OPTION_CONNECTOR_NOTICE      = 'kayzart_connector_migration_notice_shown';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
 		' ' . "\xE2\x80\xB9" . ' ',
@@ -68,7 +72,9 @@ class Admin {
 		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
 		add_action( 'admin_action_' . self::CONVERT_POST_ACTION, array( __CLASS__, 'action_convert_existing_post' ) );
 		add_action( 'admin_action_' . self::DUPLICATE_POST_ACTION, array( __CLASS__, 'action_duplicate_post' ) );
+		add_action( 'admin_action_' . self::REMOVE_OPENAI_KEY_ACTION, array( __CLASS__, 'action_remove_openai_key' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_duplicated_notice' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_connector_migration_notice' ) );
 		add_action( 'update_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_update' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_add' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrite_rules' ), 20 );
@@ -280,14 +286,49 @@ class Admin {
 	 * Create a new post marked for KayzArt editing.
 	 */
 	public static function action_create_new_page(): void {
+
 		self::verify_action_nonce( self::NEW_PAGE_NONCE_ACTION );
 		$post_type = sanitize_key( self::read_request_value( 'post_type' ) );
 		if ( '' === $post_type ) {
 			$post_type = Post_Type::PAGE_TYPE;
 		}
-		self::create_new_landing_page_post( $post_type, self::read_requested_setup_mode(), self::read_requested_post_title(), self::read_requested_initial_ai_prompt() );
+		$start_mode = self::read_requested_start_mode();
+		$prompt     = 'ai' === $start_mode ? self::read_requested_initial_ai_prompt() : '';
+		if ( 'ai' === $start_mode ) {
+			if ( ! current_user_can( Ai_Setup::CAPABILITY ) || ! Ai_Availability::is_available() ) {
+				wp_die( esc_html__( 'AI editing must be configured before starting with AI.', 'kayzart-live-code-editor' ) );
+			}
+			if ( '' === $prompt ) {
+				wp_die( esc_html__( 'Enter an AI instruction or choose Start blank.', 'kayzart-live-code-editor' ) );
+			}
+		}
+		self::create_new_landing_page_post( $post_type, self::read_requested_setup_mode(), self::read_requested_post_title(), $prompt );
 	}
 
+	/** Read the requested creation path. */
+	private static function read_requested_start_mode(): string {
+
+		$mode = sanitize_key( self::read_request_value( 'start_mode' ) );
+		if ( in_array( $mode, array( 'ai', 'blank' ), true ) ) {
+			return $mode;
+		}
+		// Backward compatibility for old create links and integrations: an
+		// instruction implies AI; otherwise opening a normal blank editor remains
+		// valid and does not suddenly require provider configuration.
+		return '' !== trim( self::read_request_value( 'initial_ai_prompt' ) ) ? 'ai' : 'blank';
+	}
+
+	/** Delete only the database-stored OpenAI credential. */
+	public static function action_remove_openai_key(): void {
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+		check_admin_referer( self::REMOVE_OPENAI_KEY_NONCE );
+		delete_option( self::OPTION_OPENAI_API_KEY );
+		wp_safe_redirect( add_query_arg( 'kayzart_openai_key_removed', '1', self::get_settings_url() ) );
+		exit;
+	}
 	/**
 	 * Read the requested setup mode from a nonce-verified request.
 	 *
@@ -322,7 +363,11 @@ class Admin {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
-		$prompt = trim( wp_check_invalid_utf8( wp_unslash( (string) $_POST['initial_ai_prompt'] ), true ) );
+		$prompt = wp_unslash( (string) $_POST['initial_ai_prompt'] );
+		if ( ! mb_check_encoding( $prompt, 'UTF-8' ) ) {
+			$prompt = mb_convert_encoding( $prompt, 'UTF-8', 'UTF-8' );
+		}
+		$prompt = trim( wp_check_invalid_utf8( $prompt ) );
 		if ( mb_strlen( $prompt, 'UTF-8' ) > self::get_ai_max_prompt_chars() ) {
 			wp_die( esc_html__( 'The initial AI instruction is too large.', 'kayzart-live-code-editor' ) );
 		}
@@ -536,6 +581,28 @@ class Admin {
 		printf(
 			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
 			esc_html__( 'Landing page duplicated. The copy was saved as a draft.', 'kayzart-live-code-editor' )
+		);
+	}
+
+	/** Tell upgraded sites once that WordPress Connectors now take precedence. */
+	public static function maybe_render_connector_migration_notice(): void {
+		global $wp_version;
+		if ( ! current_user_can( 'manage_options' ) || version_compare( (string) $wp_version, '7.0', '<' ) ) {
+			return;
+		}
+		if ( get_option( self::OPTION_CONNECTOR_NOTICE, false ) ) {
+			return;
+		}
+		$status = Ai_Availability::get_status();
+		if ( Ai_Client_Factory::OPENAI !== $status['backend'] || 'database' !== $status['direct_key_source'] ) {
+			return;
+		}
+		update_option( self::OPTION_CONNECTOR_NOTICE, '1', false );
+		printf(
+			'<div class="notice notice-info is-dismissible"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
+			esc_html__( 'Kayzart is continuing to use your saved OpenAI key. WordPress 7.0 can use a shared AI provider through Connectors, which will take precedence once configured.', 'kayzart-live-code-editor' ),
+			esc_url( admin_url( 'options-connectors.php' ) ),
+			esc_html__( 'Open Connectors', 'kayzart-live-code-editor' )
 		);
 	}
 
@@ -1006,6 +1073,16 @@ class Admin {
 
 		register_setting(
 			self::SETTINGS_GROUP,
+			self::OPTION_OPENAI_API_KEY,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( Ai_OpenAI_Key::class, 'sanitize' ),
+				'default'           => '',
+			)
+		);
+
+		register_setting(
+			self::SETTINGS_GROUP,
 			self::OPTION_AI_DEFAULT_MODEL,
 			array(
 				'type'              => 'string',
@@ -1039,6 +1116,14 @@ class Admin {
 			__( 'AI editing', 'kayzart-live-code-editor' ),
 			array( __CLASS__, 'render_ai_section' ),
 			self::SETTINGS_SLUG
+		);
+
+		add_settings_field(
+			self::OPTION_OPENAI_API_KEY,
+			__( 'OpenAI API key', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_openai_api_key_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai'
 		);
 
 		add_settings_field(
@@ -1182,11 +1267,17 @@ class Admin {
 	 *
 	 * Only a model currently offered by the SDK is accepted; anything else
 	 * (including a model that vanished from the catalog) falls back to auto.
+	 * An omitted field preserves the stored preference.
 	 *
 	 * @param mixed $value Raw value.
 	 * @return string
 	 */
 	public static function sanitize_ai_default_model( $value ): string {
+		if ( null === $value ) {
+			$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
+			return is_string( $stored ) ? trim( $stored ) : '';
+		}
+
 		$model = is_string( $value ) ? trim( $value ) : '';
 		if ( '' === $model ) {
 			return '';
@@ -1439,18 +1530,51 @@ class Admin {
 	 */
 	public static function render_ai_section(): void {
 
-		echo '<p>' . esc_html__( 'Choose which model AI editing uses. Auto lets the configured AI provider pick.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html__( 'WordPress 7.0 and later use a configured Connector first. On older versions, or when no Connector is ready, Kayzart can connect directly to OpenAI.', 'kayzart-live-code-editor' ) . '</p>';
 		self::render_ai_status_section();
 	}
 
+	/** Render a write-only direct OpenAI credential field. */
+	public static function render_openai_api_key_field(): void {
+
+		$source   = Ai_OpenAI_Key::source();
+		$external = in_array( $source, array( 'environment', 'constant' ), true );
+		if ( $external ) {
+			printf(
+				'<input type="password" class="regular-text" value="" placeholder="%s" disabled="disabled" autocomplete="new-password" />',
+				esc_attr__( 'Configured outside WordPress', 'kayzart-live-code-editor' )
+			);
+			printf( '<p class="description">%s</p>', esc_html( 'environment' === $source ? __( 'The KAYZART_OPENAI_API_KEY environment variable is in use.', 'kayzart-live-code-editor' ) : __( 'The KAYZART_OPENAI_API_KEY PHP constant is in use.', 'kayzart-live-code-editor' ) ) );
+			return;
+		}
+
+		$configured = 'database' === $source;
+		printf(
+			'<input type="password" class="regular-text" name="%1$s" value="" placeholder="%2$s" autocomplete="new-password" spellcheck="false" />',
+			esc_attr( self::OPTION_OPENAI_API_KEY ),
+			esc_attr( $configured ? __( 'Configured — enter a new key to replace it', 'kayzart-live-code-editor' ) : __( 'sk-…', 'kayzart-live-code-editor' ) )
+		);
+		echo '<p class="description">' . esc_html__( 'Used for direct OpenAI access. The key is stored on this site and is never sent to the browser.', 'kayzart-live-code-editor' ) . '</p>';
+		if ( $configured ) {
+				$url = wp_nonce_url( admin_url( 'admin.php?action=' . self::REMOVE_OPENAI_KEY_ACTION ), self::REMOVE_OPENAI_KEY_NONCE );
+				echo '<p><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Remove saved API key', 'kayzart-live-code-editor' ) . '</a></p>';
+		}
+	}
 	/**
 	 * Render the default AI model select field.
 	 */
 	public static function render_ai_default_model_field(): void {
 
-		$models = Ai_Models::available_for_text();
 		$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
 		$model  = is_string( $stored ) ? trim( $stored ) : '';
+		$status = Ai_Availability::get_status();
+		if ( Ai_Client_Factory::OPENAI === $status['backend'] ) {
+			echo '<input type="hidden" name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '" value="' . esc_attr( $model ) . '" />';
+			echo '<code>' . esc_html( Ai_Client_OpenAI::MODEL ) . '</code>';
+			echo '<p class="description">' . esc_html__( 'Direct OpenAI access uses this fixed model.', 'kayzart-live-code-editor' ) . '</p>';
+			return;
+		}
+		$models = Ai_Models::available_for_text();
 		$value  = '' === $model ? '' : self::validate_ai_default_model( $model, $models );
 
 		echo '<select name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '">';
@@ -1543,13 +1667,9 @@ class Admin {
 		// this on the settings screen only and never on routine admin screens.
 		$status = Ai_Availability::get_status();
 		$checks = array(
-			'sdk_present'         => array(
-				__( 'AI Client SDK', 'kayzart-live-code-editor' ),
-				__( 'Requires a WordPress version that bundles the AI Client.', 'kayzart-live-code-editor' ),
-			),
 			'provider_configured' => array(
-				__( 'AI provider configured', 'kayzart-live-code-editor' ),
-				__( 'Connect an AI provider so Kayzart can send edit requests.', 'kayzart-live-code-editor' ),
+				__( 'AI connection configured', 'kayzart-live-code-editor' ),
+				__( 'Configure a WordPress Connector or enter an OpenAI API key below.', 'kayzart-live-code-editor' ),
 			),
 			'scheduler_present'   => array(
 				__( 'Action Scheduler', 'kayzart-live-code-editor' ),
@@ -1571,7 +1691,8 @@ class Admin {
 
 		echo '<h2>' . esc_html__( 'AI editing', 'kayzart-live-code-editor' ) . '</h2>';
 		if ( ! empty( $status['available'] ) ) {
-			echo '<p>' . esc_html__( 'AI editing is ready to use.', 'kayzart-live-code-editor' ) . '</p>';
+			$backend_label = Ai_Client_Factory::WORDPRESS === $status['backend'] ? __( 'WordPress AI Client / Connectors', 'kayzart-live-code-editor' ) : __( 'Direct OpenAI connection', 'kayzart-live-code-editor' );
+			printf( '<p>%s <strong>%s</strong></p>', esc_html__( 'AI editing is ready. Active backend:', 'kayzart-live-code-editor' ), esc_html( $backend_label ) );
 		} else {
 			echo '<p>' . esc_html__( 'AI editing is unavailable until every requirement below is met.', 'kayzart-live-code-editor' ) . '</p>';
 		}
@@ -1592,8 +1713,11 @@ class Admin {
 		}
 		echo '</tbody>';
 		echo '</table>';
+		global $wp_version;
+		if ( version_compare( (string) $wp_version, '7.0', '>=' ) && current_user_can( 'manage_options' ) ) {
+			echo '<p><a class="button" href="' . esc_url( admin_url( 'options-connectors.php' ) ) . '">' . esc_html__( 'Open WordPress Connectors', 'kayzart-live-code-editor' ) . '</a></p>';
+		}
 	}
-
 	/**
 	 * Render the create screen.
 	 */
@@ -1623,40 +1747,65 @@ class Admin {
 		$can_use_ai      = current_user_can( Ai_Setup::CAPABILITY );
 		$ai_status       = $can_use_ai ? Ai_Availability::get_status() : array( 'available' => false );
 		$ai_is_available = $can_use_ai && ! empty( $ai_status['available'] );
+		if ( $ai_is_available ) {
+			echo '<fieldset class="kayzart-create-fieldset kayzart-create-start"><legend>' . esc_html__( 'How do you want to start?', 'kayzart-live-code-editor' ) . '</legend>';
+			echo '<div class="kayzart-create-options kayzart-create-options--start">';
+			echo '<label class="kayzart-create-option"><input type="radio" name="start_mode" value="ai" checked="checked" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>' . esc_html__( 'Start with AI', 'kayzart-live-code-editor' ) . '</strong><span class="kayzart-create-option__description">' . esc_html__( 'Describe the page and let AI build the first draft.', 'kayzart-live-code-editor' ) . '</span></span></label>';
+			echo '<label class="kayzart-create-option"><input type="radio" name="start_mode" value="blank" /><span class="kayzart-create-option__control" aria-hidden="true"></span><span class="kayzart-create-option__body"><strong>' . esc_html__( 'Start blank', 'kayzart-live-code-editor' ) . '</strong><span class="kayzart-create-option__description">' . esc_html__( 'Open the HTML/CSS/JS editor without sending an AI request.', 'kayzart-live-code-editor' ) . '</span></span></label>';
+			echo '</div></fieldset>';
+		} else {
+			echo '<input type="hidden" name="start_mode" value="blank" />';
+			echo '<div class="kayzart-ai-setup-card"><strong>' . esc_html__( 'Set up AI editing', 'kayzart-live-code-editor' ) . '</strong>';
+			if ( ! $can_use_ai ) {
+				echo '<p>' . esc_html__( 'You can start blank and use the HTML/CSS/JS editor. Ask an administrator if you also need AI editing.', 'kayzart-live-code-editor' ) . '</p>';
+			} else {
+				echo '<p>' . esc_html__( 'You can continue with a blank page now, or configure AI before creating the page.', 'kayzart-live-code-editor' ) . '</p>';
+				global $wp_version;
+				if ( version_compare( (string) $wp_version, '7.0', '>=' ) && current_user_can( 'manage_options' ) ) {
+					echo '<a class="button button-primary" href="' . esc_url( admin_url( 'options-connectors.php' ) ) . '">' . esc_html__( 'Open Connectors', 'kayzart-live-code-editor' ) . '</a> ';
+				}
+				if ( current_user_can( 'manage_options' ) ) {
+					echo '<a class="button" href="' . esc_url( self::get_settings_url() ) . '">' . esc_html__( 'Configure OpenAI in Kayzart', 'kayzart-live-code-editor' ) . '</a>';
+				}
+			}
+			echo '</div>';
+		}
 		echo '<section class="kayzart-create-section kayzart-create-section--ai' . ( $ai_is_available ? '' : ' is-disabled' ) . '" aria-labelledby="kayzart-create-ai-title">';
 		echo '<div class="kayzart-create-section__heading">';
 		echo '<span class="kayzart-create-section__step kayzart-create-section__step--ai" aria-hidden="true">✦</span>';
-		echo '<div><h2 id="kayzart-create-ai-title">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Describe the page you want, and AI will start building it when the editor opens.', 'kayzart-live-code-editor' ) . '</p></div>';
+		echo '<div><h2 id="kayzart-create-ai-title">' . esc_html( $ai_is_available ? __( 'AI instruction', 'kayzart-live-code-editor' ) : __( 'Page details', 'kayzart-live-code-editor' ) ) . '</h2>';
+		echo '<p>' . esc_html( $ai_is_available ? __( 'Describe the page you want, and AI will start building it when the editor opens.', 'kayzart-live-code-editor' ) : __( 'Name the page, then open the standard HTML/CSS/JS editor.', 'kayzart-live-code-editor' ) ) . '</p></div>';
 		echo '</div>';
 		echo '<div class="kayzart-create-field">';
 		echo '<label for="kayzart-create-title">' . esc_html__( 'Title', 'kayzart-live-code-editor' ) . '</label>';
 		echo '<input id="kayzart-create-title" type="text" name="post_title" value="" placeholder="' . esc_attr__( 'Landing page title', 'kayzart-live-code-editor' ) . '" />';
 		echo '<p class="description">' . esc_html__( 'Optional. You can rename the page later.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</div>';
-		echo '<div class="kayzart-create-field">';
-		echo '<label class="screen-reader-text" for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label>';
-		echo '<div class="kayzart-ai-prompt-control' . ( $ai_is_available ? ' has-improver' : '' ) . '">';
-		echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count kayzart-ai-improve-status" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
 		if ( $ai_is_available ) {
-			echo '<button id="kayzart-ai-improve" class="kayzart-ai-improve" type="button" disabled="disabled"><span class="kayzart-ai-improve__spinner" aria-hidden="true"></span><span class="kayzart-ai-improve__label">' . esc_html__( 'Improve with AI', 'kayzart-live-code-editor' ) . '</span></button>';
+			echo '<div class="kayzart-create-field">';
+			echo '<label class="screen-reader-text" for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label>';
+			echo '<div class="kayzart-ai-prompt-control' . ( $ai_is_available ? ' has-improver' : '' ) . '">';
+			echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count kayzart-ai-improve-status" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
+			if ( $ai_is_available ) {
+				echo '<button id="kayzart-ai-improve" class="kayzart-ai-improve" type="button" disabled="disabled"><span class="kayzart-ai-improve__spinner" aria-hidden="true"></span><span class="kayzart-ai-improve__label">' . esc_html__( 'Improve with AI', 'kayzart-live-code-editor' ) . '</span></button>';
+			}
+			echo '</div>';
+			echo '<p id="kayzart-ai-improve-status" class="kayzart-ai-improve-status" role="status" aria-live="polite"></p>';
+			echo '<div class="kayzart-create-field__meta">';
+			if ( ! $can_use_ai ) {
+				echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'You do not have permission to use AI editing.', 'kayzart-live-code-editor' ) . '</p>';
+			} elseif ( ! $ai_is_available ) {
+				echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'AI editing must be configured before you can start with a request.', 'kayzart-live-code-editor' ) . '</p>';
+			} else {
+				echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'Required when Start with AI is selected. It will be sent automatically when the editor opens.', 'kayzart-live-code-editor' ) . '</p>';
+			}
+			if ( $ai_is_available ) {
+				echo '<button id="kayzart-ai-improve-undo" class="kayzart-ai-improve-undo" type="button" hidden="hidden">' . esc_html__( 'Undo improvement', 'kayzart-live-code-editor' ) . '</button>';
+			}
+			echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::get_ai_max_prompt_chars() ) . ' ' . esc_html__( 'characters', 'kayzart-live-code-editor' ) . '</p>';
+			echo '</div>';
+			echo '</div>';
 		}
-		echo '</div>';
-		echo '<p id="kayzart-ai-improve-status" class="kayzart-ai-improve-status" role="status" aria-live="polite"></p>';
-		echo '<div class="kayzart-create-field__meta">';
-		if ( ! $can_use_ai ) {
-			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'You do not have permission to use AI editing.', 'kayzart-live-code-editor' ) . '</p>';
-		} elseif ( ! $ai_is_available ) {
-			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'AI editing must be configured before you can start with a request.', 'kayzart-live-code-editor' ) . '</p>';
-		} else {
-			echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'Optional. This instruction will be sent automatically when the editor opens.', 'kayzart-live-code-editor' ) . '</p>';
-		}
-		if ( $ai_is_available ) {
-			echo '<button id="kayzart-ai-improve-undo" class="kayzart-ai-improve-undo" type="button" hidden="hidden">' . esc_html__( 'Undo improvement', 'kayzart-live-code-editor' ) . '</button>';
-		}
-		echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::get_ai_max_prompt_chars() ) . ' ' . esc_html__( 'characters', 'kayzart-live-code-editor' ) . '</p>';
-		echo '</div>';
-		echo '</div>';
 		echo '</section>';
 
 		echo '<section class="kayzart-create-section kayzart-create-section--settings" aria-labelledby="kayzart-create-basics-title">';
@@ -2076,9 +2225,14 @@ class Admin {
 			'adminTitleSeparators'   => array_values( self::ADMIN_TITLE_SEPARATORS ),
 			'ai'                     => array(
 				'available'           => $ai_status['available'],
+				'setupState'          => $ai_status['setup_state'],
+				'backend'             => $ai_status['backend'],
 				'featureEnabled'      => $ai_status['feature_enabled'],
 				'sdkPresent'          => $ai_status['sdk_present'],
 				'providerConfigured'  => $ai_status['provider_configured'],
+				'connectorConfigured' => $ai_status['connector_configured'],
+				'directKeyConfigured' => $ai_status['direct_key_configured'],
+				'directKeySource'     => $ai_status['direct_key_source'],
 				'schedulerPresent'    => $ai_status['scheduler_present'],
 				'mbstringPresent'     => $ai_status['mbstring_present'],
 				'domPresent'          => $ai_status['dom_present'],
@@ -2088,7 +2242,9 @@ class Admin {
 				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'settingsUrl'         => self::get_settings_url(),
 				'canManageConnectors' => current_user_can( 'manage_options' ),
+				'canManageSettings'   => current_user_can( 'manage_options' ),
 				'maxPromptChars'      => self::get_ai_max_prompt_chars(),
 				'initialRequest'      => $initial_ai_request,
 			),

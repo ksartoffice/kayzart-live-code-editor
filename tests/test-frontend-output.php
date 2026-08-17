@@ -322,7 +322,11 @@ class Test_Frontend_Output extends WP_UnitTestCase {
 		Frontend::dequeue_theme_assets_for_standalone();
 		$this->restore_query( $original_wp_query );
 
-		$this->assertSame( 50, has_action( 'wp_head', 'wp_print_font_faces' ) );
+		if ( function_exists( 'wp_print_font_faces' ) ) {
+			$this->assertSame( 50, has_action( 'wp_head', 'wp_print_font_faces' ) );
+		} else {
+			$this->assertFalse( has_action( 'wp_head', 'wp_print_font_faces' ) );
+		}
 	}
 
 	public function test_theme_mode_preserves_core_global_style_hooks(): void {

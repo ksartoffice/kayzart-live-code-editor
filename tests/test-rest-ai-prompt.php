@@ -40,9 +40,10 @@ class Test_Kayzart_Rest_Ai_Prompt extends WP_UnitTestCase {
 		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
 		wp_set_current_user( $this->admin_id );
 		delete_transient( Rest_Ai_Prompt::RATE_KEY_PREFIX . $this->admin_id );
+		update_option( 'kayzart_openai_api_key', 'sk-test-prompt-improver' );
 
-		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -56,8 +57,9 @@ class Test_Kayzart_Rest_Ai_Prompt extends WP_UnitTestCase {
 	 */
 	protected function tearDown(): void {
 		delete_transient( Rest_Ai_Prompt::RATE_KEY_PREFIX . $this->admin_id );
-		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		delete_option( 'kayzart_openai_api_key' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -129,11 +131,9 @@ class Test_Kayzart_Rest_Ai_Prompt extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 		wp_set_current_user( $this->admin_id );
 
-		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		delete_option( 'kayzart_openai_api_key' );
 		$this->assertSame( 503, $this->dispatch( array( 'prompt' => 'Build a page.' ) )->get_status() );
-		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		update_option( 'kayzart_openai_api_key', 'sk-test-prompt-improver' );
 	}
 
 	/**

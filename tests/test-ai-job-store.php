@@ -131,6 +131,39 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 		$this->assertSame( 'request-events', $response['events'][0]['requestId'] );
 	}
 
+	/** Provider continuation data remains private to the persisted checkpoint. */
+	public function test_provider_data_is_not_exposed_in_the_public_job_response(): void {
+		$created = $this->store->create( 10, 20, 'request-provider-data', $this->payload() );
+		$uuid    = $created['job']['job_uuid'];
+		$state   = array(
+			'schemaVersion' => 1,
+			'messages'      => array(
+				array(
+					'role'         => 'assistant',
+					'providerData' => array(
+						'openai' => array(
+							'outputItems' => array(
+								array(
+									'type'              => 'reasoning',
+									'encrypted_content' => 'private-provider-state',
+								),
+							),
+						),
+					),
+				),
+			),
+		);
+
+		$this->assertTrue( $this->store->claim( $uuid ) );
+		$this->assertTrue( $this->store->initialize_step_state( $uuid, $state ) );
+		$job      = $this->store->get( $uuid );
+		$response = $this->store->to_response( $job );
+
+		$this->assertStringContainsString( 'private-provider-state', $job['agent_state_json'] );
+		$this->assertArrayNotHasKey( 'agent_state_json', $response );
+		$this->assertStringNotContainsString( 'private-provider-state', wp_json_encode( $response ) );
+	}
+
 	/** Deadlines and retention affect only eligible records. */
 	public function test_timeout_and_cleanup_only_affect_eligible_jobs(): void {
 		global $wpdb;

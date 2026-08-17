@@ -98,7 +98,7 @@ class Rest_Ai_Prompt {
 			return $rate_limit;
 		}
 
-		$client = apply_filters( 'kayzart_ai_prompt_improver_client', new Ai_Client_Wp() );
+		$client = apply_filters( 'kayzart_ai_prompt_improver_client', Ai_Client_Factory::for_job() );
 		if ( ! $client instanceof Ai_Client_Interface ) {
 			return self::failed();
 		}

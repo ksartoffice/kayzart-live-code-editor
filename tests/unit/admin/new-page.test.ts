@@ -6,6 +6,8 @@ const newPageScript = readFileSync('assets/admin/new-page.js', 'utf8');
 const renderForm = (maxPromptChars = 8000) => {
   document.body.innerHTML = [
     '<form class="kayzart-create-form">',
+	'<label><input type="radio" name="start_mode" value="ai" checked />Start with AI</label>',
+	'<label><input type="radio" name="start_mode" value="blank" />Start blank</label>',
     '<input id="kayzart-create-title" value="Salon launch" />',
     '<textarea id="kayzart-initial-ai-prompt"></textarea>',
     '<button id="kayzart-ai-improve" type="button" disabled>',
@@ -147,6 +149,20 @@ describe('new page form', () => {
     expect(submit.disabled).toBe(true);
     expect(submit.value).toBe('Creating…');
   });
+
+	it('allows a blank page without an AI instruction', () => {
+		const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+		const blank = document.querySelector<HTMLInputElement>('input[value="blank"]')!;
+		const submit = document.querySelector<HTMLInputElement>('#submit')!;
+
+		expect(submit.disabled).toBe(true);
+		blank.checked = true;
+		blank.dispatchEvent(new Event('change', { bubbles: true }));
+
+		expect(prompt.disabled).toBe(true);
+		expect(prompt.required).toBe(false);
+		expect(submit.disabled).toBe(false);
+	});
 
   it('sends the instruction and title, replaces the text, and restores it with undo', async () => {
     const fetchMock = vi.fn().mockResolvedValue({

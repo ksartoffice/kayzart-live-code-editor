@@ -49,6 +49,12 @@
     var previousPrompt = null;
     var applyingPromptValue = false;
     var activeImproveRequest = null;
+    var startModeInputs = form.querySelectorAll('input[name="start_mode"]');
+
+    function isStartingWithAi() {
+      var selected = form.querySelector('input[name="start_mode"]:checked');
+      return !selected || selected.value === 'ai';
+    }
 
     function setStatus(message, type) {
       if (!improveStatus) {
@@ -71,7 +77,7 @@
       }
 
       promptChars = getCharLength(prompt.value.trim());
-      promptIsValid = promptChars <= maxChars;
+      promptIsValid = promptChars <= maxChars && (!isStartingWithAi() || promptChars > 0);
       counter.textContent = promptChars + ' / ' + maxChars + ' ' + charsLabel;
       counter.classList.toggle('is-error', !promptIsValid);
       prompt.setAttribute('aria-invalid', promptIsValid ? 'false' : 'true');
@@ -80,8 +86,20 @@
         submit.disabled = !promptIsValid;
       }
       if (improve) {
-        improve.disabled = improving || promptChars === 0 || !promptIsValid;
+        improve.disabled = !isStartingWithAi() || improving || promptChars === 0 || !promptIsValid;
       }
+    }
+
+    function syncStartMode() {
+      var aiMode = isStartingWithAi();
+      if (prompt) {
+        prompt.disabled = !aiMode;
+        prompt.required = aiMode;
+      }
+      if (!aiMode && activeImproveRequest) {
+        cancelImproveRequest(activeImproveRequest, false);
+      }
+      updatePromptCount();
     }
 
     function resizePrompt() {
@@ -163,6 +181,11 @@
     if (title) {
       title.addEventListener('input', cancelImprovementIfInputsChanged);
     }
+
+    Array.prototype.forEach.call(startModeInputs, function (input) {
+      input.addEventListener('change', syncStartMode);
+    });
+    syncStartMode();
 
     if (improve && prompt) {
       improve.addEventListener('click', function () {

@@ -181,12 +181,15 @@ class Editor_Bridge {
 	 *
 	 * @param array $data                Sanitized post data.
 	 * @param array $postarr             Sanitized post input.
-	 * @param array $unsanitized_postarr Unsanitized post input.
-	 * @param bool  $update              Whether this is an existing post update.
+	 * @param array $unsanitized_postarr Unsanitized post input. Added by WordPress 5.4.1.
+	 * @param bool  $update              Whether this is an existing post update. Added by WordPress 6.0.
 	 * @return array
 	 */
-	public static function preserve_classic_editor_content( array $data, array $postarr, array $unsanitized_postarr, bool $update ): array {
+	public static function preserve_classic_editor_content( array $data, array $postarr, array $unsanitized_postarr = array(), bool $update = false ): array {
 		unset( $unsanitized_postarr );
+		if ( func_num_args() < 4 ) {
+			$update = ! empty( $postarr['ID'] );
+		}
 
 		// WordPress verifies the editpost nonce before applying this filter.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing

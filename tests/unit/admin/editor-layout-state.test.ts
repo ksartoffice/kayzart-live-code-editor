@@ -117,6 +117,70 @@ describe('editor layout state', () => {
     });
   });
 
+  it('continues with defaults when the localStorage getter is blocked', () => {
+    const ownDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('Storage access is blocked', 'SecurityError');
+      },
+    });
+
+    try {
+      const store = createEditorLayoutStore({
+        namespace,
+        kind: 'desktop',
+        aiEnabled: true,
+        fallbackEditorCollapsed: true,
+      });
+
+      expect(store.read()).toEqual({
+        version: 1,
+        settingsOpen: false,
+        settingsTab: 'elements',
+        editorCollapsed: true,
+      });
+      expect(
+        store.write({
+          version: 1,
+          settingsOpen: true,
+          settingsTab: 'history',
+          editorCollapsed: false,
+          settingsWidth: 410.4,
+        })
+      ).toEqual({
+        version: 1,
+        settingsOpen: true,
+        settingsTab: 'history',
+        editorCollapsed: false,
+        settingsWidth: 410,
+      });
+    } finally {
+      if (ownDescriptor) {
+        Object.defineProperty(window, 'localStorage', ownDescriptor);
+      } else {
+        delete (window as Window & { localStorage?: Storage }).localStorage;
+      }
+    }
+  });
+
+  it('supports an explicitly unavailable storage backend', () => {
+    const store = createEditorLayoutStore({
+      namespace,
+      kind: 'compact',
+      aiEnabled: true,
+      fallbackEditorCollapsed: false,
+      storage: null,
+    });
+
+    expect(store.read()).toEqual({
+      version: 1,
+      settingsOpen: false,
+      settingsTab: 'elements',
+      editorCollapsed: false,
+    });
+  });
+
   it('classifies the responsive storage bucket at the editor breakpoint', () => {
     expect(getEditorLayoutKind(899)).toBe('compact');
     expect(getEditorLayoutKind(900)).toBe('desktop');

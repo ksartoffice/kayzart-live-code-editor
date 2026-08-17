@@ -14,11 +14,20 @@ type LayoutStoreOptions = {
   kind: EditorLayoutKind;
   aiEnabled: boolean;
   fallbackEditorCollapsed: boolean;
-  storage?: Storage;
+  storage?: Storage | null;
 };
 
 const LEGACY_PANEL_STATE_KEY = 'kayzart.settingsPanelState';
 const LEGACY_PANEL_WIDTH_KEY = 'kayzart.settingsPanelWidth';
+
+const resolveStorage = (provided: Storage | null | undefined): Storage | null => {
+  if (provided !== undefined) return provided;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
 
 const normalizeTab = (value: unknown, aiEnabled: boolean) => {
   if (typeof value !== 'string' || !value) {
@@ -74,7 +83,7 @@ export const resolveInitialEditorLayout = (
 };
 
 export function createEditorLayoutStore(options: LayoutStoreOptions) {
-  const storage = options.storage ?? window.localStorage;
+  const storage = resolveStorage(options.storage);
   const key = `${options.namespace}.${options.kind}`;
   const defaults: EditorLayoutState = {
     version: 1,
@@ -84,7 +93,7 @@ export function createEditorLayoutStore(options: LayoutStoreOptions) {
   };
 
   const migrateLegacyDesktopState = (): EditorLayoutState | null => {
-    if (options.kind !== 'desktop') return null;
+    if (!storage || options.kind !== 'desktop') return null;
     const legacyPanel = storage.getItem(LEGACY_PANEL_STATE_KEY);
     const legacyWidth = storage.getItem(LEGACY_PANEL_WIDTH_KEY);
     if (!legacyPanel && !legacyWidth) return null;
@@ -108,6 +117,7 @@ export function createEditorLayoutStore(options: LayoutStoreOptions) {
   };
 
   const read = (): EditorLayoutState => {
+    if (!storage) return { ...defaults };
     try {
       const stored = parseState(storage.getItem(key), defaults, options.aiEnabled);
       const resolved = stored ?? migrateLegacyDesktopState() ?? { ...defaults };
@@ -129,7 +139,7 @@ export function createEditorLayoutStore(options: LayoutStoreOptions) {
       settingsWidth: normalizeWidth(state.settingsWidth),
     };
     try {
-      storage.setItem(key, JSON.stringify(normalized));
+      storage?.setItem(key, JSON.stringify(normalized));
     } catch {
       // Storage can be unavailable in private or restricted browser contexts.
     }

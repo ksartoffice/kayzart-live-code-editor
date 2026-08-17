@@ -11,6 +11,7 @@ import {
 } from './api';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotIdentity, sleep } from './polling';
 import { clearActiveJob, loadActiveJob, saveActiveJob } from './session';
+import { resolveAiActivityNotification } from '../admin/logic/ai-activity';
 import './style.css';
 
 const AI_TAB_ID = 'kayzart-ai';
@@ -268,12 +269,9 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (running) notifyAiActivity('running');
-  }, [running]);
-
-  useEffect(() => {
-    if (error) notifyAiActivity('error');
-  }, [error]);
+    const activity = resolveAiActivityNotification(running, error);
+    if (activity) notifyAiActivity(activity);
+  }, [running, error]);
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);

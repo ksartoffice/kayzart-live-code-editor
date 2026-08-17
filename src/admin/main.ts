@@ -36,6 +36,7 @@ import { buildMediaHtml, buildMediaUrl } from './logic/media-html';
 import { resolveQuotedValueReplacementRange, type TextRange } from './logic/media-insertion';
 import { buildStatusUpdates } from './logic/status-updates';
 import { resolveEditorLockState } from './logic/editor-lock-state';
+import { resolveToolbarAiActivity } from './logic/ai-activity';
 import {
   buildImportedHtml,
   parseFullHtmlDocument,
@@ -288,6 +289,7 @@ async function main() {
   let tailwindCss = '';
   let settingsOpen = initialSettingsOpen;
   let activeSettingsTab = initialSettingsTab;
+  let aiActivity: AiActivityState = 'idle';
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
@@ -423,6 +425,14 @@ async function main() {
 
   const getResolvedTemplateMode = () => (templateMode === 'default' ? defaultTemplateMode : templateMode);
   const isThemeTemplateModeActive = () => getResolvedTemplateMode() === 'theme';
+  const syncAiActivity = (incoming?: AiActivityState) => {
+    aiActivity = resolveToolbarAiActivity(
+      aiActivity,
+      incoming,
+      settingsOpen && activeSettingsTab === 'kayzart-ai'
+    );
+    toolbarApi?.update({ aiActivity });
+  };
 
   const setSettingsOpen = (open: boolean, persist = true) => {
     const returnFocus = !open && ui.settings.contains(document.activeElement);
@@ -442,6 +452,7 @@ async function main() {
       String(Math.round(viewportController.getMaxSettingsWidth()))
     );
     toolbarApi?.update({ settingsOpen: open });
+    syncAiActivity();
     syncElementsTabState();
     viewportController.applyViewportLayout();
     if (persist) {
@@ -842,7 +853,7 @@ async function main() {
       editorCollapsed: viewportController.isEditorCollapsed(),
       compactEditorMode: false,
       settingsOpen,
-      aiActivity: 'idle',
+      aiActivity,
       tailwindEnabled,
       viewportMode: viewportController.getViewportMode(),
       hasUnsavedChanges: false,
@@ -953,10 +964,7 @@ async function main() {
   window.addEventListener(AI_ACTIVITY_EVENT, (event) => {
     const activity = (event as CustomEvent<{ state?: AiActivityState }>).detail?.state;
     if (activity === 'idle' || activity === 'running' || activity === 'complete' || activity === 'error') {
-      const visibleInAiPanel = settingsOpen && activeSettingsTab === 'kayzart-ai';
-      toolbarApi?.update({
-        aiActivity: visibleInAiPanel && activity !== 'running' ? 'idle' : activity,
-      });
+      syncAiActivity(activity);
     }
   });
   syncNoticeOffset();
@@ -2203,9 +2211,7 @@ async function main() {
     onLiveHighlightToggle: setLiveHighlightEnabled,
     onTabChange: (tab) => {
       activeSettingsTab = tab;
-      if (settingsOpen && tab === 'kayzart-ai') {
-        toolbarApi?.update({ aiActivity: 'idle' });
-      }
+      syncAiActivity();
       if (hasObservedInitialSettingsTab) {
         updatePersistedLayout({ settingsOpen, settingsTab: activeSettingsTab });
       } else {

@@ -32,9 +32,11 @@ import {
   subscribeExternalToolbarActions,
   type ResolvedToolbarAction,
 } from './extensions/toolbar-action-registry';
+import type { AiActivityState } from './logic/ai-activity';
+
+export type { AiActivityState } from './logic/ai-activity';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
-export type AiActivityState = 'idle' | 'running' | 'complete' | 'error';
 
 type ToolbarState = {
   backUrl: string;

@@ -1477,6 +1477,62 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 0, $probes );
 	}
 
+	/**
+	 * Setup advice below WordPress 7.0 names the only action that can work.
+	 *
+	 * A separately loaded AI Client does not make Connectors reachable there:
+	 * the backend is rejected on version and options-connectors.php does not
+	 * exist, so entering a direct key is the only way to enable AI editing.
+	 */
+	public function test_setup_advice_below_wp_70_points_at_the_direct_key(): void {
+		$this->set_ai_gates( true, false, '6.9' );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Enter an OpenAI API key below.', $output );
+		$this->assertStringNotContainsString( 'Configure a WordPress Connector', $output );
+		$this->assertStringNotContainsString( 'options-connectors.php', $output );
+	}
+
+	/** On WordPress 7.0 the checklist points at Connectors instead. */
+	public function test_setup_advice_on_wp_70_points_at_connectors(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->set_ai_gates( true, false );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Configure a WordPress Connector', $output );
+		$this->assertStringContainsString( 'options-connectors.php', $output );
+	}
+
+	/** Without the SDK the advice stays on the direct key. */
+	public function test_setup_advice_without_the_sdk_points_at_the_direct_key(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Enter an OpenAI API key below.', $output );
+		$this->assertStringNotContainsString( 'Configure a WordPress Connector', $output );
+	}
+
 	/** Saving or removing the key invalidates the cached backend. */
 	public function test_cached_ai_backend_is_flushed_when_the_direct_key_changes(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );

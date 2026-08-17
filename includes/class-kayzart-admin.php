@@ -1768,13 +1768,22 @@ class Admin {
 			return;
 		}
 
+		global $wp_version;
+
 		// Ai_Availability::get_status() probes the configured provider, so keep
 		// this on the settings screen only and never on routine admin screens.
 		$status = Ai_Availability::get_status();
+
+		// The AI Client can be loaded below WordPress 7.0, where the Connector
+		// backend is still rejected on version and the Connectors screen does not
+		// exist, so pointing there would be advice the site owner cannot act on.
+		$connector_supported = ! empty( $status['sdk_present'] )
+			&& version_compare( (string) $wp_version, '7.0', '>=' );
+
 		$checks = array(
 			'provider_configured' => array(
 				__( 'AI connection configured', 'kayzart-live-code-editor' ),
-				$status['sdk_present']
+				$connector_supported
 					? __( 'Configure a WordPress Connector to give Kayzart an AI provider.', 'kayzart-live-code-editor' )
 					: __( 'Enter an OpenAI API key below.', 'kayzart-live-code-editor' ),
 			),
@@ -1820,7 +1829,6 @@ class Admin {
 		}
 		echo '</tbody>';
 		echo '</table>';
-		global $wp_version;
 		if ( version_compare( (string) $wp_version, '7.0', '>=' ) && current_user_can( 'manage_options' ) ) {
 			echo '<p><a class="button" href="' . esc_url( admin_url( 'options-connectors.php' ) ) . '">' . esc_html__( 'Open WordPress Connectors', 'kayzart-live-code-editor' ) . '</a></p>';
 		}

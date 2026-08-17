@@ -32,6 +32,9 @@ import {
   subscribeExternalToolbarActions,
   type ResolvedToolbarAction,
 } from './extensions/toolbar-action-registry';
+import type { AiActivityState } from './logic/ai-activity';
+
+export type { AiActivityState } from './logic/ai-activity';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
@@ -44,6 +47,7 @@ type ToolbarState = {
   editorCollapsed: boolean;
   compactEditorMode: boolean;
   settingsOpen: boolean;
+  aiActivity: AiActivityState;
   tailwindEnabled: boolean;
   viewportMode: ViewportMode;
   hasUnsavedChanges: boolean;
@@ -153,6 +157,7 @@ function Toolbar({
   editorCollapsed,
   compactEditorMode,
   settingsOpen,
+  aiActivity,
   tailwindEnabled,
   hasUnsavedChanges,
   saveDisabled,
@@ -199,7 +204,17 @@ function Toolbar({
   const isPublished = postStatus === 'publish' || postStatus === 'private';
   const isDraft = postStatus === 'draft' || postStatus === 'auto-draft';
   const viewPostLabel = isPublished ? __( 'View post', 'kayzart-live-code-editor') : __( 'Preview', 'kayzart-live-code-editor');
-  const settingsTitle = settingsOpen ? '右パネルを閉じる' : '右パネル';
+  const settingsTitle = settingsOpen
+    ? __( 'Close editor tools', 'kayzart-live-code-editor')
+    : __( 'Open editor tools', 'kayzart-live-code-editor');
+  const aiActivityLabel =
+    aiActivity === 'running'
+      ? __( 'AI edit in progress', 'kayzart-live-code-editor')
+      : aiActivity === 'complete'
+        ? __( 'AI edit completed', 'kayzart-live-code-editor')
+        : aiActivity === 'error'
+          ? __( 'AI edit needs attention', 'kayzart-live-code-editor')
+          : '';
   const viewportDesktopLabel = __( 'Desktop', 'kayzart-live-code-editor');
   const viewportTabletLabel = __( 'Tablet', 'kayzart-live-code-editor');
   const viewportMobileLabel = __( 'Mobile', 'kayzart-live-code-editor');
@@ -497,10 +512,13 @@ function Toolbar({
         </div>
         <div className="kayzart-toolbarCluster kayzart-toolbarCluster-divider">
           <button
+            id="kayzart-editor-toggle"
             className="kayzart-btn kayzart-btn-icon"
             type="button"
             onClick={onToggleEditor}
             aria-label={toggleLabel}
+            aria-expanded={!editorCollapsed}
+            aria-controls="kayzart-code-editors"
             data-tooltip={toggleLabel}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
@@ -721,15 +739,17 @@ function Toolbar({
           </div>
           {beforeSettingsActions.map(renderExternalToolbarAction)}
           <button
-            className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}`}
+            id="kayzart-settings-toggle"
+            className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}${aiActivity !== 'idle' ? ` has-ai-activity is-ai-${aiActivity}` : ''}`}
             type="button"
             onClick={onToggleSettings}
-            aria-label={settingsTitle}
+            aria-label={aiActivityLabel ? `${settingsTitle}. ${aiActivityLabel}.` : settingsTitle}
             aria-expanded={settingsOpen}
             aria-controls="kayzart-settings"
             data-tooltip={settingsTitle}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
+            {aiActivity !== 'idle' ? <span className="kayzart-aiActivityDot" aria-hidden="true" /> : null}
           </button>
           {afterSettingsActions.map(renderExternalToolbarAction)}
         </div>

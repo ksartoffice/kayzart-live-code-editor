@@ -107,11 +107,15 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   // Main split
   const main = el('div', 'kayzart-main');
   const left = el('div', 'kayzart-left');
+  left.id = 'kayzart-code-editors';
   const resizer = el('div', 'kayzart-resizer');
   const right = el('div', 'kayzart-right');
   const settingsResizer = el('div', 'kayzart-settingsResizer');
   const settings = el('aside', 'kayzart-settings');
   settings.id = 'kayzart-settings';
+  settings.setAttribute('aria-label', __( 'Editor tools', 'kayzart-live-code-editor'));
+  settings.setAttribute('aria-hidden', 'true');
+  settings.toggleAttribute('inert', true);
   const settingsInner = el('div', 'kayzart-settingsInner');
   const settingsHeader = el('div', 'kayzart-settingsHeader');
   const settingsBody = el('div', 'kayzart-settingsBody');

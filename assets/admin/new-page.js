@@ -34,7 +34,10 @@
 
     var prompt = form.querySelector('#kayzart-initial-ai-prompt');
     var counter = form.querySelector('#kayzart-initial-ai-prompt-count');
-    var submit = form.querySelector('#submit');
+    var generateButton = form.querySelector('#kayzart-generate-ai');
+    var blankButton = form.querySelector('#kayzart-create-blank');
+    var blankHint = form.querySelector('#kayzart-create-blank-hint');
+    var submitButtons = form.querySelectorAll('button[type="submit"]');
     var title = form.querySelector('#kayzart-create-title');
     var improve = form.querySelector('#kayzart-ai-improve');
     var improveLabel = improve && improve.querySelector('.kayzart-ai-improve__label');
@@ -49,12 +52,6 @@
     var previousPrompt = null;
     var applyingPromptValue = false;
     var activeImproveRequest = null;
-    var startModeInputs = form.querySelectorAll('input[name="start_mode"]');
-
-    function isStartingWithAi() {
-      var selected = form.querySelector('input[name="start_mode"]:checked');
-      return !selected || selected.value === 'ai';
-    }
 
     function setStatus(message, type) {
       if (!improveStatus) {
@@ -77,29 +74,23 @@
       }
 
       promptChars = getCharLength(prompt.value.trim());
-      promptIsValid = promptChars <= maxChars && (!isStartingWithAi() || promptChars > 0);
+      promptIsValid = promptChars > 0 && promptChars <= maxChars;
       counter.textContent = promptChars + ' / ' + maxChars + ' ' + charsLabel;
       counter.classList.toggle('is-error', !promptIsValid);
       prompt.setAttribute('aria-invalid', promptIsValid ? 'false' : 'true');
 
-      if (submit && !form.classList.contains('is-submitting')) {
-        submit.disabled = !promptIsValid;
+      if (generateButton && !form.classList.contains('is-submitting')) {
+        generateButton.disabled = !promptIsValid;
+      }
+      if (blankButton && prompt && !form.classList.contains('is-submitting')) {
+        blankButton.disabled = improving || promptChars > 0;
+      }
+      if (blankHint) {
+        blankHint.hidden = promptChars === 0;
       }
       if (improve) {
-        improve.disabled = !isStartingWithAi() || improving || promptChars === 0 || !promptIsValid;
+        improve.disabled = improving || !promptIsValid;
       }
-    }
-
-    function syncStartMode() {
-      var aiMode = isStartingWithAi();
-      if (prompt) {
-        prompt.disabled = !aiMode;
-        prompt.required = aiMode;
-      }
-      if (!aiMode && activeImproveRequest) {
-        cancelImproveRequest(activeImproveRequest, false);
-      }
-      updatePromptCount();
     }
 
     function resizePrompt() {
@@ -181,11 +172,6 @@
     if (title) {
       title.addEventListener('input', cancelImprovementIfInputsChanged);
     }
-
-    Array.prototype.forEach.call(startModeInputs, function (input) {
-      input.addEventListener('change', syncStartMode);
-    });
-    syncStartMode();
 
     if (improve && prompt) {
       improve.addEventListener('click', function () {
@@ -287,17 +273,37 @@
 
     form.addEventListener('submit', function (event) {
       updatePromptCount();
+      var submitter = event.submitter;
+      var startMode = submitter && submitter.value === 'ai' ? 'ai' : 'blank';
 
-      if (!promptIsValid || form.classList.contains('is-submitting')) {
+      if (
+        (startMode === 'ai' && !promptIsValid) ||
+        (startMode === 'blank' && prompt && (promptChars > 0 || improving)) ||
+        form.classList.contains('is-submitting')
+      ) {
         event.preventDefault();
         return;
+      }
+      if (activeImproveRequest) {
+        cancelImproveRequest(activeImproveRequest, false);
+      }
+
+      var startModeInput = document.createElement('input');
+      startModeInput.type = 'hidden';
+      startModeInput.name = 'start_mode';
+      startModeInput.value = startMode;
+      form.appendChild(startModeInput);
+      if (startMode === 'blank' && prompt) {
+        prompt.disabled = true;
       }
 
       form.classList.add('is-submitting');
       form.setAttribute('aria-busy', 'true');
-      if (submit) {
-        submit.disabled = true;
-        submit.value = submit.getAttribute('data-loading-label') || submit.value;
+      Array.prototype.forEach.call(submitButtons, function (button) {
+        button.disabled = true;
+      });
+      if (submitter) {
+        submitter.textContent = submitter.getAttribute('data-loading-label') || submitter.textContent;
       }
     });
   });

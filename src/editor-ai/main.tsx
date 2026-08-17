@@ -11,6 +11,7 @@ import {
 } from './api';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotIdentity, sleep } from './polling';
 import { clearActiveJob, loadActiveJob, saveActiveJob } from './session';
+import { resolveAiActivityNotification } from '../admin/logic/ai-activity';
 import './style.css';
 
 const AI_TAB_ID = 'kayzart-ai';
@@ -19,6 +20,7 @@ const PREVIEW_ACTION_EVENT = 'kayzart-preview-overlay-action';
 const PREVIEW_ACTION_ID = 'kayzart-ai-edit-context';
 const CONTEXT_SYNC_EVENT = 'kayzart-ai-context-sync';
 const SAVE_EVENT = 'kayzart-editor-saved';
+const AI_ACTIVITY_EVENT = 'kayzart-ai-activity';
 const DEFAULT_MAX_PROMPT_CHARS = 8000;
 const MAX_CONTEXTS = 20;
 const ELEMENTS_PANEL_SELECTOR = '[data-kayzart-panel="elements"]';
@@ -44,6 +46,10 @@ const TERMINAL_INITIAL_REQUEST_CODES = new Set([
   'kayzart_ai_initial_request_terminal',
 ]);
 let promptFocusRequested = false;
+
+function notifyAiActivity(state: 'running' | 'complete' | 'error') {
+  window.dispatchEvent(new CustomEvent(AI_ACTIVITY_EVENT, { detail: { state } }));
+}
 
 function makeId(prefix: string) {
   const value = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -261,6 +267,11 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const [canceling, setCanceling] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const activity = resolveAiActivityNotification(running, error);
+    if (activity) notifyAiActivity(activity);
+  }, [running, error]);
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
@@ -305,6 +316,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const complete = async (status: AiJobStatusResponse, active: ActiveJobRecord) => {
     if (!status.snapshot) { setError(__('AI response is missing its snapshot.', 'kayzart-live-code-editor')); finish(); return; }
     const output = normalizeSnapshot(status.snapshot);
+    notifyAiActivity('complete');
     const current = host()?.getEditorSnapshot?.();
     if (current && sameSnapshotIdentity(current, output)) {
       setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });

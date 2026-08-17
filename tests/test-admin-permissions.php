@@ -218,7 +218,10 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertCount( 1, $created );
 		$created_id = (int) $created[0];
 		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
-		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
+		$this->assertSame(
+			add_query_arg( 'kayzart_entry', 'blank', Post_Type::get_editor_url( $created_id ) ),
+			$location
+		);
 	}
 
 	public function test_action_create_new_page_creates_marked_draft_page_and_redirects_to_editor(): void {
@@ -253,7 +256,10 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( __( 'Untitled landing page', 'kayzart-live-code-editor' ), $created->post_title );
 		$this->assertSame( $admin_id, (int) $created->post_author );
 		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
-		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
+		$this->assertSame(
+			add_query_arg( 'kayzart_entry', 'blank', Post_Type::get_editor_url( $created_id ) ),
+			$location
+		);
 	}
 
 	/**
@@ -449,10 +455,11 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			'post_type'  => Post_Type::PAGE_TYPE,
 			'mode'       => 'normal',
 			'post_title' => 'Autumn campaign',
+			'start_mode' => 'blank',
 			'_wpnonce'   => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
 		);
 
-		$this->capture_redirect(
+		$location = $this->capture_redirect(
 			function () {
 				Admin::action_create_new_page();
 			}
@@ -467,6 +474,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( 'Autumn campaign', get_post( $created_id )->post_title );
 		$this->assertSame( '0', get_post_meta( $created_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '', get_post_meta( $created_id, '_kayzart_setup_required', true ) );
+		$this->assertStringContainsString( 'kayzart_entry=blank', $location );
 	}
 
 	public function test_action_create_new_page_stores_an_initial_ai_request_for_an_ai_editor(): void {
@@ -483,11 +491,12 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$_POST         = array(
 			'post_type'         => Post_Type::PAGE_TYPE,
 			'mode'              => 'normal',
+			'start_mode'        => 'ai',
 			'initial_ai_prompt' => $prompt,
 			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
 		);
 
-		$this->capture_redirect(
+		$location = $this->capture_redirect(
 			function () {
 				Admin::action_create_new_page();
 			}
@@ -503,7 +512,33 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( $prompt, $request['prompt'] );
 		$this->assertSame( $admin_id, $request['userId'] );
 		$this->assertStringStartsWith( 'initial-', $request['requestId'] );
+		$this->assertStringContainsString( 'kayzart_entry=ai', $location );
 		delete_option( 'kayzart_openai_api_key' );
+	}
+
+	public function test_action_create_new_page_blank_mode_does_not_store_an_entered_prompt(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids    = $this->get_page_ids();
+		$original_post = $_POST;
+		$_POST         = array(
+			'post_type'         => Post_Type::PAGE_TYPE,
+			'start_mode'        => 'blank',
+			'initial_ai_prompt' => 'This prompt must be ignored.',
+			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_POST   = $original_post;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$this->assertCount( 1, $created );
+		$this->assertSame( '', get_post_meta( (int) $created[0], Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
 	}
 
 	public function test_action_create_new_page_removes_invalid_utf8_from_initial_ai_request(): void {
@@ -542,6 +577,30 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$_POST   = $original_post;
 
 		$this->assertStringContainsString( 'The initial AI instruction is too large.', $message );
+	}
+
+	public function test_action_create_new_page_requires_a_prompt_for_explicit_ai_mode(): void {
+		Ai_Setup::activate();
+		update_option( 'kayzart_openai_api_key', 'sk-test-create' );
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$original_post = $_POST;
+		$_POST         = array(
+			'post_type'  => Post_Type::PAGE_TYPE,
+			'start_mode' => 'ai',
+			'_wpnonce'   => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+		$_POST = $original_post;
+		delete_option( 'kayzart_openai_api_key' );
+
+		$this->assertStringContainsString( 'Enter an AI instruction', $message );
 	}
 
 	public function test_maybe_skip_convert_screen_redirects_already_managed_posts(): void {

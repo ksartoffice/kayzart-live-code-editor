@@ -516,8 +516,14 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 		$this->assertStringNotContainsString( 'class="form-table"', $output );
-		$this->assertStringContainsString( 'name="start_mode" value="ai" checked=', $output );
+		$this->assertStringContainsString( '<details class="kayzart-create-advanced">', $output );
+		$this->assertStringContainsString( 'class="kayzart-create-advanced__chevron" aria-hidden="true"', $output );
+		$this->assertStringContainsString( 'id="kayzart-generate-ai"', $output );
+		$this->assertStringContainsString( 'name="start_mode" value="ai"', $output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank"', $output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank-hint" hidden="hidden"', $output );
 		$this->assertStringContainsString( 'name="start_mode" value="blank"', $output );
+		$this->assertStringNotContainsString( 'name="start_mode" type="radio"', $output );
 		delete_option( 'kayzart_openai_api_key' );
 
 		$title_position    = strpos( $output, 'name="post_title"' );
@@ -578,6 +584,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_new_page();
 		$unavailable_output = (string) ob_get_clean();
 		$this->assertStringNotContainsString( 'id="kayzart-ai-improve"', $unavailable_output );
+		$this->assertStringNotContainsString( 'id="kayzart-initial-ai-prompt"', $unavailable_output );
+		$this->assertStringNotContainsString( 'id="kayzart-generate-ai"', $unavailable_output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank"', $unavailable_output );
+		$this->assertStringContainsString( __( 'Create blank page', 'kayzart-live-code-editor' ), $unavailable_output );
 
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
@@ -693,7 +703,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
-	public function test_render_settings_page_shows_default_editor_layout_field(): void {
+	public function test_render_settings_page_hides_legacy_default_editor_layout_field(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -704,10 +714,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_settings_page();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( __( 'Default editor layout', 'kayzart-live-code-editor' ), $output );
-		$this->assertStringContainsString( 'name="' . Admin::OPTION_DEFAULT_EDITOR_LAYOUT . '"', $output );
-		$this->assertStringContainsString( 'value="code_visible"', $output );
-		$this->assertStringContainsString( 'value="code_hidden"', $output );
+		$this->assertStringNotContainsString( __( 'Default editor layout', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( 'name="' . Admin::OPTION_DEFAULT_EDITOR_LAYOUT . '"', $output );
 	}
 
 	public function test_render_enabled_post_types_field_mentions_convert_action_for_existing_posts(): void {
@@ -918,7 +926,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_enqueue_assets_inline_config_includes_default_editor_layout(): void {
+	public function test_enqueue_assets_inline_config_includes_layout_migration_data(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 		$post_id = (int) self::factory()->post->create(
@@ -935,6 +943,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$original_get     = $_GET;
 		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+		$_GET['kayzart_entry'] = 'ai';
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
 
@@ -951,7 +960,27 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$payload = json_decode( $matches[1], true );
 		$this->assertIsArray( $payload );
-		$this->assertSame( 'code_hidden', $payload['defaultEditorLayout'] ?? '' );
+		$this->assertSame( 'code_hidden', $payload['legacyCodeVisibilityFallback'] ?? '' );
+		$this->assertArrayNotHasKey( 'defaultEditorLayout', $payload );
+		$this->assertSame( 'ai', $payload['initialEntryMode'] ?? null );
+		$this->assertSame(
+			'kayzart.editorLayout.v1.site.' . get_current_blog_id() . '.user.' . $admin_id,
+			$payload['layoutStorageNamespace'] ?? ''
+		);
+	}
+
+	public function test_legacy_editor_layout_fallback_respects_only_valid_saved_settings(): void {
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' );
+		$this->assertSame( 'code_visible', Admin::get_legacy_editor_layout_fallback() );
+
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
+
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'invalid' );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
+
+		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
 	}
 
 	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {

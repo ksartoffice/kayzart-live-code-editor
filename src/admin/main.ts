@@ -441,6 +441,9 @@ async function main() {
     }
     settingsOpen = open;
     ui.app.classList.toggle('is-settings-open', open);
+    // The closed panel stays in the DOM and is only hidden visually, so mark it
+    // inert to drop its tabs, close button and panel controls from the tab order.
+    ui.settings.toggleAttribute('inert', !open);
     ui.settings.setAttribute('aria-hidden', open ? 'false' : 'true');
     ui.settingsResizer.tabIndex = open && currentLayoutKind === 'desktop' ? 0 : -1;
     ui.settingsResizer.setAttribute(

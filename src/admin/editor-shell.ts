@@ -115,6 +115,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   settings.id = 'kayzart-settings';
   settings.setAttribute('aria-label', __( 'Editor tools', 'kayzart-live-code-editor'));
   settings.setAttribute('aria-hidden', 'true');
+  settings.toggleAttribute('inert', true);
   const settingsInner = el('div', 'kayzart-settingsInner');
   const settingsHeader = el('div', 'kayzart-settingsHeader');
   const settingsBody = el('div', 'kayzart-settingsBody');

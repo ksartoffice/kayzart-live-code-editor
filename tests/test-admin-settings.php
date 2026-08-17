@@ -447,7 +447,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		remove_filter( 'kayzart_ai_sdk_present', $unavailable );
 
-		$this->assertStringContainsString( __( 'AI Client SDK', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'AI connection configured', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( __( 'Action Scheduler', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString(
 			__( 'AI editing is unavailable until every requirement below is met.', 'kayzart-live-code-editor' ),
@@ -458,6 +458,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 	public function test_render_new_page_uses_modern_sections_and_preserves_defaults(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
+		update_option( 'kayzart_openai_api_key', 'sk-test-create-screen' );
 		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, 'post' ) );
 
 		ob_start();
@@ -476,6 +477,9 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 		$this->assertStringNotContainsString( 'class="form-table"', $output );
+		$this->assertStringContainsString( 'name="start_mode" value="ai" checked=', $output );
+		$this->assertStringContainsString( 'name="start_mode" value="blank"', $output );
+		delete_option( 'kayzart_openai_api_key' );
 
 		$title_position    = strpos( $output, 'name="post_title"' );
 		$prompt_position   = strpos( $output, 'name="initial_ai_prompt"' );
@@ -846,9 +850,14 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				'available'           => true,
+				'setupState'          => 'ready',
+				'backend'             => 'wordpress_ai_client',
 				'featureEnabled'      => true,
 				'sdkPresent'          => true,
 				'providerConfigured'  => true,
+				'connectorConfigured' => true,
+				'directKeyConfigured' => false,
+				'directKeySource'     => 'none',
 				'schedulerPresent'    => true,
 				'mbstringPresent'     => true,
 				'domPresent'          => true,
@@ -858,7 +867,9 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'settingsUrl'         => Admin::get_settings_url(),
 				'canManageConnectors' => true,
+				'canManageSettings'   => true,
 				'maxPromptChars'      => Admin::AI_MAX_PROMPT_CHARS_DEFAULT,
 				'initialRequest'      => null,
 			),

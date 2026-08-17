@@ -471,6 +471,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 	public function test_action_create_new_page_stores_an_initial_ai_request_for_an_ai_editor(): void {
 		Ai_Setup::activate();
+		update_option( 'kayzart_openai_api_key', 'sk-test-create' );
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -502,6 +503,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( $prompt, $request['prompt'] );
 		$this->assertSame( $admin_id, $request['userId'] );
 		$this->assertStringStartsWith( 'initial-', $request['requestId'] );
+		delete_option( 'kayzart_openai_api_key' );
 	}
 
 	public function test_action_create_new_page_removes_invalid_utf8_from_initial_ai_request(): void {

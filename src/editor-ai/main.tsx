@@ -221,16 +221,16 @@ function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
   let title: string = __('AI editing is unavailable', 'kayzart-live-code-editor');
   let message: string = __('Ask the site administrator to check the AI configuration.', 'kayzart-live-code-editor');
   if (!ai.featureEnabled) message = __('AI editing has been disabled by site policy.', 'kayzart-live-code-editor');
-  else if (!ai.sdkPresent) message = __('The WordPress AI Client could not be loaded.', 'kayzart-live-code-editor');
   else if (!ai.schedulerPresent) message = __('The background job scheduler could not be loaded.', 'kayzart-live-code-editor');
   else if (!ai.mbstringPresent) message = __('The PHP mbstring extension is required for AI editing.', 'kayzart-live-code-editor');
   else if (!ai.domPresent) message = __('The PHP DOM extension is required for AI editing.', 'kayzart-live-code-editor');
   else if (!ai.providerConfigured) {
     title = __('Connect an AI provider', 'kayzart-live-code-editor');
-    message = ai.canManageConnectors ? __('Connect an AI provider before sending an edit.', 'kayzart-live-code-editor') : __('Ask an administrator to configure an AI provider.', 'kayzart-live-code-editor');
+    message = ai.canManageSettings ? __('Configure a WordPress Connector or add an OpenAI API key before sending an edit.', 'kayzart-live-code-editor') : __('Ask an administrator to configure AI editing.', 'kayzart-live-code-editor');
   }
   return <div className="kayzart-ai-notice" role="status"><strong>{title}</strong><p>{message}</p>
-    {!ai.providerConfigured && ai.canManageConnectors && ai.connectorsUrl ? <a href={ai.connectorsUrl}>{__('Open Connectors', 'kayzart-live-code-editor')}</a> : null}
+	{!ai.providerConfigured && ai.canManageConnectors && ai.connectorsUrl ? <a href={ai.connectorsUrl}>{__('Open Connectors', 'kayzart-live-code-editor')}</a> : null}
+	{!ai.providerConfigured && ai.canManageSettings && ai.settingsUrl ? <a href={ai.settingsUrl}>{__('Open Kayzart AI settings', 'kayzart-live-code-editor')}</a> : null}
   </div>;
 }
 
@@ -718,7 +718,8 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
 }
 
 function registerToolbar() {
-  const action = { id: TOOLBAR_ACTION_ID, label: __('AI Edit', 'kayzart-live-code-editor'), tooltip: __('Edit with AI', 'kayzart-live-code-editor'), order: 10, placement: 'before-settings' as const,
+	const ai = config();
+  const action = { id: TOOLBAR_ACTION_ID, label: ai?.available ? __('AI Edit', 'kayzart-live-code-editor') : __('AI Setup', 'kayzart-live-code-editor'), tooltip: ai?.available ? __('Edit with AI', 'kayzart-live-code-editor') : __('Set up AI editing', 'kayzart-live-code-editor'), order: 10, placement: 'before-settings' as const,
     icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 10 8.5l1.5-6.1a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.5 1.5l6.1 1.5a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.5 1.5l-1.5 6.1a.5.5 0 0 1-1 0z"/></svg>', onClick: () => openAi(false) };
   const register = host()?.registerToolbarAction;
   if (typeof register === 'function') register(action);
@@ -745,6 +746,10 @@ export function initAiEditorIntegration() {
   }
 
   const ai = config();
+	if (ai?.initialRequest) {
+		window.requestAnimationFrame(() => openAi(false));
+		return;
+	}
   const postId = Number(window.KAYZART.post_id || 0);
   if (ai?.timelineUrl && postId > 0) {
     void getTimeline(ai.timelineUrl, window.KAYZART.restNonce || '', postId).then((page) => {

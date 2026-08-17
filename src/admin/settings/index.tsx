@@ -65,6 +65,7 @@ type SettingsConfig = {
   elementsApi?: ElementPanelApi;
   onApiReady?: (api: SettingsApi) => void;
   aiEnabled: boolean;
+	initialTab?: string;
 };
 
 type SettingsTab = string;
@@ -114,6 +115,7 @@ function SettingsSidebar({
   elementsApi,
   onApiReady,
   aiEnabled,
+	initialTab,
   apiFetch,
   revisionsRestUrl,
   revisionsSupported,
@@ -125,7 +127,9 @@ function SettingsSidebar({
 }: SettingsConfig) {
   const settingsRef = useRef<SettingsData>({ ...data });
   const [settings, setSettings] = useState<SettingsData>({ ...data });
-  const [activeTab, setActiveTab] = useState<SettingsTab>(aiEnabled ? 'kayzart-ai' : 'elements');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+	initialTab || (aiEnabled ? 'kayzart-ai' : 'elements')
+  );
   const [externalTabs, setExternalTabs] = useState<ResolvedExternalSettingsTab[]>(() =>
     getExternalSettingsTabs()
   );

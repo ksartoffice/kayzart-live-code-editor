@@ -25,6 +25,7 @@ class Ai_Job_Store {
 	private const IDEMPOTENCY_IGNORED_PAYLOAD_KEYS = array(
 		'recentEditContext',
 		'modelPreference',
+		'providerMode',
 		'maxAgentTurns',
 		'canEditHead',
 		// Derived from the initial-request meta, which a retry has already consumed,

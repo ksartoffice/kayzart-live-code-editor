@@ -126,7 +126,7 @@ class Ai_Worker {
 		}
 
 		try {
-			$client = apply_filters( 'kayzart_ai_client', new Ai_Client_Wp(), $job );
+			$client = apply_filters( 'kayzart_ai_client', Ai_Client_Factory::for_job( $job ), $job );
 			if ( ! $client instanceof Ai_Client_Interface ) {
 				throw new Ai_Client_Exception( 'The kayzart_ai_client filter must return an Ai_Client_Interface implementation.', false );
 			}
@@ -232,7 +232,7 @@ class Ai_Worker {
 				self::finish_job_actions( $job_uuid );
 				return;
 			}
-			$client = apply_filters( 'kayzart_ai_client', new Ai_Client_Wp(), $job );
+			$client = apply_filters( 'kayzart_ai_client', Ai_Client_Factory::for_job( $job ), $job );
 			if ( ! $client instanceof Ai_Client_Interface ) {
 				throw new Ai_Client_Exception( 'The kayzart_ai_client filter must return an Ai_Client_Interface implementation.', false );
 			}

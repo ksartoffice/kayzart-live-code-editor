@@ -36,14 +36,36 @@ class Test_Kayzart_Ai_Availability extends WP_UnitTestCase {
 				'feature_enabled'     => true,
 				'sdk_present'         => true,
 				'provider_configured' => true,
+				'connector_configured'=> true,
+				'direct_key_configured' => false,
+				'direct_key_source'   => 'none',
+				'backend'             => 'wordpress_ai_client',
 				'scheduler_present'   => true,
 				'mbstring_present'    => true,
 				'dom_present'         => true,
+				'setup_state'         => 'ready',
 				'available'           => true,
 			),
 			Ai_Availability::get_status()
 		);
 		$this->assertTrue( Ai_Availability::is_available() );
+	}
+
+	/** A direct key makes AI available without the WordPress AI Client. */
+	public function test_direct_openai_key_supports_sites_without_the_sdk(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-direct' );
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		$status = Ai_Availability::get_status();
+		$this->assertTrue( $status['available'] );
+		$this->assertSame( 'openai_direct', $status['backend'] );
+		$this->assertSame( 'database', $status['direct_key_source'] );
+		delete_option( 'kayzart_openai_api_key' );
 	}
 
 	/**

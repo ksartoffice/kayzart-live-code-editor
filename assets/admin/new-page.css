@@ -70,6 +70,40 @@
     0 2px 8px rgba(16, 24, 40, 0.04);
 }
 
+.kayzart-create-start,
+.kayzart-ai-setup-card {
+  margin: 0;
+  padding: 18px 26px;
+  border: 0;
+  border-bottom: 1px solid #eaecf0;
+  background: #fff;
+}
+
+.kayzart-create-start > legend {
+  margin-bottom: 8px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.kayzart-create-options--start {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kayzart-ai-setup-card {
+  background: #fffbeb;
+  color: #344054;
+}
+
+.kayzart-ai-setup-card strong {
+  color: #101828;
+  font-size: 15px;
+}
+
+.kayzart-ai-setup-card p {
+  margin: 5px 0 10px;
+}
+
 .kayzart-create-section {
   padding: 18px 26px;
   border-bottom: 1px solid #eaecf0;
@@ -560,11 +594,14 @@
   }
 
   .kayzart-create-section,
+	.kayzart-create-start,
+	.kayzart-ai-setup-card,
   .kayzart-create-form__footer {
     padding: 18px 16px;
   }
 
   .kayzart-create-settings,
+	.kayzart-create-options--start,
   .kayzart-create-options--post-type,
   .kayzart-create-options--mode {
     grid-template-columns: 1fr;

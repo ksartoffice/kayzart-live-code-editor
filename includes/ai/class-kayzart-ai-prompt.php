@@ -67,6 +67,10 @@ class Ai_Prompt {
 	 * The security rules and the shared output constraints are common to both so
 	 * they can never drift apart.
 	 *
+	 * The typography rules are create-only. They decide the visual direction of a
+	 * whole page, which is the page author's call to make once at generation time
+	 * and not something a later edit request should have overruled for it.
+	 *
 	 * The default keeps this callable with no argument, which Ai_Models relies on
 	 * when probing provider capabilities.
 	 *
@@ -78,6 +82,7 @@ class Ai_Prompt {
 		$parts  = array(
 			self::INTENT_CREATE === $intent ? self::creation_rules() : self::editing_rules(),
 			self::editor_mode_rules( $intent, $editor_mode ),
+			self::INTENT_CREATE === $intent ? self::typography_first_rules() : '',
 			self::security_rules(),
 			self::common_output_rules(),
 		);
@@ -200,6 +205,50 @@ PROMPT;
 		}
 
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * The visual direction for a newly authored page.
+	 *
+	 * A generated page has no image source at all: Ai_Output_Policy rejects
+	 * every absolute src and no media tool exists. Unguided, the model reaches
+	 * for the layout it has seen most -- a hero built around a photograph --
+	 * and then has to fill the hole it just made. Every way it does that is
+	 * worse than not making the hole: an invented src renders as a broken-image
+	 * icon, a subject drawn from gradients and border-radius never reaches
+	 * production quality, and a reserved empty box reads as a page still
+	 * waiting for its assets.
+	 *
+	 * So the direction is set before the layout is chosen rather than patched
+	 * afterwards. A page whose hierarchy is carried by type, scale and space is
+	 * a legitimate design that publishes as-is; it is not a page missing its
+	 * photographs. The hero gets the most explicit treatment because it is
+	 * where the image-led habit is strongest.
+	 *
+	 * Create-only. An edit request works on a page whose direction is already
+	 * decided -- often one with real uploaded images in it -- and has no
+	 * business imposing this on it.
+	 *
+	 * @return string
+	 */
+	private static function typography_first_rules(): string {
+		$prompt = <<<'PROMPT'
+Typography-first design rules:
+- This page has no image source. Absolute src values are rejected on save and no media tool exists, so the page is typography-led by design. Treat that as the chosen direction, not as a missing asset to work around.
+- Type is the artwork. Carry the page with typographic scale, weight contrast, letter-spacing, measure, rules, and whitespace. Decide the layout from the type, never from where a photograph would have gone.
+- The hero is the strongest instance of this rule, not an exception to it:
+  - Set the headline at display scale, for example clamp(2.75rem, 7vw, 6rem), with tight leading around 1.02-1.12 and slightly negative letter-spacing.
+  - Break the headline across lines deliberately and let one word or phrase carry the emphasis through size, weight, colour, or italic. Never through a graphic.
+  - Support it with a single short deck sentence at a much smaller size, one clear primary call to action, and a lot of space. The space is the composition.
+  - Prefer a full-bleed or centred single-column hero. Use a two-column hero only when the second column holds real content such as copy, a list, a stat block, or a form, never an empty slot where a picture would go.
+- Never write an <img>. There is no src to give it, and an empty, placeholder, or invented src renders as a broken-image icon.
+- Never depict a real-world subject (product, food, person, animal, building, logo, landscape) with CSS shapes, gradients, or border-radius tricks. A drawn approximation of a photograph never reaches production quality.
+- Never reserve a gap for an image that will not arrive: no empty aspect-ratio box, no dashed wireframe, no "image here" caption, no figure standing in for a photograph.
+- Non-typographic elements are allowed as ground, never as subject: flat colour fields, one soft background gradient, hairline rules and dividers, a visible grid structure, and oversized numerals or single glyphs used as type.
+- Vary the rhythm between sections through type: alternate scale, alignment, measure, and background weight so no two sections read alike. That variation is what carries the visual interest imagery would otherwise provide.
+PROMPT;
+
+		return $prompt;
 	}
 
 	/**
@@ -388,6 +437,10 @@ PROMPT;
 	 * wrong in the restrictive direction would tell an administrator not to use
 	 * SVG, which silently costs them output quality for no reason.
 	 *
+	 * The <picture> line is withheld on create because the typography-first
+	 * rules ban <img> outright there. Telling the model to fall back to a plain
+	 * <img> in the same prompt reads as permission to write one.
+	 *
 	 * @param array $payload Request payload.
 	 * @return string|null Policy text, or null when the user's HTML is unfiltered.
 	 */
@@ -396,19 +449,22 @@ PROMPT;
 			return null;
 		}
 
-		return implode(
-			"\n",
-			array(
-				'Markup restrictions for this request:',
-				"- This user's saved HTML is filtered. The elements below are removed or altered on save, silently and after your job reports success.",
-				'- <svg> and its children are deleted entirely. Use a text glyph, a CSS-drawn shape, or an <img> instead of inline SVG.',
-				'- <picture> and <source> are dropped; only the inner <img> survives. Write a plain <img> with its src, alt, width and height.',
-				'- <style> is removed but its text is not: the CSS becomes visible body text on the page. Never write a <style> element; put all CSS in the CSS tab.',
-				'- <template> is unwrapped, so anything you hide inside it becomes visible. Do not use it.',
-				'- <script> is rejected outright by the edit tools and removed on save. Do not write one.',
-				'- These survive and are the tools to use: <main>, <section>, <article>, <nav>, <aside>, <figure>, <dl>, and all data-* and aria-* attributes.',
-			)
+		$lines = array(
+			'Markup restrictions for this request:',
+			"- This user's saved HTML is filtered. The elements below are removed or altered on save, silently and after your job reports success.",
+			'- <svg> and its children are deleted entirely. Use a text glyph or a CSS-drawn abstract shape instead of inline SVG. Never use one to depict a real-world subject.',
 		);
+
+		if ( self::INTENT_CREATE !== self::resolve_intent( $payload ) ) {
+			$lines[] = '- <picture> and <source> are dropped; only the inner <img> survives. Write a plain <img> with its src, alt, width and height.';
+		}
+
+		$lines[] = '- <style> is removed but its text is not: the CSS becomes visible body text on the page. Never write a <style> element; put all CSS in the CSS tab.';
+		$lines[] = '- <template> is unwrapped, so anything you hide inside it becomes visible. Do not use it.';
+		$lines[] = '- <script> is rejected outright by the edit tools and removed on save. Do not write one.';
+		$lines[] = '- These survive and are the tools to use: <main>, <section>, <article>, <nav>, <aside>, <figure>, <dl>, and all data-* and aria-* attributes.';
+
+		return implode( "\n", $lines );
 	}
 
 	/**

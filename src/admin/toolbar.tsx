@@ -512,6 +512,7 @@ function Toolbar({
         </div>
         <div className="kayzart-toolbarCluster kayzart-toolbarCluster-divider">
           <button
+            id="kayzart-editor-toggle"
             className="kayzart-btn kayzart-btn-icon"
             type="button"
             onClick={onToggleEditor}

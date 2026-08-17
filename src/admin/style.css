@@ -588,7 +588,9 @@ body.admin_page_kayzart #wpbody-content {
   flex-direction: column;
   min-width: 360px;
   background: #181b22;
-  transition: width 0.25s ease, flex-basis 0.25s ease, transform 0.25s ease, opacity 0.2s ease;
+  visibility: visible;
+  transition: width 0.25s ease, flex-basis 0.25s ease, transform 0.25s ease, opacity 0.2s ease,
+    visibility 0s;
 }
 
 .kayzart-app.is-compact-editors .kayzart-left {
@@ -602,6 +604,11 @@ body.admin_page_kayzart #wpbody-content {
   opacity: 0;
   pointer-events: none;
   min-width: 0;
+  /* visibility is delayed until the collapse transition ends so the pane stays
+     painted while it animates out, then leaves the tab order (inert fallback). */
+  visibility: hidden;
+  transition: width 0.25s ease, flex-basis 0.25s ease, transform 0.25s ease, opacity 0.2s ease,
+    visibility 0s linear 0.25s;
 }
 
 .kayzart-resizer {

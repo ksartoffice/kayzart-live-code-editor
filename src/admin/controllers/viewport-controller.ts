@@ -117,6 +117,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     setSettingsWidth(deps.initialSettingsWidth);
   }
   deps.ui.app.classList.toggle('is-editor-collapsed', editorCollapsed);
+  deps.ui.left.toggleAttribute('inert', editorCollapsed);
   deps.ui.left.setAttribute('aria-hidden', editorCollapsed ? 'true' : 'false');
   if (editorCollapsed) {
     deps.ui.left.style.width = '0px';
@@ -279,8 +280,17 @@ export function createViewportController(deps: ViewportControllerDeps) {
   };
 
   const setEditorCollapsed = (collapsed: boolean) => {
+    if (collapsed && deps.ui.left.contains(document.activeElement)) {
+      // Marking an ancestor inert blurs the active element, so hand focus back
+      // to the toggle instead of dropping the keyboard user on <body>.
+      document.getElementById('kayzart-editor-toggle')?.focus();
+    }
     editorCollapsed = collapsed;
     deps.ui.app.classList.toggle('is-editor-collapsed', collapsed);
+    // The collapsed pane keeps its editors in the DOM and is only hidden
+    // visually, so mark it inert to drop its tabs, CodeMirror inputs and
+    // actions from the tab order.
+    deps.ui.left.toggleAttribute('inert', collapsed);
     deps.ui.left.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
     deps.onEditorCollapsedChange?.(collapsed);
     if (collapsed) {

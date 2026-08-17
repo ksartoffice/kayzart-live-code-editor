@@ -58,10 +58,21 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 	/** Requests and responses are mapped without changing provider semantics. */
 	public function test_generate_maps_responses_request_and_normalizes_result(): void {
 		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
-		$captured = array();
+		$captured       = array();
+		$reasoning_item = array(
+			'type'              => 'reasoning',
+			'id'                => 'rs_1',
+			'summary'           => array(
+				array(
+					'type' => 'summary_text',
+					'text' => 'Need an edit.',
+				),
+			),
+			'encrypted_content' => 'encrypted-reasoning',
+		);
 		add_filter(
 			'pre_http_request',
-			static function ( $preempt, $args, $url ) use ( &$captured ) {
+			static function ( $preempt, $args, $url ) use ( &$captured, $reasoning_item ) {
 				unset( $preempt );
 				$captured = array(
 					'args' => $args,
@@ -73,6 +84,7 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 						array(
 							'model'  => 'gpt-5.6-luna-2026-08-01',
 							'output' => array(
+								$reasoning_item,
 								array(
 									'type'      => 'function_call',
 									'call_id'   => 'call-1',
@@ -128,8 +140,171 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'reasoning', $body );
 		$this->assertSame( 'function_call_output', $body['input'][2]['type'] );
 		$this->assertSame( 'replace_string', $result['toolCalls'][0]['name'] );
+		$this->assertSame( $reasoning_item, $result['providerData']['openai']['outputItems'][0] );
+		$this->assertSame( 'function_call', $result['providerData']['openai']['outputItems'][1]['type'] );
 		$this->assertSame( 5, $result['usage']['cachedInputTokens'] );
 		$this->assertSame( 3, $result['usage']['reasoningOutputTokens'] );
+	}
+
+	/** Provider output items are replayed verbatim before matching tool outputs. */
+	public function test_reasoning_items_are_replayed_in_order_without_duplicate_calls(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
+		$requests = array();
+		$output   = array(
+			array(
+				'type'              => 'reasoning',
+				'id'                => 'rs_1',
+				'summary'           => array(
+					array(
+						'type' => 'summary_text',
+						'text' => 'Inspect both files.',
+					),
+				),
+				'encrypted_content' => 'opaque-one',
+			),
+			array(
+				'type'      => 'function_call',
+				'id'        => 'fc_1',
+				'call_id'   => 'call-1',
+				'name'      => 'read_document',
+				'arguments' => '{"target":"html"}',
+			),
+			array(
+				'type'              => 'reasoning',
+				'id'                => 'rs_2',
+				'summary'           => array(),
+				'encrypted_content' => 'opaque-two',
+			),
+			array(
+				'type'      => 'function_call',
+				'id'        => 'fc_2',
+				'call_id'   => 'call-2',
+				'name'      => 'read_document',
+				'arguments' => '{"target":"css"}',
+			),
+		);
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $args ) use ( &$requests, $output ) {
+				unset( $preempt );
+				$requests[]      = json_decode( $args['body'], true );
+				$response_output = 1 === count( $requests ) ? $output : array(
+					array(
+						'type'    => 'message',
+						'role'    => 'assistant',
+						'content' => array(
+							array(
+								'type' => 'output_text',
+								'text' => 'Done.',
+							),
+						),
+					),
+				);
+				return array(
+					'headers'  => array(),
+					'body'     => wp_json_encode( array( 'output' => $response_output ) ),
+					'response' => array(
+						'code'    => 200,
+						'message' => 'OK',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			},
+			10,
+			2
+		);
+
+		$client = new Ai_Client_OpenAI();
+		$first  = $client->generate( array( Ai_Message::user( 'Inspect.' ) ), array() );
+		$client->generate(
+			array(
+				Ai_Message::user( 'Inspect.' ),
+				Ai_Message::assistant( $first['text'], $first['toolCalls'], $first['providerData'] ),
+				Ai_Message::tool(
+					array(
+						Ai_Message::tool_response( 'call-1', 'read_document', array( 'content' => '<main />' ) ),
+						Ai_Message::tool_response( 'call-2', 'read_document', array( 'content' => 'body{}' ) ),
+					)
+				),
+			),
+			array()
+		);
+
+		$second_input = $requests[1]['input'];
+		$this->assertSame(
+			array( 'user', 'reasoning', 'function_call', 'reasoning', 'function_call', 'function_call_output', 'function_call_output' ),
+			array_map(
+				static function ( $item ) {
+					return $item['type'] ?? $item['role'];
+				},
+				$second_input
+			)
+		);
+		$this->assertSame( $output, array_slice( $second_input, 1, 4 ) );
+		$this->assertSame(
+			array( 'call-1', 'call-2' ),
+			array_column(
+				array_values(
+					array_filter(
+						$second_input,
+						static function ( $item ) {
+							return 'function_call' === ( $item['type'] ?? '' );
+						}
+					)
+				),
+				'call_id'
+			)
+		);
+	}
+
+	/** Invalid provider data falls back to provider-neutral tool-call mapping. */
+	public function test_invalid_provider_data_falls_back_to_reconstructed_calls(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
+		$captured = array();
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $args ) use ( &$captured ) {
+				unset( $preempt );
+				$captured = json_decode( $args['body'], true );
+				return array(
+					'headers'  => array(),
+					'body'     => '{"output":[]}',
+					'response' => array(
+						'code'    => 200,
+						'message' => 'OK',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			},
+			10,
+			2
+		);
+
+		( new Ai_Client_OpenAI() )->generate(
+			array(
+				Ai_Message::assistant(
+					'',
+					array( Ai_Message::tool_call( 'call-expected', 'read_document', array( 'target' => 'html' ) ) ),
+					array(
+						'openai' => array(
+							'outputItems' => array(
+								array(
+									'type' => 'reasoning',
+									'id'   => 'rs_only',
+								),
+							),
+						),
+					)
+				),
+				Ai_Message::tool( array( Ai_Message::tool_response( 'call-expected', 'read_document', array( 'content' => 'x' ) ) ) ),
+			),
+			array()
+		);
+
+		$this->assertSame( array( 'function_call', 'function_call_output' ), array_column( $captured['input'], 'type' ) );
+		$this->assertSame( 'call-expected', $captured['input'][0]['call_id'] );
 	}
 
 	/** Rate limits are marked retryable for the worker retry policy. */

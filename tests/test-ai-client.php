@@ -38,6 +38,20 @@ class Test_Kayzart_Ai_Client extends WP_UnitTestCase {
 			)
 		);
 
+		$provider_data = array(
+			'openai' => array(
+				'outputItems' => array(
+					array(
+						'type' => 'reasoning',
+						'id'   => 'rs_1',
+					),
+				),
+			),
+		);
+		$this->assertSame(
+			$provider_data,
+			Ai_Message::assistant( '', array(), $provider_data )['providerData']
+		);
 		$this->assertSame(
 			array(
 				'role'          => 'tool',
@@ -59,18 +73,25 @@ class Test_Kayzart_Ai_Client extends WP_UnitTestCase {
 	 * The fake returns queued results in order and records calls.
 	 */
 	public function test_fake_returns_queued_results_in_order(): void {
-		$fake = new Ai_Client_Fake();
-		$fake->queue_tool_calls( array( Ai_Message::tool_call( 'c1', 'search_text', array( 'query' => 'x' ) ) ) );
+		$fake          = new Ai_Client_Fake();
+		$provider_data = array( 'openai' => array( 'outputItems' => array( array( 'type' => 'reasoning' ) ) ) );
+		$fake->queue_result(
+			array(
+				'toolCalls'    => array( Ai_Message::tool_call( 'c1', 'search_text', array( 'query' => 'x' ) ) ),
+				'providerData' => $provider_data,
+			)
+		);
 		$fake->queue_final_text( 'done' );
-
 		$first = $fake->generate( array(), array( 'tool' ), array( 'systemInstruction' => 'sys' ) );
 		$this->assertCount( 1, $first['toolCalls'] );
 		$this->assertSame( 'search_text', $first['toolCalls'][0]['name'] );
 		$this->assertSame( '', $first['text'] );
+		$this->assertSame( $provider_data, $first['providerData'] );
 
 		$second = $fake->generate( array(), array() );
 		$this->assertSame( 'done', $second['text'] );
 		$this->assertSame( array(), $second['toolCalls'] );
+		$this->assertArrayNotHasKey( 'providerData', $second );
 
 		$calls = $fake->calls();
 		$this->assertCount( 2, $calls );

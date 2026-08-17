@@ -97,7 +97,14 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 			if ( ! is_array( $message ) ) {
 				continue;
 			}
-			$role = isset( $message['role'] ) ? (string) $message['role'] : '';
+			$role                = isset( $message['role'] ) ? (string) $message['role'] : '';
+			$openai_output_items = $this->get_openai_output_items( $message );
+			if ( ! empty( $openai_output_items ) ) {
+				foreach ( $openai_output_items as $output_item ) {
+					$input[] = $output_item;
+				}
+				continue;
+			}
 			$text = isset( $message['text'] ) ? (string) $message['text'] : '';
 			if ( in_array( $role, array( Ai_Message::ROLE_USER, Ai_Message::ROLE_ASSISTANT, Ai_Message::ROLE_SYSTEM ), true ) && '' !== $text ) {
 				$input[] = array(
@@ -133,6 +140,52 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 	}
 
 	/**
+	 * Read validated OpenAI output items from an assistant message.
+	 *
+	 * The items are replayed verbatim only when they contain every normalized
+	 * function call on the message. Otherwise the provider-neutral mapping is
+	 * used, which keeps old checkpoints and malformed data usable.
+	 *
+	 * @param array $message Normalized conversation message.
+	 * @return array Valid output items, or an empty array for fallback mapping.
+	 */
+	private function get_openai_output_items( array $message ): array {
+		if ( Ai_Message::ROLE_ASSISTANT !== ( $message['role'] ?? '' ) || empty( $message['toolCalls'] ) || ! is_array( $message['toolCalls'] ) ) {
+			return array();
+		}
+		if ( empty( $message['providerData']['openai']['outputItems'] ) || ! is_array( $message['providerData']['openai']['outputItems'] ) ) {
+			return array();
+		}
+
+		$expected_calls = array();
+		foreach ( $message['toolCalls'] as $call ) {
+			if ( ! is_array( $call ) || empty( $call['id'] ) || empty( $call['name'] ) || isset( $expected_calls[ (string) $call['id'] ] ) ) {
+				return array();
+			}
+			$expected_calls[ (string) $call['id'] ] = (string) $call['name'];
+		}
+
+		$output_items   = array_values( $message['providerData']['openai']['outputItems'] );
+		$returned_calls = array();
+		foreach ( $output_items as $item ) {
+			if ( ! is_array( $item ) || empty( $item['type'] ) || ! is_string( $item['type'] ) ) {
+				return array();
+			}
+			if ( 'function_call' === $item['type'] ) {
+				if ( empty( $item['call_id'] ) || empty( $item['name'] ) || isset( $returned_calls[ (string) $item['call_id'] ] ) ) {
+					return array();
+				}
+				$returned_calls[ (string) $item['call_id'] ] = (string) $item['name'];
+			}
+		}
+
+		if ( $expected_calls !== $returned_calls ) {
+			return array();
+		}
+		return $output_items;
+	}
+
+	/**
 	 * Convert Kayzart tool declarations to Responses API function tools.
 	 *
 	 * @param array $tools Kayzart tool declarations.
@@ -164,12 +217,14 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 	 * @return array Normalized generation result.
 	 */
 	private function normalize_response( array $body ): array {
-		$texts = array();
-		$calls = array();
+		$texts        = array();
+		$calls        = array();
+		$output_items = array();
 		foreach ( $body['output'] as $item ) {
 			if ( ! is_array( $item ) ) {
 				continue;
 			}
+			$output_items[] = $item;
 			if ( 'function_call' === ( $item['type'] ?? '' ) ) {
 				$args    = isset( $item['arguments'] ) ? json_decode( (string) $item['arguments'], true ) : array();
 				$calls[] = array(
@@ -186,8 +241,8 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 			}
 		}
 
-		$usage = isset( $body['usage'] ) && is_array( $body['usage'] ) ? $body['usage'] : array();
-		return array(
+		$usage  = isset( $body['usage'] ) && is_array( $body['usage'] ) ? $body['usage'] : array();
+		$result = array(
 			'toolCalls' => $calls,
 			'text'      => trim( implode( "\n", $texts ) ),
 			'usage'     => array(
@@ -198,5 +253,13 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 			),
 			'model'     => isset( $body['model'] ) ? (string) $body['model'] : self::MODEL,
 		);
+		if ( ! empty( $calls ) && ! empty( $output_items ) ) {
+			$result['providerData'] = array(
+				'openai' => array(
+					'outputItems' => $output_items,
+				),
+			);
+		}
+		return $result;
 	}
 }

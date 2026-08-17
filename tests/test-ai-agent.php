@@ -311,11 +311,11 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 	/** Finalization revalidates unsafe content even if a checkpoint is tampered with. */
 	public function test_completed_snapshot_is_revalidated_against_original_input(): void {
-		$fake  = new Ai_Client_Fake();
-		$agent = new Ai_Agent( $fake );
-		$input = $this->payload();
-		$state = $agent->create_state( $input );
-		$state['snapshot']['html'] = '<main>Hello</main><script>alert(1)</script>';
+		$fake                          = new Ai_Client_Fake();
+		$agent                         = new Ai_Agent( $fake );
+		$input                         = $this->payload();
+		$state                         = $agent->create_state( $input );
+		$state['snapshot']['html']     = '<main>Hello</main><script>alert(1)</script>';
 		$state['appliedEditOperation'] = true;
 		$state['finishReady']          = true;
 		$fake->queue_tool_calls( array( $this->finish_call( 'f1', 'Unsafe result.' ) ) );
@@ -811,8 +811,8 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$fake = new Ai_Client_Fake();
 		$fake->queue_tool_calls( array( $this->replace_call( 'c1', 'Hello', 'World' ) ) );
 		$fake->queue_final_text( '{"summary":"ok"}' );
-		$events  = array();
-		$payload = $this->payload();
+		$events                   = array();
+		$payload                  = $this->payload();
 		$payload['maxAgentTurns'] = 20;
 
 		( new Ai_Agent(
@@ -1240,11 +1240,12 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 			'trace_value',
 			array(
 				array(
-					'text'             => 'visible model text',
-					'thoughtSignature' => 'provider-secret',
-					'cursor'           => 'opaque-cursor',
-					'nextCursor'       => 'opaque-next-cursor',
-					'authorization'    => 'Bearer transport-secret',
+					'text'              => 'visible model text',
+					'thoughtSignature'  => 'provider-secret',
+					'encrypted_content' => 'encrypted-provider-secret',
+					'cursor'            => 'opaque-cursor',
+					'nextCursor'        => 'opaque-next-cursor',
+					'authorization'     => 'Bearer transport-secret',
 				),
 				'full',
 			)
@@ -1252,10 +1253,12 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 		$this->assertSame( 'visible model text', $trace['text'] );
 		$this->assertTrue( $trace['thoughtSignature']['opaque'] );
+		$this->assertTrue( $trace['encrypted_content']['opaque'] );
 		$this->assertTrue( $trace['cursor']['opaque'] );
 		$this->assertTrue( $trace['nextCursor']['opaque'] );
 		$this->assertTrue( $trace['authorization']['opaque'] );
 		$this->assertStringNotContainsString( 'provider-secret', wp_json_encode( $trace ) );
+		$this->assertStringNotContainsString( 'encrypted-provider-secret', wp_json_encode( $trace ) );
 	}
 
 	/** Oversized full events fall back to valid preview structures. */
@@ -1284,15 +1287,35 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 
 	/** Checkpoints survive JSON storage and each advance performs one model call. */
 	public function test_stepwise_checkpoint_round_trip_and_single_call_boundary(): void {
-		$fake     = new Ai_Client_Fake(
+		$provider_data = array(
+			'openai' => array(
+				'outputItems' => array(
+					array(
+						'type'              => 'reasoning',
+						'id'                => 'rs_checkpoint',
+						'encrypted_content' => 'opaque-checkpoint',
+					),
+					array(
+						'type'      => 'function_call',
+						'call_id'   => 'r1',
+						'name'      => 'replace_string',
+						'arguments' => '{"target":"html","from":"Hello","to":"World"}',
+					),
+				),
+			),
+		);
+		$fake          = new Ai_Client_Fake(
 			array(
-				array( 'toolCalls' => array( $this->replace_call( 'r1', 'Hello', 'World' ) ) ),
+				array(
+					'toolCalls'    => array( $this->replace_call( 'r1', 'Hello', 'World' ) ),
+					'providerData' => $provider_data,
+				),
 				array( 'text' => 'Done' ),
 				array( 'text' => '{"summary":"Changed the greeting."}' ),
 			)
 		);
-		$observed = array();
-		$agent    = new Ai_Agent(
+		$observed      = array();
+		$agent         = new Ai_Agent(
 			$fake,
 			array(
 				'observeStep' => static function ( array $metrics ) use ( &$observed ) {
@@ -1300,18 +1323,19 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 				},
 			)
 		);
-		$state    = $agent->create_state( $this->payload() );
+		$state         = $agent->create_state( $this->payload() );
 
 		$first = $agent->advance( $this->payload(), $state );
 		$this->assertSame( 'continue', $first['status'] );
 		$this->assertCount( 1, $fake->calls() );
 		$state = json_decode( wp_json_encode( $first['state'] ), true );
+		$this->assertSame( $provider_data, $state['messages'][1]['providerData'] );
 
 		$second = $agent->advance( $this->payload(), $state );
 		$this->assertSame( 'continue', $second['status'] );
 		$this->assertSame( 'finalization', $second['state']['phase'] );
 		$this->assertCount( 2, $fake->calls() );
-
+		$this->assertSame( $provider_data, $fake->calls()[1]['messages'][1]['providerData'] );
 		$third = $agent->advance( $this->payload(), json_decode( wp_json_encode( $second['state'] ), true ) );
 		$this->assertSame( 'completed', $third['status'] );
 		$this->assertSame( '<main>World</main>', $third['result']['snapshot']['html'] );

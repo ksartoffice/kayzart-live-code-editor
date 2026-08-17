@@ -99,6 +99,14 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 	}
 
+	/** An omitted conditional field is distinct from explicitly selecting Auto. */
+	public function test_sanitize_ai_default_model_preserves_stored_value_when_field_is_omitted(): void {
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+
+		$this->assertSame( 'provider/model-a', Admin::sanitize_ai_default_model( null ) );
+		$this->assertSame( '', Admin::sanitize_ai_default_model( '' ) );
+	}
+
 	public function test_sanitize_ai_max_turns_uses_default_and_clamps_to_the_supported_range(): void {
 		$this->assertSame( 15, Admin::sanitize_ai_max_turns( '' ) );
 		$this->assertSame( 15, Admin::sanitize_ai_max_turns( 'invalid' ) );
@@ -164,6 +172,36 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 1, $calls );
 		$this->assertStringContainsString( 'value="provider/model-a"', $output );
 		$this->assertStringContainsString( "selected='selected'", $output );
+	}
+
+	/** Direct OpenAI output carries the inactive Connector preference forward. */
+	public function test_render_ai_default_model_field_preserves_connector_model_for_direct_openai(): void {
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+		update_option( 'kayzart_openai_api_key', 'sk-test-direct-settings' );
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		try {
+			ob_start();
+			Admin::render_ai_default_model_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+			remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+			remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
+			remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+			remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+			remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+		}
+
+		$this->assertStringContainsString( 'type="hidden"', $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_DEFAULT_MODEL . '"', $output );
+		$this->assertStringContainsString( 'value="provider/model-a"', $output );
+		$this->assertStringContainsString( 'Direct OpenAI access uses this fixed model.', $output );
 	}
 
 	public function test_render_ai_max_turns_field_shows_the_configured_value_and_range(): void {

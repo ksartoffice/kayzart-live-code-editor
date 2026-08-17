@@ -1267,11 +1267,17 @@ class Admin {
 	 *
 	 * Only a model currently offered by the SDK is accepted; anything else
 	 * (including a model that vanished from the catalog) falls back to auto.
+	 * An omitted field preserves the stored preference.
 	 *
 	 * @param mixed $value Raw value.
 	 * @return string
 	 */
 	public static function sanitize_ai_default_model( $value ): string {
+		if ( null === $value ) {
+			$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
+			return is_string( $stored ) ? trim( $stored ) : '';
+		}
+
 		$model = is_string( $value ) ? trim( $value ) : '';
 		if ( '' === $model ) {
 			return '';
@@ -1559,15 +1565,16 @@ class Admin {
 	 */
 	public static function render_ai_default_model_field(): void {
 
+		$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
+		$model  = is_string( $stored ) ? trim( $stored ) : '';
 		$status = Ai_Availability::get_status();
 		if ( Ai_Client_Factory::OPENAI === $status['backend'] ) {
+			echo '<input type="hidden" name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '" value="' . esc_attr( $model ) . '" />';
 			echo '<code>' . esc_html( Ai_Client_OpenAI::MODEL ) . '</code>';
 			echo '<p class="description">' . esc_html__( 'Direct OpenAI access uses this fixed model.', 'kayzart-live-code-editor' ) . '</p>';
 			return;
 		}
 		$models = Ai_Models::available_for_text();
-		$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
-		$model  = is_string( $stored ) ? trim( $stored ) : '';
 		$value  = '' === $model ? '' : self::validate_ai_default_model( $model, $models );
 
 		echo '<select name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '">';

@@ -69,6 +69,21 @@ describe('editor layout state', () => {
     expect(localStorage.getItem('kayzart.settingsPanelWidth')).toBeNull();
   });
 
+  it('starts with code hidden when no personal or legacy browser state exists', () => {
+    const state = createEditorLayoutStore({
+      namespace,
+      kind: 'desktop',
+      aiEnabled: true,
+      fallbackEditorCollapsed: true,
+    }).read();
+
+    expect(state).toMatchObject({
+      settingsOpen: false,
+      settingsTab: 'elements',
+      editorCollapsed: true,
+    });
+  });
+
   it('falls back safely for corrupt state and an unavailable AI tab', () => {
     const store = createEditorLayoutStore({
       namespace,

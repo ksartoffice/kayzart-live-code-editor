@@ -98,8 +98,6 @@ if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 add_action(
 	'plugins_loaded',
 	function () {
-
-		\KayzArt\Admin::maybe_record_installed_version();
 		\KayzArt\Ai_Setup::maybe_upgrade();
 		\KayzArt\Ai_Worker::init();
 		\KayzArt\Ai_Editor::init();
@@ -136,8 +134,6 @@ add_action(
  * Plugin activation hook.
  */
 function kayzart_activate() {
-
-	\KayzArt\Admin::activate();
 	\KayzArt\Ai_Setup::activate();
 	\KayzArt\Post_Type::activation();
 }

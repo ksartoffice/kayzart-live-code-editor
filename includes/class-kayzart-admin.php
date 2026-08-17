@@ -36,7 +36,6 @@ class Admin {
 	const OPTION_ENABLED_POST_TYPES    = 'kayzart_enabled_post_types';
 	const OPTION_DEFAULT_TEMPLATE_MODE = 'kayzart_default_template_mode';
 	const OPTION_DEFAULT_EDITOR_LAYOUT = 'kayzart_default_editor_layout';
-	const OPTION_INSTALLED_VERSION     = 'kayzart_installed_version';
 	const OPTION_AI_DEFAULT_MODEL      = 'kayzart_ai_default_model';
 	const OPTION_OPENAI_API_KEY        = 'kayzart_openai_api_key';
 	const OPTION_AI_MAX_TURNS          = 'kayzart_ai_max_turns';
@@ -698,35 +697,6 @@ class Admin {
 		exit;
 	}
 
-	/** Record a fresh activation without overwriting legacy installation evidence. */
-	public static function activate(): void {
-
-		if ( false !== get_option( self::OPTION_INSTALLED_VERSION, false ) ) {
-			return;
-		}
-
-		global $wpdb;
-		$has_legacy_option = false !== get_option( self::OPTION_DEFAULT_EDITOR_LAYOUT, false )
-			|| false !== get_option( self::OPTION_ENABLED_POST_TYPES, false )
-			|| false !== get_option( self::OPTION_DEFAULT_TEMPLATE_MODE, false );
-		$has_legacy_post   = (bool) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s LIMIT 1",
-				Post_Type::ENABLED_META
-			)
-		);
-
-		add_option( self::OPTION_INSTALLED_VERSION, $has_legacy_option || $has_legacy_post ? '2.3.0' : KAYZART_VERSION, '', false );
-	}
-
-	/** Mark an active installation upgraded from a release without a version option. */
-	public static function maybe_record_installed_version(): void {
-
-		if ( false === get_option( self::OPTION_INSTALLED_VERSION, false ) ) {
-			add_option( self::OPTION_INSTALLED_VERSION, '2.3.0', '', false );
-		}
-	}
-
 	/** Resolve the one-time code visibility fallback used before a user preference exists. */
 	public static function get_legacy_editor_layout_fallback(): string {
 
@@ -735,8 +705,7 @@ class Admin {
 			return $stored;
 		}
 
-		$installed_version = (string) get_option( self::OPTION_INSTALLED_VERSION, '2.3.0' );
-		return version_compare( $installed_version, '3.0.0', '<' ) ? 'code_visible' : 'code_hidden';
+		return 'code_hidden';
 	}
 
 	/**

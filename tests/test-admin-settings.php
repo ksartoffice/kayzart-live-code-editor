@@ -28,7 +28,6 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
-		delete_option( Admin::OPTION_INSTALLED_VERSION );
 		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		delete_option( Admin::OPTION_AI_MAX_PROMPT_CHARS );
@@ -970,38 +969,18 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_legacy_editor_layout_fallback_respects_saved_setting_and_install_generation(): void {
+	public function test_legacy_editor_layout_fallback_respects_only_valid_saved_settings(): void {
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' );
+		$this->assertSame( 'code_visible', Admin::get_legacy_editor_layout_fallback() );
+
 		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' );
 		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
 
-		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
-		update_option( Admin::OPTION_INSTALLED_VERSION, '2.3.0' );
-		$this->assertSame( 'code_visible', Admin::get_legacy_editor_layout_fallback() );
-
-		update_option( Admin::OPTION_INSTALLED_VERSION, '3.0.0' );
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'invalid' );
 		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
-	}
 
-	public function test_activation_records_fresh_and_legacy_install_generations(): void {
-		delete_option( Admin::OPTION_INSTALLED_VERSION );
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
-		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
-		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
-
-		Admin::activate();
-		$this->assertSame( KAYZART_VERSION, get_option( Admin::OPTION_INSTALLED_VERSION ) );
-
-		delete_option( Admin::OPTION_INSTALLED_VERSION );
-		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' );
-		Admin::activate();
-		$this->assertSame( '2.3.0', get_option( Admin::OPTION_INSTALLED_VERSION ) );
-	}
-
-	public function test_upgrade_without_generation_marker_is_recorded_as_legacy(): void {
-		delete_option( Admin::OPTION_INSTALLED_VERSION );
-		Admin::maybe_record_installed_version();
-
-		$this->assertSame( '2.3.0', get_option( Admin::OPTION_INSTALLED_VERSION ) );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
 	}
 
 	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {

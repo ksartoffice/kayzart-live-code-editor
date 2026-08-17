@@ -16,6 +16,13 @@ class Ai_OpenAI_Key {
 	const OPTION = 'kayzart_openai_api_key';
 	const NAME   = 'KAYZART_OPENAI_API_KEY';
 
+	/**
+	 * Prevent recursive sanitization while creating the option explicitly.
+	 *
+	 * @var bool
+	 */
+	private static $storing = false;
+
 	/** Return the effective API key. */
 	public static function get(): string {
 		$environment = getenv( self::NAME );
@@ -64,6 +71,10 @@ class Ai_OpenAI_Key {
 	 * @param mixed $value Submitted value.
 	 */
 	public static function sanitize( $value ): string {
+		if ( self::$storing ) {
+			return is_string( $value ) ? $value : '';
+		}
+
 		$current = get_option( self::OPTION, '' );
 		$current = is_string( $current ) ? $current : '';
 		$value   = is_string( $value ) ? trim( wp_unslash( $value ) ) : '';
@@ -76,9 +87,54 @@ class Ai_OpenAI_Key {
 			return $current;
 		}
 
-		if ( false === get_option( self::OPTION, false ) ) {
-			add_option( self::OPTION, $value, '', 'no' );
-		}
+		self::store_without_autoload( $value );
 		return $value;
+	}
+
+	/**
+	 * Create the credential option without autoloading, or migrate an existing row.
+	 *
+	 * The add_option() function is attempted directly instead of using get_option() as an
+	 * existence check because registered setting defaults affect get_option().
+	 *
+	 * @param string $value Validated credential value.
+	 */
+	private static function store_without_autoload( string $value ): void {
+		self::$storing = true;
+		try {
+			if ( add_option( self::OPTION, $value, '', 'no' ) ) {
+				return;
+			}
+
+			if ( function_exists( 'wp_set_option_autoload' ) ) {
+				wp_set_option_autoload( self::OPTION, false );
+				return;
+			}
+
+			self::disable_autoload_legacy();
+		} finally {
+			self::$storing = false;
+		}
+	}
+
+	/** Disable autoload on WordPress versions without wp_set_option_autoload(). */
+	private static function disable_autoload_legacy(): void {
+		global $wpdb;
+
+		$updated = $wpdb->update(
+			$wpdb->options,
+			array( 'autoload' => 'no' ),
+			array( 'option_name' => self::OPTION ),
+			array( '%s' ),
+			array( '%s' )
+		);
+
+		if ( false === $updated || 0 === $updated ) {
+			return;
+		}
+
+		wp_cache_delete( self::OPTION, 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
 	}
 }

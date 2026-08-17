@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-17T07:33:41+02:00\n"
+"POT-Creation-Date: 2026-08-17T07:45:29+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -222,7 +222,7 @@ msgstr ""
 
 #: includes/class-kayzart-admin.php:1031
 #: includes/class-kayzart-admin.php:1032
-#: includes/class-kayzart-admin.php:2010
+#: includes/class-kayzart-admin.php:2014
 #: assets/dist/main.js:1779
 msgid "Settings"
 msgstr ""
@@ -523,7 +523,7 @@ msgid "Example: Create a landing page for a new service with a hero section, fea
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1783
-#: includes/class-kayzart-admin.php:2334
+#: includes/class-kayzart-admin.php:2338
 msgid "Improve with AI"
 msgstr ""
 
@@ -544,7 +544,7 @@ msgid "Undo improvement"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1798
-#: includes/class-kayzart-admin.php:2331
+#: includes/class-kayzart-admin.php:2335
 msgid "characters"
 msgstr ""
 
@@ -566,12 +566,12 @@ msgid "Create as"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1832
-#: includes/class-kayzart-admin.php:1956
+#: includes/class-kayzart-admin.php:1960
 msgid "Mode"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1834
-#: includes/class-kayzart-admin.php:1946
+#: includes/class-kayzart-admin.php:1950
 #: assets/dist/main.js:54
 #: assets/dist/main.js:6512
 msgid "TailwindCSS"
@@ -582,18 +582,18 @@ msgid "Recommended"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1834
-#: includes/class-kayzart-admin.php:1948
+#: includes/class-kayzart-admin.php:1952
 msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1835
-#: includes/class-kayzart-admin.php:1951
+#: includes/class-kayzart-admin.php:1955
 #: assets/dist/main.js:53
 msgid "Normal HTML/CSS"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1835
-#: includes/class-kayzart-admin.php:1952
+#: includes/class-kayzart-admin.php:1956
 msgid "Create the page with standard HTML and CSS."
 msgstr ""
 
@@ -605,86 +605,90 @@ msgstr ""
 msgid "The editor will open after the page is created."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1845
-#: includes/class-kayzart-admin.php:1846
-#: includes/class-kayzart-admin.php:1848
+#: includes/class-kayzart-admin.php:1844
+msgid "Clear the AI instruction to start with a blank page."
+msgstr ""
+
+#: includes/class-kayzart-admin.php:1849
+#: includes/class-kayzart-admin.php:1850
+#: includes/class-kayzart-admin.php:1852
 msgid "Creating…"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1845
+#: includes/class-kayzart-admin.php:1849
 msgid "Start with a blank page"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1846
+#: includes/class-kayzart-admin.php:1850
 msgid "Generate with AI"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1848
+#: includes/class-kayzart-admin.php:1852
 msgid "Create blank page"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1891
+#: includes/class-kayzart-admin.php:1895
 #: includes/class-kayzart-post-type.php:367
 msgid "Start editing with Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1893
+#: includes/class-kayzart-admin.php:1897
 msgid "This page cannot be opened in Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1904
+#: includes/class-kayzart-admin.php:1908
 msgid "Open editor"
 msgstr ""
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:1915
+#: includes/class-kayzart-admin.php:1919
 #, php-format
 msgid "The content editing for \"%s\" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a Kayzart management card instead of the content editor."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1927
+#: includes/class-kayzart-admin.php:1931
 msgid "Convert and edit with Kayzart"
 msgstr ""
 
 #. translators: %s: CSS framework name.
-#: includes/class-kayzart-admin.php:1945
+#: includes/class-kayzart-admin.php:1949
 #, php-format
 msgid "%s (Recommended)"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:1966
+#: includes/class-kayzart-admin.php:1970
 msgid "You can change this later in the editor."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2036
-#: includes/class-kayzart-admin.php:2047
-#: includes/class-kayzart-admin.php:2061
+#: includes/class-kayzart-admin.php:2040
+#: includes/class-kayzart-admin.php:2051
+#: includes/class-kayzart-admin.php:2065
 msgid "基本設定"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2335
+#: includes/class-kayzart-admin.php:2339
 msgid "Improving…"
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2336
+#: includes/class-kayzart-admin.php:2340
 msgid "The instruction was improved. Review it before creating the page."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2337
+#: includes/class-kayzart-admin.php:2341
 msgid "The original instruction was restored."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2338
+#: includes/class-kayzart-admin.php:2342
 msgid "The title or instruction changed, so the AI improvement was canceled. Run it again to use the latest content."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2339
+#: includes/class-kayzart-admin.php:2343
 #: includes/rest/class-kayzart-rest-ai-prompt.php:204
 msgid "The instruction could not be improved. Please try again."
 msgstr ""
 
-#: includes/class-kayzart-admin.php:2413
-#: includes/class-kayzart-admin.php:2421
+#: includes/class-kayzart-admin.php:2417
+#: includes/class-kayzart-admin.php:2425
 #: assets/dist/main.js:2357
 msgid "Posts"
 msgstr ""
@@ -792,7 +796,7 @@ msgstr ""
 
 #: includes/class-kayzart-preview.php:439
 #: assets/dist/main.js:512
-#: assets/dist/main.js:9172
+#: assets/dist/main.js:9181
 msgid "Replace image"
 msgstr ""
 
@@ -1743,10 +1747,10 @@ msgstr ""
 #: assets/dist/main.js:2405
 #: assets/dist/main.js:6951
 #: assets/dist/main.js:6969
-#: assets/dist/main.js:8730
-#: assets/dist/main.js:8748
-#: assets/dist/main.js:8767
+#: assets/dist/main.js:8739
+#: assets/dist/main.js:8757
 #: assets/dist/main.js:8776
+#: assets/dist/main.js:8785
 msgid "Update failed."
 msgstr ""
 
@@ -1777,7 +1781,7 @@ msgid "Cancel"
 msgstr ""
 
 #: assets/dist/main.js:2666
-#: assets/dist/main.js:8461
+#: assets/dist/main.js:8470
 msgid "Save"
 msgstr ""
 
@@ -1861,8 +1865,8 @@ msgstr ""
 #: assets/dist/main.js:2957
 #: assets/dist/main.js:7088
 #: assets/dist/main.js:7096
-#: assets/dist/main.js:8905
-#: assets/dist/main.js:8911
+#: assets/dist/main.js:8914
+#: assets/dist/main.js:8920
 msgid "Format HTML"
 msgstr ""
 
@@ -1873,7 +1877,7 @@ msgstr ""
 
 #: assets/dist/main.js:2961
 #: assets/dist/main.js:2962
-#: assets/dist/main.js:8571
+#: assets/dist/main.js:8580
 msgid "Wrap: Off"
 msgstr ""
 
@@ -1902,7 +1906,7 @@ msgstr ""
 #: assets/dist/main.js:3005
 #: assets/dist/main.js:7083
 #: assets/dist/main.js:7094
-#: assets/dist/main.js:8917
+#: assets/dist/main.js:8926
 msgid "Format CSS"
 msgstr ""
 
@@ -1920,7 +1924,7 @@ msgstr ""
 #: assets/dist/main.js:6338
 #: assets/dist/main.js:6434
 #: assets/dist/main.js:6438
-#: assets/dist/main.js:8446
+#: assets/dist/main.js:8455
 msgid "Save failed."
 msgstr ""
 
@@ -1930,7 +1934,7 @@ msgstr ""
 
 #: assets/dist/main.js:6370
 #: assets/dist/main.js:6401
-#: assets/dist/main.js:8823
+#: assets/dist/main.js:8832
 #, js-format
 msgid "Removed unsupported head tags: %s"
 msgstr ""
@@ -1945,7 +1949,7 @@ msgid "Save error: %s"
 msgstr ""
 
 #: assets/dist/main.js:6481
-#: assets/dist/main.js:8187
+#: assets/dist/main.js:8192
 msgid "Setup failed."
 msgstr ""
 
@@ -2111,136 +2115,136 @@ msgid "Preview markers are still missing after switching template mode. The curr
 msgstr ""
 
 #: assets/dist/main.js:6931
-#: assets/dist/main.js:8715
-#: assets/dist/main.js:8754
+#: assets/dist/main.js:8724
+#: assets/dist/main.js:8763
 msgid "Settings unavailable."
 msgstr ""
 
 #: assets/dist/main.js:7086
 #: assets/dist/main.js:7091
-#: assets/dist/main.js:8923
+#: assets/dist/main.js:8932
 msgid "Format JavaScript"
 msgstr ""
 
-#: assets/dist/main.js:8125
+#: assets/dist/main.js:8126
 msgid "Resize editor tools"
 msgstr ""
 
-#: assets/dist/main.js:8449
+#: assets/dist/main.js:8458
 msgid "Wait for the CSS mode change to finish before saving."
 msgstr ""
 
-#: assets/dist/main.js:8469
+#: assets/dist/main.js:8478
 msgid "Toggle HTML word wrap"
 msgstr ""
 
-#: assets/dist/main.js:8522
+#: assets/dist/main.js:8531
 msgid "Formatted HTML."
 msgstr ""
 
-#: assets/dist/main.js:8523
+#: assets/dist/main.js:8532
 msgid "Could not format HTML."
 msgstr ""
 
-#: assets/dist/main.js:8531
+#: assets/dist/main.js:8540
 msgid "Formatted CSS."
 msgstr ""
 
-#: assets/dist/main.js:8532
+#: assets/dist/main.js:8541
 msgid "Could not format CSS."
 msgstr ""
 
-#: assets/dist/main.js:8540
+#: assets/dist/main.js:8549
 msgid "Formatted JavaScript."
 msgstr ""
 
-#: assets/dist/main.js:8541
+#: assets/dist/main.js:8550
 msgid "Could not format JavaScript."
 msgstr ""
 
-#: assets/dist/main.js:8571
+#: assets/dist/main.js:8580
 msgid "Wrap: On"
 msgstr ""
 
-#: assets/dist/main.js:8797
+#: assets/dist/main.js:8806
 msgid "Loading editor..."
 msgstr ""
 
-#: assets/dist/main.js:8933
+#: assets/dist/main.js:8942
 msgid "You may have unsaved changes."
 msgstr ""
 
-#: assets/dist/main.js:9008
+#: assets/dist/main.js:9017
 msgid "Compiled Tailwind CSS is not available yet. The CSS editor content will be exported instead."
 msgstr ""
 
-#: assets/dist/main.js:9035
+#: assets/dist/main.js:9044
 msgid "Could not copy full HTML to the clipboard."
 msgstr ""
 
-#: assets/dist/main.js:9043
+#: assets/dist/main.js:9052
 msgid "Full HTML copied."
 msgstr ""
 
-#: assets/dist/main.js:9067
+#: assets/dist/main.js:9076
 msgid "HTML download started."
 msgstr ""
 
-#: assets/dist/main.js:9077
+#: assets/dist/main.js:9086
 msgid "Could not find the selected element HTML."
 msgstr ""
 
-#: assets/dist/main.js:9087
+#: assets/dist/main.js:9096
 msgid "Could not copy HTML to the clipboard."
 msgstr ""
 
-#: assets/dist/main.js:9095
+#: assets/dist/main.js:9104
 msgid "Element HTML copied."
 msgstr ""
 
-#: assets/dist/main.js:9106
+#: assets/dist/main.js:9115
 msgid "Could not find the selected element range."
 msgstr ""
 
-#: assets/dist/main.js:9113
+#: assets/dist/main.js:9122
 msgid "Delete the selected element?"
 msgstr ""
 
-#: assets/dist/main.js:9126
+#: assets/dist/main.js:9135
 msgid "Element deleted."
 msgstr ""
 
-#: assets/dist/main.js:9152
-#: assets/dist/main.js:9256
+#: assets/dist/main.js:9161
+#: assets/dist/main.js:9265
 msgid "Media library is unavailable."
 msgstr ""
 
-#: assets/dist/main.js:9161
-#: assets/dist/main.js:9206
+#: assets/dist/main.js:9170
+#: assets/dist/main.js:9215
 msgid "Could not find the selected image source."
 msgstr ""
 
-#: assets/dist/main.js:9170
+#: assets/dist/main.js:9179
 msgid "Select replacement image."
 msgstr ""
 
-#: assets/dist/main.js:9197
-#: assets/dist/main.js:9302
+#: assets/dist/main.js:9206
+#: assets/dist/main.js:9311
 msgid "The selected media has no URL and was not inserted."
 msgstr ""
 
-#: assets/dist/main.js:9214
+#: assets/dist/main.js:9223
 msgid "Image replaced."
 msgstr ""
 
-#: assets/dist/main.js:9265
+#: assets/dist/main.js:9274
 msgid "Select media to insert into HTML."
 msgstr ""
 
-#: assets/dist/main.js:9267
+#: assets/dist/main.js:9276
 msgid "Insert into HTML"
 msgstr ""
 
-#: assets/dist/main.js:9771
+#: assets/dist/main.js:9780
 msgid "Tailwind compile failed. The CSS mode was not changed."
 msgstr ""

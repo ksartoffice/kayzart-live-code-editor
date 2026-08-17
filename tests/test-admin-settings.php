@@ -518,9 +518,11 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 		$this->assertStringNotContainsString( 'class="form-table"', $output );
 		$this->assertStringContainsString( '<details class="kayzart-create-advanced">', $output );
+		$this->assertStringContainsString( 'class="kayzart-create-advanced__chevron" aria-hidden="true"', $output );
 		$this->assertStringContainsString( 'id="kayzart-generate-ai"', $output );
 		$this->assertStringContainsString( 'name="start_mode" value="ai"', $output );
 		$this->assertStringContainsString( 'id="kayzart-create-blank"', $output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank-hint" hidden="hidden"', $output );
 		$this->assertStringContainsString( 'name="start_mode" value="blank"', $output );
 		$this->assertStringNotContainsString( 'name="start_mode" type="radio"', $output );
 		delete_option( 'kayzart_openai_api_key' );

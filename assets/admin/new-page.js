@@ -35,6 +35,8 @@
     var prompt = form.querySelector('#kayzart-initial-ai-prompt');
     var counter = form.querySelector('#kayzart-initial-ai-prompt-count');
     var generateButton = form.querySelector('#kayzart-generate-ai');
+    var blankButton = form.querySelector('#kayzart-create-blank');
+    var blankHint = form.querySelector('#kayzart-create-blank-hint');
     var submitButtons = form.querySelectorAll('button[type="submit"]');
     var title = form.querySelector('#kayzart-create-title');
     var improve = form.querySelector('#kayzart-ai-improve');
@@ -79,6 +81,12 @@
 
       if (generateButton && !form.classList.contains('is-submitting')) {
         generateButton.disabled = !promptIsValid;
+      }
+      if (blankButton && prompt && !form.classList.contains('is-submitting')) {
+        blankButton.disabled = improving || promptChars > 0;
+      }
+      if (blankHint) {
+        blankHint.hidden = promptChars === 0;
       }
       if (improve) {
         improve.disabled = improving || !promptIsValid;
@@ -268,7 +276,11 @@
       var submitter = event.submitter;
       var startMode = submitter && submitter.value === 'ai' ? 'ai' : 'blank';
 
-      if ((startMode === 'ai' && !promptIsValid) || form.classList.contains('is-submitting')) {
+      if (
+        (startMode === 'ai' && !promptIsValid) ||
+        (startMode === 'blank' && prompt && (promptChars > 0 || improving)) ||
+        form.classList.contains('is-submitting')
+      ) {
         event.preventDefault();
         return;
       }

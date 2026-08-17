@@ -1802,7 +1802,7 @@ class Admin {
 		echo '</section>';
 
 		echo '<details class="kayzart-create-advanced">';
-		echo '<summary><span>' . esc_html__( 'Advanced settings', 'kayzart-live-code-editor' ) . '</span><small>' . esc_html__( 'Page type and CSS mode', 'kayzart-live-code-editor' ) . '</small></summary>';
+		echo '<summary><span>' . esc_html__( 'Advanced settings', 'kayzart-live-code-editor' ) . '</span><small>' . esc_html__( 'Page type and CSS mode', 'kayzart-live-code-editor' ) . '</small><span class="kayzart-create-advanced__chevron" aria-hidden="true"></span></summary>';
 		echo '<section class="kayzart-create-section kayzart-create-section--settings" aria-labelledby="kayzart-create-basics-title">';
 		echo '<div class="kayzart-create-section__heading kayzart-create-section__heading--compact">';
 		echo '<div><h2 id="kayzart-create-basics-title">' . esc_html__( 'Basic information', 'kayzart-live-code-editor' ) . '</h2></div>';
@@ -1839,7 +1839,11 @@ class Admin {
 		echo '</section>';
 		echo '</details>';
 		echo '<footer class="kayzart-create-form__footer">';
-		echo '<div><strong>' . esc_html__( 'Ready to create?', 'kayzart-live-code-editor' ) . '</strong><span>' . esc_html__( 'The editor will open after the page is created.', 'kayzart-live-code-editor' ) . '</span></div>';
+		echo '<div><strong>' . esc_html__( 'Ready to create?', 'kayzart-live-code-editor' ) . '</strong><span>' . esc_html__( 'The editor will open after the page is created.', 'kayzart-live-code-editor' ) . '</span>';
+		if ( $ai_is_available ) {
+			echo '<span id="kayzart-create-blank-hint" hidden="hidden">' . esc_html__( 'Clear the AI instruction to start with a blank page.', 'kayzart-live-code-editor' ) . '</span>';
+		}
+		echo '</div>';
 		echo '<div class="kayzart-create-actions">';
 		if ( $ai_is_available ) {
 			echo '<button id="kayzart-create-blank" class="button button-large" type="submit" name="start_mode" value="blank" data-loading-label="' . esc_attr__( 'Creating…', 'kayzart-live-code-editor' ) . '">' . esc_html__( 'Start with a blank page', 'kayzart-live-code-editor' ) . '</button>';

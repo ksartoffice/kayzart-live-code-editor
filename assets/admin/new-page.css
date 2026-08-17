@@ -374,7 +374,11 @@
   padding: 14px 26px;
   color: #344054;
   cursor: pointer;
-  list-style-position: inside;
+  list-style: none;
+}
+
+.kayzart-create-advanced > summary::-webkit-details-marker {
+  display: none;
 }
 
 .kayzart-create-advanced > summary:hover {
@@ -394,6 +398,21 @@
 .kayzart-create-advanced > summary small {
   color: var(--kayzart-muted);
   font-size: 12px;
+}
+
+.kayzart-create-advanced__chevron {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-right: 2px solid #667085;
+  border-bottom: 2px solid #667085;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.kayzart-create-advanced[open] .kayzart-create-advanced__chevron {
+  transform: rotate(225deg);
 }
 
 .kayzart-create-advanced .kayzart-create-section {

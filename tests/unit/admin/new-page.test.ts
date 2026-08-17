@@ -14,6 +14,7 @@ const renderForm = (maxPromptChars = 8000) => {
     '<p id="kayzart-ai-improve-status"></p>',
     '<button id="kayzart-ai-improve-undo" type="button" hidden>Undo improvement</button>',
     '<p id="kayzart-initial-ai-prompt-count"></p>',
+    '<span id="kayzart-create-blank-hint" hidden>Clear the AI instruction to start with a blank page.</span>',
     '<button id="kayzart-create-blank" type="submit" name="start_mode" value="blank" data-loading-label="Creating…">Start with a blank page</button>',
     '<button id="kayzart-generate-ai" type="submit" name="start_mode" value="ai" data-loading-label="Creating…" disabled>Generate with AI</button>',
     '</form>',
@@ -149,24 +150,36 @@ describe('new page form', () => {
     expect(submit.textContent).toBe('Creating…');
   });
 
-  it('allows a blank page without sending an entered AI instruction', () => {
+  it('disables blank-page creation while an AI instruction is present', () => {
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
     const blank = document.querySelector<HTMLButtonElement>('#kayzart-create-blank')!;
     const generate = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
+    const blankHint = document.querySelector<HTMLElement>('#kayzart-create-blank-hint')!;
     const form = document.querySelector<HTMLFormElement>('.kayzart-create-form')!;
 
     prompt.value = 'Ignore this prompt.';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
     expect(generate.disabled).toBe(false);
+    expect(blank.disabled).toBe(true);
+    expect(blankHint.hidden).toBe(false);
     const event = new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter: blank });
     form.dispatchEvent(event);
 
-    expect(event.defaultPrevented).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(prompt.disabled).toBe(false);
+    expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="start_mode"]')).toBeNull();
+    expect(form.classList.contains('is-submitting')).toBe(false);
+
+    prompt.value = '';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(blank.disabled).toBe(false);
+    expect(blankHint.hidden).toBe(true);
+
+    const blankEvent = new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter: blank });
+    form.dispatchEvent(blankEvent);
+    expect(blankEvent.defaultPrevented).toBe(false);
     expect(prompt.disabled).toBe(true);
-    expect(prompt.required).toBe(false);
-    expect(blank.disabled).toBe(true);
-    expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="start_mode"]')?.value)
-      .toBe('blank');
+    expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="start_mode"]')?.value).toBe('blank');
     expect(form.classList.contains('is-submitting')).toBe(true);
   });
 

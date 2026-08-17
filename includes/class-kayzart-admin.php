@@ -51,6 +51,7 @@ class Admin {
 	const REMOVE_OPENAI_KEY_ACTION     = 'kayzart_remove_openai_key';
 	const REMOVE_OPENAI_KEY_NONCE      = 'kayzart_remove_openai_key';
 	const OPTION_CONNECTOR_NOTICE      = 'kayzart_connector_migration_notice_shown';
+	const OPTION_DORMANT_KEY_NOTICE    = 'kayzart_dormant_openai_key_notice_shown';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
 		' ' . "\xE2\x80\xB9" . ' ',
@@ -74,6 +75,7 @@ class Admin {
 		add_action( 'admin_action_' . self::REMOVE_OPENAI_KEY_ACTION, array( __CLASS__, 'action_remove_openai_key' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_duplicated_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_connector_migration_notice' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_dormant_openai_key_notice' ) );
 		add_action( 'update_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_update' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_add' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrite_rules' ), 20 );
@@ -607,6 +609,36 @@ class Admin {
 	}
 
 	/**
+	 * Tell sites once that a stored OpenAI key is no longer being used.
+	 *
+	 * The migration notice above only fires while the direct backend is still
+	 * active, so without this a key left in the database after a Connector is
+	 * configured would sit there unused and unmentioned forever.
+	 */
+	public static function maybe_render_dormant_openai_key_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( get_option( self::OPTION_DORMANT_KEY_NOTICE, false ) ) {
+			return;
+		}
+		// Cheap checks first: the provider probe below is the expensive part.
+		if ( 'database' !== Ai_OpenAI_Key::source() || ! Ai_Availability::is_sdk_present() ) {
+			return;
+		}
+		if ( ! Ai_Availability::is_provider_configured() ) {
+			return;
+		}
+		update_option( self::OPTION_DORMANT_KEY_NOTICE, '1', false );
+		printf(
+			'<div class="notice notice-warning is-dismissible"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
+			esc_html__( 'Kayzart is now using a WordPress Connector, so the OpenAI API key saved in this site\'s database is no longer used. Removing it keeps an unused credential off your site.', 'kayzart-live-code-editor' ),
+			esc_url( self::get_settings_url() ),
+			esc_html__( 'Review the saved key', 'kayzart-live-code-editor' )
+		);
+	}
+
+	/**
 	 * Verify an admin action nonce.
 	 *
 	 * @param string $nonce_action Nonce action.
@@ -1128,13 +1160,17 @@ class Admin {
 			self::SETTINGS_SLUG
 		);
 
-		add_settings_field(
-			self::OPTION_OPENAI_API_KEY,
-			__( 'OpenAI API key', 'kayzart-live-code-editor' ),
-			array( __CLASS__, 'render_openai_api_key_field' ),
-			self::SETTINGS_SLUG,
-			'kayzart_ai'
-		);
+		// The setting itself stays registered unconditionally so sanitization,
+		// removal and uninstall behave the same however the field is presented.
+		if ( self::should_show_direct_openai_field() ) {
+			add_settings_field(
+				self::OPTION_OPENAI_API_KEY,
+				__( 'OpenAI API key', 'kayzart-live-code-editor' ),
+				array( __CLASS__, 'render_openai_api_key_field' ),
+				self::SETTINGS_SLUG,
+				'kayzart_ai'
+			);
+		}
 
 		add_settings_field(
 			self::OPTION_AI_DEFAULT_MODEL,
@@ -1229,6 +1265,42 @@ class Admin {
 	public static function should_show_post_slug_settings(): bool {
 		$slug = self::sanitize_post_slug( get_option( self::OPTION_POST_SLUG, Post_Type::SLUG ) );
 		return Post_Type::SLUG !== $slug;
+	}
+
+	/** Check whether the current request targets the Kayzart settings screen. */
+	private static function is_settings_page_request(): bool {
+		return self::SETTINGS_SLUG === self::read_request_value( 'page' );
+	}
+
+	/**
+	 * Check whether the direct OpenAI credential field belongs on the settings screen.
+	 *
+	 * WordPress 7.0 configures AI providers through Connectors, so the direct field
+	 * is no longer the way in. It is kept only where it is still the site's sole
+	 * route to AI editing, or where a key is already stored and the site owner needs
+	 * a way to review and remove it.
+	 *
+	 * @return bool
+	 */
+	public static function should_show_direct_openai_field(): bool {
+		// register_settings() runs on every admin_init, and get_status() probes the
+		// configured provider, so the decision is only made where the field renders.
+		if ( ! self::is_settings_page_request() ) {
+			return true;
+		}
+
+		$status = Ai_Availability::get_status();
+		$show   = ! $status['sdk_present']
+			|| ! $status['connector_configured']
+			|| 'none' !== $status['direct_key_source'];
+
+		/**
+		 * Filter whether the direct OpenAI API key field is offered.
+		 *
+		 * @param bool                $show   Whether to render the field.
+		 * @param array<string,mixed> $status Current AI availability status.
+		 */
+		return (bool) apply_filters( 'kayzart_ai_show_direct_key_field', $show, $status );
 	}
 
 	/**
@@ -1518,15 +1590,41 @@ class Admin {
 		}
 
 		$configured = 'database' === $source;
+		$status     = Ai_Availability::get_status();
+
+		// With a Connector serving requests this credential is inert, so it is
+		// demoted to a disclosure instead of reading as the way to set AI up.
+		$connector_active = ! empty( $status['sdk_present'] ) && ! empty( $status['connector_configured'] );
+
+		if ( $connector_active && $configured ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'This key is not in use. Kayzart is running AI edits through a WordPress Connector, and removing the saved key keeps an unused credential off your site.', 'kayzart-live-code-editor' ) . '</p></div>';
+		}
+
+		if ( $connector_active ) {
+			echo '<details' . ( $configured ? ' open' : '' ) . '>';
+			echo '<summary>' . esc_html(
+				$configured
+					? __( 'Saved OpenAI API key', 'kayzart-live-code-editor' )
+					: __( 'Advanced: connect directly to OpenAI instead', 'kayzart-live-code-editor' )
+			) . '</summary>';
+		}
+
 		printf(
 			'<input type="password" class="regular-text" name="%1$s" value="" placeholder="%2$s" autocomplete="new-password" spellcheck="false" />',
 			esc_attr( self::OPTION_OPENAI_API_KEY ),
 			esc_attr( $configured ? __( 'Configured — enter a new key to replace it', 'kayzart-live-code-editor' ) : __( 'sk-…', 'kayzart-live-code-editor' ) )
 		);
 		echo '<p class="description">' . esc_html__( 'Used for direct OpenAI access. The key is stored on this site and is never sent to the browser.', 'kayzart-live-code-editor' ) . '</p>';
+		if ( $connector_active ) {
+			echo '<p class="description">' . esc_html__( 'A configured Connector always takes precedence over this key.', 'kayzart-live-code-editor' ) . '</p>';
+		}
 		if ( $configured ) {
 			$url = wp_nonce_url( admin_url( 'admin.php?action=' . self::REMOVE_OPENAI_KEY_ACTION ), self::REMOVE_OPENAI_KEY_NONCE );
 			echo '<p><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Remove saved API key', 'kayzart-live-code-editor' ) . '</a></p>';
+		}
+
+		if ( $connector_active ) {
+			echo '</details>';
 		}
 	}
 	/**
@@ -1638,7 +1736,9 @@ class Admin {
 		$checks = array(
 			'provider_configured' => array(
 				__( 'AI connection configured', 'kayzart-live-code-editor' ),
-				__( 'Configure a WordPress Connector or enter an OpenAI API key below.', 'kayzart-live-code-editor' ),
+				$status['sdk_present']
+					? __( 'Configure a WordPress Connector to give Kayzart an AI provider.', 'kayzart-live-code-editor' )
+					: __( 'Enter an OpenAI API key below.', 'kayzart-live-code-editor' ),
 			),
 			'scheduler_present'   => array(
 				__( 'Action Scheduler', 'kayzart-live-code-editor' ),

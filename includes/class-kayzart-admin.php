@@ -52,6 +52,7 @@ class Admin {
 	const REMOVE_OPENAI_KEY_NONCE      = 'kayzart_remove_openai_key';
 	const OPTION_CONNECTOR_NOTICE      = 'kayzart_connector_migration_notice_shown';
 	const OPTION_DORMANT_KEY_NOTICE    = 'kayzart_dormant_openai_key_notice_shown';
+	const TRANSIENT_AI_BACKEND         = 'kayzart_ai_backend';
 	const HIDDEN_PARENT_SLUG           = 'admin.php';
 	const ADMIN_TITLE_SEPARATORS       = array(
 		' ' . "\xE2\x80\xB9" . ' ',
@@ -76,6 +77,9 @@ class Admin {
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_duplicated_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_connector_migration_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_dormant_openai_key_notice' ) );
+		add_action( 'add_option_' . self::OPTION_OPENAI_API_KEY, array( __CLASS__, 'flush_cached_ai_backend' ) );
+		add_action( 'update_option_' . self::OPTION_OPENAI_API_KEY, array( __CLASS__, 'flush_cached_ai_backend' ) );
+		add_action( 'delete_option_' . self::OPTION_OPENAI_API_KEY, array( __CLASS__, 'flush_cached_ai_backend' ) );
 		add_action( 'update_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_update' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_POST_SLUG, array( __CLASS__, 'handle_post_slug_add' ), 10, 2 );
 		add_action( 'init', array( __CLASS__, 'maybe_flush_rewrite_rules' ), 20 );
@@ -595,8 +599,11 @@ class Admin {
 		if ( get_option( self::OPTION_CONNECTOR_NOTICE, false ) ) {
 			return;
 		}
-		$status = Ai_Availability::get_status();
-		if ( Ai_Client_Factory::OPENAI !== $status['backend'] || 'database' !== $status['direct_key_source'] ) {
+		// Cheap check first: only a key in this database can be migrated away from.
+		if ( 'database' !== Ai_OpenAI_Key::source() ) {
+			return;
+		}
+		if ( Ai_Client_Factory::OPENAI !== self::get_cached_ai_backend() ) {
 			return;
 		}
 		update_option( self::OPTION_CONNECTOR_NOTICE, '1', false );
@@ -622,11 +629,13 @@ class Admin {
 		if ( get_option( self::OPTION_DORMANT_KEY_NOTICE, false ) ) {
 			return;
 		}
-		// Cheap checks first: the provider probe below is the expensive part.
-		if ( 'database' !== Ai_OpenAI_Key::source() || ! Ai_Availability::is_sdk_present() ) {
+		// Cheap checks first: only a key in this database can be removed here, and
+		// only a WordPress 7.0 Connector can displace it.
+		global $wp_version;
+		if ( 'database' !== Ai_OpenAI_Key::source() || version_compare( (string) $wp_version, '7.0', '<' ) ) {
 			return;
 		}
-		if ( ! Ai_Availability::is_provider_configured() ) {
+		if ( Ai_Client_Factory::WORDPRESS !== self::get_cached_ai_backend() ) {
 			return;
 		}
 		update_option( self::OPTION_DORMANT_KEY_NOTICE, '1', false );
@@ -636,6 +645,32 @@ class Admin {
 			esc_url( self::get_settings_url() ),
 			esc_html__( 'Review the saved key', 'kayzart-live-code-editor' )
 		);
+	}
+
+	/**
+	 * Resolve the active AI backend, cached between admin requests.
+	 *
+	 * Backend resolution probes the configured provider. Both notices above run on
+	 * every admin screen and stay silent in states that can persist indefinitely,
+	 * so the probe is bounded rather than repeated on every page load.
+	 *
+	 * @return string One of the Ai_Client_Factory backend constants.
+	 */
+	private static function get_cached_ai_backend(): string {
+		$cached = get_transient( self::TRANSIENT_AI_BACKEND );
+		if ( is_string( $cached ) && '' !== $cached ) {
+			return $cached;
+		}
+
+		$backend = Ai_Client_Factory::resolve_backend();
+		set_transient( self::TRANSIENT_AI_BACKEND, $backend, HOUR_IN_SECONDS );
+
+		return $backend;
+	}
+
+	/** Drop the cached backend when the direct credential changes. */
+	public static function flush_cached_ai_backend(): void {
+		delete_transient( self::TRANSIENT_AI_BACKEND );
 	}
 
 	/**
@@ -1289,9 +1324,11 @@ class Admin {
 			return true;
 		}
 
+		// The selected backend, not raw SDK presence, decides this: a site below
+		// WordPress 7.0 can load the AI Client and still be served by the direct
+		// backend, and hiding the field there would lock AI editing out entirely.
 		$status = Ai_Availability::get_status();
-		$show   = ! $status['sdk_present']
-			|| ! $status['connector_configured']
+		$show   = Ai_Client_Factory::WORDPRESS !== $status['backend']
 			|| 'none' !== $status['direct_key_source'];
 
 		/**
@@ -1592,9 +1629,10 @@ class Admin {
 		$configured = 'database' === $source;
 		$status     = Ai_Availability::get_status();
 
-		// With a Connector serving requests this credential is inert, so it is
-		// demoted to a disclosure instead of reading as the way to set AI up.
-		$connector_active = ! empty( $status['sdk_present'] ) && ! empty( $status['connector_configured'] );
+		// Only a Connector that is actually serving requests makes this credential
+		// inert. A configured Connector below WordPress 7.0 still loses to the
+		// direct backend, and calling the key unused there would be wrong.
+		$connector_active = Ai_Client_Factory::WORDPRESS === $status['backend'];
 
 		if ( $connector_active && $configured ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'This key is not in use. Kayzart is running AI edits through a WordPress Connector, and removing the saved key keeps an unused credential off your site.', 'kayzart-live-code-editor' ) . '</p></div>';

@@ -69,10 +69,53 @@ class Ai_Tailwind_Css_Policy {
 	 * @return array<int,string> Normalized selectors, in source order.
 	 */
 	public static function top_level_selectors( string $css ): array {
-		$length    = strlen( $css );
-		$depth     = 0;
-		$prelude   = '';
-		$selectors = array();
+		$scan = self::scan( $css );
+		return $scan['selectors'];
+	}
+
+	/**
+	 * Whether a stylesheet pulls in the Tailwind entry point for real.
+	 *
+	 * Ai_Css_Imports answers the same question with a regex over the whole
+	 * source. That is right for its own job -- it only ever fires when an edit
+	 * removed an import that was already there, so a false positive costs a
+	 * message about an import the page still has. Here the answer decides
+	 * whether an entire rule set applies to the page, and a false positive would
+	 * reject ordinary CSS on a page that never used Tailwind. The literal text
+	 * inside `content: '@import "tailwindcss"'` is enough to trigger that,
+	 * because the regex does not skip quoted strings.
+	 *
+	 * So this asks the stricter question the decision deserves: is there a live
+	 * top-level `@import` statement, outside any comment, string, or block? That
+	 * is the only position where the compiler honours the entry import anyway.
+	 *
+	 * @param string $css CSS source.
+	 * @return bool
+	 */
+	public static function has_live_tailwind_import( string $css ): bool {
+		foreach ( self::scan( $css )['statements'] as $statement ) {
+			if ( 1 === preg_match( Ai_Css_Imports::TAILWIND_IMPORT_PATTERN, $statement ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Walk a stylesheet once, collecting top-level rules and statements.
+	 *
+	 * Both callers need the same depth-, comment- and string-aware pass, and
+	 * they must agree on what "top level" means, so they share one scanner.
+	 *
+	 * @param string $css CSS source.
+	 * @return array{selectors:array<int,string>,statements:array<int,string>}
+	 */
+	private static function scan( string $css ): array {
+		$length     = strlen( $css );
+		$depth      = 0;
+		$prelude    = '';
+		$selectors  = array();
+		$statements = array();
 
 		for ( $i = 0; $i < $length; $i++ ) {
 			$char = $css[ $i ];
@@ -122,6 +165,10 @@ class Ai_Tailwind_Css_Policy {
 				// A top-level statement such as `@import "tailwindcss";` ends here
 				// and never opens a block, so it must not leak into the next
 				// prelude.
+				$statement = trim( $prelude );
+				if ( '' !== $statement ) {
+					$statements[] = $statement;
+				}
 				$prelude = '';
 				continue;
 			}
@@ -131,7 +178,10 @@ class Ai_Tailwind_Css_Policy {
 			}
 		}
 
-		return $selectors;
+		return array(
+			'selectors'  => $selectors,
+			'statements' => $statements,
+		);
 	}
 
 	/**
@@ -150,7 +200,7 @@ class Ai_Tailwind_Css_Policy {
 		if ( $before === $after ) {
 			return;
 		}
-		if ( ! Ai_Css_Imports::has_tailwind_import( $before ) ) {
+		if ( ! self::has_live_tailwind_import( $before ) ) {
 			return;
 		}
 
@@ -191,14 +241,55 @@ class Ai_Tailwind_Css_Policy {
 	/**
 	 * Reduce a rule prelude to a comparable selector.
 	 *
-	 * Whitespace is collapsed so that reformatting an existing rule does not
-	 * read as a new one.
+	 * The result is only ever used as a comparison key and as message text, so
+	 * it is canonicalized rather than merely tidied. Collapsing whitespace runs
+	 * is not enough on its own: a model that rewrites an existing rule commonly
+	 * respaces its selector on the way past, and `.a,.b` reformatted to
+	 * `.a, .b` would then read as a rule it had just added -- exactly the
+	 * legacy-CSS case this guard promises to stay out of. So the optional space
+	 * around each combinator is dropped too, which makes every spelling of one
+	 * selector compare equal.
+	 *
+	 * Strings are stepped over, so a quoted `>` in an attribute selector is left
+	 * alone. Combinators are canonicalized at any nesting depth, which also
+	 * settles `:not(.a, .b)` against `:not(.a,.b)`.
 	 *
 	 * @param string $prelude Raw text preceding the opening brace.
 	 * @return string
 	 */
 	private static function normalize_selector( string $prelude ): string {
-		return trim( (string) preg_replace( '/\s+/', ' ', $prelude ) );
+		$collapsed = trim( (string) preg_replace( '/\s+/', ' ', $prelude ) );
+		$length    = strlen( $collapsed );
+		$canonical = '';
+
+		for ( $i = 0; $i < $length; $i++ ) {
+			$char = $collapsed[ $i ];
+
+			if ( '\\' === $char ) {
+				$canonical .= substr( $collapsed, $i, 2 );
+				++$i;
+				continue;
+			}
+
+			if ( '"' === $char || "'" === $char ) {
+				$end        = self::skip_string( $collapsed, $i, $char, $length );
+				$canonical .= substr( $collapsed, $i, $end - $i + 1 );
+				$i          = $end;
+				continue;
+			}
+
+			if ( false !== strpos( ',>+~', $char ) ) {
+				$canonical = rtrim( $canonical, ' ' ) . $char;
+				while ( $i + 1 < $length && ' ' === $collapsed[ $i + 1 ] ) {
+					++$i;
+				}
+				continue;
+			}
+
+			$canonical .= $char;
+		}
+
+		return $canonical;
 	}
 
 	/**

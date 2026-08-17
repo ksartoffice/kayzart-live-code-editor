@@ -75,10 +75,20 @@ class Test_Kayzart_Ai_Tailwind_Css_Policy extends WP_UnitTestCase {
 				"@layer components {\n  @media print {\n    .a { color: red; }\n  }\n}\n",
 				array(),
 			),
-			'whitespace is collapsed'   => array(
-				'whitespace is collapsed',
+			'selectors canonicalize'    => array(
+				'selectors canonicalize',
 				"h1,\n  h2   >   span\n{ margin: 0 }\n",
-				array( 'h1, h2 > span' ),
+				array( 'h1,h2>span' ),
+			),
+			'descendant space is kept'  => array(
+				'descendant space is kept',
+				".a .b { margin: 0 }\n",
+				array( '.a .b' ),
+			),
+			'quoted combinator'         => array(
+				'quoted combinator',
+				"[data-x=\"a > b\"] { margin: 0 }\n",
+				array( '[data-x="a > b"]' ),
 			),
 			'commented-out rule'        => array(
 				'commented-out rule',
@@ -177,6 +187,60 @@ class Test_Kayzart_Ai_Tailwind_Css_Policy extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Reformatting a selector while changing its value is not a new rule.
+	 *
+	 * A model rewriting an existing rule commonly respaces the selector on the
+	 * way past. Comparing the raw text would call that an addition and reject
+	 * the edit, which is precisely the legacy-CSS case this guard promises to
+	 * stay out of.
+	 *
+	 * @dataProvider provide_reformatted_selectors
+	 * @param string $label  Case description.
+	 * @param string $before Selector as written before the edit.
+	 * @param string $after  The same selector, respaced.
+	 */
+	public function test_assert_no_adhoc_rules_allows_respacing_a_selector( string $label, string $before, string $after ): void {
+		Ai_Tailwind_Css_Policy::assert_no_adhoc_rules(
+			"@import \"tailwindcss\";\n" . $before . " { color: red }\n",
+			"@import \"tailwindcss\";\n" . $after . " { color: blue }\n"
+		);
+		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * Selector spellings that must compare equal.
+	 *
+	 * @return array<string,array{0:string,1:string,2:string}>
+	 */
+	public function provide_reformatted_selectors(): array {
+		return array(
+			'comma'            => array( 'comma', '.a,.b', '.a, .b' ),
+			'child'            => array( 'child', '.a>.b', '.a > .b' ),
+			'adjacent'         => array( 'adjacent', '.a+.b', '.a + .b' ),
+			'sibling'          => array( 'sibling', '.a~.b', '.a ~ .b' ),
+			'inside :not()'    => array( 'inside :not()', '.a:not(.b,.c)', '.a:not(.b, .c)' ),
+			'wrapped in lines' => array( 'wrapped in lines', '.a, .b, .c', ".a,\n.b,\n.c" ),
+		);
+	}
+
+	/**
+	 * A descendant combinator is a real space and must stay one.
+	 *
+	 * Canonicalizing spacing must not go so far that `.a .b` and `.a.b` become
+	 * the same key, which would let a genuinely new rule through.
+	 */
+	public function test_assert_no_adhoc_rules_distinguishes_descendant_from_compound(): void {
+		$before = "@import \"tailwindcss\";\n.a .b { color: red }\n";
+		$error  = $this->reject(
+			$before,
+			$before . ".a.b { color: blue }\n",
+			'Expected a compound selector to differ from a descendant one.'
+		);
+
+		$this->assertSame( array( '.a.b' ), $error->get_details()['selectors'] );
+	}
+
+	/**
 	 * A plain CSS page never had the entry import, and the tool layer has no
 	 * editor mode to consult. The import gate is what keeps normal mode out of
 	 * this entirely.
@@ -187,6 +251,72 @@ class Test_Kayzart_Ai_Tailwind_Css_Policy extends WP_UnitTestCase {
 			".a { color: red; }\n.b { color: blue; }\n"
 		);
 		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * The entry import counts only where the compiler honours it.
+	 *
+	 * A regex over the whole source matches the literal text inside
+	 * `content: '@import "tailwindcss"'`, which would turn the whole rule set on
+	 * for a page that never used Tailwind and reject its ordinary CSS.
+	 *
+	 * @dataProvider provide_sources_without_a_live_import
+	 * @param string $label Case description.
+	 * @param string $css   CSS source.
+	 */
+	public function test_has_live_tailwind_import_rejects_inert_occurrences( string $label, string $css ): void {
+		$this->assertFalse( Ai_Tailwind_Css_Policy::has_live_tailwind_import( $css ), $label );
+
+		Ai_Tailwind_Css_Policy::assert_no_adhoc_rules( $css, $css . ".added { color: blue; }\n" );
+		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * Sources where the import text appears but means nothing to the compiler.
+	 *
+	 * @return array<string,array{0:string,1:string}>
+	 */
+	public function provide_sources_without_a_live_import(): array {
+		return array(
+			'inside a declaration string' => array(
+				'inside a declaration string',
+				".example::after { content: '@import \"tailwindcss\"'; }\n",
+			),
+			'inside a comment'            => array(
+				'inside a comment',
+				"/* @import \"tailwindcss\"; */\n.a { color: red; }\n",
+			),
+			'nested in a block'           => array(
+				'nested in a block',
+				"@media print {\n  @import \"tailwindcss\";\n}\n.a { color: red; }\n",
+			),
+		);
+	}
+
+	/**
+	 * The ordinary import is still recognised in every quoting form.
+	 *
+	 * @dataProvider provide_sources_with_a_live_import
+	 * @param string $label Case description.
+	 * @param string $css   CSS source.
+	 */
+	public function test_has_live_tailwind_import_accepts_real_imports( string $label, string $css ): void {
+		$this->assertTrue( Ai_Tailwind_Css_Policy::has_live_tailwind_import( $css ), $label );
+	}
+
+	/**
+	 * Sources carrying a live entry import.
+	 *
+	 * @return array<string,array{0:string,1:string}>
+	 */
+	public function provide_sources_with_a_live_import(): array {
+		return array(
+			'double quoted'    => array( 'double quoted', "@import \"tailwindcss\";\n" ),
+			'single quoted'    => array( 'single quoted', "@import 'tailwindcss';\n" ),
+			'url form'         => array( 'url form', "@import url(\"tailwindcss\");\n" ),
+			'after a comment'  => array( 'after a comment', "/* theme */\n@import \"tailwindcss\";\n" ),
+			'the default seed' => array( 'the default seed', self::TAILWIND_DEFAULT_CSS ),
+		);
 	}
 
 	/**

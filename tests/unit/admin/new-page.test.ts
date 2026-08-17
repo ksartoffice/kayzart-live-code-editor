@@ -6,8 +6,6 @@ const newPageScript = readFileSync('assets/admin/new-page.js', 'utf8');
 const renderForm = (maxPromptChars = 8000) => {
   document.body.innerHTML = [
     '<form class="kayzart-create-form">',
-	'<label><input type="radio" name="start_mode" value="ai" checked />Start with AI</label>',
-	'<label><input type="radio" name="start_mode" value="blank" />Start blank</label>',
     '<input id="kayzart-create-title" value="Salon launch" />',
     '<textarea id="kayzart-initial-ai-prompt"></textarea>',
     '<button id="kayzart-ai-improve" type="button" disabled>',
@@ -16,7 +14,8 @@ const renderForm = (maxPromptChars = 8000) => {
     '<p id="kayzart-ai-improve-status"></p>',
     '<button id="kayzart-ai-improve-undo" type="button" hidden>Undo improvement</button>',
     '<p id="kayzart-initial-ai-prompt-count"></p>',
-    '<input id="submit" type="submit" value="Create" data-loading-label="Creating…" />',
+    '<button id="kayzart-create-blank" type="submit" name="start_mode" value="blank" data-loading-label="Creating…">Start with a blank page</button>',
+    '<button id="kayzart-generate-ai" type="submit" name="start_mode" value="ai" data-loading-label="Creating…" disabled>Generate with AI</button>',
     '</form>',
   ].join('');
 
@@ -55,7 +54,7 @@ describe('new page form', () => {
     renderForm(5);
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
     const counter = document.querySelector<HTMLElement>('#kayzart-initial-ai-prompt-count')!;
-    const submit = document.querySelector<HTMLInputElement>('#submit')!;
+    const submit = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
 
     // Six UTF-8 bytes, but only two characters, so this stays within a five-character limit.
     prompt.value = 'あい';
@@ -82,7 +81,7 @@ describe('new page form', () => {
     renderForm(5);
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
     const counter = document.querySelector<HTMLElement>('#kayzart-initial-ai-prompt-count')!;
-    const submit = document.querySelector<HTMLInputElement>('#submit')!;
+    const submit = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
     const improve = document.querySelector<HTMLButtonElement>('#kayzart-ai-improve')!;
 
     prompt.value = 'あいうえおか';
@@ -136,33 +135,40 @@ describe('new page form', () => {
   it('locks the form and changes the button label after a valid submit', () => {
     const form = document.querySelector<HTMLFormElement>('.kayzart-create-form')!;
     const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
-    const submit = document.querySelector<HTMLInputElement>('#submit')!;
+    const submit = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
 
     prompt.value = 'hello';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
-    const event = new Event('submit', { bubbles: true, cancelable: true });
+    const event = new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter: submit });
     form.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(false);
     expect(form.classList.contains('is-submitting')).toBe(true);
     expect(form.getAttribute('aria-busy')).toBe('true');
     expect(submit.disabled).toBe(true);
-    expect(submit.value).toBe('Creating…');
+    expect(submit.textContent).toBe('Creating…');
   });
 
-	it('allows a blank page without an AI instruction', () => {
-		const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
-		const blank = document.querySelector<HTMLInputElement>('input[value="blank"]')!;
-		const submit = document.querySelector<HTMLInputElement>('#submit')!;
+  it('allows a blank page without sending an entered AI instruction', () => {
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const blank = document.querySelector<HTMLButtonElement>('#kayzart-create-blank')!;
+    const generate = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
+    const form = document.querySelector<HTMLFormElement>('.kayzart-create-form')!;
 
-		expect(submit.disabled).toBe(true);
-		blank.checked = true;
-		blank.dispatchEvent(new Event('change', { bubbles: true }));
+    prompt.value = 'Ignore this prompt.';
+    prompt.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(generate.disabled).toBe(false);
+    const event = new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter: blank });
+    form.dispatchEvent(event);
 
-		expect(prompt.disabled).toBe(true);
-		expect(prompt.required).toBe(false);
-		expect(submit.disabled).toBe(false);
-	});
+    expect(event.defaultPrevented).toBe(false);
+    expect(prompt.disabled).toBe(true);
+    expect(prompt.required).toBe(false);
+    expect(blank.disabled).toBe(true);
+    expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="start_mode"]')?.value)
+      .toBe('blank');
+    expect(form.classList.contains('is-submitting')).toBe(true);
+  });
 
   it('sends the instruction and title, replaces the text, and restores it with undo', async () => {
     const fetchMock = vi.fn().mockResolvedValue({

@@ -5,7 +5,12 @@ import {
   type SettingsApi,
   type SettingsData,
 } from './settings';
-import { mountToolbar, type ToolbarApi, type ViewportMode } from './toolbar';
+import {
+  mountToolbar,
+  type AiActivityState,
+  type ToolbarApi,
+  type ViewportMode,
+} from './toolbar';
 import { buildEditorShell } from './editor-shell';
 import {
   initCodeMirrorEditors,
@@ -78,6 +83,12 @@ import type {
 } from './extensions/settings-tab-registry';
 import { __, sprintf } from '@wordpress/i18n';
 import { initAiEditorIntegration } from '../editor-ai/main';
+import {
+  createEditorLayoutStore,
+  getEditorLayoutKind,
+  resolveInitialEditorLayout,
+  type EditorLayoutState,
+} from './editor-layout-state';
 
 // wp-api-fetch は admin 側でグローバル wp.apiFetch として使える
 declare const wp: any;
@@ -92,35 +103,9 @@ declare global {
 const COMPACT_EDITOR_BREAKPOINT = 900;
 const HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.wordWrap.html';
 const LEGACY_HTML_WORD_WRAP_STORAGE_KEY = 'kayzart.html.wordWrap';
-const SETTINGS_PANEL_WIDTH_STORAGE_KEY = 'kayzart.settingsPanelWidth';
-const SETTINGS_PANEL_STATE_STORAGE_KEY = 'kayzart.settingsPanelState';
 const PREVIEW_OVERLAY_ACTION_EVENT = 'kayzart-preview-overlay-action';
+const AI_ACTIVITY_EVENT = 'kayzart-ai-activity';
 type HtmlWordWrapMode = 'off' | 'on';
-
-type SettingsPanelState = { open: boolean; tab: string };
-
-const readSettingsPanelState = (aiEnabled: boolean): SettingsPanelState => {
-	try {
-		const parsed = JSON.parse(window.localStorage.getItem(SETTINGS_PANEL_STATE_STORAGE_KEY) || 'null');
-		if (parsed && typeof parsed.open === 'boolean' && typeof parsed.tab === 'string') {
-			return {
-				open: parsed.open,
-				tab: !aiEnabled && parsed.tab === 'kayzart-ai' ? 'elements' : parsed.tab,
-			};
-		}
-	} catch {
-		// Fall through to the editing-first default.
-	}
-	return { open: false, tab: 'elements' };
-};
-
-const saveSettingsPanelState = (state: SettingsPanelState) => {
-	try {
-		window.localStorage.setItem(SETTINGS_PANEL_STATE_STORAGE_KEY, JSON.stringify(state));
-	} catch {
-		// Ignore storage errors and keep editing.
-	}
-};
 
 const readHtmlWordWrapMode = (): HtmlWordWrapMode => {
   try {
@@ -164,36 +149,37 @@ const buildHtmlExportFilename = (slug: string, title: string): string => {
   return `${safe || 'kayzart-export'}.html`;
 };
 
-const readSettingsPanelWidth = (): number | undefined => {
-  try {
-    const saved = window.localStorage.getItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY);
-    if (!saved) {
-      return undefined;
-    }
-    const parsed = Number.parseFloat(saved);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return undefined;
-    }
-    return parsed;
-  } catch {
-    return undefined;
-  }
-};
-
-const saveSettingsPanelWidth = (width: number) => {
-  if (!Number.isFinite(width) || width <= 0) {
-    return;
-  }
-  try {
-    window.localStorage.setItem(SETTINGS_PANEL_WIDTH_STORAGE_KEY, `${Math.round(width)}`);
-  } catch {
-    // Ignore storage errors and keep editing.
-  }
-};
-
 async function main() {
   const cfg = window.KAYZART;
   const postId = cfg.post_id;
+  const canEditAi = Boolean(cfg.ai?.canEdit);
+  const layoutNamespace = cfg.layoutStorageNamespace || 'kayzart.editorLayout.v1.site.0.user.0';
+  let currentLayoutKind = getEditorLayoutKind(
+    Math.round(window.visualViewport?.width ?? window.innerWidth)
+  );
+  let layoutStore = createEditorLayoutStore({
+    namespace: layoutNamespace,
+    kind: currentLayoutKind,
+    aiEnabled: canEditAi,
+    fallbackEditorCollapsed: cfg.legacyCodeVisibilityFallback === 'code_hidden',
+  });
+  let persistedLayoutState = layoutStore.read();
+  const inferredEntryMode = cfg.initialEntryMode || (cfg.ai?.initialRequest ? 'ai' : '');
+  const initialLayoutState = resolveInitialEditorLayout(persistedLayoutState, inferredEntryMode);
+  const initialEditorCollapsed = initialLayoutState.editorCollapsed;
+  const initialSettingsOpen = initialLayoutState.settingsOpen;
+  const initialSettingsTab = initialLayoutState.settingsTab;
+  let restoringLayout = false;
+  const updatePersistedLayout = (updates: Partial<EditorLayoutState>) => {
+    if (restoringLayout) return;
+    persistedLayoutState = layoutStore.write({ ...persistedLayoutState, ...updates });
+  };
+
+  if (cfg.initialEntryMode && window.history?.replaceState) {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('kayzart_entry');
+    window.history.replaceState(window.history.state, '', cleanUrl.toString());
+  }
   const mount = document.getElementById('kayzart-app');
   if (!mount) return;
   const notices = createNotices({ wp });
@@ -207,6 +193,11 @@ async function main() {
   ui.editorResizer.setAttribute('aria-orientation', 'horizontal');
   ui.settingsResizer.setAttribute('role', 'separator');
   ui.settingsResizer.setAttribute('aria-orientation', 'vertical');
+  ui.settingsResizer.setAttribute('aria-label', __( 'Resize editor tools', 'kayzart-live-code-editor'));
+  ui.settingsResizer.setAttribute('aria-controls', 'kayzart-settings');
+  ui.settingsResizer.setAttribute('aria-valuemin', '260');
+  ui.settingsResizer.setAttribute('aria-valuemax', '720');
+  ui.settingsResizer.tabIndex = -1;
 
   let toolbarApi: ToolbarApi | null = null;
   let editorUiController: ReturnType<typeof createEditorUiController> | null = null;
@@ -218,7 +209,6 @@ async function main() {
       window.setTimeout(() => preview?.restoreCapturedScrollPosition(), delay);
     });
   };
-  const initialSettingsPanelWidth = readSettingsPanelWidth();
   const viewportController = createViewportController({
     ui,
     compactDesktopViewportWidth: 1280,
@@ -233,16 +223,26 @@ async function main() {
     desktopMinPreviewWidth: 1024,
     minEditorPaneHeight: 160,
     minSettingsWidth: 260,
-    initialSettingsWidth: initialSettingsPanelWidth,
-    initialEditorCollapsed: cfg.defaultEditorLayout === 'code_hidden',
-    onSettingsWidthCommit: saveSettingsPanelWidth,
+    initialSettingsWidth: persistedLayoutState.settingsWidth,
+    initialEditorCollapsed,
+    onSettingsWidthCommit: (settingsWidth) => {
+      ui.settingsResizer.setAttribute('aria-valuenow', String(Math.round(settingsWidth)));
+      updatePersistedLayout({ settingsWidth });
+    },
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
-    onEditorCollapsedChange: (collapsed) => toolbarApi?.update({ editorCollapsed: collapsed }),
+    onEditorCollapsedChange: (collapsed) => {
+      toolbarApi?.update({ editorCollapsed: collapsed });
+      updatePersistedLayout({ editorCollapsed: collapsed });
+    },
     onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
     onPreviewResizeChange: restoreCapturedPreviewScroll,
     onPreviewResizeEnd: restoreCapturedPreviewScroll,
   });
+  ui.settingsResizer.setAttribute(
+    'aria-valuemax',
+    String(Math.round(viewportController.getMaxSettingsWidth()))
+  );
   // REST nonce middleware
   if (wp?.apiFetch?.createNonceMiddleware) {
     wp.apiFetch.use(wp.apiFetch.createNonceMiddleware(cfg.restNonce));
@@ -286,11 +286,8 @@ async function main() {
   let cssEditor: CodeEditorInstance;
   let jsEditor: CodeEditorInstance;
   let tailwindCss = '';
-  const canEditAi = Boolean(cfg.ai?.canEdit);
-	const storedSettingsPanelState = readSettingsPanelState(canEditAi);
-	const forceAiPanel = Boolean(cfg.ai?.initialRequest);
-  let settingsOpen = forceAiPanel ? true : storedSettingsPanelState.open;
-  let activeSettingsTab = forceAiPanel ? 'kayzart-ai' : storedSettingsPanelState.tab;
+  let settingsOpen = initialSettingsOpen;
+  let activeSettingsTab = initialSettingsTab;
   const canEditJs = Boolean(cfg.canEditJs);
   let jsEnabled = true;
   let jsMode: JsMode = normalizeJsMode(initialState.initialJsMode);
@@ -311,6 +308,7 @@ async function main() {
   syncDocumentTitle(postTitle);
 
   let settingsApi: SettingsApi | null = null;
+  let hasObservedInitialSettingsTab = false;
   let modalController: ReturnType<typeof createModalController> | null = null;
   let tailwindCompiler: TailwindCompiler | null = null;
   let previewRenderScheduler: PreviewRenderScheduler | null = null;
@@ -426,14 +424,52 @@ async function main() {
   const getResolvedTemplateMode = () => (templateMode === 'default' ? defaultTemplateMode : templateMode);
   const isThemeTemplateModeActive = () => getResolvedTemplateMode() === 'theme';
 
-  const setSettingsOpen = (open: boolean) => {
+  const setSettingsOpen = (open: boolean, persist = true) => {
+    const returnFocus = !open && ui.settings.contains(document.activeElement);
+    if (returnFocus) {
+      document.getElementById('kayzart-settings-toggle')?.focus();
+    }
     settingsOpen = open;
     ui.app.classList.toggle('is-settings-open', open);
+    ui.settings.setAttribute('aria-hidden', open ? 'false' : 'true');
+    ui.settingsResizer.tabIndex = open && currentLayoutKind === 'desktop' ? 0 : -1;
+    ui.settingsResizer.setAttribute(
+      'aria-valuenow',
+      String(Math.round(viewportController.getSettingsWidth()))
+    );
+    ui.settingsResizer.setAttribute(
+      'aria-valuemax',
+      String(Math.round(viewportController.getMaxSettingsWidth()))
+    );
     toolbarApi?.update({ settingsOpen: open });
     syncElementsTabState();
     viewportController.applyViewportLayout();
-	saveSettingsPanelState({ open: settingsOpen, tab: activeSettingsTab });
+    if (persist) {
+      updatePersistedLayout({ settingsOpen, settingsTab: activeSettingsTab });
+    }
   };
+
+  ui.settings.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || currentLayoutKind !== 'compact' || !settingsOpen) return;
+    event.preventDefault();
+    setSettingsOpen(false);
+  });
+
+  ui.settingsResizer.addEventListener('keydown', (event) => {
+    if (!settingsOpen || currentLayoutKind !== 'desktop') return;
+    const current = viewportController.getSettingsWidth();
+    let next: number | null = null;
+    if (event.key === 'ArrowLeft') next = current + 16;
+    if (event.key === 'ArrowRight') next = current - 16;
+    if (event.key === 'Home') next = 260;
+    if (event.key === 'End') next = viewportController.getMaxSettingsWidth();
+    if (next === null) return;
+    event.preventDefault();
+    const settingsWidth = viewportController.restoreSettingsWidth(next);
+    ui.settingsResizer.setAttribute('aria-valuenow', String(Math.round(settingsWidth)));
+    updatePersistedLayout({ settingsWidth });
+    viewportController.applyViewportLayout();
+  });
 
   const applySavedSettings = (nextSettings: SettingsData, refreshPreview: boolean) => {
     const currentResolved = getResolvedTemplateMode();
@@ -806,6 +842,7 @@ async function main() {
       editorCollapsed: viewportController.isEditorCollapsed(),
       compactEditorMode: false,
       settingsOpen,
+      aiActivity: 'idle',
       tailwindEnabled,
       viewportMode: viewportController.getViewportMode(),
       hasUnsavedChanges: false,
@@ -913,6 +950,15 @@ async function main() {
       },
     }
   );
+  window.addEventListener(AI_ACTIVITY_EVENT, (event) => {
+    const activity = (event as CustomEvent<{ state?: AiActivityState }>).detail?.state;
+    if (activity === 'idle' || activity === 'running' || activity === 'complete' || activity === 'error') {
+      const visibleInAiPanel = settingsOpen && activeSettingsTab === 'kayzart-ai';
+      toolbarApi?.update({
+        aiActivity: visibleInAiPanel && activity !== 'running' ? 'idle' : activity,
+      });
+    }
+  });
   syncNoticeOffset();
   window.setTimeout(syncNoticeOffset, 0);
   syncHtmlWordWrapToggleButton();
@@ -1746,6 +1792,24 @@ async function main() {
     onEditorViewChange: syncPendingPreviewReloadNotice,
     onCompactEditorModeChange: (isCompact) => {
       toolbarApi?.update({ compactEditorMode: isCompact });
+      const nextLayoutKind = isCompact ? 'compact' : 'desktop';
+      if (nextLayoutKind !== currentLayoutKind) {
+        currentLayoutKind = nextLayoutKind;
+        layoutStore = createEditorLayoutStore({
+          namespace: layoutNamespace,
+          kind: currentLayoutKind,
+          aiEnabled: canEditAi,
+          fallbackEditorCollapsed: cfg.legacyCodeVisibilityFallback === 'code_hidden',
+        });
+        persistedLayoutState = layoutStore.read();
+        restoringLayout = true;
+        viewportController.restoreSettingsWidth(persistedLayoutState.settingsWidth);
+        viewportController.setEditorCollapsed(persistedLayoutState.editorCollapsed);
+        activeSettingsTab = persistedLayoutState.settingsTab;
+        settingsApi?.openTab(activeSettingsTab);
+        setSettingsOpen(persistedLayoutState.settingsOpen, false);
+        restoringLayout = false;
+      }
       viewportController.applyViewportLayout();
       syncPendingPreviewReloadNotice();
     },
@@ -2139,7 +2203,14 @@ async function main() {
     onLiveHighlightToggle: setLiveHighlightEnabled,
     onTabChange: (tab) => {
       activeSettingsTab = tab;
-	  saveSettingsPanelState({ open: settingsOpen, tab: activeSettingsTab });
+      if (settingsOpen && tab === 'kayzart-ai') {
+        toolbarApi?.update({ aiActivity: 'idle' });
+      }
+      if (hasObservedInitialSettingsTab) {
+        updatePersistedLayout({ settingsOpen, settingsTab: activeSettingsTab });
+      } else {
+        hasObservedInitialSettingsTab = true;
+      }
       syncElementsTabState();
     },
     onPendingUpdatesChange: (nextState: PendingSettingsState) => {
@@ -2157,7 +2228,7 @@ async function main() {
   });
   syncEditorModeControl();
   publishExtensionApi();
-	setSettingsOpen(settingsOpen);
+	setSettingsOpen(settingsOpen, false);
   if (canEditAi) {
     initAiEditorIntegration();
   }
@@ -2165,6 +2236,14 @@ async function main() {
   const handleViewportResize = debounce(() => {
     editorUiController?.updateCompactEditorMode();
     viewportController.applyViewportLayout();
+    ui.settingsResizer.setAttribute(
+      'aria-valuemax',
+      String(Math.round(viewportController.getMaxSettingsWidth()))
+    );
+    ui.settingsResizer.setAttribute(
+      'aria-valuenow',
+      String(Math.round(viewportController.getSettingsWidth()))
+    );
     syncNoticeOffset();
   }, 100);
   window.addEventListener('resize', handleViewportResize);

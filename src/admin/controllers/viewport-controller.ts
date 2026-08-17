@@ -105,10 +105,19 @@ export function createViewportController(deps: ViewportControllerDeps) {
     return clamped;
   };
 
+  const restoreSettingsWidth = (width?: number) => {
+    if (typeof width === 'number' && Number.isFinite(width) && width > 0) {
+      return setSettingsWidth(width);
+    }
+    deps.ui.app.style.removeProperty('--kayzart-settings-width');
+    return getCurrentSettingsWidth();
+  };
+
   if (typeof deps.initialSettingsWidth === 'number' && Number.isFinite(deps.initialSettingsWidth)) {
     setSettingsWidth(deps.initialSettingsWidth);
   }
   deps.ui.app.classList.toggle('is-editor-collapsed', editorCollapsed);
+  deps.ui.left.setAttribute('aria-hidden', editorCollapsed ? 'true' : 'false');
   if (editorCollapsed) {
     deps.ui.left.style.width = '0px';
     deps.ui.left.style.flex = '0 0 0';
@@ -272,6 +281,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
   const setEditorCollapsed = (collapsed: boolean) => {
     editorCollapsed = collapsed;
     deps.ui.app.classList.toggle('is-editor-collapsed', collapsed);
+    deps.ui.left.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
     deps.onEditorCollapsedChange?.(collapsed);
     if (collapsed) {
       const currentWidth = deps.ui.left.getBoundingClientRect().width;
@@ -428,6 +438,9 @@ export function createViewportController(deps: ViewportControllerDeps) {
     getViewportMode: () => viewportMode,
     setEditorCollapsed,
     isEditorCollapsed: () => editorCollapsed,
+    restoreSettingsWidth,
+    getSettingsWidth: getCurrentSettingsWidth,
+    getMaxSettingsWidth,
     setEditorSplitHeight,
     getEditorSplitState: () => ({ active: editorSplitActive, lastHtmlHeight }),
   };

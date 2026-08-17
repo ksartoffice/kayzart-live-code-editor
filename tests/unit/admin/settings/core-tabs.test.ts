@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCoreSettingsTabs } from '../../../../src/admin/settings';
+import { getCoreSettingsTabs, getKeyboardTabIndex } from '../../../../src/admin/settings';
 
 describe('core settings tabs', () => {
   it('places AI first for users who can edit with AI', () => {
@@ -17,5 +17,13 @@ describe('core settings tabs', () => {
       'history',
       'settings',
     ]);
+  });
+
+  it('supports wrapping arrow navigation plus Home and End', () => {
+    expect(getKeyboardTabIndex('ArrowRight', 2, 3)).toBe(0);
+    expect(getKeyboardTabIndex('ArrowLeft', 0, 3)).toBe(2);
+    expect(getKeyboardTabIndex('Home', 2, 3)).toBe(0);
+    expect(getKeyboardTabIndex('End', 0, 3)).toBe(2);
+    expect(getKeyboardTabIndex('Escape', 1, 3)).toBeNull();
   });
 });

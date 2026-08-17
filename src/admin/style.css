@@ -506,6 +506,33 @@ body.admin_page_kayzart #wpbody-content {
   position: relative;
 }
 
+.kayzart-aiActivityDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #111318;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.kayzart-btn-settings.is-ai-running .kayzart-aiActivityDot {
+  background: #60a5fa;
+  animation: kayzart-ai-activity-pulse 1.3s ease-in-out infinite;
+}
+
+.kayzart-btn-settings.is-ai-error .kayzart-aiActivityDot {
+  background: #f87171;
+}
+
+@keyframes kayzart-ai-activity-pulse {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
 .kayzart-btn-settings.is-active {
   background: #2f6feb;
   border-color: #2f6feb;

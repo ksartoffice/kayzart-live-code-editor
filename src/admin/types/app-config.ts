@@ -21,7 +21,9 @@ export type AppConfig = {
   setupRestUrl: string;
   settingsRestUrl: string;
   settingsData: SettingsData;
-  defaultEditorLayout?: 'code_visible' | 'code_hidden';
+  legacyCodeVisibilityFallback?: 'code_visible' | 'code_hidden';
+  initialEntryMode?: 'ai' | 'blank' | '';
+  layoutStorageNamespace?: string;
   backUrl?: string;
   listUrl?: string;
   listLabel?: string;

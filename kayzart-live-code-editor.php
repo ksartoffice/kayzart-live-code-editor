@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Kayzart — Live HTML Landing Pages with AI
+ * Plugin Name: Kayzart — AI Landing Page Builder with Real HTML
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Build AI-assisted landing pages with real HTML/CSS/JS you can edit live, with no drag-and-drop or builder lock-in.
  * Version: 3.0.0
@@ -98,6 +98,8 @@ if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 add_action(
 	'plugins_loaded',
 	function () {
+
+		\KayzArt\Admin::maybe_record_installed_version();
 		\KayzArt\Ai_Setup::maybe_upgrade();
 		\KayzArt\Ai_Worker::init();
 		\KayzArt\Ai_Editor::init();
@@ -134,6 +136,8 @@ add_action(
  * Plugin activation hook.
  */
 function kayzart_activate() {
+
+	\KayzArt\Admin::activate();
 	\KayzArt\Ai_Setup::activate();
 	\KayzArt\Post_Type::activation();
 }

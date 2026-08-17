@@ -60,6 +60,7 @@ describe('toolbar', () => {
           editorCollapsed: false,
           compactEditorMode: false,
           settingsOpen: false,
+          aiActivity: 'idle',
           tailwindEnabled: false,
           viewportMode: 'desktop',
           hasUnsavedChanges: false,
@@ -124,5 +125,24 @@ describe('toolbar', () => {
     expect(
       (container.querySelector('.kayzart-splitButton-toggle') as HTMLButtonElement).disabled
     ).toBe(true);
+  });
+
+  it('exposes code and tools panel state to assistive technology', async () => {
+    const { container } = await mount({ editorCollapsed: true, settingsOpen: true });
+    const codeToggle = container.querySelector('[aria-controls="kayzart-code-editors"]');
+    const toolsToggle = container.querySelector('#kayzart-settings-toggle');
+
+    expect(codeToggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toolsToggle?.getAttribute('aria-controls')).toBe('kayzart-settings');
+    expect(toolsToggle?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('shows AI progress on the tools toggle without opening the panel', async () => {
+    const { container } = await mount({ aiActivity: 'complete', settingsOpen: false });
+    const toolsToggle = container.querySelector('#kayzart-settings-toggle');
+
+    expect(toolsToggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toolsToggle?.getAttribute('aria-label')).toContain('AI edit complete');
+    expect(toolsToggle?.classList.contains('is-ai-complete')).toBe(true);
   });
 });

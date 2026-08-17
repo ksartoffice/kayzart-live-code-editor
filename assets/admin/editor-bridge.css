@@ -121,7 +121,8 @@
   margin-top: 20px;
 }
 
-.kayzart-editor-bridge__edit.is-busy {
+.kayzart-editor-bridge__edit.is-busy,
+.kayzart-editor-bridge__return.is-busy {
   opacity: 0.7;
   pointer-events: none;
 }

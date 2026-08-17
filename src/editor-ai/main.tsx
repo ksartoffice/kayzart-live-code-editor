@@ -19,6 +19,7 @@ const TOOLBAR_ACTION_ID = 'kayzart-toolbar-ai-edit';
 const PREVIEW_ACTION_EVENT = 'kayzart-preview-overlay-action';
 const PREVIEW_ACTION_ID = 'kayzart-ai-edit-context';
 const CONTEXT_SYNC_EVENT = 'kayzart-ai-context-sync';
+const PROMPT_FOCUS_EVENT = 'kayzart-ai-prompt-focus';
 const SAVE_EVENT = 'kayzart-editor-saved';
 const AI_ACTIVITY_EVENT = 'kayzart-ai-activity';
 const DEFAULT_MAX_PROMPT_CHARS = 8000;
@@ -45,7 +46,7 @@ const TERMINAL_INITIAL_REQUEST_CODES = new Set([
   'kayzart_ai_enqueue_failed',
   'kayzart_ai_initial_request_terminal',
 ]);
-let promptFocusRequested = false;
+let promptFocusRequest = 0;
 
 function notifyAiActivity(state: 'running' | 'complete' | 'error') {
   window.dispatchEvent(new CustomEvent(AI_ACTIVITY_EVENT, { detail: { state } }));
@@ -113,9 +114,12 @@ function queueSelectedContext() {
   window.dispatchEvent(new CustomEvent(CONTEXT_SYNC_EVENT));
   return true;
 }
-function openAi(includeContext = false) {
+function openAi(includeContext = false, focusPrompt = true) {
   if (includeContext) queueSelectedContext();
-  promptFocusRequested = true;
+  if (focusPrompt) {
+    promptFocusRequest += 1;
+    window.dispatchEvent(new CustomEvent(PROMPT_FOCUS_EVENT));
+  }
   host()?.openSettingsTab?.(AI_TAB_ID);
 }
 /* Show the attempt counter only near the limit, where it can change what the
@@ -245,6 +249,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const postId = Number(window.KAYZART.post_id || 0);
   const nonce = window.KAYZART.restNonce || '';
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const handledPromptFocusRequestRef = useRef(0);
   const promptValueRef = useRef(draftState.prompt);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const pollAbortRef = useRef<AbortController | null>(null);
@@ -267,11 +272,36 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const [canceling, setCanceling] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState('');
+  const [promptFocusSignal, setPromptFocusSignal] = useState(promptFocusRequest);
 
   useEffect(() => {
     const activity = resolveAiActivityNotification(running, error);
     if (activity) notifyAiActivity(activity);
   }, [running, error]);
+
+  useEffect(() => {
+    const requestFocus = () => setPromptFocusSignal(promptFocusRequest);
+    window.addEventListener(PROMPT_FOCUS_EVENT, requestFocus);
+    return () => window.removeEventListener(PROMPT_FOCUS_EVENT, requestFocus);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !active
+      || !ai?.available
+      || !initialRequestReconciled
+      || promptFocusSignal <= handledPromptFocusRequestRef.current
+    ) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const prompt = promptRef.current;
+      if (!prompt || prompt.disabled) return;
+      prompt.focus();
+      handledPromptFocusRequestRef.current = promptFocusSignal;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [active, ai?.available, initialRequestReconciled, promptFocusSignal]);
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
@@ -448,7 +478,6 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     const syncContexts = () => {
       const queued = Array.from(pendingContexts.values()); pendingContexts.clear();
       if (queued.length) setContexts(mergeContexts(draftState.contexts, queued));
-      if (promptFocusRequested) { promptFocusRequested = false; window.requestAnimationFrame(() => promptRef.current?.focus()); }
     };
     const saved = () => { window.setTimeout(() => void refresh(), 150); };
     window.addEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.addEventListener(SAVE_EVENT, saved);
@@ -738,7 +767,7 @@ function registerToolbar() {
 }
 function installContextEntrypoints() {
   window.addEventListener(PREVIEW_ACTION_EVENT, (raw) => { const event = raw as CustomEvent<{ actionId?: string }>; if (event.detail?.actionId === PREVIEW_ACTION_ID) openAi(true); });
-  const refresh = () => { const panel = document.querySelector<HTMLElement>(ELEMENTS_PANEL_SELECTOR); if (!panel || panel.querySelector(`.${ELEMENTS_BUTTON_CLASS}`) || !config()?.available) return; const button = document.createElement('button'); button.type = 'button'; button.className = `kayzart-btn kayzart-btn-secondary ${ELEMENTS_BUTTON_CLASS}`; button.textContent = __('Edit with AI', 'kayzart-live-code-editor'); button.addEventListener('click', () => openAi(true)); panel.append(button); };
+  const refresh = () => { if (typeof document === 'undefined') return; const panel = document.querySelector<HTMLElement>(ELEMENTS_PANEL_SELECTOR); if (!panel || panel.querySelector(`.${ELEMENTS_BUTTON_CLASS}`) || !config()?.available) return; const button = document.createElement('button'); button.type = 'button'; button.className = `kayzart-btn kayzart-btn-secondary ${ELEMENTS_BUTTON_CLASS}`; button.textContent = __('Edit with AI', 'kayzart-live-code-editor'); button.addEventListener('click', () => openAi(true)); panel.append(button); };
   new MutationObserver(refresh).observe(document.body, { childList: true, subtree: true }); refresh();
 }
 
@@ -753,13 +782,13 @@ export function initAiEditorIntegration() {
   const restored = loadActiveJob(Number(window.KAYZART.post_id || 0));
   if (restored) {
     host()?.setEditorLock?.(true);
-    window.requestAnimationFrame(() => openAi(false));
+    window.requestAnimationFrame(() => openAi(false, false));
     return;
   }
 
   const ai = config();
 	if (ai?.initialRequest) {
-		window.requestAnimationFrame(() => openAi(false));
+		window.requestAnimationFrame(() => openAi(false, false));
 		return;
 	}
   const postId = Number(window.KAYZART.post_id || 0);
@@ -768,7 +797,7 @@ export function initAiEditorIntegration() {
       const active = page.items.some((item) => item.type === 'ai_edit' && item.canPoll && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
       if (active) {
         host()?.setEditorLock?.(true);
-        window.requestAnimationFrame(() => openAi(false));
+        window.requestAnimationFrame(() => openAi(false, false));
       }
     }).catch(() => { /* Availability UI reports recoverable REST failures when opened. */ });
   }

@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('free AI editor registration', () => {
   beforeEach(() => {
@@ -24,5 +28,29 @@ describe('free AI editor registration', () => {
     initAiEditorIntegration();
     expect(registerSettingsTab).not.toHaveBeenCalled();
     expect(registerToolbarAction.mock.calls[0][0]).toMatchObject({ id: 'kayzart-toolbar-ai-edit' });
+  });
+
+  it('focuses the prompt when the toolbar action is used after the panel mounts', async () => {
+    let toolbarAction: { onClick: () => void } | undefined;
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()),
+      registerToolbarAction: vi.fn((action) => {
+        toolbarAction = action;
+        return vi.fn();
+      }),
+      openSettingsTab: vi.fn(),
+    };
+    const { AiEditorPanel, initAiEditorIntegration } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => root.render(createElement(AiEditorPanel)));
+    initAiEditorIntegration();
+
+    await act(async () => toolbarAction?.onClick());
+    const textarea = container.querySelector('textarea');
+    await vi.waitFor(() => expect(document.activeElement).toBe(textarea));
+
+    await act(async () => root.unmount());
   });
 });

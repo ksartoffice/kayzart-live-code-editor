@@ -271,9 +271,19 @@ class Post_Type {
 	 * @param int $post_id Post ID.
 	 */
 	public static function enable_for_post( int $post_id ): void {
+
 		update_post_meta( $post_id, self::ENABLED_META, '1' );
 	}
 
+	/**
+	 * Stop managing a regular WordPress post with Kayzart.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function disable_for_post( int $post_id ): void {
+
+		delete_post_meta( $post_id, self::ENABLED_META );
+	}
 	/**
 	 * Check whether a post is a KayzArt post.
 	 *

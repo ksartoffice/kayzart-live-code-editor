@@ -28,6 +28,8 @@ class Admin {
 	const NEW_PAGE_NONCE_ACTION        = 'kayzart_new_page';
 	const CONVERT_POST_ACTION          = 'kayzart_convert';
 	const CONVERT_POST_NONCE_ACTION    = 'kayzart_convert_post';
+	const RETURN_POST_ACTION           = 'kayzart_return_to_wordpress';
+	const RETURN_POST_NONCE_ACTION     = 'kayzart_return_to_wordpress_post';
 	const DUPLICATE_POST_ACTION        = 'kayzart_duplicate';
 	const DUPLICATE_POST_NONCE_ACTION  = 'kayzart_duplicate_post';
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
@@ -72,6 +74,7 @@ class Admin {
 		add_action( 'admin_action_' . self::NEW_POST_ACTION, array( __CLASS__, 'action_create_new_post' ) );
 		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
 		add_action( 'admin_action_' . self::CONVERT_POST_ACTION, array( __CLASS__, 'action_convert_existing_post' ) );
+		add_action( 'admin_action_' . self::RETURN_POST_ACTION, array( __CLASS__, 'action_return_to_wordpress' ) );
 		add_action( 'admin_action_' . self::DUPLICATE_POST_ACTION, array( __CLASS__, 'action_duplicate_post' ) );
 		add_action( 'admin_action_' . self::REMOVE_OPENAI_KEY_ACTION, array( __CLASS__, 'action_remove_openai_key' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_duplicated_notice' ) );
@@ -404,6 +407,7 @@ class Admin {
 	 * Convert an existing post into a KayzArt-managed landing page.
 	 */
 	public static function action_convert_existing_post(): void {
+
 		self::verify_action_nonce( self::CONVERT_POST_NONCE_ACTION );
 
 		// POST-first: the confirmation screen submits a form, legacy links use GET.
@@ -429,6 +433,41 @@ class Admin {
 		exit;
 	}
 
+	/**
+	 * Return a converted post to its native WordPress editor.
+	 */
+	public static function action_return_to_wordpress(): void {
+
+		self::verify_action_nonce( self::RETURN_POST_NONCE_ACTION );
+
+		$post_id = absint( self::read_request_value( 'post_id' ) );
+		if ( ! $post_id ) {
+			wp_die( esc_html__( 'post_id is required.', 'kayzart-live-code-editor' ) );
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post || Post_Type::POST_TYPE === $post->post_type || ! Post_Type::is_kayzart_enabled_post( $post_id ) ) {
+			wp_die( esc_html__( 'This post is not a converted Kayzart post.', 'kayzart-live-code-editor' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+				wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+
+		$job_uuid = ( new Ai_Job_Store() )->cancel_active_for_post( $post_id );
+		if ( $job_uuid ) {
+			Ai_Worker::unschedule_job( $job_uuid );
+		}
+		delete_post_meta( $post_id, self::INITIAL_AI_REQUEST_META_KEY );
+		Post_Type::disable_for_post( $post_id );
+
+		$edit_url = get_edit_post_link( $post_id, 'raw' );
+		if ( ! is_string( $edit_url ) || '' === $edit_url ) {
+			$edit_url = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+		}
+		wp_safe_redirect( $edit_url );
+		exit;
+	}
 	/**
 	 * Meta keys that must not be carried over when duplicating a Kayzart post.
 	 *
@@ -864,6 +903,7 @@ class Admin {
 	 * @return string
 	 */
 	public static function get_convert_post_action_url( int $post_id = 0 ): string {
+
 		$args = array(
 			'action'   => self::CONVERT_POST_ACTION,
 			'_wpnonce' => wp_create_nonce( self::CONVERT_POST_NONCE_ACTION ),
@@ -875,6 +915,23 @@ class Admin {
 		return add_query_arg( $args, admin_url( 'admin.php' ) );
 	}
 
+	/**
+	 * Build a nonce-protected URL for returning a post to WordPress editing.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_return_post_action_url( int $post_id ): string {
+
+		return add_query_arg(
+			array(
+				'action'   => self::RETURN_POST_ACTION,
+				'post_id'  => $post_id,
+				'_wpnonce' => wp_create_nonce( self::RETURN_POST_NONCE_ACTION ),
+			),
+			admin_url( 'admin.php' )
+		);
+	}
 	/**
 	 * Build the confirmation screen URL for opening an unmanaged post in Kayzart.
 	 *

@@ -5,11 +5,12 @@
  * @package KayzArt
  */
 
+use KayzArt\Admin;
 use KayzArt\Editor_Bridge;
 use KayzArt\Post_Type;
 
 class Test_Editor_Bridge extends WP_UnitTestCase {
-	private array $original_get = array();
+	private array $original_get  = array();
 	private array $original_post = array();
 
 	protected function setUp(): void {
@@ -23,12 +24,12 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 			require_once ABSPATH . 'wp-admin/includes/screen.php';
 		}
 
-		$this->original_get = $_GET;
+		$this->original_get  = $_GET;
 		$this->original_post = $_POST;
 	}
 
 	protected function tearDown(): void {
-		$_GET = $this->original_get;
+		$_GET  = $this->original_get;
 		$_POST = $this->original_post;
 		unset( $GLOBALS['post'] );
 		set_current_screen( 'front' );
@@ -40,8 +41,8 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
-		$post_id          = $this->create_enabled_post( Post_Type::POST_TYPE );
-		$GLOBALS['post']  = get_post( $post_id );
+		$post_id         = $this->create_enabled_post( Post_Type::POST_TYPE );
+		$GLOBALS['post'] = get_post( $post_id );
 		$this->assertInstanceOf( WP_Post::class, $GLOBALS['post'] );
 		$this->assertSame( $post_id, $this->invoke_private_int_method( 'resolve_post_id' ) );
 	}
@@ -86,7 +87,6 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		Editor_Bridge::enqueue_block_assets();
 		$this->assertTrue( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 		$this->assertTrue( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
-
 		$this->reset_assets();
 		$screen->post_type = 'post';
 		Editor_Bridge::enqueue_block_assets();
@@ -94,7 +94,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_enqueue_block_assets_runs_for_enabled_marked_page(): void {
-		$page_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$page_id         = $this->create_enabled_post( Post_Type::PAGE_TYPE );
 		$GLOBALS['post'] = get_post( $page_id );
 
 		set_current_screen( 'post' );
@@ -104,7 +104,9 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		Editor_Bridge::enqueue_block_assets();
 		$this->assertTrue( wp_script_is( Editor_Bridge::SCRIPT_HANDLE, 'enqueued' ) );
 		$this->assertTrue( wp_style_is( Editor_Bridge::STYLE_HANDLE, 'enqueued' ) );
-
+		$data = $this->get_inline_bridge_data();
+		$this->assertStringContainsString( Admin::RETURN_POST_ACTION, (string) ( $data['returnUrl'] ?? '' ) );
+		$this->assertSame( 'Return to WordPress editor', $data['labels']['return'] ?? '' );
 		$this->reset_assets();
 		update_option( \KayzArt\Admin::OPTION_ENABLED_POST_TYPES, array( 'post' ) );
 		Editor_Bridge::enqueue_block_assets();
@@ -114,7 +116,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	public function test_enqueue_block_assets_skips_convertible_unmarked_page(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
-		$page_id = (int) self::factory()->post->create(
+		$page_id         = (int) self::factory()->post->create(
 			array(
 				'post_type'   => Post_Type::PAGE_TYPE,
 				'post_author' => $admin_id,
@@ -157,7 +159,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$data = json_decode( $matches[1], true );
 		$this->assertIsArray( $data );
 		$this->assertIsString( $data['actionUrl'] ?? null );
-
+		$this->assertSame( '', $data['returnUrl'] ?? null );
 		$parts = wp_parse_url( (string) $data['actionUrl'] );
 		$query = array();
 		if ( ! empty( $parts['query'] ) ) {
@@ -218,6 +220,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_core_rest_guard_preserves_managed_content(): void {
+
 		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
 		wp_update_post(
 			array(
@@ -236,7 +239,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_core_rest_guard_leaves_unmanaged_content_unchanged(): void {
-		$post_id                 = $this->create_post( Post_Type::PAGE_TYPE );
+		$post_id                = $this->create_post( Post_Type::PAGE_TYPE );
 		$prepared               = new stdClass();
 		$prepared->post_content = 'Gutenberg replacement';
 		$request                = new WP_REST_Request( 'POST', '/wp/v2/pages/' . $post_id );
@@ -376,7 +379,12 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
-		wp_update_post( array( 'ID' => $post_id, 'post_content' => 'Stored Kayzart HTML' ) );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'Stored Kayzart HTML',
+			)
+		);
 		set_current_screen( 'post' );
 		$_POST['action'] = 'editpost';
 
@@ -393,7 +401,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	public function test_classic_editor_guard_respects_explicit_fourth_update_argument(): void {
 		set_current_screen( 'post' );
 		$_POST['action'] = 'editpost';
-		$data = array( 'post_content' => wp_slash( 'New post content' ) );
+		$data            = array( 'post_content' => wp_slash( 'New post content' ) );
 
 		$result = Editor_Bridge::preserve_classic_editor_content( $data, array(), array(), false );
 
@@ -510,6 +518,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 	}
 
 	public function test_classic_editor_save_redirects_to_kayzart_when_requested(): void {
+
 		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
 		$this->set_valid_classic_redirect_request( $post_id );
 
@@ -519,6 +528,22 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		parse_str( (string) ( $parts['query'] ?? '' ), $query );
 
 		$this->assertSame( 'kayzart', $query['action'] ?? '' );
+		$this->assertSame( (string) $post_id, (string) ( $query['post_id'] ?? '' ) );
+		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
+	}
+
+	public function test_classic_editor_save_redirects_to_return_action_when_requested(): void {
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		$this->set_valid_classic_redirect_request( $post_id );
+		unset( $_POST['kayzart_open_after_save'] );
+		$_POST['kayzart_return_after_save'] = '1';
+
+		$location = Editor_Bridge::redirect_classic_editor_to_kayzart( admin_url( 'post.php?post=' . $post_id . '&action=edit' ), $post_id );
+		$parts    = wp_parse_url( $location );
+		$query    = array();
+		parse_str( (string) ( $parts['query'] ?? '' ), $query );
+
+		$this->assertSame( Admin::RETURN_POST_ACTION, $query['action'] ?? '' );
 		$this->assertSame( (string) $post_id, (string) ( $query['post_id'] ?? '' ) );
 		$this->assertNotEmpty( $query['_wpnonce'] ?? '' );
 	}
@@ -536,7 +561,7 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
 		$this->set_valid_classic_redirect_request( $post_id );
 		$_POST['_wpnonce'] = 'invalid';
-		$original = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+		$original          = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
 
 		$this->assertSame( $original, Editor_Bridge::redirect_classic_editor_to_kayzart( $original, $post_id ) );
 	}

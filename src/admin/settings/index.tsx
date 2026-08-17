@@ -370,6 +370,7 @@ function SettingsSidebar({
       {aiEnabled ? (
         <div
           id={panelDomId('kayzart-ai')}
+          className="kayzart-settingsAiPanel"
           role="tabpanel"
           aria-labelledby={tabDomId('kayzart-ai')}
           hidden={activeTab !== 'kayzart-ai'}

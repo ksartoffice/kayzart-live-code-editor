@@ -888,17 +888,20 @@ class Ai_Tools {
 	 *
 	 * Structure is checked first: when an edit both breaks a brace and drops the
 	 * Tailwind import, the brace is the more actionable message, and the import
-	 * is re-checked on the retry anyway.
+	 * is re-checked on the retry anyway. The Tailwind idiom check comes last for
+	 * the same reason -- its selector scan is only meaningful once the braces
+	 * balance and the import is still there.
 	 *
 	 * @param array $before Snapshot before the tool call.
 	 * @param array $after  Snapshot after the tool call.
-	 * @throws Ai_Tool_Error When the call broke the CSS structure or its entry import.
+	 * @throws Ai_Tool_Error When the call broke the CSS structure, its entry import, or the Tailwind idiom.
 	 */
 	private static function assert_css_invariants( array $before, array $after ): void {
 		$before_css = (string) ( $before['css'] ?? '' );
 		$after_css  = (string) ( $after['css'] ?? '' );
 		Ai_Css_Syntax::assert_no_new_imbalance( $before_css, $after_css );
 		Ai_Css_Imports::assert_tailwind_import_kept( $before_css, $after_css );
+		Ai_Tailwind_Css_Policy::assert_no_adhoc_rules( $before_css, $after_css );
 	}
 
 	/**

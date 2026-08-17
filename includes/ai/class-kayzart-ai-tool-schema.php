@@ -32,81 +32,35 @@ class Ai_Tool_Schema {
 	const ALL_EDITABLE_TARGETS = array( 'html', 'head', 'css' );
 
 	/**
-	 * Default editable targets for tailwind mode when CSS is not requested.
-	 */
-	const TAILWIND_DEFAULT_EDITABLE_TARGETS = array( 'html', 'head' );
-
-	/**
-	 * Keywords signalling that the user explicitly wants CSS-tab edits.
-	 *
-	 * @var array<int,string>
-	 */
-	const CSS_EXPLICIT_INTENT_KEYWORDS = array(
-		'css',
-		'stylesheet',
-		'@apply',
-		'@theme',
-		'@layer',
-		'@utility',
-		'@variant',
-		'@plugin',
-		'@config',
-		'@source',
-		'@reference',
-		'スタイルシート',
-		'cssタブ',
-	);
-
-	/**
-	 * Whether a prompt explicitly asks for CSS-tab edits.
-	 *
-	 * @param string $prompt User prompt.
-	 * @return bool
-	 */
-	public static function has_explicit_css_edit_intent( string $prompt ): bool {
-		$lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $prompt ) : strtolower( $prompt );
-		foreach ( self::CSS_EXPLICIT_INTENT_KEYWORDS as $keyword ) {
-			if ( false !== strpos( $lower, $keyword ) ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
 	 * Resolve which targets are editable for a request.
 	 *
-	 * Creating a page always needs CSS. In tailwind mode the theme tokens live in
-	 * the CSS tab, so gating CSS behind a keyword would leave a new page with no
-	 * theme at all. The keyword gate therefore applies to editing only.
+	 * Every mode and intent gets the CSS tab. Tailwind mode used to withhold it
+	 * unless the prompt matched a keyword list, to stop the model writing
+	 * hand-rolled CSS instead of using utilities. That gate was aimed at the
+	 * wrong thing: the problem was never access to the CSS tab but the kind of
+	 * CSS written there, and withholding the target broke the legitimate use --
+	 * a request like "change the button colour everywhere" is a @theme token
+	 * edit and has nowhere else to go. Ai_Tailwind_Css_Policy now enforces the
+	 * idiom on the written CSS itself, with a retryable message the model can
+	 * act on.
 	 *
 	 * @param string $editor_mode   Editor mode ('normal' or 'tailwind').
-	 * @param string $prompt        User prompt.
+	 * @param string $prompt        User prompt. Unused; kept so callers and stored jobs need no change.
 	 * @param bool   $can_edit_head Whether the job creator may persist custom-head edits.
 	 * @param string $intent        Ai_Prompt::INTENT_CREATE or Ai_Prompt::INTENT_EDIT.
 	 * @return array{editableTargets:array<int,string>,cssExplicitlyRequested:bool}
 	 */
 	public static function resolve_edit_policy( string $editor_mode, string $prompt, bool $can_edit_head, string $intent = Ai_Prompt::INTENT_EDIT ): array {
-		if ( Ai_Prompt::INTENT_CREATE === $intent ) {
-			$editable_targets         = self::ALL_EDITABLE_TARGETS;
-			$css_explicitly_requested = true;
-		} elseif ( 'normal' === $editor_mode ) {
-			$editable_targets         = self::ALL_EDITABLE_TARGETS;
-			$css_explicitly_requested = true;
-		} else {
-			$css_explicitly_requested = self::has_explicit_css_edit_intent( $prompt );
-			$editable_targets         = $css_explicitly_requested
-				? self::ALL_EDITABLE_TARGETS
-				: self::TAILWIND_DEFAULT_EDITABLE_TARGETS;
-		}
+		unset( $editor_mode, $prompt, $intent );
 
+		$editable_targets = self::ALL_EDITABLE_TARGETS;
 		if ( ! $can_edit_head ) {
 			$editable_targets = array_values( array_diff( $editable_targets, array( 'head' ) ) );
 		}
 
 		return array(
 			'editableTargets'        => $editable_targets,
-			'cssExplicitlyRequested' => $css_explicitly_requested,
+			'cssExplicitlyRequested' => true,
 		);
 	}
 

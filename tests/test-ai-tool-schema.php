@@ -54,21 +54,20 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Tailwind mode without CSS intent excludes the CSS target.
+	 * Tailwind mode gets the CSS target whatever the prompt says.
+	 *
+	 * The keyword gate this replaces cost the model the @theme block, which is
+	 * the only place a site-wide value can be changed. Ai_Tailwind_Css_Policy
+	 * enforces the idiom on what gets written there instead.
 	 */
-	public function test_resolve_edit_policy_tailwind_without_css_intent(): void {
+	public function test_resolve_edit_policy_tailwind_always_unlocks_css(): void {
 		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', true );
-		$this->assertSame( array( 'html', 'head' ), $policy['editableTargets'] );
-		$this->assertFalse( $policy['cssExplicitlyRequested'] );
-	}
-
-	/**
-	 * Tailwind mode with explicit CSS intent unlocks the CSS target.
-	 */
-	public function test_resolve_edit_policy_tailwind_with_css_intent(): void {
-		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'edit the stylesheet spacing', true );
 		$this->assertSame( array( 'html', 'head', 'css' ), $policy['editableTargets'] );
 		$this->assertTrue( $policy['cssExplicitlyRequested'] );
+
+		$themed = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'ボタンの色を全体的に変えて', true );
+		$this->assertSame( array( 'html', 'head', 'css' ), $themed['editableTargets'] );
+		$this->assertTrue( $themed['cssExplicitlyRequested'] );
 	}
 
 	/** Users who cannot persist custom-head content must never receive head tools. */
@@ -81,7 +80,7 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 		$this->assertNotContains( 'head', $this->find_tool( $tools, 'replace_many' )['parameters']['properties']['target']['enum'] );
 
 		$tailwind_policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', false );
-		$this->assertSame( array( 'html' ), $tailwind_policy['editableTargets'] );
+		$this->assertSame( array( 'html', 'css' ), $tailwind_policy['editableTargets'] );
 	}
 
 	/** Creating a page needs CSS in tailwind mode, where the theme tokens live. */
@@ -94,21 +93,11 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 		$this->assertSame( array( 'html', 'css' ), $without_head['editableTargets'] );
 	}
 
-	/** The edit intent keeps the keyword gate that creation bypasses. */
-	public function test_resolve_edit_policy_edit_intent_keeps_the_tailwind_css_gate(): void {
-		$policy = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', true, Ai_Prompt::INTENT_EDIT );
-		$this->assertSame( array( 'html', 'head' ), $policy['editableTargets'] );
-		$this->assertFalse( $policy['cssExplicitlyRequested'] );
-	}
-
-	/**
-	 * Explicit CSS intent is detected for English and Japanese keywords.
-	 */
-	public function test_has_explicit_css_edit_intent(): void {
-		$this->assertTrue( Ai_Tool_Schema::has_explicit_css_edit_intent( 'Update the CSS grid' ) );
-		$this->assertTrue( Ai_Tool_Schema::has_explicit_css_edit_intent( '@layer utilities tweak' ) );
-		$this->assertTrue( Ai_Tool_Schema::has_explicit_css_edit_intent( 'スタイルシートを直して' ) );
-		$this->assertFalse( Ai_Tool_Schema::has_explicit_css_edit_intent( 'make the button rounder' ) );
+	/** Both intents resolve the same targets now that the keyword gate is gone. */
+	public function test_resolve_edit_policy_matches_across_intents(): void {
+		$edit   = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', true, Ai_Prompt::INTENT_EDIT );
+		$create = Ai_Tool_Schema::resolve_edit_policy( 'tailwind', 'make the hero bigger', true, Ai_Prompt::INTENT_CREATE );
+		$this->assertSame( $create['editableTargets'], $edit['editableTargets'] );
 	}
 
 	/**

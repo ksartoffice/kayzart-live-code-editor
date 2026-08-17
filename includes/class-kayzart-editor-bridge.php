@@ -94,6 +94,9 @@ class Editor_Bridge {
 
 		$is_managed = $post instanceof \WP_Post
 			&& ( Post_Type::POST_TYPE === $post->post_type || Post_Type::is_kayzart_enabled_post( (int) $post->ID ) );
+		$can_return = $post instanceof \WP_Post
+			&& Post_Type::POST_TYPE !== $post->post_type
+			&& Post_Type::is_kayzart_enabled_post( (int) $post->ID );
 		$view_url   = $post instanceof \WP_Post ? get_preview_post_link( $post ) : '';
 		if ( ! is_string( $view_url ) ) {
 			$view_url = '';
@@ -104,16 +107,20 @@ class Editor_Bridge {
 			'postType'      => $post_type,
 			'supportsTitle' => post_type_supports( $post_type, 'title' ),
 			'actionUrl'     => Admin::get_action_redirect_url(),
+			'returnUrl'     => $can_return ? Admin::get_return_post_action_url( (int) $post->ID ) : '',
 			'viewUrl'       => $view_url,
 			'enabled'       => $is_managed,
 			'isManaged'     => $is_managed,
 			'canConvert'    => false,
 			'labels'        => array(
-				'edit'        => __( 'Edit with Kayzart', 'kayzart-live-code-editor' ),
-				'eyebrow'     => __( 'Managed by Kayzart', 'kayzart-live-code-editor' ),
-				'description' => __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor' ),
-				'titleLabel'  => __( 'Page title', 'kayzart-live-code-editor' ),
-				'view'        => __( 'View page', 'kayzart-live-code-editor' ),
+				'edit'          => __( 'Edit with Kayzart', 'kayzart-live-code-editor' ),
+				'eyebrow'       => __( 'Managed by Kayzart', 'kayzart-live-code-editor' ),
+				'description'   => __( 'Edit the page content in Kayzart. You can continue to change WordPress page settings here.', 'kayzart-live-code-editor' ),
+				'titleLabel'    => __( 'Page title', 'kayzart-live-code-editor' ),
+				'view'          => __( 'View page', 'kayzart-live-code-editor' ),
+				'return'        => __( 'Return to WordPress editor', 'kayzart-live-code-editor' ),
+				'returning'     => __( 'Returning…', 'kayzart-live-code-editor' ),
+				'returnConfirm' => __( 'Return this page to the WordPress editor? The current HTML will be kept, but Kayzart CSS and JavaScript will no longer be applied.', 'kayzart-live-code-editor' ),
 			),
 		);
 		$json = wp_json_encode( $data );
@@ -208,11 +215,12 @@ class Editor_Bridge {
 			$data['post_content'] = wp_slash( (string) $post->post_content );
 
 			// phpcs:disable WordPress.Security.NonceVerification.Missing -- WordPress verifies editpost before this filter.
-			$redirect_requested = isset( $_POST['kayzart_open_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_open_after_save'] ) );
-			$preserved_status   = isset( $_POST['kayzart_preserve_post_status'] ) ? sanitize_key( wp_unslash( $_POST['kayzart_preserve_post_status'] ) ) : '';
+			$open_requested   = isset( $_POST['kayzart_open_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_open_after_save'] ) );
+			$return_requested = isset( $_POST['kayzart_return_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_return_after_save'] ) );
+			$preserved_status = isset( $_POST['kayzart_preserve_post_status'] ) ? sanitize_key( wp_unslash( $_POST['kayzart_preserve_post_status'] ) ) : '';
 			// phpcs:enable WordPress.Security.NonceVerification.Missing
 			$standard_statuses = array( 'auto-draft', 'draft', 'pending', 'publish', 'private', 'future' );
-			if ( $redirect_requested && $preserved_status && ! in_array( $preserved_status, $standard_statuses, true ) && get_post_status_object( $preserved_status ) ) {
+			if ( ( $open_requested || $return_requested ) && $preserved_status && ! in_array( $preserved_status, $standard_statuses, true ) && get_post_status_object( $preserved_status ) ) {
 				$data['post_status'] = $preserved_status;
 			}
 		}
@@ -230,13 +238,14 @@ class Editor_Bridge {
 	public static function redirect_classic_editor_to_kayzart( string $location, int $post_id ): string {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Verified below before using the request.
 		$redirect_requested = isset( $_POST['kayzart_open_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_open_after_save'] ) );
+		$return_requested   = isset( $_POST['kayzart_return_after_save'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['kayzart_return_after_save'] ) );
 		$action             = isset( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
 		$nonce              = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 		$post_id = absint( $post_id );
 		if (
-			! $redirect_requested
+			( ! $redirect_requested && ! $return_requested )
 			|| 'editpost' !== $action
 			|| ! $post_id
 			|| ! wp_verify_nonce( $nonce, 'update-post_' . $post_id )
@@ -245,6 +254,10 @@ class Editor_Bridge {
 			|| ! Post_Type::is_kayzart_post( $post_id )
 		) {
 			return $location;
+		}
+
+		if ( $return_requested && Post_Type::POST_TYPE !== get_post_type( $post_id ) && Post_Type::is_kayzart_enabled_post( $post_id ) ) {
+			return Admin::get_return_post_action_url( $post_id );
 		}
 
 		return add_query_arg( 'post_id', $post_id, Admin::get_action_redirect_url() );

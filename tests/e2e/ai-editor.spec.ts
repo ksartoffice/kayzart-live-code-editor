@@ -50,14 +50,23 @@ test('loads the built-in AI panel and the Phase 3 REST configuration', async ({ 
 
   const toolbarButton = page.getByRole('button', { name: 'AI Edit', exact: true }).first();
   await expect(toolbarButton).toBeVisible();
+  await toolbarButton.click();
   await expect(page.locator('.kayzart-app')).toHaveClass(/is-settings-open/);
   await expect(page.locator('.kayzart-app')).toHaveClass(/is-editor-collapsed/);
   await expect(page.locator('.kayzart-settingsTab').first()).toHaveText('AI Edit');
   await expect(page.locator('.kayzart-settingsTab').first()).toHaveAttribute('aria-selected', 'true');
-  await toolbarButton.click();
   await expect(page.locator('.kayzart-settingsTab').filter({ hasText: 'AI Edit' })).toHaveCount(1);
   await expect(page.locator('.kayzart-ai-panel')).toBeVisible();
+  await expect(page.locator('.kayzart-ai-composer textarea')).toBeFocused();
   await expect(page.locator('.kayzart-ai-panel')).not.toContainText(/credits|license|model/i);
+
+  const verticalGap = await page.evaluate(() => {
+    const body = document.querySelector<HTMLElement>('.kayzart-settingsBody');
+    const composer = document.querySelector<HTMLElement>('.kayzart-ai-composer');
+    if (!body || !composer) throw new Error('AI panel layout is unavailable.');
+    return Math.round(body.getBoundingClientRect().bottom - composer.getBoundingClientRect().bottom);
+  });
+  expect(verticalGap).toBeLessThanOrEqual(16);
 });
 
 test('opening the AI panel does not horizontally shift the editor shell', async ({ page }) => {

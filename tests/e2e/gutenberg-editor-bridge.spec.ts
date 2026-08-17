@@ -76,3 +76,36 @@ test('shows a Kayzart bridge card while protecting Gutenberg content', async ({ 
     await deleteTemporaryPage(page, postId);
   }
 });
+
+test('returns a converted page to Gutenberg while keeping the current HTML', async ({ page }) => {
+  await login(page);
+  const marker = `kayzart-return-${Date.now()}`;
+  const originalHtml = `<main id="${marker}">Return to Gutenberg</main>`;
+  const postId = await createTemporaryPage(page, {
+    title: 'Return to Gutenberg',
+    content: originalHtml,
+  });
+
+  try {
+    await openKayzartEditor(page, String(postId), 'normal');
+    const editUrl = new URL('wp-admin/post.php', baseUrl);
+    editUrl.searchParams.set('post', String(postId));
+    editUrl.searchParams.set('action', 'edit');
+    await page.goto(editUrl.toString(), { waitUntil: 'domcontentloaded' });
+    if (!(await page.locator('body.block-editor-page').count())) {
+      test.skip(true, 'The WordPress test site is configured to use the Classic Editor.');
+    }
+
+    const bridge = page.locator('.kayzart-editor-bridge');
+    await expect(bridge).toBeVisible();
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.locator('.kayzart-editor-bridge__return').click();
+    await page.waitForURL((url) => url.pathname.endsWith('/wp-admin/post.php') && url.searchParams.get('post') === String(postId));
+    await expect(page.locator('.kayzart-editor-bridge')).toHaveCount(0);
+
+    const content = await page.evaluate(() => String((window as any).wp.data.select('core/editor').getEditedPostContent()));
+    expect(content).toContain(marker);
+  } finally {
+    await deleteTemporaryPage(page, postId);
+  }
+});

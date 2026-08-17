@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 const bridgeScript = readFileSync('assets/admin/editor-bridge.js', 'utf8');
 const editPost = vi.fn();
 const savePost = vi.fn();
+const confirmReturn = vi.fn(() => true);
+const submitReturn = vi.fn();
 let editorDirty = false;
 let saveSucceeded = false;
 
@@ -27,6 +29,7 @@ const setupWordPress = (supportsTitle = true) => {
     supportsTitle,
     enabled: true,
     actionUrl: 'http://localhost/wp-admin/admin.php?action=kayzart&_wpnonce=nonce',
+    returnUrl: 'http://localhost/wp-admin/admin.php?action=kayzart_return_to_wordpress&post_id=42&_wpnonce=return-nonce',
     viewUrl: 'http://localhost/sample/?preview=true',
     labels: {
       edit: 'Edit with Kayzart',
@@ -34,6 +37,9 @@ const setupWordPress = (supportsTitle = true) => {
       description: 'Content is edited in Kayzart.',
       titleLabel: 'Page title',
       view: 'View page',
+      return: 'Return to WordPress editor',
+      returning: 'Returning…',
+      returnConfirm: 'Return this page to the WordPress editor?',
     },
   };
 };
@@ -115,6 +121,7 @@ const cleanup = () => {
   document.body.innerHTML = '';
   delete (window as any).KAYZART_EDITOR;
   delete (window as any).wp;
+  vi.restoreAllMocks();
 };
 
 describe('Gutenberg editor bridge', () => {
@@ -122,6 +129,10 @@ describe('Gutenberg editor bridge', () => {
     vi.useFakeTimers();
     editPost.mockReset();
     savePost.mockReset();
+    confirmReturn.mockClear();
+    submitReturn.mockClear();
+    vi.spyOn(window, 'confirm').mockImplementation(confirmReturn);
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(submitReturn);
     editorDirty = false;
     saveSucceeded = false;
     renderBlockEditor();
@@ -152,6 +163,26 @@ describe('Gutenberg editor bridge', () => {
     expect(document.querySelectorAll('.kayzart-editor-bridge__edit')).toHaveLength(1);
     expect(document.querySelector('.kayzart-editor-toolbar')).toBeNull();
     expect(document.querySelector('.editor-document-tools')?.children).toHaveLength(0);
+  });
+
+  it('offers a confirmed return to the WordPress editor', () => {
+    const returnLink = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__return')!;
+
+    returnLink.click();
+
+    expect(confirmReturn).toHaveBeenCalledWith('Return this page to the WordPress editor?');
+    expect(submitReturn).toHaveBeenCalledTimes(1);
+    const form = document.querySelector<HTMLFormElement>('form[action*="kayzart_return_to_wordpress"]')!;
+    expect(form.method).toBe('post');
+    expect(form.action).toContain('post_id=42');
+  });
+
+  it('keeps the bridge active when returning is canceled', () => {
+    confirmReturn.mockReturnValueOnce(false);
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__return')!.click();
+
+    expect(submitReturn).not.toHaveBeenCalled();
   });
 
   it('keeps the WordPress page title editable', () => {
@@ -246,6 +277,10 @@ describe('Classic Editor bridge', () => {
     vi.useFakeTimers();
     editPost.mockReset();
     savePost.mockReset();
+    confirmReturn.mockClear();
+    submitReturn.mockClear();
+    vi.spyOn(window, 'confirm').mockImplementation(confirmReturn);
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(submitReturn);
     editorDirty = false;
     saveSucceeded = false;
     renderClassicEditor();
@@ -280,6 +315,20 @@ describe('Classic Editor bridge', () => {
     expect(view.classList.contains('button-secondary')).toBe(true);
     expect(view.target).toBe('_blank');
     expect(document.querySelectorAll('.kayzart-editor-bridge__edit')).toHaveLength(1);
+    expect(document.querySelector('.kayzart-editor-bridge__return')).not.toBeNull();
+  });
+
+  it('saves Classic Editor settings before returning to WordPress editing', () => {
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    const save = document.querySelector<HTMLElement>('#save-post')!;
+    const saveClick = vi.fn((event: Event) => event.preventDefault());
+    save.addEventListener('click', saveClick);
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__return')!.click();
+
+    expect(confirmReturn).toHaveBeenCalledTimes(1);
+    expect(saveClick).toHaveBeenCalledTimes(1);
+    expect(form.querySelector<HTMLInputElement>('[name="kayzart_return_after_save"]')?.value).toBe('1');
   });
 
   it('mounts the bridge card after the title when the post type has no editor support', () => {

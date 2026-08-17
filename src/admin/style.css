@@ -1198,6 +1198,18 @@ body.admin_page_kayzart #wpbody-content {
   overflow: hidden;
 }
 
+.kayzart-settingsAiPanel {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kayzart-settingsAiPanel[hidden] {
+  display: none;
+}
+
 .kayzart-historyPanel {
   display: flex;
   flex-direction: column;

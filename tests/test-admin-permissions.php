@@ -50,9 +50,9 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		wp_set_current_user( $subscriber_id );
 
-		$original_get       = $_GET;
-		$_GET['post_id']    = (string) $post_id;
-		$_GET['_wpnonce']   = wp_create_nonce( Admin::REDIRECT_NONCE_ACTION );
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::REDIRECT_NONCE_ACTION );
 
 		$message = $this->capture_wp_die(
 			function () {
@@ -62,7 +62,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		$_GET = $original_get;
 
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
 	}
 
 	public function test_action_redirect_requires_valid_nonce(): void {
@@ -86,6 +86,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 	}
 
 	public function test_action_redirect_redirects_with_valid_nonce(): void {
+
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -108,6 +109,59 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( Post_Type::get_editor_url( $post_id ), $location );
 	}
 
+	public function test_action_return_to_wordpress_preserves_content_and_kayzart_data(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_author'  => $admin_id,
+				'post_content' => '<main>Current Kayzart HTML</main>',
+			)
+		);
+		wp_set_current_user( $admin_id );
+		Post_Type::enable_for_post( $post_id );
+		update_post_meta( $post_id, '_kayzart_css', 'main{}' );
+		update_post_meta( $post_id, '_kayzart_js', 'console.log("kept")' );
+
+		$original_post = $_POST;
+		$_POST         = array(
+			'post_id'  => (string) $post_id,
+			'_wpnonce' => wp_create_nonce( Admin::RETURN_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_return_to_wordpress();
+			}
+		);
+		$_POST    = $original_post;
+
+		$this->assertStringContainsString( 'post=' . $post_id, $location );
+		$this->assertFalse( Post_Type::is_kayzart_enabled_post( $post_id ) );
+		$this->assertSame( '<main>Current Kayzart HTML</main>', get_post_field( 'post_content', $post_id ) );
+		$this->assertSame( 'main{}', get_post_meta( $post_id, '_kayzart_css', true ) );
+		$this->assertSame( 'console.log("kept")', get_post_meta( $post_id, '_kayzart_js', true ) );
+	}
+
+	public function test_action_return_to_wordpress_requires_valid_nonce(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = (int) self::factory()->post->create( array( 'post_type' => Post_Type::PAGE_TYPE ) );
+		wp_set_current_user( $admin_id );
+		Post_Type::enable_for_post( $post_id );
+
+		$original_post    = $_POST;
+		$_POST['post_id']  = (string) $post_id;
+		$message           = $this->capture_wp_die(
+			function () {
+				Admin::action_return_to_wordpress();
+			}
+		);
+		$_POST             = $original_post;
+
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
+		$this->assertTrue( Post_Type::is_kayzart_enabled_post( $post_id ) );
+	}
+
 	public function test_maybe_redirect_new_post_allows_legacy_cpt_creation_screen(): void {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
@@ -120,7 +174,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		Admin::maybe_redirect_new_post();
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
@@ -135,12 +189,12 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$before       = $this->get_kayzart_post_ids();
 		$original_get = $_GET;
 		$_GET         = array(
-			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
+			'_wpnonce' => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
 		);
 
 		Admin::maybe_redirect_new_post();
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
@@ -157,7 +211,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		Admin::maybe_redirect_new_post();
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'Non-KayzArt post-new context should be ignored.' );
@@ -180,7 +234,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'Action without nonce must not create drafts.' );
@@ -202,7 +256,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$original_get = $_GET;
 		$_GET         = array(
 			'post_type' => Post_Type::POST_TYPE,
-			'_wpnonce' => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
+			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
 		);
 
 		$location = $this->capture_redirect(
@@ -233,7 +287,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$original_get = $_GET;
 		$_GET         = array(
 			'post_type' => Post_Type::PAGE_TYPE,
-			'_wpnonce' => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+			'_wpnonce'  => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
 		);
 
 		$location = $this->capture_redirect(
@@ -242,7 +296,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET     = $original_get;
+		$_GET      = $original_get;
 		$after_ids = $this->get_page_ids();
 		$created   = array_values( array_diff( $after_ids, $before_ids ) );
 
@@ -287,8 +341,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET      = $original_get;
-		$created   = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$_GET    = $original_get;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
 		$this->assertCount( 1, $created );
 		$created_id = (int) $created[0];
 
@@ -322,8 +376,8 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
-		$content = '<section><h1>Existing copy</h1></section>';
-		$page_id = (int) self::factory()->post->create(
+		$content      = '<section><h1>Existing copy</h1></section>';
+		$page_id      = (int) self::factory()->post->create(
 			array(
 				'post_type'    => Post_Type::PAGE_TYPE,
 				'post_author'  => $admin_id,
@@ -502,9 +556,9 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET      = $original_get;
-		$_POST     = $original_post;
-		$created   = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$_GET    = $original_get;
+		$_POST   = $original_post;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
 		$this->assertCount( 1, $created );
 		$request = get_post_meta( (int) $created[0], Admin::INITIAL_AI_REQUEST_META_KEY, true );
 
@@ -597,7 +651,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 				Admin::action_create_new_page();
 			}
 		);
-		$_POST = $original_post;
+		$_POST   = $original_post;
 		delete_option( 'kayzart_openai_api_key' );
 
 		$this->assertStringContainsString( 'Enter an AI instruction', $message );
@@ -663,7 +717,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 	public function test_convert_screen_explains_one_way_content_editing(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
-		$page_id = (int) self::factory()->post->create(
+		$page_id      = (int) self::factory()->post->create(
 			array(
 				'post_type'   => Post_Type::PAGE_TYPE,
 				'post_author' => $admin_id,
@@ -701,10 +755,10 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_page_ids();
 
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
 		$this->assertSame( $before, $after, 'Action without nonce must not create page drafts.' );
 	}
 

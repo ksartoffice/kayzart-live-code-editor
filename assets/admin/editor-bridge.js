@@ -16,7 +16,10 @@
   var data = window.KAYZART_EDITOR || {};
   var labels = data.labels || {};
   var actionUrl = data.actionUrl || '';
+  var returnUrl = data.returnUrl || '';
   var buttonLabel = labels.edit || __( 'Edit with Kayzart', 'kayzart-live-code-editor');
+  var returnLabel = labels.return || __( 'Return to WordPress editor', 'kayzart-live-code-editor');
+  var returnConfirm = labels.returnConfirm || __( 'Return this page to the WordPress editor? The current HTML will be kept, but Kayzart CSS and JavaScript will no longer be applied.', 'kayzart-live-code-editor');
 
   var getPostIdFromBlock = function () {
     if (!wpRef.data || !wpRef.data.select) {
@@ -52,15 +55,78 @@
     return link;
   };
 
-  var setEditActionBusy = function (link, busy) {
+  var setActionBusy = function (link, busy, idleLabel, busyLabel) {
     link.classList.toggle('is-busy', busy);
     if (busy) {
       link.setAttribute('aria-disabled', 'true');
-      link.textContent = __( 'Saving...', 'kayzart-live-code-editor');
+      link.textContent = busyLabel;
     } else {
       link.removeAttribute('aria-disabled');
-      link.textContent = buttonLabel;
+      link.textContent = idleLabel;
     }
+  };
+
+  var setEditActionBusy = function (link, busy) {
+    setActionBusy(link, busy, buttonLabel, __( 'Saving...', 'kayzart-live-code-editor'));
+  };
+
+  var submitReturnAction = function () {
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = returnUrl;
+    form.hidden = true;
+    document.body.appendChild(form);
+    form.submit();
+  };
+
+  var handleBlockEditorReturn = function (event, link) {
+    event.preventDefault();
+    if (link.classList.contains('is-busy') || !window.confirm(returnConfirm)) {
+      return;
+    }
+
+    var returningLabel = labels.returning || __( 'Returning…', 'kayzart-live-code-editor');
+    var selector = wpRef.data && wpRef.data.select ? wpRef.data.select('core/editor') : null;
+    if (!selector || !selector.isEditedPostDirty || !selector.isEditedPostDirty()) {
+      setActionBusy(link, true, returnLabel, returningLabel);
+      submitReturnAction();
+      return;
+    }
+
+    var editorDispatch = wpRef.data && wpRef.data.dispatch ? wpRef.data.dispatch('core/editor') : null;
+    if (!editorDispatch || !editorDispatch.savePost) {
+      return;
+    }
+
+    setActionBusy(link, true, returnLabel, __( 'Saving...', 'kayzart-live-code-editor'));
+    var saveRequest;
+    try {
+      saveRequest = editorDispatch.savePost();
+    } catch (error) {
+      setActionBusy(link, false, returnLabel, returningLabel);
+      return;
+    }
+
+    Promise.resolve(saveRequest).then(
+      function () {
+        var savedSelector = wpRef.data && wpRef.data.select ? wpRef.data.select('core/editor') : null;
+        var stillDirty = savedSelector && savedSelector.isEditedPostDirty
+          ? savedSelector.isEditedPostDirty()
+          : true;
+        var didSucceed = savedSelector && savedSelector.didPostSaveRequestSucceed
+          ? savedSelector.didPostSaveRequestSucceed()
+          : false;
+        if (!stillDirty && didSucceed) {
+          setActionBusy(link, true, returnLabel, returningLabel);
+          submitReturnAction();
+          return;
+        }
+        setActionBusy(link, false, returnLabel, returningLabel);
+      },
+      function () {
+        setActionBusy(link, false, returnLabel, returningLabel);
+      }
+    );
   };
 
   var handleBlockEditorEdit = function (event, link, editorUrl) {
@@ -117,7 +183,10 @@
     );
   };
 
-  var handleClassicEditorEdit = function (event, link) {
+  var handleClassicEditorEdit = function (event, link, redirectFieldName, idleLabel, busyLabel) {
+    redirectFieldName = redirectFieldName || 'kayzart_open_after_save';
+    idleLabel = idleLabel || buttonLabel;
+    busyLabel = busyLabel || __( 'Saving...', 'kayzart-live-code-editor');
     if (link.classList.contains('is-busy')) {
       event.preventDefault();
       return;
@@ -188,11 +257,11 @@
       return;
     }
 
-    var redirectFlag = form.querySelector('input[name="kayzart_open_after_save"]');
+    var redirectFlag = form.querySelector('input[name="' + redirectFieldName + '"]');
     if (!redirectFlag) {
       redirectFlag = document.createElement('input');
       redirectFlag.type = 'hidden';
-      redirectFlag.name = 'kayzart_open_after_save';
+      redirectFlag.name = redirectFieldName;
       form.appendChild(redirectFlag);
     }
     redirectFlag.value = '1';
@@ -202,7 +271,7 @@
       submitEvent = submit;
     };
     form.addEventListener('submit', captureSubmit, { once: true });
-    setEditActionBusy(link, true);
+    setActionBusy(link, true, idleLabel, busyLabel);
     submitter.click();
 
     window.setTimeout(function () {
@@ -215,7 +284,7 @@
         temporaryFields.forEach(function (field) {
           field.remove();
         });
-        setEditActionBusy(link, false);
+        setActionBusy(link, false, idleLabel, busyLabel);
       }
     }, 0);
   };
@@ -277,6 +346,19 @@
       viewLink.rel = 'noopener noreferrer';
       actions.appendChild(viewLink);
     }
+    if (returnUrl) {
+      var returnLink = createActionLink(
+        options.secondaryButtonClass + ' kayzart-editor-bridge__return',
+        returnUrl,
+        returnLabel
+      );
+      if (options.onReturn) {
+        returnLink.addEventListener('click', function (event) {
+          options.onReturn(event, returnLink);
+        });
+      }
+      actions.appendChild(returnLink);
+    }
     if (editorUrl) {
       var editLink = createActionLink(
         options.primaryButtonClass + ' kayzart-editor-bridge__edit',
@@ -333,7 +415,8 @@
           primaryButtonClass: 'components-button is-primary',
           secondaryButtonClass: 'components-button is-secondary',
           showTitleInput: data.supportsTitle === true,
-          onEdit: handleBlockEditorEdit
+          onEdit: handleBlockEditorEdit,
+          onReturn: handleBlockEditorReturn
         })
       );
     };
@@ -380,7 +463,20 @@
       primaryButtonClass: 'button button-primary',
       secondaryButtonClass: 'button button-secondary',
       showTitleInput: false,
-      onEdit: handleClassicEditorEdit
+      onEdit: function (event, link) {
+        handleClassicEditorEdit(event, link);
+      },
+      onReturn: function (event, link) {
+        event.preventDefault();
+        if (!window.confirm(returnConfirm)) return;
+        handleClassicEditorEdit(
+          event,
+          link,
+          'kayzart_return_after_save',
+          returnLabel,
+          __( 'Saving...', 'kayzart-live-code-editor')
+        );
+      }
     });
 
     if (editor && editor.parentNode) {

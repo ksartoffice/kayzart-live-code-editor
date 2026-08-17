@@ -58,8 +58,9 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 			)
 		);
 		wp_set_current_user( $this->admin_id );
-		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		update_option( 'kayzart_openai_api_key', 'sk-test-rest-ai' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -70,8 +71,9 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	/** Restore global filters, actions, and user state. */
 	protected function tearDown(): void {
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
-		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		delete_option( 'kayzart_openai_api_key' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );

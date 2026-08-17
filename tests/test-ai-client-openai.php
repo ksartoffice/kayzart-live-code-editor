@@ -27,6 +27,9 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 
 	/** WordPress Connectors win when both supported backends are ready. */
 	public function test_factory_prefers_wordpress_connector_over_direct_key(): void {
+		global $wp_version;
+
+		$original_wp_version = $wp_version;
 		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
 		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
 		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
@@ -35,7 +38,12 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );
 
-		$this->assertSame( Ai_Client_Factory::WORDPRESS, Ai_Client_Factory::resolve_backend() );
+		try {
+			$wp_version = '7.0';
+			$this->assertSame( Ai_Client_Factory::WORDPRESS, Ai_Client_Factory::resolve_backend() );
+		} finally {
+			$wp_version = $original_wp_version;
+		}
 	}
 
 	/** A job remains on the backend captured when the REST request was created. */

@@ -363,7 +363,11 @@ class Admin {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
-		$prompt = trim( wp_check_invalid_utf8( wp_unslash( (string) $_POST['initial_ai_prompt'] ), true ) );
+		$prompt = wp_unslash( (string) $_POST['initial_ai_prompt'] );
+		if ( ! mb_check_encoding( $prompt, 'UTF-8' ) ) {
+			$prompt = mb_convert_encoding( $prompt, 'UTF-8', 'UTF-8' );
+		}
+		$prompt = trim( wp_check_invalid_utf8( $prompt ) );
 		if ( mb_strlen( $prompt, 'UTF-8' ) > self::get_ai_max_prompt_chars() ) {
 			wp_die( esc_html__( 'The initial AI instruction is too large.', 'kayzart-live-code-editor' ) );
 		}

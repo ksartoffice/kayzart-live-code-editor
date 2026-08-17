@@ -124,6 +124,11 @@ class Test_Kayzart_Ai_Fonts extends WP_UnitTestCase {
 	 * A Font Library install (custom origin) is offered to the AI.
 	 */
 	public function test_custom_origin_family_is_registered(): void {
+		if ( ! function_exists( 'wp_print_font_faces' ) ) {
+			$this->assertSame( array(), Ai_Fonts::registered_families() );
+			return;
+		}
+
 		$this->require_block_theme();
 		$this->register_user_font_family(
 			array(
@@ -172,6 +177,12 @@ class Test_Kayzart_Ai_Fonts extends WP_UnitTestCase {
 	 * asserts the equivalence rather than any one version's outcome.
 	 */
 	public function test_offered_families_are_exactly_what_core_renders(): void {
+		if ( ! function_exists( 'wp_print_font_faces' ) ) {
+			$this->assertSame( array(), Ai_Fonts::registered_families() );
+			$this->assertNotEmpty( Ai_Fonts::resolve_for_payload()['systemStacks'] );
+			return;
+		}
+
 		$this->register_user_font_family(
 			array(
 				'name'       => 'Render Check JP',

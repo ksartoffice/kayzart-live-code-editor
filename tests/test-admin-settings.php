@@ -31,6 +31,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		delete_option( Admin::OPTION_AI_MAX_PROMPT_CHARS );
+		delete_option( 'kayzart_openai_api_key' );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -520,9 +521,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
 		wp_set_current_user( $admin_id );
+		update_option( 'kayzart_openai_api_key', 'sk-test-create-screen' );
 
-		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -533,18 +535,17 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'id="kayzart-ai-improve"', $available_output );
 		$this->assertStringContainsString( 'id="kayzart-ai-improve-undo"', $available_output );
 
-		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		delete_option( 'kayzart_openai_api_key' );
 		ob_start();
 		Admin::render_new_page();
 		$unavailable_output = (string) ob_get_clean();
 		$this->assertStringNotContainsString( 'id="kayzart-ai-improve"', $unavailable_output );
 
-		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
 	}
 
 	public function test_get_settings_url_points_at_the_hub_and_keeps_tab_support(): void {
@@ -817,10 +818,11 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'post_status' => 'draft',
 			)
 		);
+		update_option( 'kayzart_openai_api_key', 'sk-test-inline-config' );
 
 		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
-		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		add_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		add_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -835,8 +837,9 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$_GET = $original_get;
 
 		remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
-		remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
-		remove_filter( 'kayzart_ai_provider_configured', '__return_true' );
+		delete_option( 'kayzart_openai_api_key' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
 		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
@@ -851,13 +854,13 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			array(
 				'available'           => true,
 				'setupState'          => 'ready',
-				'backend'             => 'wordpress_ai_client',
+				'backend'             => 'openai_direct',
 				'featureEnabled'      => true,
-				'sdkPresent'          => true,
+				'sdkPresent'          => false,
 				'providerConfigured'  => true,
-				'connectorConfigured' => true,
-				'directKeyConfigured' => false,
-				'directKeySource'     => 'none',
+				'connectorConfigured' => false,
+				'directKeyConfigured' => true,
+				'directKeySource'     => 'database',
 				'schedulerPresent'    => true,
 				'mbstringPresent'     => true,
 				'domPresent'          => true,

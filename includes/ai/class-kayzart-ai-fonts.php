@@ -105,10 +105,14 @@ class Ai_Fonts {
 	 */
 	public static function registered_families(): array {
 		$families = array();
-		try {
-			$families = self::read_families_from_global_settings();
-		} catch ( \Throwable $error ) {
-			$families = array();
+		// WordPress cannot render theme.json font faces before this public API was
+		// introduced in 6.4, so do not offer core-managed families to the AI.
+		if ( function_exists( 'wp_print_font_faces' ) ) {
+			try {
+				$families = self::read_families_from_global_settings();
+			} catch ( \Throwable $error ) {
+				$families = array();
+			}
 		}
 
 		/**

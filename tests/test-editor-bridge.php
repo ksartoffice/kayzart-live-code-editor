@@ -371,6 +371,35 @@ class Test_Editor_Bridge extends WP_UnitTestCase {
 		$this->assertSame( $stored_content, $post->post_content );
 	}
 
+	/** WordPress 5.9 passes three arguments to wp_insert_post_data. */
+	public function test_classic_editor_guard_supports_wordpress_59_three_argument_filter(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = $this->create_enabled_post( Post_Type::PAGE_TYPE );
+		wp_update_post( array( 'ID' => $post_id, 'post_content' => 'Stored Kayzart HTML' ) );
+		set_current_screen( 'post' );
+		$_POST['action'] = 'editpost';
+
+		$result = Editor_Bridge::preserve_classic_editor_content(
+			array( 'post_content' => wp_slash( 'Classic Editor replacement' ) ),
+			array( 'ID' => $post_id ),
+			array( 'ID' => $post_id )
+		);
+
+		$this->assertSame( 'Stored Kayzart HTML', wp_unslash( $result['post_content'] ) );
+	}
+
+	/** WordPress 6.0 and later pass the explicit update flag. */
+	public function test_classic_editor_guard_respects_explicit_fourth_update_argument(): void {
+		set_current_screen( 'post' );
+		$_POST['action'] = 'editpost';
+		$data = array( 'post_content' => wp_slash( 'New post content' ) );
+
+		$result = Editor_Bridge::preserve_classic_editor_content( $data, array(), array(), false );
+
+		$this->assertSame( $data, $result );
+	}
+
 	public function test_classic_editor_guard_leaves_unmanaged_content_unchanged(): void {
 		$post_id = $this->create_post( Post_Type::PAGE_TYPE );
 		wp_update_post(

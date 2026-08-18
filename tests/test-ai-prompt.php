@@ -57,8 +57,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'You are the Kayzart AI page generation engine.', $prompt );
 		$this->assertStringContainsString( 'Build one complete, publishable landing page', $prompt );
-		$this->assertStringContainsString( 'Compose the page from multiple distinct sections.', $prompt );
-		$this->assertStringContainsString( 'Do not invent prices, results, testimonials', $prompt );
+		$this->assertStringContainsString( 'Plan the full section list before the first edit tool call', $prompt );
 
 		$this->assertStringNotContainsString( 'Keep changes minimal and relevant to the user request.', $prompt );
 		$this->assertStringNotContainsString( 'Search first and read only the smallest relevant range.', $prompt );
@@ -86,66 +85,39 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A generated page is typography-led, and the hero most of all, because the
-	 * create intent has no image source to build a layout around.
+	 * Visual direction is the brief's job, not the system prompt's. Neither
+	 * intent prescribes a layout, a hero treatment, or an imagery policy.
 	 */
-	public function test_system_prompt_creation_intent_is_typography_first(): void {
-		$prompt = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
+	public function test_system_prompt_prescribes_no_visual_direction(): void {
+		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
+			$prompt = Ai_Prompt::system_prompt( $intent );
 
-		$this->assertStringContainsString( 'Typography-first design rules:', $prompt );
-		$this->assertStringContainsString( 'Type is the artwork.', $prompt );
-		$this->assertStringContainsString( 'The hero is the strongest instance of this rule, not an exception to it', $prompt );
-		$this->assertStringContainsString( 'Prefer a full-bleed or centred single-column hero.', $prompt );
-		$this->assertStringContainsString( 'Never write an <img>.', $prompt );
-		$this->assertStringContainsString( 'Never depict a real-world subject', $prompt );
-		$this->assertStringContainsString( 'Never reserve a gap for an image that will not arrive', $prompt );
+			$this->assertStringNotContainsString( 'Typography-first design rules:', $prompt, $intent );
+			$this->assertStringNotContainsString( 'Type is the artwork.', $prompt, $intent );
+			$this->assertStringNotContainsString( 'The hero is the strongest instance', $prompt, $intent );
+			$this->assertStringNotContainsString( 'Never write an <img>.', $prompt, $intent );
+			$this->assertStringNotContainsString( 'Never depict a real-world subject', $prompt, $intent );
+		}
 	}
 
 	/**
-	 * Editing must not inherit the direction. An existing page has its own, and
-	 * often has real uploaded images the rules would argue with.
+	 * The filtered-markup notice must not read as permission to draw a subject.
+	 * Both intents get the same <picture> guidance now that nothing bans <img>.
 	 */
-	public function test_system_prompt_editing_intent_has_no_typography_rules(): void {
-		$prompt = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT );
+	public function test_markup_policy_is_the_same_for_both_intents(): void {
+		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
+			$policy = Ai_Prompt::build_user_prompt(
+				array(
+					'intent'      => $intent,
+					'prompt'      => 'apple shop',
+					'canEditHead' => false,
+				)
+			);
 
-		$this->assertStringNotContainsString( 'Typography-first design rules:', $prompt );
-		$this->assertStringNotContainsString( 'Never write an <img>.', $prompt );
-		$this->assertStringNotContainsString( 'The hero is the strongest instance', $prompt );
-	}
-
-	/**
-	 * The filtered-markup notice must not read as permission to draw a subject,
-	 * and on create it must not offer <img> as the way out of a dropped
-	 * <picture> when the typography rules have just banned it.
-	 */
-	public function test_markup_policy_offers_no_image_fallback_on_create(): void {
-		$policy = Ai_Prompt::build_user_prompt(
-			array(
-				'intent'      => Ai_Prompt::INTENT_CREATE,
-				'prompt'      => 'apple shop',
-				'canEditHead' => false,
-			)
-		);
-
-		$this->assertStringContainsString( 'CSS-drawn abstract shape', $policy );
-		$this->assertStringContainsString( 'Never use one to depict a real-world subject.', $policy );
-		$this->assertStringNotContainsString( 'a CSS-drawn shape, or an <img>', $policy );
-		$this->assertStringNotContainsString( 'Write a plain <img> with its src', $policy );
-	}
-
-	/**
-	 * Editing still needs the <picture> guidance, which only create withholds.
-	 */
-	public function test_markup_policy_keeps_the_picture_fallback_on_edit(): void {
-		$policy = Ai_Prompt::build_user_prompt(
-			array(
-				'prompt'      => 'make the heading blue',
-				'canEditHead' => false,
-			)
-		);
-
-		$this->assertStringContainsString( 'Write a plain <img> with its src, alt, width and height.', $policy );
-		$this->assertStringContainsString( 'CSS-drawn abstract shape', $policy );
+			$this->assertStringContainsString( 'CSS-drawn abstract shape', $policy, $intent );
+			$this->assertStringContainsString( 'Never use one to depict a real-world subject.', $policy, $intent );
+			$this->assertStringContainsString( 'Write a plain <img> with its src, alt, width and height.', $policy, $intent );
+		}
 	}
 
 	/**

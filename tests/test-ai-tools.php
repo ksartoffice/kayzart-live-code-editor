@@ -467,6 +467,64 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The media library hands out absolute uploads URLs, so the site's own host
+	 * is not remote. Both schemes count: one site reachable over http and https
+	 * is still one site.
+	 */
+	public function test_output_policy_allows_same_origin_absolute_urls(): void {
+		$host  = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$cases = array(
+			'html' => '<img src="https://' . $host . '/wp-content/uploads/a.png" alt="A">',
+			'css'  => '.x{background:url(http://' . $host . '/wp-content/uploads/b.png)}',
+		);
+		foreach ( $cases as $target => $to ) {
+			$result = Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => $target,
+					'from'   => '',
+					'to'     => $to,
+				),
+				$this->snapshot(),
+				null,
+				array( 'html', 'head', 'css' )
+			);
+			$this->assertSame( $to, $result['snapshot'][ 'html' === $target ? 'html' : 'css' ], $target );
+		}
+	}
+
+	/**
+	 * The exemption is a host comparison, not a prefix match, and it does not
+	 * quietly readmit the schemes that carry no host at all.
+	 */
+	public function test_output_policy_still_rejects_lookalike_hosts_and_schemeless_payloads(): void {
+		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$cases = array(
+			'<img src="https://' . $host . '.evil.example/a.png">',
+			'<img src="https://evil.example/' . $host . '/a.png">',
+			'<img src="data:image/svg+xml,x">',
+		);
+		foreach ( $cases as $to ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => $to,
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $to );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $to );
+			}
+		}
+	}
+
+	/**
 	 * The dispatcher rejects unknown tool names.
 	 */
 	public function test_run_tool_rejects_unknown_tool(): void {

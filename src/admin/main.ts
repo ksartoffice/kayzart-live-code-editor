@@ -240,6 +240,9 @@ async function main() {
       toolbarApi?.update({ editorCollapsed: collapsed });
       updatePersistedLayout({ editorCollapsed: collapsed });
       preview?.sendEditorCollapsedState(collapsed);
+      if (!collapsed) {
+        restoreSelectionHighlightAfterExpand();
+      }
     },
     onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
     onPreviewResizeChange: restoreCapturedPreviewScroll,
@@ -404,6 +407,22 @@ async function main() {
 
   const syncEditorCollapsedState = () => {
     preview?.sendEditorCollapsedState(viewportController.isEditorCollapsed());
+  };
+
+  // While the code pane is collapsed it is inert and zero-width, so the
+  // selection highlight cannot land there. Re-apply it once the pane has
+  // animated open, whichever control expanded it.
+  const restoreSelectionHighlightAfterExpand = () => {
+    const lcId = selectedLcId;
+    if (!lcId) {
+      return;
+    }
+    viewportController.runAfterEditorLayout(() => {
+      if (viewportController.isEditorCollapsed() || selectedLcId !== lcId) {
+        return;
+      }
+      preview?.highlightSelection(lcId);
+    });
   };
 
   const syncPendingPreviewReloadNotice = () => {
@@ -1923,16 +1942,7 @@ async function main() {
       }
     },
     onOpenCodePanel: () => {
-      const lcId = selectedLcId;
       viewportController.setEditorCollapsed(false);
-      if (!lcId) {
-        return;
-      }
-      // The pane was inert and zero-width while collapsed, so the selection
-      // highlight cannot land there. Re-apply it against the settled layout.
-      viewportController.runAfterEditorLayout(() => {
-        preview?.highlightSelection(lcId);
-      });
     },
     onCopyElementHtml: (lcId) => {
       void handleCopyElementHtml(lcId);

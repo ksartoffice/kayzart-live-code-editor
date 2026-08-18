@@ -159,7 +159,6 @@ The editable targets start empty or nearly empty. Your task is to write a whole 
 
 Rules:
 - Build one complete, publishable page that covers the whole brief.
-- Use an image only when the brief gives you its URL, and write that URL exactly. Never invent, guess, or recall one: a URL you did not receive renders as a broken image on the published page.
 - Non-typographic elements are welcome as ground, never as subject. Colour fields, one soft gradient, rules, abstract shapes and oversized glyphs can carry a page on their own. Do not draw a product, food, person, animal, building, logo or landscape out of CSS or SVG; a drawn approximation of a photograph never reaches production quality.
 - Write substantial, specific copy. Never leave placeholder stubs such as "Lorem ipsum", "text here", or an empty section.
 - Plan the full section list before the first edit tool call, then write each section completely.
@@ -242,10 +241,20 @@ PROMPT;
 	/**
 	 * Output, quality and finalization rules shared by every intent.
 	 *
+	 * The image rule belongs to both. Ai_Output_Policy stopped asking which host
+	 * an image comes from, and it never knew the intent anyway, so a request to
+	 * add a photograph now reaches the page whatever URL the model puts on it.
+	 * Authoring a page and editing one both have to be told that a URL nobody
+	 * supplied is a URL that was made up. What stays with creation alone is the
+	 * direction not to draw the subject instead: an existing page has its own
+	 * visual language, often with real photographs in it, and an edit has no
+	 * business overruling that.
+	 *
 	 * @return string
 	 */
 	private static function common_output_rules(): string {
 		$prompt = <<<'PROMPT'
+- Use an image only when its URL was given to you, and write that URL exactly. Never invent, guess, or recall one: a URL you were not given renders as a broken image on the published page. Images already on the page keep the URLs they have.
 - Ensure the result is responsive and looks good on both mobile and desktop screens.
 - Match the human-readable language of the HTML to the existing document content, not to the language of the user's instruction. If the document already contains copy in a given language (for example English), keep writing in that language even when the instruction is written in a different language.
 - Only switch the output language when the user explicitly asks to translate or to write in a specific language.

@@ -115,16 +115,32 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * An image the model did not receive is an image that does not exist, and a
-	 * subject drawn in its place never reaches production quality. Authoring a
-	 * page needs to hear both; editing one works on a page whose pictures are
-	 * already decided and does not.
+	 * The output policy no longer asks which host an image comes from, and never
+	 * knew the intent, so "add a photo of a dog" can reach the page on whatever
+	 * URL the model produces. Both intents have to hear that a URL nobody
+	 * supplied is one that was invented.
 	 */
-	public function test_creation_rules_govern_imagery_and_editing_rules_do_not(): void {
+	public function test_both_intents_forbid_inventing_an_image_url(): void {
+		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
+			$prompt = Ai_Prompt::system_prompt( $intent );
+
+			$this->assertStringContainsString( 'Use an image only when its URL was given to you', $prompt, $intent );
+			$this->assertStringContainsString( 'Never invent, guess, or recall one', $prompt, $intent );
+			$this->assertStringContainsString( 'Images already on the page keep the URLs they have.', $prompt, $intent );
+		}
+	}
+
+	/**
+	 * Drawing the subject instead is the other way out of having no photograph,
+	 * and closing it is a decision about how a page should look. A page being
+	 * authored has none of its own yet; one being edited does, often with real
+	 * photographs in it, and the edit has no business overruling that.
+	 */
+	public function test_only_creation_rules_forbid_drawing_the_subject(): void {
 		$creating = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
 		$editing  = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT );
 
-		foreach ( array( 'Use an image only when the brief gives you its URL', 'Never invent, guess, or recall one', 'welcome as ground, never as subject', 'out of CSS or SVG' ) as $rule ) {
+		foreach ( array( 'welcome as ground, never as subject', 'out of CSS or SVG' ) as $rule ) {
 			$this->assertStringContainsString( $rule, $creating, $rule );
 			$this->assertStringNotContainsString( $rule, $editing, $rule );
 		}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeChangedTargets, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotIdentity } from '../../../src/editor-ai/polling';
+import { computeChangedTargets, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotContent, sameSnapshotIdentity } from '../../../src/editor-ai/polling';
 
 const snapshot = { html: '<h1>A</h1>', customHead: '', css: '', js: '', jsMode: 'classic' as const, baseHash: 'a' };
 
@@ -21,6 +21,11 @@ describe('AI polling helpers', () => {
   it('uses base hash and JavaScript mode as the snapshot identity', () => {
     expect(sameSnapshotIdentity(snapshot, { ...snapshot })).toBe(true);
     expect(sameSnapshotIdentity(snapshot, { ...snapshot, jsMode: 'module' })).toBe(false);
+  });
+
+  it('compares complete snapshot content instead of trusting its short hash', () => {
+    expect(sameSnapshotContent(snapshot, { ...snapshot })).toBe(true);
+    expect(sameSnapshotContent(snapshot, { ...snapshot, html: '<h1>B</h1>' })).toBe(false);
   });
 
   it('retries only transient HTTP status failures', () => {

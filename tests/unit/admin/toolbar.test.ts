@@ -65,6 +65,7 @@ describe('toolbar', () => {
           viewportMode: 'desktop',
           hasUnsavedChanges: false,
           saveDisabled: false,
+          mutationLocked: false,
           viewPostUrl: '',
           postStatus: 'draft',
           postTitle: 'Draft page',
@@ -125,6 +126,21 @@ describe('toolbar', () => {
     expect(
       (container.querySelector('.kayzart-splitButton-toggle') as HTMLButtonElement).disabled
     ).toBe(true);
+  });
+
+  it('blocks mutation actions while leaving export available during an AI edit', async () => {
+    const { container } = await mount({ mutationLocked: true, saveDisabled: true, canUndo: true, canRedo: true });
+
+    expect((container.querySelector('[aria-label="Undo"]') as HTMLButtonElement).disabled).toBe(true);
+    expect((container.querySelector('[aria-label="Redo"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelector('.kayzart-toolbarTitle')?.getAttribute('aria-disabled')).toBe('true');
+
+    const exportButton = container.querySelector('[aria-label="Import / Export"]') as HTMLButtonElement;
+    await act(async () => exportButton.click());
+    const items = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    expect(items.find((item) => item.textContent === 'Import full HTML')?.disabled).toBe(true);
+    expect(items.find((item) => item.textContent === 'Copy full HTML')?.disabled).toBe(false);
+    expect(items.find((item) => item.textContent === 'Download full HTML')?.disabled).toBe(false);
   });
 
   it('exposes code and tools panel state to assistive technology', async () => {

@@ -76,6 +76,7 @@ export type SettingsApi = {
   openTab: (tab: SettingsTab) => void;
   refreshHistory: () => void;
   setEditorModeState: (mode: EditorCssMode, disabled: boolean) => void;
+  setMutationLocked: (locked: boolean) => void;
 };
 
 const CLOSE_ICON = renderLucideIcon(X, {
@@ -146,6 +147,7 @@ function SettingsSidebar({
   const [historyRefreshToken, setHistoryRefreshToken] = useState(0);
   const [editorMode, setEditorMode] = useState<EditorCssMode>(initialEditorMode);
   const [editorModeDisabled, setEditorModeDisabled] = useState(false);
+  const [mutationLocked, setMutationLocked] = useState(false);
   const externalTabHostRef = useRef<HTMLDivElement | null>(null);
   const externalTabCleanupRef = useRef<(() => void) | null>(null);
   const resolveLiveHighlightEnabled = (value?: boolean) =>
@@ -184,6 +186,7 @@ function SettingsSidebar({
         setEditorMode(mode);
         setEditorModeDisabled(disabled);
       },
+      setMutationLocked,
     });
   }, [onApiReady]);
 
@@ -280,7 +283,7 @@ function SettingsSidebar({
   };
 
   const handleTemplateModeChange = (next: 'default' | 'standalone' | 'theme') => {
-    if (!canEditJs) {
+    if (!canEditJs || mutationLocked) {
       return;
     }
     setTemplateMode(next);
@@ -391,6 +394,7 @@ function SettingsSidebar({
             editorMode={editorMode}
             onChangeEditorMode={(mode) => onEditorModeChange?.(mode)}
             editorModeDisabled={editorModeDisabled}
+            mutationLocked={mutationLocked}
             disabled={!canEditJs}
           />
         </div>
@@ -398,7 +402,7 @@ function SettingsSidebar({
 
       {activeTab === 'elements' ? (
         <div id={panelDomId('elements')} role="tabpanel" aria-labelledby={tabDomId('elements')}>
-          <ElementPanel api={elementsApi} />
+          <ElementPanel api={elementsApi} mutationLocked={mutationLocked} />
         </div>
       ) : null}
 
@@ -415,6 +419,7 @@ function SettingsSidebar({
             refreshToken={historyRefreshToken}
             hasUnsavedChanges={hasUnsavedChanges}
             onLoadSnapshot={onLoadSnapshot}
+            mutationLocked={mutationLocked}
           />
         </div>
       ) : null}
@@ -438,6 +443,9 @@ export function initSettings(config: SettingsConfig) {
   let openTabImpl: (tab: SettingsTab) => void = () => {};
   let refreshHistoryImpl: () => void = () => {};
   let setEditorModeStateImpl: (mode: EditorCssMode, disabled: boolean) => void = () => {};
+  let setMutationLockedImpl: (locked: boolean) => void = () => {};
+  let latestEditorModeState = { mode: config.editorMode, disabled: false };
+  let latestMutationLocked = false;
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
@@ -449,7 +457,12 @@ export function initSettings(config: SettingsConfig) {
       refreshHistoryImpl();
     },
     setEditorModeState(mode: EditorCssMode, disabled: boolean) {
+      latestEditorModeState = { mode, disabled };
       setEditorModeStateImpl(mode, disabled);
+    },
+    setMutationLocked(locked: boolean) {
+      latestMutationLocked = locked;
+      setMutationLockedImpl(locked);
     },
   };
 
@@ -462,6 +475,9 @@ export function initSettings(config: SettingsConfig) {
         openTabImpl = nextApi.openTab;
         refreshHistoryImpl = nextApi.refreshHistory;
         setEditorModeStateImpl = nextApi.setEditorModeState;
+        setMutationLockedImpl = nextApi.setMutationLocked;
+        setEditorModeStateImpl(latestEditorModeState.mode, latestEditorModeState.disabled);
+        setMutationLockedImpl(latestMutationLocked);
       }}
     />
   );

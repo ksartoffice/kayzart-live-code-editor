@@ -12,6 +12,7 @@ type SettingsPanelProps = {
   editorMode: EditorCssMode;
   onChangeEditorMode: (mode: EditorCssMode) => void;
   editorModeDisabled?: boolean;
+  mutationLocked?: boolean;
   disabled?: boolean;
 };
 
@@ -25,6 +26,7 @@ export function SettingsPanel({
   editorMode,
   onChangeEditorMode,
   editorModeDisabled = false,
+  mutationLocked = false,
   disabled = false,
 }: SettingsPanelProps) {
   const templateModeLabels: Record<'standalone' | 'theme', string> = {
@@ -52,7 +54,7 @@ export function SettingsPanel({
             value={editorMode}
             onChange={(event) => onChangeEditorMode(event.target.value as EditorCssMode)}
             aria-label={__( 'CSS mode', 'kayzart-live-code-editor')}
-            disabled={editorModeDisabled}
+            disabled={editorModeDisabled || mutationLocked}
           >
             <option value="normal">{__( 'Normal HTML/CSS', 'kayzart-live-code-editor')}</option>
             <option value="tailwind">{__( 'TailwindCSS', 'kayzart-live-code-editor')}</option>
@@ -83,7 +85,7 @@ export function SettingsPanel({
               )
             }
             aria-label={__( 'Template mode', 'kayzart-live-code-editor')}
-            disabled={disabled || !canEditJs}
+            disabled={disabled || !canEditJs || mutationLocked}
           >
             <option value="default">
               {sprintf(__( 'Use default (%s)', 'kayzart-live-code-editor'), resolvedDefaultTemplateMode)}

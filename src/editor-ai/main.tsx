@@ -9,7 +9,7 @@ import {
   AiApiError, cancelJob, createJob, getJob, getTimeline, getTimelineSnapshot,
   restoreTimeline, updateTimelineApplication,
 } from './api';
-import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotIdentity, sleep } from './polling';
+import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotContent, sameSnapshotIdentity, sleep } from './polling';
 import { clearActiveJob, loadActiveJob, saveActiveJob } from './session';
 import { resolveAiActivityNotification } from '../admin/logic/ai-activity';
 import './style.css';
@@ -48,7 +48,7 @@ const TERMINAL_INITIAL_REQUEST_CODES = new Set([
 ]);
 let promptFocusRequest = 0;
 
-function notifyAiActivity(state: 'running' | 'complete' | 'error') {
+function notifyAiActivity(state: 'idle' | 'running' | 'complete' | 'error') {
   window.dispatchEvent(new CustomEvent(AI_ACTIVITY_EVENT, { detail: { state } }));
 }
 
@@ -348,18 +348,18 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     const output = normalizeSnapshot(status.snapshot);
     notifyAiActivity('complete');
     const current = host()?.getEditorSnapshot?.();
-    if (current && sameSnapshotIdentity(current, output)) {
+    if (current && sameSnapshotContent(normalizeSnapshot(current), output)) {
       setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
       await markApplied(active.activityId);
       finish();
       return;
     }
-    if (!current || !sameSnapshotIdentity(current, active.inputSnapshot)) {
+    if (!current || !sameSnapshotContent(normalizeSnapshot(current), active.inputSnapshot)) {
       setPendingConflict({ output, activityId: active.activityId });
       finish();
       return;
     }
-    const replace = host()?.replaceEditorSnapshot;
+    const replace = host()?.applyAiEditorSnapshot || host()?.replaceEditorSnapshot;
     if (typeof replace !== 'function' || !replace(output)) {
       setError(__('The AI result could not be applied to the editor.', 'kayzart-live-code-editor'));
       finish();

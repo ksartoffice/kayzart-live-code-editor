@@ -68,4 +68,30 @@ describe('SettingsPanel CSS mode', () => {
 
     await act(async () => root.unmount());
   });
+
+  it('locks content settings but keeps live highlight available', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <SettingsPanel
+          canEditJs={true}
+          templateMode="standalone"
+          defaultTemplateMode="standalone"
+          onChangeTemplateMode={() => {}}
+          liveHighlightEnabled={true}
+          onToggleLiveHighlight={() => {}}
+          editorMode="normal"
+          onChangeEditorMode={() => {}}
+          mutationLocked={true}
+        />
+      );
+    });
+
+    expect((container.querySelector('select[aria-label="CSS mode"]') as HTMLSelectElement).disabled).toBe(true);
+    expect((container.querySelector('select[aria-label="Template mode"]') as HTMLSelectElement).disabled).toBe(true);
+    expect((container.querySelector('input[aria-label="Enable live edit highlight"]') as HTMLInputElement).disabled).toBe(false);
+    await act(async () => root.unmount());
+  });
 });

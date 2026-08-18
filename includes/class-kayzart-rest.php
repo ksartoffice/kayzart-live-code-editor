@@ -27,7 +27,6 @@ class Rest {
 	 */
 	public static function register_routes(): void {
 		Rest_Ai::register_routes();
-		Rest_Ai_Prompt::register_route();
 		Rest_Ai_Timeline::register_routes();
 
 		register_rest_route(

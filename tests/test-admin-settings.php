@@ -557,11 +557,9 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$before_inline = isset( $registered->extra['before'] ) ? (array) $registered->extra['before'] : array();
 		$inline        = implode( "\n", $before_inline );
 		$this->assertStringContainsString( 'maxPromptChars', $inline );
-		$this->assertStringContainsString( 'ai\\/prompts\\/improve', $inline );
-		$this->assertStringContainsString( 'restNonce', $inline );
 	}
 
-	public function test_render_new_page_shows_prompt_improver_only_when_ai_is_available(): void {
+	public function test_render_new_page_shows_the_ai_instruction_only_when_ai_is_available(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
 		wp_set_current_user( $admin_id );
@@ -576,14 +574,13 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		ob_start();
 		Admin::render_new_page();
 		$available_output = (string) ob_get_clean();
-		$this->assertStringContainsString( 'id="kayzart-ai-improve"', $available_output );
-		$this->assertStringContainsString( 'id="kayzart-ai-improve-undo"', $available_output );
+		$this->assertStringContainsString( 'id="kayzart-initial-ai-prompt"', $available_output );
+		$this->assertStringContainsString( 'id="kayzart-generate-ai"', $available_output );
 
 		delete_option( 'kayzart_openai_api_key' );
 		ob_start();
 		Admin::render_new_page();
 		$unavailable_output = (string) ob_get_clean();
-		$this->assertStringNotContainsString( 'id="kayzart-ai-improve"', $unavailable_output );
 		$this->assertStringNotContainsString( 'id="kayzart-initial-ai-prompt"', $unavailable_output );
 		$this->assertStringNotContainsString( 'id="kayzart-generate-ai"', $unavailable_output );
 		$this->assertStringContainsString( 'id="kayzart-create-blank"', $unavailable_output );

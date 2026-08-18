@@ -1949,13 +1949,9 @@ class Admin {
 		if ( $ai_is_available ) {
 			echo '<div class="kayzart-create-field">';
 			echo '<label class="screen-reader-text" for="kayzart-initial-ai-prompt">' . esc_html__( 'AI instruction', 'kayzart-live-code-editor' ) . '</label>';
-			echo '<div class="kayzart-ai-prompt-control' . ( $ai_is_available ? ' has-improver' : '' ) . '">';
-			echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count kayzart-ai-improve-status" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
-			if ( $ai_is_available ) {
-				echo '<button id="kayzart-ai-improve" class="kayzart-ai-improve" type="button" disabled="disabled"><span class="kayzart-ai-improve__spinner" aria-hidden="true"></span><span class="kayzart-ai-improve__label">' . esc_html__( 'Improve with AI', 'kayzart-live-code-editor' ) . '</span></button>';
-			}
+			echo '<div class="kayzart-ai-prompt-control">';
+			echo '<textarea id="kayzart-initial-ai-prompt" name="initial_ai_prompt" rows="7"' . disabled( $ai_is_available, false, false ) . ' aria-describedby="kayzart-initial-ai-prompt-description kayzart-initial-ai-prompt-count" placeholder="' . esc_attr__( 'Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form.', 'kayzart-live-code-editor' ) . '"></textarea>';
 			echo '</div>';
-			echo '<p id="kayzart-ai-improve-status" class="kayzart-ai-improve-status" role="status" aria-live="polite"></p>';
 			echo '<div class="kayzart-create-field__meta">';
 			if ( ! $can_use_ai ) {
 				echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'You do not have permission to use AI editing.', 'kayzart-live-code-editor' ) . '</p>';
@@ -1963,9 +1959,6 @@ class Admin {
 				echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'AI editing must be configured before you can start with a request.', 'kayzart-live-code-editor' ) . '</p>';
 			} else {
 				echo '<p id="kayzart-initial-ai-prompt-description" class="description">' . esc_html__( 'Required to generate with AI. It will be sent automatically when the editor opens.', 'kayzart-live-code-editor' ) . '</p>';
-			}
-			if ( $ai_is_available ) {
-				echo '<button id="kayzart-ai-improve-undo" class="kayzart-ai-improve-undo" type="button" hidden="hidden">' . esc_html__( 'Undo improvement', 'kayzart-live-code-editor' ) . '</button>';
 			}
 			echo '<p id="kayzart-initial-ai-prompt-count" class="kayzart-create-counter" aria-live="polite">0 / ' . esc_html( (string) self::get_ai_max_prompt_chars() ) . ' ' . esc_html__( 'characters', 'kayzart-live-code-editor' ) . '</p>';
 			echo '</div>';
@@ -2503,16 +2496,8 @@ class Admin {
 			$handle,
 			'window.KAYZART_NEW_PAGE = ' . wp_json_encode(
 				array(
-					'maxPromptChars'  => self::get_ai_max_prompt_chars(),
-					'charsLabel'      => __( 'characters', 'kayzart-live-code-editor' ),
-					'improveUrl'      => rest_url( 'kayzart/v1' . Rest_Ai_Prompt::ROUTE ),
-					'restNonce'       => wp_create_nonce( 'wp_rest' ),
-					'improveLabel'    => __( 'Improve with AI', 'kayzart-live-code-editor' ),
-					'improvingLabel'  => __( 'Improving…', 'kayzart-live-code-editor' ),
-					'improvedMessage' => __( 'The instruction was improved. Review it before creating the page.', 'kayzart-live-code-editor' ),
-					'restoredMessage' => __( 'The original instruction was restored.', 'kayzart-live-code-editor' ),
-					'staleMessage'    => __( 'The title or instruction changed, so the AI improvement was canceled. Run it again to use the latest content.', 'kayzart-live-code-editor' ),
-					'errorMessage'    => __( 'The instruction could not be improved. Please try again.', 'kayzart-live-code-editor' ),
+					'maxPromptChars' => self::get_ai_max_prompt_chars(),
+					'charsLabel'     => __( 'characters', 'kayzart-live-code-editor' ),
 				)
 			) . ';',
 			'before'

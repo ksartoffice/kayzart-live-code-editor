@@ -200,6 +200,7 @@ PROMPT;
 			'- The CSS must always keep its `@import "tailwindcss";` line. Removing it disables every utility class.',
 			'- Never add a plain CSS rule such as `.btn { ... }` or `#hero p { ... }` to the CSS tab. Rules written outside the Tailwind system ignore @theme tokens and conflict with the utility classes on the page, so the page ends up styled two ways at once.',
 			'- Choose where a change belongs: a value shared across the page (colour, font, spacing step, radius, shadow) is a @theme token; a class reused across several elements is @utility; a one-off is utility classes on that element in the HTML.',
+			'- Delimit a class attribute with double quotes and use single quotes for any string inside an arbitrary value, as in `font-[\'Noto_Sans_JP\',sans-serif]`. Repeating the attribute delimiter inside the value closes the attribute early, so the browser drops every class after that point and the compiler emits no rule for the utility.',
 		);
 		if ( self::INTENT_CREATE === $intent ) {
 				$lines[] = '- Define the page theme in the CSS tab with @theme so the design is driven by named tokens.';

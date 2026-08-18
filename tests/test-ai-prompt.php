@@ -68,19 +68,16 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The loop rejects a bundled finish when a tool in the same turn failed, so
-	 * finishing alongside the edits cannot claim success for an edit that did
-	 * not land. Both intents have to be told, because a model that does not know
-	 * it is protected spends a whole turn re-sending the context to say one
-	 * sentence.
+	 * Why bundling is safe belongs beside the tool, where it is read at the
+	 * moment the tool is chosen. What stays here is the part no tool can see:
+	 * that a turn spent confirming edits already made is a turn wasted.
 	 */
-	public function test_system_prompt_says_bundling_finish_edit_is_safe(): void {
+	public function test_system_prompt_asks_to_finish_in_the_editing_turn(): void {
 		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
 			$prompt = Ai_Prompt::system_prompt( $intent );
 
-			$this->assertStringContainsString( 'include finish_edit with a concise summary in the same response', $prompt, $intent );
-			$this->assertStringContainsString( 'the finish is rejected with a retryable error and you carry on as normal', $prompt, $intent );
-			$this->assertStringContainsString( 'you never declare success for an edit that did not land', $prompt, $intent );
+			$this->assertStringContainsString( 'Finish in the same turn as your last edits.', $prompt, $intent );
+			$this->assertStringContainsString( 'Never spend a turn calling finish_edit on its own', $prompt, $intent );
 		}
 	}
 

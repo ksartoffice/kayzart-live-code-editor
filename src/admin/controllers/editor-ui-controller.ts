@@ -295,9 +295,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
 
   const refreshEditorLayout = () => {
     deps.htmlEditor.refreshLayout();
-    deps.customHeadEditor.refreshLayout();
     deps.cssEditor.refreshLayout();
-    deps.jsEditor.refreshLayout();
   };
 
   const syncJsState = () => {

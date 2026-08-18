@@ -467,6 +467,142 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The media library hands out absolute uploads URLs, so the site's own host
+	 * is not remote. Both schemes count: one site reachable over http and https
+	 * is still one site.
+	 */
+	public function test_output_policy_allows_same_origin_absolute_urls(): void {
+		$host  = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$cases = array(
+			'html' => '<img src="https://' . $host . '/wp-content/uploads/a.png" alt="A">',
+			'css'  => '.x{background:url(http://' . $host . '/wp-content/uploads/b.png)}',
+		);
+		foreach ( $cases as $target => $to ) {
+			$result = Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => $target,
+					'from'   => '',
+					'to'     => $to,
+				),
+				$this->snapshot(),
+				null,
+				array( 'html', 'head', 'css' )
+			);
+			$this->assertSame( $to, $result['snapshot'][ 'html' === $target ? 'html' : 'css' ], $target );
+		}
+	}
+
+	/**
+	 * The exemption is a host comparison, not a prefix match, and it does not
+	 * quietly readmit the schemes that carry no host at all.
+	 */
+	public function test_output_policy_still_rejects_lookalike_hosts_and_schemeless_payloads(): void {
+		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$cases = array(
+			'<img src="https://' . $host . '.evil.example/a.png">',
+			'<img src="https://evil.example/' . $host . '/a.png">',
+			'<img src="data:image/svg+xml,x">',
+		);
+		foreach ( $cases as $to ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => $to,
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $to );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $to );
+			}
+		}
+	}
+
+	/**
+	 * A default port belongs to a scheme. Port 80 is implicit for http and 443
+	 * for https, and each is an ordinary port for the other scheme, naming a
+	 * different service on the host.
+	 */
+	public function test_output_policy_reads_default_ports_per_scheme(): void {
+		$host = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+
+		foreach ( array( 'http://' . $host . ':80', 'https://' . $host . ':443' ) as $origin ) {
+			$to     = '<img src="' . $origin . '/wp-content/uploads/a.png" alt="A">';
+			$result = Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => 'html',
+					'from'   => '',
+					'to'     => $to,
+				),
+				$this->snapshot(),
+				null,
+				array( 'html', 'head', 'css' )
+			);
+			$this->assertSame( $to, $result['snapshot']['html'], $origin );
+		}
+
+		foreach ( array( 'https://' . $host . ':80', 'http://' . $host . ':443' ) as $origin ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => '<img src="' . $origin . '/wp-content/uploads/a.png">',
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $origin );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $origin );
+			}
+		}
+	}
+
+	/**
+	 * Browsers normalise a backslash to a forward slash inside an http(s) URL,
+	 * and wp_parse_url() does not, so a backslash lets the two disagree about
+	 * which host a URL names. Both spellings must stay remote.
+	 */
+	public function test_output_policy_rejects_backslash_host_confusion(): void {
+		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$cases = array(
+			// parse_url reads the trusted host as authority; the browser fetches evil.example.
+			'<img src="https://evil.example\\@' . $host . '/a.png">',
+			// Not absolute to parse_url; protocol-relative to the browser.
+			'<img src="\\\\evil.example/a.png">',
+			'<form action="https://evil.example\\@' . $host . '/post"><button>Send</button></form>',
+		);
+		foreach ( $cases as $to ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => $to,
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $to );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $to );
+			}
+		}
+	}
+
+	/**
 	 * The dispatcher rejects unknown tool names.
 	 */
 	public function test_run_tool_rejects_unknown_tool(): void {

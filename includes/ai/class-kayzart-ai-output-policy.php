@@ -28,11 +28,15 @@ class Ai_Output_Policy {
 	 *
 	 * Existing findings may remain byte-for-byte equivalent or be removed.
 	 *
-	 * @param array $before Snapshot before the model edit.
-	 * @param array $after  Candidate snapshot after the model edit.
+	 * @param array       $before    Snapshot before the model edit.
+	 * @param array       $after     Candidate snapshot after the model edit.
+	 * @param string|null $site_host Host:port treated as same-origin. Null resolves
+	 *                               it from the site home URL; an empty string
+	 *                               treats every absolute URL as remote.
 	 * @throws Ai_Tool_Error When the candidate violates the policy.
 	 */
-	public static function assert_safe_transition( array $before, array $after ): void {
+	public static function assert_safe_transition( array $before, array $after, ?string $site_host = null ): void {
+		$site_host  = null === $site_host ? self::site_host() : $site_host;
 		$violations = array();
 		if ( (string) ( $before['js'] ?? '' ) !== (string) ( $after['js'] ?? '' ) ) {
 			$violations[] = 'JavaScript source is read-only for AI edits.';
@@ -50,8 +54,8 @@ class Ai_Output_Policy {
 			) as $label => $key
 		) {
 			$added = self::added_findings(
-				self::html_findings( (string) ( $before[ $key ] ?? '' ) ),
-				self::html_findings( (string) ( $after[ $key ] ?? '' ) )
+				self::html_findings( (string) ( $before[ $key ] ?? '' ), $site_host ),
+				self::html_findings( (string) ( $after[ $key ] ?? '' ), $site_host )
 			);
 			foreach ( $added as $finding ) {
 				$violations[] = sprintf( 'Unsafe %s content: %s', $label, $finding );
@@ -59,8 +63,8 @@ class Ai_Output_Policy {
 		}
 
 		$added_css = self::added_findings(
-			self::css_findings( (string) ( $before['css'] ?? '' ) ),
-			self::css_findings( (string) ( $after['css'] ?? '' ) )
+			self::css_findings( (string) ( $before['css'] ?? '' ), $site_host ),
+			self::css_findings( (string) ( $after['css'] ?? '' ), $site_host )
 		);
 		foreach ( $added_css as $finding ) {
 			$violations[] = 'Unsafe CSS content: ' . $finding;
@@ -117,10 +121,11 @@ class Ai_Output_Policy {
 	/**
 	 * Collect normalized unsafe constructs from an HTML fragment.
 	 *
-	 * @param string $source HTML fragment.
+	 * @param string $source    HTML fragment.
+	 * @param string $site_host Host:port treated as same-origin.
 	 * @return array
 	 */
-	private static function html_findings( string $source ): array {
+	private static function html_findings( string $source, string $site_host = '' ): array {
 		if ( '' === trim( $source ) ) {
 			return array();
 		}
@@ -152,7 +157,7 @@ class Ai_Output_Policy {
 			}
 			if ( 'style' === $tag ) {
 				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMElement uses textContent.
-				foreach ( self::css_findings( (string) $element->textContent ) as $finding ) {
+				foreach ( self::css_findings( (string) $element->textContent, $site_host ) as $finding ) {
 					$findings[] = 'style element ' . $finding;
 				}
 			}
@@ -168,20 +173,20 @@ class Ai_Output_Policy {
 					$findings[] = sprintf( 'inline event attribute <%s %s="%s">', $tag, $name, self::compact( $value ) );
 				}
 				if ( 'style' === $name ) {
-					foreach ( self::css_findings( $value ) as $finding ) {
+					foreach ( self::css_findings( $value, $site_host ) as $finding ) {
 						$findings[] = sprintf( 'style attribute on <%s>: %s', $tag, $finding );
 					}
 				}
 				if ( in_array( $name, self::URL_ATTRIBUTES, true ) && self::attribute_value_is_executable( $name, $value ) ) {
 					$findings[] = sprintf( 'executable URL in <%s %s>', $tag, $name );
 				}
-				if ( in_array( $name, self::RESOURCE_ATTRIBUTES, true ) && self::resource_value_is_remote( $name, $value ) ) {
+				if ( in_array( $name, self::RESOURCE_ATTRIBUTES, true ) && self::resource_value_is_remote( $name, $value, $site_host ) ) {
 					$findings[] = sprintf( 'remote resource in <%s %s="%s">', $tag, $name, self::compact( $value ) );
 				}
-				if ( ( 'action' === $name || 'formaction' === $name ) && self::is_remote_url( $value ) ) {
+				if ( ( 'action' === $name || 'formaction' === $name ) && self::is_remote_url( $value, $site_host ) ) {
 					$findings[] = sprintf( 'external form action in <%s %s="%s">', $tag, $name, self::compact( $value ) );
 				}
-				if ( 'link' === $tag && 'href' === $name && self::is_remote_url( $value ) ) {
+				if ( 'link' === $tag && 'href' === $name && self::is_remote_url( $value, $site_host ) ) {
 					$findings[] = 'remote link resource ' . self::compact( $value );
 				}
 			}
@@ -192,10 +197,11 @@ class Ai_Output_Policy {
 	/**
 	 * Collect unsafe CSS imports and resource URLs.
 	 *
-	 * @param string $source CSS source.
+	 * @param string $source    CSS source.
+	 * @param string $site_host Host:port treated as same-origin.
 	 * @return array
 	 */
-	private static function css_findings( string $source ): array {
+	private static function css_findings( string $source, string $site_host = '' ): array {
 		$normalized = self::normalize_css( $source );
 		$findings   = array();
 		if ( preg_match_all( '/@import\b[^;]*(?:;|$)/i', $normalized, $matches ) ) {
@@ -206,7 +212,7 @@ class Ai_Output_Policy {
 		if ( preg_match_all( '/url\(\s*(?:"([^"]*)"|\'([^\']*)\'|([^\)]*))\s*\)/i', $normalized, $matches, PREG_SET_ORDER ) ) {
 			foreach ( $matches as $match ) {
 				$url = '' !== ( $match[1] ?? '' ) ? $match[1] : ( '' !== ( $match[2] ?? '' ) ? $match[2] : ( $match[3] ?? '' ) );
-				if ( self::is_remote_url( $url ) || self::is_executable_url( $url ) ) {
+				if ( self::is_remote_url( $url, $site_host ) || self::is_executable_url( $url ) ) {
 					$findings[] = 'CSS url() ' . self::compact( $url );
 				}
 			}
@@ -247,28 +253,118 @@ class Ai_Output_Policy {
 	/**
 	 * Whether a URL references a remote origin.
 	 *
-	 * @param string $url URL value.
+	 * A relative URL is always local. An absolute one is remote unless it names
+	 * the site's own host: the media library hands out absolute uploads URLs, so
+	 * rejecting every absolute URL would reject the site's own images.
+	 *
+	 * Only http and https can match. Every other scheme -- data:, blob:,
+	 * filesystem: -- has no host to compare and stays remote, which keeps the
+	 * exemption to the one case it is meant for.
+	 *
+	 * A backslash disqualifies a URL outright, because browsers and
+	 * wp_parse_url() read one differently and the gap is exactly a host
+	 * confusion. A browser normalizes a backslash to a forward slash in an
+	 * http or https URL, so `https://evil.example\@site.example/a.png` fetches
+	 * evil.example while wp_parse_url() reports site.example as the authority
+	 * and takes the attacker's host for userinfo. A leading `\evil.example/`
+	 * is the same trick from the other side: wp_parse_url() sees a relative
+	 * path with no host at all, and the browser sees a protocol-relative URL.
+	 * A backslash carries no legitimate meaning in a web URL -- the browser
+	 * rewrites it either way -- so refusing to interpret one costs nothing.
+	 *
+	 * @param string $url       URL value.
+	 * @param string $site_host Host:port treated as same-origin. Empty treats
+	 *                          every absolute URL as remote.
 	 * @return bool
 	 */
-	private static function is_remote_url( string $url ): bool {
+	private static function is_remote_url( string $url, string $site_host = '' ): bool {
 		$normalized = strtolower( preg_replace( '/[\x00-\x20\x7f]+/', '', html_entity_decode( trim( $url ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
-		return 0 === strpos( $normalized, '//' ) || 1 === preg_match( '/^[a-z][a-z0-9+.-]*:/', $normalized );
+		if ( false !== strpos( $normalized, '\\' ) ) {
+			return true;
+		}
+		$absolute = 0 === strpos( $normalized, '//' ) || 1 === preg_match( '/^[a-z][a-z0-9+.-]*:/', $normalized );
+		if ( ! $absolute ) {
+			return false;
+		}
+		if ( '' === $site_host ) {
+			return true;
+		}
+		return self::url_host( $normalized ) !== $site_host;
+	}
+
+	/**
+	 * Reduce a URL to the host:port used for the same-origin comparison.
+	 *
+	 * The scheme is deliberately not part of the identity. A site reachable over
+	 * both http and https is one site, and mixed content is the browser's
+	 * problem, not a reason to call the site's own uploads remote.
+	 *
+	 * It does decide which port is implicit, though. 80 is the default for http
+	 * and 443 for https, and each is an ordinary port under the other scheme,
+	 * naming a different service on the same machine. Dropping both regardless
+	 * of scheme would read https://site.example:80 as the site itself.
+	 *
+	 * A protocol-relative URL takes its scheme from the page, which is not
+	 * known here, so no port is implicit and an explicit one is always kept.
+	 * Such a URL almost never carries a port, and keeping it errs toward
+	 * calling something remote rather than admitting it.
+	 *
+	 * @param string $url URL value, already normalized to lower case.
+	 * @return string Host with a non-default port, or an empty string when the
+	 *                URL names no comparable host.
+	 */
+	private static function url_host( string $url ): string {
+		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+		if ( is_string( $scheme ) && ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+			return '';
+		}
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		if ( ! is_string( $host ) || '' === $host ) {
+			return '';
+		}
+		$port = wp_parse_url( $url, PHP_URL_PORT );
+		if ( ! is_int( $port ) ) {
+			return $host;
+		}
+		$default_port = 0;
+		if ( 'http' === $scheme ) {
+			$default_port = 80;
+		} elseif ( 'https' === $scheme ) {
+			$default_port = 443;
+		}
+		return $port === $default_port ? $host : $host . ':' . $port;
+	}
+
+	/**
+	 * The host this site is served from.
+	 *
+	 * Reading the home URL is site configuration, not the per-user capability
+	 * access this class deliberately avoids, so the delta check stays pure.
+	 *
+	 * @return string Host:port, or an empty string when it cannot be resolved.
+	 */
+	private static function site_host(): string {
+		if ( ! function_exists( 'home_url' ) ) {
+			return '';
+		}
+		return self::url_host( strtolower( (string) home_url( '/' ) ) );
 	}
 
 	/**
 	 * Check a resource attribute, including each candidate in srcset.
 	 *
-	 * @param string $name  Attribute name.
-	 * @param string $value Attribute value.
+	 * @param string $name      Attribute name.
+	 * @param string $value     Attribute value.
+	 * @param string $site_host Host:port treated as same-origin.
 	 * @return bool
 	 */
-	private static function resource_value_is_remote( string $name, string $value ): bool {
+	private static function resource_value_is_remote( string $name, string $value, string $site_host = '' ): bool {
 		if ( 'srcset' !== $name ) {
-			return self::is_remote_url( $value );
+			return self::is_remote_url( $value, $site_host );
 		}
 		foreach ( explode( ',', $value ) as $candidate ) {
 			$parts = preg_split( '/\s+/', trim( $candidate ) );
-			if ( ! empty( $parts[0] ) && self::is_remote_url( (string) $parts[0] ) ) {
+			if ( ! empty( $parts[0] ) && self::is_remote_url( (string) $parts[0], $site_host ) ) {
 				return true;
 			}
 		}

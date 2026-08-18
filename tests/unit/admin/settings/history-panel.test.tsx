@@ -42,7 +42,7 @@ describe('HistoryPanel', () => {
       ...overrides,
     };
     await act(async () => root.render(<HistoryPanel {...(props as any)} />));
-    return { container, props };
+    return { container, props, root };
   };
 
   it('shows the WordPress requirement without calling the API', async () => {
@@ -190,5 +190,42 @@ describe('HistoryPanel', () => {
 
     expect(container.textContent).toContain('Admin');
     expect((container.querySelector('.kayzart-historyLoad') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('discards an in-flight revision when the mutation lock changes', async () => {
+    let resolveRevision!: (value: unknown) => void;
+    const revisionResponse = new Promise((resolve) => {
+      resolveRevision = resolve;
+    });
+    const apiFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        supported: true,
+        minVersion: '6.4',
+        currentVersion: '6.4',
+        revisionsEnabled: true,
+        canLoad: true,
+        revisions: [{ id: 8, date: '2026-07-14T10:00:00Z', dateGmt: '2026-07-14T10:00:00Z', author: { id: 1, name: 'Admin' }, changedSections: ['html'], isFirst: false }],
+        pagination: { page: 1, perPage: 20, total: 1, totalPages: 1 },
+      })
+      .mockReturnValueOnce(revisionResponse);
+    const onLoadSnapshot = vi.fn();
+    const { container, props, root } = await renderPanel({ apiFetch, onLoadSnapshot });
+
+    act(() => (container.querySelector('.kayzart-historyLoad') as HTMLButtonElement).click());
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => root.render(<HistoryPanel {...(props as any)} mutationLocked />));
+    await act(async () => root.render(<HistoryPanel {...(props as any)} mutationLocked={false} />));
+    await act(async () => {
+      resolveRevision({
+        ok: true,
+        revision: { id: 8, snapshot: { html: '<main>Stale</main>', customHead: '', css: '', js: '', jsMode: 'classic', baseHash: 'stale' } },
+      });
+      await revisionResponse;
+    });
+
+    expect(onLoadSnapshot).not.toHaveBeenCalled();
   });
 });

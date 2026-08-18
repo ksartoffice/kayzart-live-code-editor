@@ -57,12 +57,17 @@ async function startTaskProbe(page: Page) {
  * Apply from inside a timer so the evaluate call returns before the freeze can
  * begin. Awaiting the apply itself would hang along with the renderer.
  */
-async function applySnapshotDetached(page: Page, snapshot: unknown) {
-  await page.evaluate((payload) => {
+async function applySnapshotDetached(page: Page, snapshot: unknown, aiHandoff = false) {
+  await page.evaluate(({ payload, aiHandoff }) => {
     window.setTimeout(() => {
-      (window as any).KAYZART_EXTENSION_API.replaceEditorSnapshot(payload);
+      const api = (window as any).KAYZART_EXTENSION_API;
+      if (aiHandoff) {
+        api.applyAiEditorSnapshot(payload);
+      } else {
+        api.replaceEditorSnapshot(payload);
+      }
     }, 0);
-  }, snapshot);
+  }, { payload: snapshot, aiHandoff });
 }
 
 /** A frozen renderer never answers, so cap the wait instead of hanging. */
@@ -97,6 +102,13 @@ async function expectMainThreadAlive(page: Page, label: string) {
         'This is the microtask-starvation freeze.'
     );
   }
+}
+
+async function expectSnapshotApplied(page: Page, expectedHtml: string) {
+  const actualHtml = await page.evaluate(
+    () => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot().html as string
+  );
+  expect(actualHtml).toBe(expectedHtml);
 }
 
 test('applying a large AI snapshot keeps the editor main thread responsive', async ({ page }) => {
@@ -136,8 +148,10 @@ test('the full AI handoff sequence keeps the main thread responsive', async ({ p
   await enterAiHandoffState(page);
   await startTaskProbe(page);
 
-  await applySnapshotDetached(page, buildAiSnapshot(3));
+  const snapshot = buildAiSnapshot(3);
+  await applySnapshotDetached(page, snapshot, true);
   await expectMainThreadAlive(page, 'AI handoff apply');
+  await expectSnapshotApplied(page, snapshot.html);
 });
 
 test('repeated AI handoff applies stay responsive', async ({ page }) => {
@@ -145,9 +159,11 @@ test('repeated AI handoff applies stay responsive', async ({ page }) => {
   await startTaskProbe(page);
 
   for (const sections of [3, 5, 3, 7]) {
+    const snapshot = buildAiSnapshot(sections);
     await enterAiHandoffState(page);
-    await applySnapshotDetached(page, buildAiSnapshot(sections));
+    await applySnapshotDetached(page, snapshot, true);
     await expectMainThreadAlive(page, `AI handoff apply with ${sections} sections`);
+    await expectSnapshotApplied(page, snapshot.html);
   }
 });
 
@@ -162,8 +178,9 @@ test('replaying the stored AI snapshot keeps the main thread responsive', async 
   // payload shape that produced it in production.
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     await enterAiHandoffState(page);
-    await applySnapshotDetached(page, stored);
+    await applySnapshotDetached(page, stored, true);
     await expectMainThreadAlive(page, `stored snapshot replay #${attempt}`);
+    await expectSnapshotApplied(page, stored.html);
   }
 });
 
@@ -175,15 +192,17 @@ test('a snapshot containing an astral emoji keeps the main thread responsive', a
   // U+1F34E is a surrogate pair. Offsets measured in code points instead of
   // UTF-16 code units land inside it, and CodeMirror can then never reconcile
   // its DOM with the document, which starves the microtask queue.
-  await applySnapshotDetached(page, {
+  const snapshot = {
     html: '<div class="text-8xl" aria-hidden="true">\u{1F34E}</div>',
     customHead: '',
     css: TAILWIND_CSS_SOURCE,
     js: '',
     jsMode: 'classic',
     baseHash: '',
-  });
+  };
+  await applySnapshotDetached(page, snapshot, true);
   await expectMainThreadAlive(page, 'astral emoji apply');
+  await expectSnapshotApplied(page, snapshot.html);
 });
 
 test('a locked editor still refuses user edits', async ({ page }) => {

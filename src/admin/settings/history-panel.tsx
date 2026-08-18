@@ -1,4 +1,4 @@
-import { createElement, useEffect, useState } from '@wordpress/element';
+import { createElement, useEffect, useRef, useState } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
 import type { EditorSnapshot } from '../extensions/settings-tab-registry';
 import type {
@@ -46,6 +46,15 @@ export function HistoryPanel(props: HistoryPanelProps) {
   const [loading, setLoading] = useState(false);
   const [loadingRevisionId, setLoadingRevisionId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const mutationLockedRef = useRef(Boolean(props.mutationLocked));
+  const mutationLockGenerationRef = useRef(0);
+
+  useEffect(() => {
+    const locked = Boolean(props.mutationLocked);
+    if (mutationLockedRef.current === locked) return;
+    mutationLockedRef.current = locked;
+    mutationLockGenerationRef.current += 1;
+  }, [props.mutationLocked]);
 
   const loadPage = async (nextPage: number, append: boolean) => {
     setLoading(true);
@@ -88,12 +97,19 @@ export function HistoryPanel(props: HistoryPanelProps) {
       return;
     }
 
+    const lockGeneration = mutationLockGenerationRef.current;
     setLoadingRevisionId(revision.id);
     setError('');
     try {
       const response = await props.apiFetch<RevisionDetailResponse>({
         url: appendQuery(`${props.restUrl}/${revision.id}`, { post_id: props.postId }),
       });
+      if (
+        mutationLockedRef.current ||
+        mutationLockGenerationRef.current !== lockGeneration
+      ) {
+        return;
+      }
       if (!response.ok || !response.revision) {
         throw new Error(response.error || __('Failed to load revision.', 'kayzart-live-code-editor'));
       }

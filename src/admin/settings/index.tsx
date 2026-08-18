@@ -444,6 +444,8 @@ export function initSettings(config: SettingsConfig) {
   let refreshHistoryImpl: () => void = () => {};
   let setEditorModeStateImpl: (mode: EditorCssMode, disabled: boolean) => void = () => {};
   let setMutationLockedImpl: (locked: boolean) => void = () => {};
+  let latestEditorModeState = { mode: config.editorMode, disabled: false };
+  let latestMutationLocked = false;
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
@@ -455,9 +457,11 @@ export function initSettings(config: SettingsConfig) {
       refreshHistoryImpl();
     },
     setEditorModeState(mode: EditorCssMode, disabled: boolean) {
+      latestEditorModeState = { mode, disabled };
       setEditorModeStateImpl(mode, disabled);
     },
     setMutationLocked(locked: boolean) {
+      latestMutationLocked = locked;
       setMutationLockedImpl(locked);
     },
   };
@@ -472,6 +476,8 @@ export function initSettings(config: SettingsConfig) {
         refreshHistoryImpl = nextApi.refreshHistory;
         setEditorModeStateImpl = nextApi.setEditorModeState;
         setMutationLockedImpl = nextApi.setMutationLocked;
+        setEditorModeStateImpl(latestEditorModeState.mode, latestEditorModeState.disabled);
+        setMutationLockedImpl(latestMutationLocked);
       }}
     />
   );

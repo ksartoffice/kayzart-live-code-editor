@@ -441,6 +441,9 @@ class Preview {
 				'delete'               => __( 'Delete', 'kayzart-live-code-editor' ),
 				'shortcodeLabel'       => __( 'Shortcode', 'kayzart-live-code-editor' ),
 				'shortcodeUnavailable' => __( 'Not available in preview. It will render on the front end.', 'kayzart-live-code-editor' ),
+				'openElementSettings'  => __( 'Element settings', 'kayzart-live-code-editor' ),
+				'openSelectionMenu'    => __( 'More actions', 'kayzart-live-code-editor' ),
+				'openCodePanel'        => __( 'Show code', 'kayzart-live-code-editor' ),
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);

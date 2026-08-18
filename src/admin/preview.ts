@@ -27,6 +27,7 @@ export type PreviewController = {
   sendCssUpdate: (cssText: string) => void;
   sendLiveHighlightUpdate: (enabled: boolean) => void;
   sendElementsTabState: (open: boolean) => void;
+  sendEditorCollapsedState: (collapsed: boolean) => void;
   requestReloadPreview: () => void;
   saveScrollPosition: () => void;
   restoreSavedScrollPosition: () => void;
@@ -62,6 +63,7 @@ type PreviewControllerDeps = {
   getResolvedTemplateMode: () => 'standalone' | 'theme';
   onSelect?: (lcId: string) => void;
   onOpenElementsTab?: () => void;
+  onOpenCodePanel?: () => void;
   onCopyElementHtml?: (lcId: string) => void;
   onDeleteElement?: (lcId: string) => void;
   onOverlayAction?: (actionId: string) => void;
@@ -230,6 +232,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let pendingReloadAppliedNotice = false;
   let initialJsPending = true;
   let pendingElementsTabOpen: boolean | null = null;
+  let pendingEditorCollapsed: boolean | null = null;
   let canonicalCache: CanonicalResult | null = null;
   let canonicalCacheHtml = '';
   let canonicalDomCacheHtml = '';
@@ -240,6 +243,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let cssSelectionDecorations: string[] = [];
   let lastSelectedLcId: string | null = null;
   let elementsTabOpen = false;
+  let editorCollapsed = false;
   let basePreviewHtml: string | null = null;
   let basePreviewFetch: Promise<string> | null = null;
   let embeddedCustomHead: string | null = null;
@@ -446,6 +450,18 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     });
   };
 
+  const sendEditorCollapsedState = (collapsed: boolean) => {
+    editorCollapsed = collapsed;
+    if (!previewReady) {
+      pendingEditorCollapsed = collapsed;
+      return;
+    }
+    postToPreview({
+      type: 'KAYZART_SET_EDITOR_COLLAPSED',
+      collapsed,
+    });
+  };
+
   const queueInitialJsRun = () => {
     if (!initialJsPending || !deps.getJsEnabled() || !deps.jsModel) {
       return;
@@ -622,6 +638,13 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       } else {
         sendElementsTabState(elementsTabOpen);
       }
+      if (pendingEditorCollapsed !== null) {
+        const nextCollapsed = pendingEditorCollapsed;
+        pendingEditorCollapsed = null;
+        sendEditorCollapsedState(nextCollapsed);
+      } else {
+        sendEditorCollapsedState(editorCollapsed);
+      }
     }
 
     if (data?.type === 'KAYZART_RENDERED') {
@@ -643,6 +666,10 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
 
     if (data?.type === 'KAYZART_OPEN_ELEMENTS_TAB') {
       deps.onOpenElementsTab?.();
+    }
+
+    if (data?.type === 'KAYZART_OPEN_CODE_PANEL') {
+      deps.onOpenCodePanel?.();
     }
 
     if (data?.type === 'KAYZART_COPY_ELEMENT_HTML' && typeof data.lcId === 'string') {
@@ -668,6 +695,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     sendCssUpdate,
     sendLiveHighlightUpdate,
     sendElementsTabState,
+    sendEditorCollapsedState,
     requestReloadPreview,
     saveScrollPosition,
     restoreSavedScrollPosition,

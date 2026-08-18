@@ -239,6 +239,7 @@ async function main() {
     onEditorCollapsedChange: (collapsed) => {
       toolbarApi?.update({ editorCollapsed: collapsed });
       updatePersistedLayout({ editorCollapsed: collapsed });
+      preview?.sendEditorCollapsedState(collapsed);
     },
     onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
     onPreviewResizeChange: restoreCapturedPreviewScroll,
@@ -399,6 +400,10 @@ async function main() {
 
   const syncElementsTabState = () => {
     preview?.sendElementsTabState(settingsOpen && activeSettingsTab === 'elements');
+  };
+
+  const syncEditorCollapsedState = () => {
+    preview?.sendEditorCollapsedState(viewportController.isEditorCollapsed());
   };
 
   const syncPendingPreviewReloadNotice = () => {
@@ -1917,6 +1922,9 @@ async function main() {
         settingsApi?.openTab('elements');
       }
     },
+    onOpenCodePanel: () => {
+      viewportController.setEditorCollapsed(false);
+    },
     onCopyElementHtml: (lcId) => {
       void handleCopyElementHtml(lcId);
     },
@@ -1941,6 +1949,7 @@ async function main() {
     preview.handleIframeLoad();
   }
   syncElementsTabState();
+  syncEditorCollapsedState();
 
   tailwindCompiler = createTailwindCompiler({
     apiFetch: wp.apiFetch,

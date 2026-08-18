@@ -27,6 +27,7 @@
   let selectBox = null;
   let selectActionGroup = null;
   let selectActionAddonButton = null;
+  let selectActionCodeButton = null;
   let selectActionEditButton = null;
   let selectActionMenuButton = null;
   let selectActionMenu = null;
@@ -34,6 +35,7 @@
   let selectActionCopyMenuItem = null;
   let selectActionDeleteMenuItem = null;
   let elementsTabOpen = false;
+  let editorCollapsed = false;
   let markerNodes = null;
   let htmlScriptsReady = Promise.resolve();
   let customHeadToken = 0;
@@ -136,12 +138,50 @@
     return selectBox;
   }
 
+  function createSelectActionTooltip(text) {
+    const tooltip = document.createElement('span');
+    tooltip.setAttribute('aria-hidden', 'true');
+    tooltip.textContent = text;
+    // The preview renders arbitrary user CSS, so every inherited property is reset explicitly.
+    Object.assign(tooltip.style, {
+      position: 'absolute',
+      top: 'calc(100% + 6px)',
+      right: '0px',
+      left: 'auto',
+      background: '#0b0d12',
+      color: '#fff',
+      padding: '4px 8px',
+      margin: '0',
+      borderRadius: '4px',
+      border: 'none',
+      fontFamily:
+        'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      fontSize: '11px',
+      fontWeight: '400',
+      fontStyle: 'normal',
+      lineHeight: '1.4',
+      letterSpacing: 'normal',
+      textTransform: 'none',
+      textDecoration: 'none',
+      textAlign: 'left',
+      whiteSpace: 'nowrap',
+      opacity: '0',
+      visibility: 'hidden',
+      pointerEvents: 'none',
+      boxShadow: '0 6px 12px rgba(0, 0, 0, 0.35)',
+      transition: 'opacity 120ms ease-out',
+      zIndex: 2147483647,
+    });
+    return tooltip;
+  }
+
   function createSelectActionButton(args) {
     const button = document.createElement('button');
     button.id = args.id;
     button.type = 'button';
     button.setAttribute('aria-label', args.ariaLabel);
     Object.assign(button.style, {
+      position: 'relative',
       width: '32px',
       height: '32px',
       borderRadius: '999px',
@@ -160,10 +200,40 @@
       zIndex: 2147483647,
       transition: 'transform 80ms ease-out, opacity 80ms ease-out',
     });
-    button.innerHTML = args.iconSvg;
+
+    const icon = document.createElement('span');
+    icon.setAttribute('aria-hidden', 'true');
+    Object.assign(icon.style, {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+    });
+    icon.innerHTML = args.iconSvg;
+    button.appendChild(icon);
+
+    const tooltip = createSelectActionTooltip(args.tooltip || args.ariaLabel);
+    button.appendChild(tooltip);
+    const showTooltip = () => {
+      tooltip.style.visibility = 'visible';
+      tooltip.style.opacity = '1';
+    };
+    const hideTooltip = () => {
+      tooltip.style.opacity = '0';
+      tooltip.style.visibility = 'hidden';
+    };
+    button.addEventListener('mouseenter', showTooltip);
+    button.addEventListener('focus', showTooltip);
+    button.addEventListener('mouseleave', hideTooltip);
+    button.addEventListener('blur', hideTooltip);
+    button.hideTooltip = hideTooltip;
+
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
+      hideTooltip();
       args.onClick();
     });
     return button;
@@ -184,9 +254,12 @@
         : 'Run overlay action';
     const background =
       typeof raw.background === 'string' && raw.background.trim() ? raw.background.trim() : '#7c3aed';
+    const tooltip =
+      typeof raw.tooltip === 'string' && raw.tooltip.trim() ? raw.tooltip.trim() : ariaLabel;
     return {
       actionId: actionId,
       ariaLabel: ariaLabel,
+      tooltip: tooltip,
       iconSvg: iconSvg,
       background: background,
       showWhenElementsTabOpen: raw.showWhenElementsTabOpen === true,
@@ -212,6 +285,7 @@
       selectActionAddonButton = createSelectActionButton({
         id: 'kayzart-select-overlay-action',
         ariaLabel: overlayActionConfig.ariaLabel,
+        tooltip: overlayActionConfig.tooltip,
         background: overlayActionConfig.background,
         iconSvg: overlayActionConfig.iconSvg,
         onClick: () =>
@@ -222,9 +296,19 @@
       group.appendChild(selectActionAddonButton);
     }
 
+    selectActionCodeButton = createSelectActionButton({
+      id: 'kayzart-select-code-action',
+      ariaLabel: labels.openCodePanel,
+      background: '#a855f7',
+      iconSvg:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="lucide lucide-code-icon lucide-code"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>',
+      onClick: () => reply('KAYZART_OPEN_CODE_PANEL'),
+    });
+    group.appendChild(selectActionCodeButton);
+
     selectActionEditButton = createSelectActionButton({
       id: 'kayzart-select-action',
-      ariaLabel: 'Open element settings',
+      ariaLabel: labels.openElementSettings,
       background: '#a855f7',
       iconSvg:
         '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil-icon lucide-pencil"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>',
@@ -234,7 +318,7 @@
 
     selectActionMenuButton = createSelectActionButton({
       id: 'kayzart-select-menu-action',
-      ariaLabel: 'Open selection menu',
+      ariaLabel: labels.openSelectionMenu,
       background: '#a855f7',
       iconSvg:
         '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
@@ -338,6 +422,13 @@
       shortcodeUnavailable: source.shortcodeUnavailable
         ? String(source.shortcodeUnavailable)
         : 'Not available in preview. It will render on the front end.',
+      openElementSettings: source.openElementSettings
+        ? String(source.openElementSettings)
+        : 'Element settings',
+      openSelectionMenu: source.openSelectionMenu
+        ? String(source.openSelectionMenu)
+        : 'More actions',
+      openCodePanel: source.openCodePanel ? String(source.openCodePanel) : 'Show code',
     };
   }
 
@@ -497,6 +588,16 @@
 
   function hideSelectActionButtons() {
     closeSelectContextMenu();
+    [
+      selectActionAddonButton,
+      selectActionCodeButton,
+      selectActionEditButton,
+      selectActionMenuButton,
+    ].forEach((button) => {
+      if (button && button.hideTooltip) {
+        button.hideTooltip();
+      }
+    });
     if (selectActionGroup) {
       selectActionGroup.style.display = 'none';
     }
@@ -516,16 +617,26 @@
       Boolean(selectActionAddonButton) &&
       (!elementsTabOpen ||
         Boolean(overlayActionConfig && overlayActionConfig.showWhenElementsTabOpen));
+    const showCodeButton = editorCollapsed && Boolean(selectActionCodeButton);
     const showEditButton = !elementsTabOpen && Boolean(selectActionEditButton);
     const showMenuButton = Boolean(selectActionMenuButton);
     const buttonCount =
-      (showAddonButton ? 1 : 0) + (showEditButton ? 1 : 0) + (showMenuButton ? 1 : 0);
+      (showAddonButton ? 1 : 0) +
+      (showCodeButton ? 1 : 0) +
+      (showEditButton ? 1 : 0) +
+      (showMenuButton ? 1 : 0);
     if (buttonCount === 0) {
       hideSelectActionButtons();
       return;
     }
     if (selectActionAddonButton) {
       selectActionAddonButton.style.display = showAddonButton ? 'flex' : 'none';
+    }
+    if (selectActionCodeButton) {
+      selectActionCodeButton.style.display = showCodeButton ? 'flex' : 'none';
+      if (!showCodeButton && selectActionCodeButton.hideTooltip) {
+        selectActionCodeButton.hideTooltip();
+      }
     }
     if (selectActionEditButton) {
       selectActionEditButton.style.display = showEditButton ? 'flex' : 'none';
@@ -596,6 +707,11 @@
 
   function setElementsTabOpen(open) {
     elementsTabOpen = Boolean(open);
+    updateSelectActionPosition();
+  }
+
+  function setEditorCollapsed(collapsed) {
+    editorCollapsed = Boolean(collapsed);
     updateSelectActionPosition();
   }
 
@@ -2188,6 +2304,10 @@
     if (data.type === 'KAYZART_SET_ELEMENTS_TAB_OPEN') {
       if (!isReady) return;
       setElementsTabOpen(Boolean(data.open));
+    }
+    if (data.type === 'KAYZART_SET_EDITOR_COLLAPSED') {
+      if (!isReady) return;
+      setEditorCollapsed(Boolean(data.collapsed));
     }
     if (data.type === 'KAYZART_RUN_JS') {
       if (!isReady) return;

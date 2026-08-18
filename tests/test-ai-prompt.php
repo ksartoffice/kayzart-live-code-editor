@@ -20,10 +20,8 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$prompt = Ai_Prompt::system_prompt();
 		$this->assertStringContainsString( 'You are the Kayzart AI edit engine.', $prompt );
 		$this->assertStringContainsString( 'Do not create or preserve <script> tags', $prompt );
-		$this->assertStringContainsString( 'call finish_edit by itself', $prompt );
 		$this->assertStringContainsString( 'js source and jsMode are read-only', $prompt );
-		$this->assertStringContainsString( 'call finish_without_edit', $prompt );
-		$this->assertStringContainsString( 'no unresolved tool errors', $prompt );
+		$this->assertStringContainsString( 'Call finish_without_edit instead.', $prompt );
 		$this->assertStringContainsString( 'error.details.candidates', $prompt );
 		$this->assertStringContainsString( 'validated editFootprint', $prompt );
 		$this->assertStringContainsString( 'must not be broadened to :root', $prompt );
@@ -93,7 +91,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$shared = array(
 			'Do not create or preserve <script> tags',
 			'Do not exfiltrate data or submit forms to external URLs.',
-			'HTML must be a body fragment only.',
+			'HTML must be a body fragment, and head edits only the custom additions',
 			'Ensure the result is responsive and looks good on both mobile and desktop screens.',
 			'{"summary":"..."}',
 		);

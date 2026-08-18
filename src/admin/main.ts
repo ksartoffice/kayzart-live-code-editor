@@ -35,7 +35,11 @@ import { createDocumentTitleSync } from './logic/document-title';
 import { buildMediaHtml, buildMediaUrl } from './logic/media-html';
 import { resolveQuotedValueReplacementRange, type TextRange } from './logic/media-insertion';
 import { buildStatusUpdates } from './logic/status-updates';
-import { resolveEditorLockState } from './logic/editor-lock-state';
+import {
+  isEditorLockRequestCurrent,
+  nextEditorLockGeneration,
+  resolveEditorLockState,
+} from './logic/editor-lock-state';
 import { resolveToolbarAiActivity } from './logic/ai-activity';
 import {
   buildImportedHtml,
@@ -318,6 +322,7 @@ async function main() {
   let compileTailwindDebounced: (() => void) | null = null;
   let selectedLcId: string | null = null;
   let extensionEditorLock = false;
+  let extensionEditorLockGeneration = 0;
   let suppressSelectionClear = 0;
   const selectionListeners = new Set<(lcId: string | null) => void>();
   const contentListeners = new Set<() => void>();
@@ -2031,6 +2036,11 @@ async function main() {
   };
 
   const setEditorLock = (locked: boolean) => {
+    extensionEditorLockGeneration = nextEditorLockGeneration(
+      extensionEditorLock,
+      locked,
+      extensionEditorLockGeneration
+    );
     extensionEditorLock = locked;
     syncEditorLocks();
     syncEditorModeControl();
@@ -2129,6 +2139,7 @@ async function main() {
       syncEditorModeControl();
       return;
     }
+    const editorLockGeneration = extensionEditorLockGeneration;
 
     syncActiveCssDraft();
     const currentMode = editorMode;
@@ -2146,7 +2157,11 @@ async function main() {
     if (
       nextMode === editorMode ||
       cssModeChangeInFlight ||
-      extensionEditorLock ||
+      !isEditorLockRequestCurrent(
+        extensionEditorLock,
+        extensionEditorLockGeneration,
+        editorLockGeneration
+      ) ||
       saveInFlight
     ) {
       syncEditorModeControl();
@@ -2171,7 +2186,11 @@ async function main() {
             css: cssModel.getValue(),
           }),
       });
-      if (extensionEditorLock) {
+      if (!isEditorLockRequestCurrent(
+        extensionEditorLock,
+        extensionEditorLockGeneration,
+        editorLockGeneration
+      )) {
         return;
       }
       cssByMode = resolved.cssByMode;

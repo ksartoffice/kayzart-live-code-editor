@@ -286,6 +286,10 @@ class Test_Kayzart_Ai_Tailwind_Css_Policy extends WP_UnitTestCase {
 				'inside a comment',
 				"/* @import \"tailwindcss\"; */\n.a { color: red; }\n",
 			),
+			'quoted in another statement' => array(
+				'quoted in another statement',
+				"@foo '@import \"tailwindcss\"';\n.a { color: red; }\n",
+			),
 			'nested in a block'           => array(
 				'nested in a block',
 				"@media print {\n  @import \"tailwindcss\";\n}\n.a { color: red; }\n",
@@ -420,5 +424,49 @@ class Test_Kayzart_Ai_Tailwind_Css_Policy extends WP_UnitTestCase {
 			array( '[data-x="a  b"]>.c' ),
 			Ai_Tailwind_Css_Policy::top_level_selectors( "[data-x=\"a  b\"]  >  .c { color: red }\n" )
 		);
+	}
+
+	/**
+	 * A nested rule under a selector list is not the same rule as the
+	 * flattened descendant selector.
+	 *
+	 * `.a,.b { .c { } }` matches `.a .c, .b .c`; a top-level `.a,.b .c { }`
+	 * also matches `.a` outright. Keying the nesting chain by joining it with
+	 * a space would give both the same key and let the rewrite pass as an
+	 * existing rule.
+	 */
+	public function test_assert_no_adhoc_rules_keeps_nesting_distinct_from_a_flattened_list(): void {
+		$before = '@import "tailwindcss";
+.a,.b { .c { color: red; } }
+';
+		$error  = $this->reject(
+			$before,
+			'@import "tailwindcss";
+.a,.b { }
+.a,.b .c { color: red; }
+',
+			'Expected the flattened rule to read as a new one.'
+		);
+
+		$this->assertSame( array( '.a,.b .c' ), $error->get_details()['selectors'] );
+	}
+
+	/**
+	 * The reverse direction is equally distinct: nesting a rule that already
+	 * existed at top level is still a new rule.
+	 */
+	public function test_assert_no_adhoc_rules_rejects_nesting_an_existing_flat_rule(): void {
+		$before = '@import "tailwindcss";
+.a,.b .c { color: red; }
+';
+		$error  = $this->reject(
+			$before,
+			'@import "tailwindcss";
+.a,.b { .c { color: red; } }
+',
+			'Expected the nested rewrite to read as a new rule.'
+		);
+
+		$this->assertSame( array( '.a,.b', '.a,.b .c' ), $error->get_details()['selectors'] );
 	}
 }

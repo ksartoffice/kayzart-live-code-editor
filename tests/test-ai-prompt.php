@@ -56,7 +56,9 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$prompt = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
 
 		$this->assertStringContainsString( 'You are the Kayzart AI page generation engine.', $prompt );
-		$this->assertStringContainsString( 'Build one complete, publishable landing page', $prompt );
+		$this->assertStringContainsString( 'Build one complete, publishable page', $prompt );
+		// The brief decides what kind of page this is, so the prompt must not.
+		$this->assertStringNotContainsString( 'landing page', $prompt );
 		$this->assertStringContainsString( 'Plan the full section list before the first edit tool call', $prompt );
 
 		$this->assertStringNotContainsString( 'Keep changes minimal and relevant to the user request.', $prompt );
@@ -216,11 +218,11 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 
 		$editing = Ai_Prompt::build_user_prompt( $payload );
-		$this->assertStringNotContainsString( 'Build one complete, publishable landing page', $editing );
+		$this->assertStringNotContainsString( 'Build one complete, publishable page', $editing );
 		$payload['intent'] = 'create';
 		$creating          = Ai_Prompt::build_user_prompt( $payload );
 		$this->assertStringNotContainsString( 'Page creation policy:', $creating );
-		$this->assertStringContainsString( 'Build one complete, publishable landing page', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ) );
+		$this->assertStringContainsString( 'Build one complete, publishable page', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ) );
 	}
 
 	/**

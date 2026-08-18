@@ -174,4 +174,21 @@ describe('HistoryPanel', () => {
     expect((container.querySelector('.kayzart-historyLoad') as HTMLButtonElement).disabled).toBe(true);
     expect(container.textContent).toContain('requires unfiltered HTML permission');
   });
+
+  it('keeps history visible but disables loading while mutations are locked', async () => {
+    const apiFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      supported: true,
+      minVersion: '6.4',
+      currentVersion: '6.4',
+      revisionsEnabled: true,
+      canLoad: true,
+      revisions: [{ id: 8, date: '2026-07-14T10:00:00Z', dateGmt: '2026-07-14T10:00:00Z', author: { id: 1, name: 'Admin' }, changedSections: ['html'], isFirst: false }],
+      pagination: { page: 1, perPage: 20, total: 1, totalPages: 1 },
+    });
+    const { container } = await renderPanel({ apiFetch, mutationLocked: true });
+
+    expect(container.textContent).toContain('Admin');
+    expect((container.querySelector('.kayzart-historyLoad') as HTMLButtonElement).disabled).toBe(true);
+  });
 });

@@ -52,6 +52,7 @@ type ToolbarState = {
   viewportMode: ViewportMode;
   hasUnsavedChanges: boolean;
   saveDisabled: boolean;
+  mutationLocked: boolean;
   viewPostUrl: string;
   postStatus: string;
   postTitle: string;
@@ -161,6 +162,7 @@ function Toolbar({
   tailwindEnabled,
   hasUnsavedChanges,
   saveDisabled,
+  mutationLocked,
   viewPostUrl,
   postStatus,
   postTitle,
@@ -271,6 +273,7 @@ function Toolbar({
   }, [resolvedTitle, postSlug, titleModalOpen]);
 
   const openTitleModal = () => {
+    if (mutationLocked) return;
     setTitleDraft(resolvedTitle);
     setSlugDraft(postSlug);
     setTitleError('');
@@ -285,7 +288,7 @@ function Toolbar({
   };
 
   const handleTitleSave = async () => {
-    if (titleSaving) {
+    if (titleSaving || mutationLocked) {
       return;
     }
     setTitleSaving(true);
@@ -336,6 +339,7 @@ function Toolbar({
 
   const toggleSaveMenu = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
+    if (mutationLocked) return;
     setExportMenuOpen(false);
     setSaveMenuOpen((prev) => !prev);
   };
@@ -349,6 +353,7 @@ function Toolbar({
   const handleImportFullHtml = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
     setExportMenuOpen(false);
+    if (mutationLocked) return;
     onImportFullHtml();
   };
 
@@ -369,7 +374,7 @@ function Toolbar({
     nextStatus: 'draft' | 'pending' | 'private' | 'publish'
   ) => {
     event.stopPropagation();
-    if (statusSaving || nextStatus === normalizedStatus) {
+    if (statusSaving || mutationLocked || nextStatus === normalizedStatus) {
       return;
     }
     setStatusSaving(true);
@@ -446,7 +451,7 @@ function Toolbar({
           className={`kayzart-btn kayzart-btn-muted kayzart-btn-icon${canUndo ? ' is-active' : ''}`}
           type="button"
           onClick={onUndo}
-          disabled={!canUndo}
+          disabled={!canUndo || mutationLocked}
           aria-label={__( 'Undo', 'kayzart-live-code-editor')}
           data-tooltip={__( 'Undo', 'kayzart-live-code-editor')}
         >
@@ -456,7 +461,7 @@ function Toolbar({
           className={`kayzart-btn kayzart-btn-muted kayzart-btn-icon${canRedo ? ' is-active' : ''}`}
           type="button"
           onClick={onRedo}
-          disabled={!canRedo}
+          disabled={!canRedo || mutationLocked}
           aria-label={__( 'Redo', 'kayzart-live-code-editor')}
           data-tooltip={__( 'Redo', 'kayzart-live-code-editor')}
         >
@@ -469,7 +474,8 @@ function Toolbar({
           data-tooltip={titleTooltip}
           aria-label={titleText}
           role="button"
-          tabIndex={0}
+          tabIndex={mutationLocked ? -1 : 0}
+          aria-disabled={mutationLocked}
           onClick={openTitleModal}
           onKeyDown={handleTitleKeyDown}
         >
@@ -566,6 +572,7 @@ function Toolbar({
                     className="kayzart-formInput"
                     type="text"
                     value={titleDraft}
+                    disabled={mutationLocked}
                     onChange={(event) => setTitleDraft(event.target.value)}
                     onKeyDown={handleTitleInputKeyDown}
                     autoFocus
@@ -580,6 +587,7 @@ function Toolbar({
                     className="kayzart-formInput"
                     type="text"
                     value={slugDraft}
+                    disabled={mutationLocked}
                     onChange={(event) => setSlugDraft(event.target.value)}
                     onKeyDown={handleTitleInputKeyDown}
                   />
@@ -593,7 +601,7 @@ function Toolbar({
                   >
                     {__( 'Cancel', 'kayzart-live-code-editor')}
                   </button>
-                  <button className="kayzart-btn kayzart-btn-primary" type="submit" disabled={titleSaving}>
+                  <button className="kayzart-btn kayzart-btn-primary" type="submit" disabled={titleSaving || mutationLocked}>
                     {titleSaving ? __( 'Saving...', 'kayzart-live-code-editor') : __( 'Save', 'kayzart-live-code-editor')}
                   </button>
                 </div>
@@ -657,7 +665,7 @@ function Toolbar({
                         type="button"
                         role="menuitem"
                         onClick={(event) => handleStatusSelect(event, option.value)}
-                        disabled={statusSaving}
+                        disabled={statusSaving || mutationLocked}
                       >
                         <span className="kayzart-splitMenuLabel">{option.label}</span>
                       </button>
@@ -714,6 +722,7 @@ function Toolbar({
                     type="button"
                     role="menuitem"
                     onClick={handleImportFullHtml}
+                    disabled={mutationLocked}
                   >
                     <span className="kayzart-splitMenuLabel">{importFullHtmlLabel}</span>
                   </button>

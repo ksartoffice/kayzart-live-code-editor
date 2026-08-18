@@ -21,6 +21,7 @@ type HistoryPanelProps = {
   refreshToken: number;
   hasUnsavedChanges: () => boolean;
   onLoadSnapshot: (snapshot: EditorSnapshot) => boolean;
+  mutationLocked?: boolean;
 };
 
 const SECTION_LABELS: Record<RevisionSection, string> = {
@@ -75,7 +76,7 @@ export function HistoryPanel(props: HistoryPanelProps) {
   }, [props.supported, props.refreshToken]);
 
   const loadRevision = async (revision: RevisionSummary) => {
-    if (!canLoad || loadingRevisionId !== null) {
+    if (!canLoad || props.mutationLocked || loadingRevisionId !== null) {
       return;
     }
     if (
@@ -167,7 +168,7 @@ export function HistoryPanel(props: HistoryPanelProps) {
             <button
               type="button"
               className="kayzart-btn kayzart-btn-secondary kayzart-historyLoad"
-              disabled={!canLoad || loadingRevisionId !== null}
+              disabled={!canLoad || props.mutationLocked || loadingRevisionId !== null}
               onClick={() => void loadRevision(revision)}
             >
               {loadingRevisionId === revision.id

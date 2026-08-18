@@ -45,6 +45,7 @@ type EditorShellRefs = {
   settingsResizer: HTMLDivElement;
   iframe: HTMLIFrameElement;
   previewBadge: HTMLDivElement;
+  previewAiStatus: HTMLDivElement;
   settings: HTMLElement;
   settingsHeader: HTMLDivElement;
   settingsBody: HTMLDivElement;
@@ -274,7 +275,17 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   previewBadge.setAttribute('role', 'status');
   previewBadge.setAttribute('aria-live', 'polite');
   previewBadge.setAttribute('aria-atomic', 'true');
-  right.append(iframe, previewBadge);
+  const previewAiStatus = el('div', 'kayzart-previewAiStatus');
+  previewAiStatus.setAttribute('role', 'status');
+  previewAiStatus.setAttribute('aria-live', 'polite');
+  previewAiStatus.setAttribute('aria-atomic', 'true');
+  previewAiStatus.setAttribute('aria-hidden', 'true');
+  const previewAiSpinner = el('span', 'kayzart-previewAiSpinner');
+  previewAiSpinner.setAttribute('aria-hidden', 'true');
+  const previewAiLabel = el('span', 'kayzart-previewAiLabel');
+  previewAiLabel.textContent = __( 'AI is editing...', 'kayzart-live-code-editor');
+  previewAiStatus.append(previewAiSpinner, previewAiLabel);
+  right.append(iframe, previewBadge, previewAiStatus);
 
   main.append(left, resizer, right, settingsResizer, settings);
   app.append(toolbar, main);
@@ -322,6 +333,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     settingsResizer,
     iframe,
     previewBadge,
+    previewAiStatus,
     settings,
     settingsHeader,
     settingsBody,

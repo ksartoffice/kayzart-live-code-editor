@@ -72,6 +72,7 @@ export type KayzArtExtensionApi = {
   getEditorSnapshot?: () => EditorSnapshot | null;
   subscribeEditorSnapshot?: (listener: () => void) => () => void;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
+  applyAiEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
   reloadPreview?: () => void;
   getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;

@@ -361,7 +361,12 @@ async function main() {
       editorMode,
       extensionEditorLock || cssModeChangeInFlight || saveInFlight
     );
-    toolbarApi?.update({ saveDisabled: cssModeChangeInFlight || saveInFlight });
+    settingsApi?.setMutationLocked(extensionEditorLock);
+    toolbarApi?.update({
+      mutationLocked: extensionEditorLock,
+      saveDisabled: extensionEditorLock || cssModeChangeInFlight || saveInFlight,
+    });
+    editorUiController?.syncMutationLock();
   };
 
   let saveCopyController: ReturnType<typeof createSaveCopyController> | null = null;
@@ -580,6 +585,11 @@ async function main() {
       createSnackbar('info', error, NOTICE_IDS.save, NOTICE_ERROR_DURATION_MS);
       return { ok: false, error };
     }
+    if (extensionEditorLock) {
+      const error = __( 'Wait for the AI edit to finish before saving.', 'kayzart-live-code-editor');
+      createSnackbar('info', error, NOTICE_IDS.save, NOTICE_ERROR_DURATION_MS);
+      return { ok: false, error };
+    }
     return await saveCopyController.handleSave();
   }
 
@@ -616,6 +626,7 @@ async function main() {
     model: EditorModel,
     nextText: string
   ) => {
+    if (extensionEditorLock) return false;
     const current = model.getValue();
     if (current === nextText) {
       return false;
@@ -643,6 +654,7 @@ async function main() {
     successMessage: string,
     errorMessage: string
   ) => {
+    if (extensionEditorLock) return;
     try {
       const formatted = formatCode(model.getValue());
       const changed = replaceModelForFormatting(editorInstance, model, formatted);
@@ -861,14 +873,19 @@ async function main() {
       viewportMode: viewportController.getViewportMode(),
       hasUnsavedChanges: false,
       saveDisabled: false,
+      mutationLocked: false,
       viewPostUrl,
       postStatus,
       postTitle,
       postSlug,
     },
     {
-      onUndo: () => editorUiController?.getActiveEditor()?.trigger('toolbar', 'undo', null),
-      onRedo: () => editorUiController?.getActiveEditor()?.trigger('toolbar', 'redo', null),
+      onUndo: () => {
+        if (!extensionEditorLock) editorUiController?.getActiveEditor()?.trigger('toolbar', 'undo', null);
+      },
+      onRedo: () => {
+        if (!extensionEditorLock) editorUiController?.getActiveEditor()?.trigger('toolbar', 'redo', null);
+      },
       onToggleEditor: () =>
         viewportController.setEditorCollapsed(!viewportController.isEditorCollapsed()),
       onRefreshPreview: () => {
@@ -876,7 +893,7 @@ async function main() {
       },
       onSave: handleSave,
       onImportFullHtml: () => {
-        importFullHtmlHandler();
+        if (!extensionEditorLock) importFullHtmlHandler();
       },
       onCopyFullHtml: async () => {
         await handleCopyFullHtmlExport();
@@ -887,6 +904,9 @@ async function main() {
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: changeViewportPreservingScroll,
       onUpdatePostIdentity: async ({ title, slug }) => {
+        if (extensionEditorLock) {
+          return { ok: false, error: __( 'Wait for the AI edit to finish.', 'kayzart-live-code-editor') };
+        }
         if (!cfg.settingsRestUrl || !wp?.apiFetch) {
           return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };
         }
@@ -932,6 +952,9 @@ async function main() {
         }
       },
       onUpdateStatus: async (nextStatus) => {
+        if (extensionEditorLock) {
+          return { ok: false, error: __( 'Wait for the AI edit to finish.', 'kayzart-live-code-editor') };
+        }
         if (!cfg.settingsRestUrl || !wp?.apiFetch) {
           return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };
         }
@@ -982,6 +1005,7 @@ async function main() {
   ui.iframe.src = getPreviewUrl();
 
   const replaceWholeModelContent = (model: EditorModel, nextText: string) => {
+    if (extensionEditorLock) return false;
     const current = model.getValue();
     const end = model.getPositionAt(current.length);
     model.pushEditOperations(
@@ -994,12 +1018,14 @@ async function main() {
       ],
       () => null
     );
+    return true;
   };
 
   const applyFullHtmlImport = (
     result: FullHtmlImportResult,
     selection: FullHtmlImportSelection
   ) => {
+    if (extensionEditorLock) return;
     if (selection.html) {
       replaceWholeModelContent(htmlModel, buildImportedHtml(result, canEditJs, selection));
     }
@@ -1035,6 +1061,7 @@ async function main() {
         result,
         canEditJs
       );
+      if (extensionEditorLock) return;
       if (action?.type === 'split') {
         applyFullHtmlImport(result, action.selection);
         return;
@@ -1046,6 +1073,7 @@ async function main() {
   };
 
   const handleFullHtmlPaste = (text: string): boolean => {
+    if (extensionEditorLock) return false;
     const result = parseFullHtmlDocument(text);
     if (!result) {
       return false;
@@ -1057,11 +1085,13 @@ async function main() {
   };
 
   const openFullHtmlImport = () => {
+    if (extensionEditorLock) return;
     void (async () => {
       const source = await modalController?.requestFullHtmlImportSource();
       if (!source) {
         return;
       }
+      if (extensionEditorLock) return;
       const result = parseFullHtmlDocument(source);
       if (!result) {
         return;
@@ -1140,6 +1170,7 @@ async function main() {
   window.addEventListener('beforeunload', handleBeforeUnload);
 
   const applyHtmlEdit = (startOffset: number, endOffset: number, nextText: string) => {
+    if (extensionEditorLock) return false;
     suppressSelectionClear += 1;
     const start = htmlModel.getPositionAt(startOffset);
     const end = htmlModel.getPositionAt(endOffset);
@@ -1154,6 +1185,7 @@ async function main() {
       () => null
     );
     suppressSelectionClear = Math.max(0, suppressSelectionClear - 1);
+    return true;
   };
 
   const writeClipboardText = async (text: string) => {
@@ -1319,6 +1351,7 @@ async function main() {
   };
 
   const handleDeleteElement = (lcId: string) => {
+    if (extensionEditorLock) return;
     const context = getElementContext(htmlModel.getValue(), lcId);
     const sourceRange = context?.sourceRange;
     if (
@@ -1344,7 +1377,7 @@ async function main() {
     }
 
     htmlEditor.pushUndoStop();
-    applyHtmlEdit(sourceRange.startOffset, sourceRange.endOffset, '');
+    if (!applyHtmlEdit(sourceRange.startOffset, sourceRange.endOffset, '')) return;
     htmlEditor.pushUndoStop();
     selectedLcId = null;
     notifySelection();
@@ -1358,6 +1391,7 @@ async function main() {
   };
 
   const applyImageSourceUpdates = (lcId: string, url: string) => {
+    if (extensionEditorLock) return false;
     const edits = getElementImageSourceEditInfos(htmlModel.getValue(), lcId);
     if (edits.length === 0) {
       return false;
@@ -1380,6 +1414,7 @@ async function main() {
   };
 
   const openReplaceImageMediaModal = (lcId: string) => {
+    if (extensionEditorLock) return;
     if (typeof wp?.media !== 'function') {
       createSnackbar(
         'error',
@@ -1414,6 +1449,7 @@ async function main() {
     });
 
     frame.on('insert', (selectionArg: any) => {
+      if (extensionEditorLock) return;
       const state = frame.state?.();
       const selection = selectionArg || state?.get?.('selection');
       const selectedModel = selection?.first?.();
@@ -1463,6 +1499,7 @@ async function main() {
   };
 
   function insertHtmlAtSelection(text: string, replacementRange?: TextRange) {
+    if (extensionEditorLock) return false;
     const selection = htmlEditor.getSelection();
     const cursor = htmlEditor.getPosition();
     const replacementStart = replacementRange
@@ -1498,9 +1535,11 @@ async function main() {
       }
     );
     htmlEditor.pushUndoStop();
+    return true;
   }
 
   const openMediaModal = () => {
+    if (extensionEditorLock) return;
     if (typeof wp?.media !== 'function') {
       createSnackbar(
         'error',
@@ -1522,6 +1561,7 @@ async function main() {
     });
 
     frame.on('insert', (selectionArg: any) => {
+      if (extensionEditorLock) return;
       const state = frame.state?.();
       const selection = selectionArg || state?.get?.('selection');
       const selectedModel = selection?.first?.();
@@ -1606,6 +1646,7 @@ async function main() {
     lcId: string,
     attributes: { name: string; value: string }[]
   ) => {
+    if (extensionEditorLock) return false;
     const html = htmlModel.getValue();
     const info = getEditableElementAttributes(html, lcId);
     if (!info) {
@@ -1623,8 +1664,7 @@ async function main() {
     if (currentStartTag === nextStartTag) {
       return true;
     }
-    applyHtmlEdit(info.startOffset, info.endOffset, nextStartTag);
-    return true;
+    return applyHtmlEdit(info.startOffset, info.endOffset, nextStartTag);
   };
 
   const setAttributeValue = (
@@ -1665,6 +1705,7 @@ async function main() {
       return getEditableTextSegments(html, lcId);
     },
     updateTextSegment: (lcId: string, segmentId: string, text: string) => {
+      if (extensionEditorLock) return false;
       const segment = getEditableTextSegments(htmlModel.getValue(), lcId).find(
         (entry) => entry.id === segmentId
       );
@@ -1674,14 +1715,14 @@ async function main() {
       if (segment.text === text) {
         return true;
       }
-      applyHtmlEdit(segment.startOffset, segment.endOffset, escapeTextForHtml(text));
-      return true;
+      return applyHtmlEdit(segment.startOffset, segment.endOffset, escapeTextForHtml(text));
     },
     getElementText: (lcId: string) => {
       const info = getEditableElementText(htmlModel.getValue(), lcId);
       return info ? info.text : null;
     },
     updateElementText: (lcId: string, text: string) => {
+      if (extensionEditorLock) return false;
       if (!isSafeEditableElementHtml(text)) {
         return false;
       }
@@ -1693,14 +1734,14 @@ async function main() {
       if (info.text === text) {
         return true;
       }
-      applyHtmlEdit(info.startOffset, info.endOffset, text);
-      return true;
+      return applyHtmlEdit(info.startOffset, info.endOffset, text);
     },
     getElementActionInfo: (lcId: string) => getElementActionInfo(htmlModel.getValue(), lcId),
     updateElementActionInfo: (
       lcId: string,
       action: { href?: string; targetBlank?: boolean; disabled?: boolean }
     ) => {
+      if (extensionEditorLock) return false;
       const info = getElementActionInfo(htmlModel.getValue(), lcId);
       const attrsInfo = info
         ? getEditableElementAttributes(htmlModel.getValue(), info.actionLcId)
@@ -1734,6 +1775,7 @@ async function main() {
     },
     getElementImageInfo: (lcId: string) => getElementImageInfo(htmlModel.getValue(), lcId),
     updateElementImageInfo: (lcId: string, image: { src?: string; alt?: string }) => {
+      if (extensionEditorLock) return false;
       const info = getElementImageInfo(htmlModel.getValue(), lcId);
       if (!info) {
         return false;
@@ -1761,6 +1803,7 @@ async function main() {
       return applyElementAttributes(info.imageLcId, nextAttributes);
     },
     replaceElementImage: (lcId: string) => {
+      if (extensionEditorLock) return false;
       const info = getElementImageInfo(htmlModel.getValue(), lcId);
       if (!info) {
         return false;
@@ -1773,14 +1816,15 @@ async function main() {
       return info ? info.attributes : null;
     },
     updateElementAttributes: (lcId: string, attributes: { name: string; value: string }[]) => {
+      if (extensionEditorLock) return false;
       return applyElementAttributes(lcId, attributes);
     },
   };
 
   const updateUndoRedoState = () => {
     const model = editorUiController?.getActiveEditor()?.getModel();
-    const canUndo = Boolean(model && model.canUndo());
-    const canRedo = Boolean(model && model.canRedo());
+    const canUndo = Boolean(!extensionEditorLock && model && model.canUndo());
+    const canRedo = Boolean(!extensionEditorLock && model && model.canRedo());
     toolbarApi?.update({ canUndo, canRedo });
   };
 
@@ -1796,6 +1840,7 @@ async function main() {
     compactEditorBreakpoint: COMPACT_EDITOR_BREAKPOINT,
     getViewportWidth: () => Math.round(window.visualViewport?.width ?? window.innerWidth),
     getJsEnabled: () => jsEnabled,
+    getMutationLocked: () => extensionEditorLock,
     onActiveEditorChange: () => {
       updateUndoRedoState();
       syncPendingPreviewReloadNotice();
@@ -1929,7 +1974,11 @@ async function main() {
     ui.compactJsModeSelect.value = jsMode;
   };
 
-  const setJsMode = (nextMode: JsMode) => {
+  const setJsMode = (nextMode: JsMode, allowLocked = false) => {
+    if (extensionEditorLock && !allowLocked) {
+      syncJsModeSelectors();
+      return;
+    }
     const normalized = normalizeJsMode(nextMode);
     if (normalized === jsMode) {
       syncJsModeSelectors();
@@ -1985,6 +2034,11 @@ async function main() {
     extensionEditorLock = locked;
     syncEditorLocks();
     syncEditorModeControl();
+    updateUndoRedoState();
+    ui.right.classList.toggle('is-ai-editing', locked);
+    ui.right.setAttribute('aria-busy', locked ? 'true' : 'false');
+    ui.previewAiStatus.classList.toggle('is-visible', locked);
+    ui.previewAiStatus.setAttribute('aria-hidden', locked ? 'false' : 'true');
   };
 
   const getEditorSnapshot = (): EditorSnapshot => {
@@ -2021,7 +2075,10 @@ async function main() {
     return true;
   };
 
-  const replaceEditorSnapshot = (snapshot: EditorSnapshot) => {
+  const applyEditorSnapshot = (snapshot: EditorSnapshot, allowLocked: boolean) => {
+    if (extensionEditorLock && !allowLocked) {
+      return false;
+    }
     if (!snapshot || typeof snapshot !== 'object') {
       return false;
     }
@@ -2048,7 +2105,7 @@ async function main() {
     }
     replaceModelContent(jsModel, snapshot.js ?? '');
 
-    setJsMode(snapshot.jsMode ?? 'classic');
+    setJsMode(snapshot.jsMode ?? 'classic', allowLocked);
     if (hasSnapshotMode) {
       setTailwindEnabled(nextEditorMode === 'tailwind');
     }
@@ -2058,6 +2115,9 @@ async function main() {
     }
     return true;
   };
+
+  const replaceEditorSnapshot = (snapshot: EditorSnapshot) => applyEditorSnapshot(snapshot, false);
+  const applyAiEditorSnapshot = (snapshot: EditorSnapshot) => applyEditorSnapshot(snapshot, true);
 
   const requestEditorModeChange = async (nextMode: EditorCssMode) => {
     if (
@@ -2111,6 +2171,9 @@ async function main() {
             css: cssModel.getValue(),
           }),
       });
+      if (extensionEditorLock) {
+        return;
+      }
       cssByMode = resolved.cssByMode;
       cssModel.resetValue(resolved.css);
       setTailwindEnabled(nextMode === 'tailwind');
@@ -2179,6 +2242,7 @@ async function main() {
       getEditorSnapshot,
       subscribeEditorSnapshot,
       replaceEditorSnapshot,
+      applyAiEditorSnapshot,
       reloadPreview: reloadPreviewPreservingScroll,
       getEditorMode: () => (tailwindEnabled ? 'tailwind' : 'normal'),
       getSelectedContext,
@@ -2204,6 +2268,7 @@ async function main() {
     hasUnsavedChanges: () => getUnsavedFlags().hasAny,
     onLoadSnapshot: replaceEditorSnapshot,
     onTemplateModeChange: (nextTemplateMode) => {
+      if (extensionEditorLock) return;
       const currentResolved = getResolvedTemplateMode();
       templateMode = resolveTemplateMode(nextTemplateMode);
       const nextResolved = getResolvedTemplateMode();

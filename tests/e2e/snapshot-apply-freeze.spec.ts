@@ -212,3 +212,37 @@ test('a locked editor still refuses user edits', async ({ page }) => {
     throw new Error(`Locked editor accepted a user edit: ${JSON.stringify(after)}`);
   }
 });
+
+test('the AI lock blocks user snapshots and shows a non-blocking preview status', async ({ page }) => {
+  await openKayzartEditor(page);
+  const result = await page.evaluate(() => {
+    const api = (window as any).KAYZART_EXTENSION_API;
+    const before = {
+      html: '<main>Before</main>', customHead: '', css: '', js: '',
+      jsMode: 'classic', baseHash: 'before',
+    };
+    const user = { ...before, html: '<main>User</main>', baseHash: 'user' };
+    const ai = { ...before, html: '<main>AI</main>', baseHash: 'ai' };
+    api.replaceEditorSnapshot(before);
+    api.setEditorLock(true);
+    const userApplied = api.replaceEditorSnapshot(user);
+    const afterUser = api.getEditorSnapshot().html;
+    const aiApplied = api.applyAiEditorSnapshot(ai);
+    const afterAi = api.getEditorSnapshot().html;
+    const status = document.querySelector('.kayzart-previewAiStatus');
+    const visible = status?.classList.contains('is-visible');
+    const pointerEvents = status ? getComputedStyle(status).pointerEvents : '';
+    api.setEditorLock(false);
+    return { userApplied, afterUser, aiApplied, afterAi, visible, pointerEvents, hiddenAfter: status?.getAttribute('aria-hidden') };
+  });
+
+  expect(result).toEqual({
+    userApplied: false,
+    afterUser: '<main>Before</main>',
+    aiApplied: true,
+    afterAi: '<main>AI</main>',
+    visible: true,
+    pointerEvents: 'none',
+    hiddenAfter: 'true',
+  });
+});

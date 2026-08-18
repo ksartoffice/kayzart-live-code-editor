@@ -15,6 +15,14 @@ export function sameSnapshotIdentity(left: Pick<EditorSnapshot, 'baseHash' | 'js
   return left.baseHash === right.baseHash && left.jsMode === right.jsMode;
 }
 
+export function sameSnapshotContent(left: EditorSnapshot, right: EditorSnapshot) {
+  return left.html === right.html
+    && (left.customHead ?? '') === (right.customHead ?? '')
+    && left.css === right.css
+    && left.js === right.js
+    && left.jsMode === right.jsMode;
+}
+
 export function isRetryableHttpStatus(status: number) {
   return status === 0 || status === 408 || status === 429 || status >= 500;
 }

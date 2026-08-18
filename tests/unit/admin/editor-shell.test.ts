@@ -29,6 +29,16 @@ describe('editor shell iframe security attributes', () => {
     expect(compactValues).toEqual(['classic', 'module']);
   });
 
+  it('renders a non-interactive AI preview status', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.previewAiStatus.textContent).toContain('AI is editing...');
+    expect(ui.previewAiStatus.getAttribute('role')).toBe('status');
+    expect(ui.previewAiStatus.getAttribute('aria-live')).toBe('polite');
+    expect(ui.previewAiStatus.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('places JavaScript mode selectors in action areas with expected order', () => {
     const root = document.createElement('div');
     const ui = buildEditorShell(root);

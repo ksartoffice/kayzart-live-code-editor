@@ -38,6 +38,7 @@ class Ai_Editor {
 		$payload['overlayAction'] = array(
 			'actionId'                => self::PREVIEW_ACTION_ID,
 			'ariaLabel'               => __( 'Add selected element to AI edit context', 'kayzart-live-code-editor' ),
+			'tooltip'                 => __( 'Add to AI context', 'kayzart-live-code-editor' ),
 			'background'              => '#2563eb',
 			'showWhenElementsTabOpen' => true,
 			'iconSvg'                 => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 15.5A2 2 0 0 0 8.5 14l-6.1-1.5a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 10 8.5l1.5-6.1a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.5 1.5l6.1 1.5a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.5 1.5l-1.5 6.1a.5.5 0 0 1-1 0z"/></svg>',

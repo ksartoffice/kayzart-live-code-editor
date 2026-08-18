@@ -172,6 +172,11 @@ async function main() {
   const inferredEntryMode = cfg.initialEntryMode || (cfg.ai?.initialRequest ? 'ai' : '');
   const initialLayoutState = resolveInitialEditorLayout(persistedLayoutState, inferredEntryMode);
   const initialEditorCollapsed = initialLayoutState.editorCollapsed;
+  // Tracks the previous value so the expand restore only runs on an actual
+  // collapsed-to-expanded transition. Crossing the compact breakpoint re-applies
+  // the persisted layout and re-notifies collapsed === false for an already
+  // expanded pane, which must not steal focus back to the HTML editor.
+  let lastEditorCollapsed = initialEditorCollapsed;
   const initialSettingsOpen = initialLayoutState.settingsOpen;
   const initialSettingsTab = initialLayoutState.settingsTab;
   let restoringLayout = false;
@@ -237,8 +242,14 @@ async function main() {
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => {
+      const expanded = lastEditorCollapsed && !collapsed;
+      lastEditorCollapsed = collapsed;
       toolbarApi?.update({ editorCollapsed: collapsed });
       updatePersistedLayout({ editorCollapsed: collapsed });
+      preview?.sendEditorCollapsedState(collapsed);
+      if (expanded) {
+        restoreEditorAfterExpand();
+      }
     },
     onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
     onPreviewResizeChange: restoreCapturedPreviewScroll,
@@ -399,6 +410,42 @@ async function main() {
 
   const syncElementsTabState = () => {
     preview?.sendElementsTabState(settingsOpen && activeSettingsTab === 'elements');
+  };
+
+  const syncEditorCollapsedState = () => {
+    preview?.sendEditorCollapsedState(viewportController.isEditorCollapsed());
+  };
+
+  // While the code pane is collapsed its editors are zero-width and hidden, so
+  // CodeMirror keeps a stale viewport (an empty-looking editor) and the
+  // selection highlight cannot land there. Re-measure once the pane has
+  // animated open, then re-apply the highlight, whichever control expanded it.
+  // Toggling faster than the animation supersedes the pending restore.
+  let editorExpandToken = 0;
+  const restoreEditorAfterExpand = () => {
+    editorExpandToken += 1;
+    const token = editorExpandToken;
+    const lcId = selectedLcId;
+    const isStale = () => token !== editorExpandToken || viewportController.isEditorCollapsed();
+    // Measure right away too, so the pane is not blank while it animates.
+    editorUiController?.refreshEditorLayout();
+    viewportController.runAfterEditorLayout(() => {
+      if (isStale()) {
+        return;
+      }
+      editorUiController?.refreshEditorLayout();
+      if (!lcId || selectedLcId !== lcId) {
+        return;
+      }
+      // Reveal on the next frame so the measure above has been applied and
+      // scrollIntoView resolves against the real viewport.
+      window.requestAnimationFrame(() => {
+        if (isStale() || selectedLcId !== lcId) {
+          return;
+        }
+        preview?.highlightSelection(lcId);
+      });
+    });
   };
 
   const syncPendingPreviewReloadNotice = () => {
@@ -1917,6 +1964,9 @@ async function main() {
         settingsApi?.openTab('elements');
       }
     },
+    onOpenCodePanel: () => {
+      viewportController.setEditorCollapsed(false);
+    },
     onCopyElementHtml: (lcId) => {
       void handleCopyElementHtml(lcId);
     },
@@ -1941,6 +1991,7 @@ async function main() {
     preview.handleIframeLoad();
   }
   syncElementsTabState();
+  syncEditorCollapsedState();
 
   tailwindCompiler = createTailwindCompiler({
     apiFetch: wp.apiFetch,

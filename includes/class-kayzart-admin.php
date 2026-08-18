@@ -1740,7 +1740,7 @@ class Admin {
 		$value  = '' === $model ? '' : self::validate_ai_default_model( $model, $models );
 
 		echo '<select name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '">';
-		echo '<option value="" ' . selected( '', $value, false ) . '>' . esc_html__( 'Auto (recommended)', 'kayzart-live-code-editor' ) . '</option>';
+		echo '<option value="" ' . selected( '', $value, false ) . '>' . esc_html__( 'Auto', 'kayzart-live-code-editor' ) . '</option>';
 		foreach ( $models as $model ) {
 			echo '<option value="' . esc_attr( $model['id'] ) . '" ' . selected( $model['id'], $value, false ) . '>' . esc_html( $model['label'] ) . '</option>';
 		}

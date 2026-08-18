@@ -141,6 +141,7 @@ export type CodeEditorInstance = {
   pushUndoStop: () => void;
   trigger: (_source: string, action: 'undo' | 'redo', _payload: unknown) => void;
   revealRangeInCenter: (range: EditorRange, _scrollType?: number) => void;
+  refreshLayout: () => void;
   setScrollRulerMarkers: (markers: EditorScrollRulerMarker[]) => void;
   clearScrollRulerMarkers: () => void;
   updateOptions: (options: { wordWrap?: WordWrapMode }) => void;
@@ -1050,9 +1051,30 @@ const createEditorWrapper = (options: {
     },
     revealRangeInCenter: (range) => {
       const offsets = rangeToOffsets(view.state, range);
-      view.dispatch({
-        effects: EditorView.scrollIntoView(offsets.from, { y: 'center' }),
+      const scrollTo = () => {
+        if (!view.dom.isConnected) {
+          return;
+        }
+        view.requestMeasure();
+        view.dispatch({
+          effects: EditorView.scrollIntoView(offsets.from, { y: 'center' }),
+        });
+      };
+      scrollTo();
+      // Lines that have never been rendered only have estimated heights, so
+      // in a view that was just resized or unhidden the first scroll can land
+      // in unmeasured space and leave a blank viewport. Re-issue it over the
+      // next frames, once the destination has actually been measured, so the
+      // estimate converges on the real offset.
+      window.requestAnimationFrame(() => {
+        scrollTo();
+        window.requestAnimationFrame(scrollTo);
       });
+    },
+    refreshLayout: () => {
+      // A view that was resized while hidden keeps a stale viewport, which
+      // renders as an empty editor and throws off scrollIntoView targets.
+      view.requestMeasure();
     },
     setScrollRulerMarkers: (markers) => {
       setScrollRulerMarkerSpecs(markers);

@@ -145,6 +145,8 @@ The editable targets start empty or nearly empty. Your task is to write a whole 
 
 Rules:
 - Build one complete, publishable landing page that covers the whole brief.
+- Use an image only when the brief gives you its URL, and write that URL exactly. Never invent, guess, or recall one: a URL you did not receive renders as a broken image on the published page.
+- Non-typographic elements are welcome as ground, never as subject. Colour fields, one soft gradient, rules, abstract shapes and oversized glyphs can carry a page on their own. Do not draw a product, food, person, animal, building, logo or landscape out of CSS or SVG; a drawn approximation of a photograph never reaches production quality.
 - Write substantial, specific copy. Never leave placeholder stubs such as "Lorem ipsum", "text here", or an empty section.
 - Plan the full section list before the first edit tool call, then write each section completely.
 - Write each target in as few tool calls as possible. Compose the full markup before calling a tool instead of appending many small fragments.

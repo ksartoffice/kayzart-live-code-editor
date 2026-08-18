@@ -85,18 +85,34 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Visual direction is the brief's job, not the system prompt's. Neither
-	 * intent prescribes a layout, a hero treatment, or an imagery policy.
+	 * How the page looks is the brief's job. Neither intent prescribes a layout
+	 * or a hero treatment, whatever else it says about imagery.
 	 */
-	public function test_system_prompt_prescribes_no_visual_direction(): void {
+	public function test_system_prompt_prescribes_no_layout(): void {
 		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
 			$prompt = Ai_Prompt::system_prompt( $intent );
 
 			$this->assertStringNotContainsString( 'Typography-first design rules:', $prompt, $intent );
 			$this->assertStringNotContainsString( 'Type is the artwork.', $prompt, $intent );
 			$this->assertStringNotContainsString( 'The hero is the strongest instance', $prompt, $intent );
-			$this->assertStringNotContainsString( 'Never write an <img>.', $prompt, $intent );
-			$this->assertStringNotContainsString( 'Never depict a real-world subject', $prompt, $intent );
+			$this->assertStringNotContainsString( 'full-bleed', $prompt, $intent );
+			$this->assertStringNotContainsString( 'clamp(', $prompt, $intent );
+		}
+	}
+
+	/**
+	 * An image the model did not receive is an image that does not exist, and a
+	 * subject drawn in its place never reaches production quality. Authoring a
+	 * page needs to hear both; editing one works on a page whose pictures are
+	 * already decided and does not.
+	 */
+	public function test_creation_rules_govern_imagery_and_editing_rules_do_not(): void {
+		$creating = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
+		$editing  = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT );
+
+		foreach ( array( 'Use an image only when the brief gives you its URL', 'Never invent, guess, or recall one', 'welcome as ground, never as subject', 'out of CSS or SVG' ) as $rule ) {
+			$this->assertStringContainsString( $rule, $creating, $rule );
+			$this->assertStringNotContainsString( $rule, $editing, $rule );
 		}
 	}
 

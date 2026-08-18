@@ -406,7 +406,6 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 			array( '<p>Old</p>', 'Old', '<script>alert(1)</script>' ),
 			array( '<button>Old</button>', 'Old', '<img src="x" onerror="alert(1)">' ),
 			array( '<a href="#">Old</a>', '#', 'javascript:alert(1)' ),
-			array( '<p>Old</p>', 'Old', '<img src="https://tracker.example/pixel.gif">' ),
 			array( '<div style="color:red">Old</div>', 'color:red', 'background:url(https://cdn.example/a.png)' ),
 			array( '<script>alert(1)</script>', 'alert(1)', 'alert(2)' ),
 		);
@@ -472,9 +471,11 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	 * is still one site.
 	 */
 	public function test_output_policy_allows_same_origin_absolute_urls(): void {
-		$host  = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		// A <link> rather than an <img>: media is exempt from the host comparison
+		// entirely, so it can no longer show that same-origin URLs are admitted.
 		$cases = array(
-			'html' => '<img src="https://' . $host . '/wp-content/uploads/a.png" alt="A">',
+			'head' => '<link rel="stylesheet" href="https://' . $host . '/wp-content/themes/a.css">',
 			'css'  => '.x{background:url(http://' . $host . '/wp-content/uploads/b.png)}',
 		);
 		foreach ( $cases as $target => $to ) {
@@ -489,7 +490,7 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 				null,
 				array( 'html', 'head', 'css' )
 			);
-			$this->assertSame( $to, $result['snapshot'][ 'html' === $target ? 'html' : 'css' ], $target );
+			$this->assertSame( $to, $result['snapshot'][ 'head' === $target ? 'customHead' : 'css' ], $target );
 		}
 	}
 
@@ -500,16 +501,16 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	public function test_output_policy_still_rejects_lookalike_hosts_and_schemeless_payloads(): void {
 		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		$cases = array(
-			'<img src="https://' . $host . '.evil.example/a.png">',
-			'<img src="https://evil.example/' . $host . '/a.png">',
-			'<img src="data:image/svg+xml,x">',
+			'<link rel="stylesheet" href="https://' . $host . '.evil.example/a.css">',
+			'<link rel="stylesheet" href="https://evil.example/' . $host . '/a.css">',
+			'<link rel="stylesheet" href="data:text/css,x">',
 		);
 		foreach ( $cases as $to ) {
 			try {
 				Ai_Tools::run_tool(
 					'replace_string',
 					array(
-						'target' => 'html',
+						'target' => 'head',
 						'from'   => '',
 						'to'     => $to,
 					),
@@ -533,11 +534,11 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 		$host = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 
 		foreach ( array( 'http://' . $host . ':80', 'https://' . $host . ':443' ) as $origin ) {
-			$to     = '<img src="' . $origin . '/wp-content/uploads/a.png" alt="A">';
+			$to     = '<link rel="stylesheet" href="' . $origin . '/wp-content/themes/a.css">';
 			$result = Ai_Tools::run_tool(
 				'replace_string',
 				array(
-					'target' => 'html',
+					'target' => 'head',
 					'from'   => '',
 					'to'     => $to,
 				),
@@ -545,7 +546,7 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 				null,
 				array( 'html', 'head', 'css' )
 			);
-			$this->assertSame( $to, $result['snapshot']['html'], $origin );
+			$this->assertSame( $to, $result['snapshot']['customHead'], $origin );
 		}
 
 		foreach ( array( 'https://' . $host . ':80', 'http://' . $host . ':443' ) as $origin ) {
@@ -553,9 +554,9 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 				Ai_Tools::run_tool(
 					'replace_string',
 					array(
-						'target' => 'html',
+						'target' => 'head',
 						'from'   => '',
-						'to'     => '<img src="' . $origin . '/wp-content/uploads/a.png">',
+						'to'     => '<link rel="stylesheet" href="' . $origin . '/wp-content/themes/a.css">',
 					),
 					$this->snapshot(),
 					null,
@@ -577,12 +578,107 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 		$cases = array(
 			// parse_url reads the trusted host as authority; the browser fetches evil.example.
-			'<img src="https://evil.example\\@' . $host . '/a.png">',
+			array( 'head', '<link rel="stylesheet" href="https://evil.example\\@' . $host . '/a.css">' ),
 			// Not absolute to parse_url; protocol-relative to the browser.
-			'<img src="\\\\evil.example/a.png">',
-			'<form action="https://evil.example\\@' . $host . '/post"><button>Send</button></form>',
+			array( 'head', '<link rel="stylesheet" href="\\\\evil.example/a.css">' ),
+			array( 'html', '<form action="https://evil.example\\@' . $host . '/post"><button>Send</button></form>' ),
 		);
-		foreach ( $cases as $to ) {
+		foreach ( $cases as $case ) {
+			list( $target, $to ) = $case;
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => $target,
+						'from'   => '',
+						'to'     => $to,
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $to );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $to );
+			}
+		}
+	}
+
+	/**
+	 * Media may come from anywhere. The person asking for the edit can already
+	 * write the same <img> by hand, and an <img> executes nothing, so refusing
+	 * one only ever cost the page its picture.
+	 */
+	public function test_output_policy_allows_remote_media(): void {
+		$cases = array(
+			'img src'    => '<img src="https://cdn.example/a.png" alt="A">',
+			'img srcset' => '<img src="/local.png" srcset="https://cdn.example/a.png 1x, https://cdn.example/b.png 2x" alt="A">',
+			'video'      => '<video poster="https://cdn.example/p.jpg" src="https://cdn.example/v.mp4"></video>',
+			'source'     => '<video><source src="https://cdn.example/v.mp4" type="video/mp4"></video>',
+			'audio'      => '<audio src="https://cdn.example/a.mp3"></audio>',
+		);
+		foreach ( $cases as $label => $to ) {
+			$result = Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => 'html',
+					'from'   => '',
+					'to'     => $to,
+				),
+				$this->snapshot(),
+				null,
+				array( 'html', 'head', 'css' )
+			);
+			$this->assertSame( $to, $result['snapshot']['html'], $label );
+		}
+	}
+
+	/**
+	 * The exemption is for media and nothing else. Code, style and anywhere a
+	 * visitor's own input would be sent stay closed.
+	 */
+	public function test_output_policy_still_rejects_non_media_remote_resources(): void {
+		$cases = array(
+			'link'       => array( 'html', '<link rel="stylesheet" href="https://cdn.example/a.css">' ),
+			'form'       => array( 'html', '<form action="https://evil.example/post"><button>Send</button></form>' ),
+			'object'     => array( 'html', '<object data="https://cdn.example/a.swf"></object>' ),
+			'css import' => array( 'css', '@import url("https://cdn.example/a.css");' ),
+			'css url'    => array( 'css', '.x{background:url(https://cdn.example/a.png)}' ),
+		);
+		foreach ( $cases as $label => $case ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => $case[0],
+						'from'   => '',
+						'to'     => $case[1],
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $label );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $label );
+			}
+		}
+	}
+
+	/**
+	 * Media escapes the host comparison, not the scheme check. Which host an
+	 * image comes from stopped mattering the moment every host was allowed, so
+	 * the backslash confusion has nothing left to confuse; a src that runs code
+	 * is a different question and still gets refused.
+	 */
+	public function test_output_policy_media_exemption_does_not_admit_executable_urls(): void {
+		$cases = array(
+			'javascript' => '<img src="javascript:alert(1)">',
+			'vbscript'   => '<img src="vbscript:msgbox(1)">',
+			'data html'  => '<img src="data:text/html,<b>x</b>">',
+			'srcset'     => '<img srcset="javascript:alert(1) 1x">',
+		);
+		foreach ( $cases as $label => $to ) {
 			try {
 				Ai_Tools::run_tool(
 					'replace_string',
@@ -595,9 +691,9 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 					null,
 					array( 'html', 'head', 'css' )
 				);
-				$this->fail( 'Expected rejection for ' . $to );
+				$this->fail( 'Expected rejection for ' . $label );
 			} catch ( Ai_Tool_Error $error ) {
-				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $to );
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $label );
 			}
 		}
 	}

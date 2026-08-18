@@ -184,7 +184,7 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Tailwind mode without CSS intent trims CSS while policy stays in system.
+	 * Tailwind mode keeps the CSS target while policy stays in the system prompt.
 	 */
 	public function test_build_user_prompt_tailwind_mode(): void {
 		$prompt = Ai_Prompt::build_user_prompt(
@@ -197,9 +197,24 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString( 'Editor mode: tailwind', $prompt );
-		$this->assertStringContainsString( 'Editable targets for this request: html, head', $prompt );
+		$this->assertStringContainsString( 'Editable targets for this request: html, head, css', $prompt );
 		$this->assertStringNotContainsString( 'Tailwind mode rules:', $prompt );
 		$this->assertStringContainsString( 'Tailwind mode rules:', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'tailwind' ) );
+	}
+
+	/**
+	 * Editing routes a site-wide change to @theme and bans hand-written rules.
+	 *
+	 * Both halves matter together: the ban alone is what the removed target gate
+	 * already achieved, and it is only workable because the prompt names where
+	 * the change should go instead.
+	 */
+	public function test_system_prompt_tailwind_edit_routes_global_changes_to_theme(): void {
+		$system = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'tailwind' );
+
+		$this->assertStringContainsString( 'Never add a plain CSS rule', $system );
+		$this->assertStringContainsString( 'edit the matching @theme token in the CSS tab', $system );
+		$this->assertStringNotContainsString( 'Edit CSS only when the user explicitly asks', $system );
 	}
 
 	/**

@@ -135,11 +135,15 @@ PROMPT;
 	/**
 	 * Engine identity and rules specific to authoring a new page.
 	 *
-	 * The page is whatever the brief says it is. Naming it a landing page here
-	 * was the last piece of house style left in this prompt: the editor builds
-	 * pricing tables, forms, documentation and embeds too, and a brief asking
-	 * for one of those had a marketing frame put around it before it was read.
-	 * The same assumption is why the prompt improver was removed.
+	 * Naming the page a landing page here was the last piece of house style left
+	 * in this prompt: the editor builds pricing tables, forms, documentation and
+	 * embeds too, and a brief asking for one of those had a marketing frame put
+	 * around it before it was read. The same assumption is why the prompt
+	 * improver was removed.
+	 *
+	 * Removing the words is the whole fix. Replacing them with an instruction to
+	 * take the kind of page from the brief would only trade one wrong assumption
+	 * for a worse one, since plenty of briefs never say.
 	 *
 	 * @return string
 	 */
@@ -150,7 +154,7 @@ You author a new page as unsaved HTML/CSS from a user brief. Existing JavaScript
 The editable targets start empty or nearly empty. Your task is to write a whole page, not to make a small edit.
 
 Rules:
-- Build one complete, publishable page that covers the whole brief. The brief says what kind of page it is; do not assume one.
+- Build one complete, publishable page that covers the whole brief.
 - Use an image only when the brief gives you its URL, and write that URL exactly. Never invent, guess, or recall one: a URL you did not receive renders as a broken image on the published page.
 - Non-typographic elements are welcome as ground, never as subject. Colour fields, one soft gradient, rules, abstract shapes and oversized glyphs can carry a page on their own. Do not draw a product, food, person, animal, building, logo or landscape out of CSS or SVG; a drawn approximation of a photograph never reaches production quality.
 - Write substantial, specific copy. Never leave placeholder stubs such as "Lorem ipsum", "text here", or an empty section.

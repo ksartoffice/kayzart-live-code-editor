@@ -39,6 +39,7 @@ export type PreviewController = {
   resetCanonicalCache: () => void;
   clearSelectionHighlight: () => void;
   clearCssSelectionHighlight: () => void;
+  highlightSelection: (lcId: string) => void;
   handleIframeLoad: () => void;
   handleMessage: (event: MessageEvent) => void;
 };
@@ -707,6 +708,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     resetCanonicalCache,
     clearSelectionHighlight,
     clearCssSelectionHighlight,
+    highlightSelection: highlightByLcId,
     handleIframeLoad,
     handleMessage,
   };

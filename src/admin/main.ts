@@ -1923,7 +1923,16 @@ async function main() {
       }
     },
     onOpenCodePanel: () => {
+      const lcId = selectedLcId;
       viewportController.setEditorCollapsed(false);
+      if (!lcId) {
+        return;
+      }
+      // The pane was inert and zero-width while collapsed, so the selection
+      // highlight cannot land there. Re-apply it against the settled layout.
+      viewportController.runAfterEditorLayout(() => {
+        preview?.highlightSelection(lcId);
+      });
     },
     onCopyElementHtml: (lcId) => {
       void handleCopyElementHtml(lcId);

@@ -153,10 +153,12 @@ export function createViewportController(deps: ViewportControllerDeps) {
     }, deps.previewBadgeHideMs);
   };
 
-  const showPreviewBadgeAfterLayout = () => {
+  // Runs a callback once the editor pane has finished animating to its new
+  // width, so callers measure against the settled layout instead of a
+  // mid-transition box.
+  const runAfterEditorLayout = (callback: () => void) => {
     if (isStackedLayout()) {
-      applyViewportLayout();
-      showPreviewBadge();
+      callback();
       return;
     }
     let done = false;
@@ -164,8 +166,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
       if (done) return;
       done = true;
       deps.ui.left.removeEventListener('transitionend', onTransitionEnd);
-      applyViewportLayout();
-      showPreviewBadge();
+      callback();
     };
     const onTransitionEnd = (event: TransitionEvent) => {
       if (event.propertyName === 'width' || event.propertyName === 'flex-basis') {
@@ -174,6 +175,13 @@ export function createViewportController(deps: ViewportControllerDeps) {
     };
     deps.ui.left.addEventListener('transitionend', onTransitionEnd, { once: true });
     window.setTimeout(finalize, deps.previewBadgeTransitionMs);
+  };
+
+  const showPreviewBadgeAfterLayout = () => {
+    runAfterEditorLayout(() => {
+      applyViewportLayout();
+      showPreviewBadge();
+    });
   };
 
   const schedulePreviewBadge = () => {
@@ -448,6 +456,7 @@ export function createViewportController(deps: ViewportControllerDeps) {
     getViewportMode: () => viewportMode,
     setEditorCollapsed,
     isEditorCollapsed: () => editorCollapsed,
+    runAfterEditorLayout,
     restoreSettingsWidth,
     getSettingsWidth: getCurrentSettingsWidth,
     getMaxSettingsWidth,

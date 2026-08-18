@@ -70,6 +70,23 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The loop rejects a bundled finish when a tool in the same turn failed, so
+	 * finishing alongside the edits cannot claim success for an edit that did
+	 * not land. Both intents have to be told, because a model that does not know
+	 * it is protected spends a whole turn re-sending the context to say one
+	 * sentence.
+	 */
+	public function test_system_prompt_says_bundling_finish_edit_is_safe(): void {
+		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
+			$prompt = Ai_Prompt::system_prompt( $intent );
+
+			$this->assertStringContainsString( 'include finish_edit with a concise summary in the same response', $prompt, $intent );
+			$this->assertStringContainsString( 'the finish is rejected with a retryable error and you carry on as normal', $prompt, $intent );
+			$this->assertStringContainsString( 'you never declare success for an edit that did not land', $prompt, $intent );
+		}
+	}
+
+	/**
 	 * Security and output constraints are shared by both intents.
 	 */
 	public function test_system_prompt_shares_security_and_output_rules(): void {

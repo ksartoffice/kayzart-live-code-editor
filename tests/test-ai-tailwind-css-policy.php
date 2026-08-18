@@ -345,4 +345,80 @@ class Test_Kayzart_Ai_Tailwind_Css_Policy extends WP_UnitTestCase {
 		Ai_Tailwind_Css_Policy::assert_no_adhoc_rules( $css, $css );
 		$this->addToAssertionCount( 1 );
 	}
+
+	/**
+	 * CSS nesting inside an existing bare rule is still a new plain rule.
+	 *
+	 * Tailwind v4 supports native nesting, so a model can write a whole rule
+	 * inside one the guard already allows. Looking only at depth zero would wave
+	 * that through on any page carrying legacy CSS.
+	 */
+	public function test_assert_no_adhoc_rules_rejects_a_nested_rule(): void {
+		$before = "@import \"tailwindcss\";\n.legacy { color: red; }\n";
+		$error  = $this->reject(
+			$before,
+			"@import \"tailwindcss\";\n.legacy { color: red; & .new { color: blue; } }\n",
+			'Expected a rule nested inside a bare rule to be rejected.'
+		);
+
+		$this->assertSame( array( '.legacy & .new' ), $error->get_details()['selectors'] );
+	}
+
+	/**
+	 * Nesting is followed all the way down, and each level is keyed by its
+	 * ancestors so it stays distinct from a rule of the same name elsewhere.
+	 */
+	public function test_top_level_selectors_keys_nested_rules_by_ancestor(): void {
+		$css = "@import \"tailwindcss\";\n.legacy { .a { .b { color: pink; } } }\n.other { .a { color: red; } }\n";
+
+		$this->assertSame(
+			array( '.legacy', '.legacy .a', '.legacy .a .b', '.other', '.other .a' ),
+			Ai_Tailwind_Css_Policy::top_level_selectors( $css )
+		);
+	}
+
+	/**
+	 * An at-rule body stays opaque however deeply rules are nested in it.
+	 *
+	 * This is the boundary the nesting fix must not cross: @media, @layer and
+	 *
+	 * @utility are the sanctioned places for real declarations.
+	 */
+	public function test_assert_no_adhoc_rules_allows_nesting_inside_at_rules(): void {
+		$after = self::TAILWIND_DEFAULT_CSS
+			. "\n@media (min-width: 40rem) {\n  .a { color: red; .b { color: blue; } }\n}\n"
+			. "\n@utility card {\n  .inner { padding: 1rem; }\n}\n";
+
+		Ai_Tailwind_Css_Policy::assert_no_adhoc_rules( self::TAILWIND_DEFAULT_CSS, $after );
+		$this->addToAssertionCount( 1 );
+	}
+
+	/**
+	 * Whitespace inside a quoted value is significant and must survive
+	 * canonicalization.
+	 *
+	 * `[data-x="a  b"]` and `[data-x="a b"]` match different attribute values.
+	 * Collapsing runs before stepping over strings would give them one key, and
+	 * swapping one for the other would read as no change at all.
+	 */
+	public function test_assert_no_adhoc_rules_keeps_quoted_whitespace_significant(): void {
+		$before = "@import \"tailwindcss\";\n[data-x=\"a  b\"] { color: red }\n";
+		$error  = $this->reject(
+			$before,
+			"@import \"tailwindcss\";\n[data-x=\"a b\"] { color: red }\n",
+			'Expected a different attribute value to read as a different selector.'
+		);
+
+		$this->assertSame( array( '[data-x="a b"]' ), $error->get_details()['selectors'] );
+	}
+
+	/**
+	 * Canonicalization still applies outside the quotes on the same selector.
+	 */
+	public function test_top_level_selectors_canonicalizes_around_quoted_values(): void {
+		$this->assertSame(
+			array( '[data-x="a  b"]>.c' ),
+			Ai_Tailwind_Css_Policy::top_level_selectors( "[data-x=\"a  b\"]  >  .c { color: red }\n" )
+		);
+	}
 }

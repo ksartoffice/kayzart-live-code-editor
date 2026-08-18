@@ -53,6 +53,14 @@ class Ai_Tailwind_Css_Policy {
 	const SELECTOR_CHARS = 120;
 
 	/**
+	 * Selector combinators whose surrounding space is optional in CSS.
+	 *
+	 * The descendant combinator is deliberately absent: it *is* the space, so
+	 * canonicalizing it away would merge distinct selectors.
+	 */
+	const COMBINATORS = ',>+~';
+
+	/**
 	 * Collect the selectors of every top-level bare rule in a stylesheet.
 	 *
 	 * "Top-level" means depth zero: a rule nested inside `@media`, `@layer`,
@@ -102,18 +110,35 @@ class Ai_Tailwind_Css_Policy {
 	}
 
 	/**
-	 * Walk a stylesheet once, collecting top-level rules and statements.
+	 * Walk a stylesheet once, collecting rules and top-level statements.
 	 *
-	 * Both callers need the same depth-, comment- and string-aware pass, and
-	 * they must agree on what "top level" means, so they share one scanner.
+	 * Both callers need the same comment- and string-aware pass, and they must
+	 * agree on what counts as structure, so they share one scanner.
+	 *
+	 * Block kind is tracked rather than raw brace depth. An at-rule body is its
+	 * at-rule's business and everything inside it is skipped, nested rules
+	 * included. A bare rule's body is not: CSS nesting means a whole plain rule
+	 * can be written inside an existing one, and a guard that only ever looked
+	 * at depth zero would wave it through on any page carrying legacy CSS. So a
+	 * nested rule is collected too, keyed by its ancestor chain, which keeps it
+	 * distinct from a rule of the same name written elsewhere.
+	 *
+	 * A block whose prelude is empty is treated as opaque like an at-rule. That
+	 * is not valid CSS, and guessing at its contents would be inventing
+	 * structure the source does not have.
+	 *
+	 * Source with unbalanced braces yields whatever was parseable; Ai_Css_Syntax
+	 * rejects that case separately and its message is the more actionable one.
 	 *
 	 * @param string $css CSS source.
 	 * @return array{selectors:array<int,string>,statements:array<int,string>}
 	 */
 	private static function scan( string $css ): array {
 		$length     = strlen( $css );
-		$depth      = 0;
 		$prelude    = '';
+		$blocks     = array();
+		$ancestors  = array();
+		$at_depth   = 0;
 		$selectors  = array();
 		$statements = array();
 
@@ -121,9 +146,7 @@ class Ai_Tailwind_Css_Policy {
 			$char = $css[ $i ];
 
 			if ( '\\' === $char ) {
-				if ( 0 === $depth ) {
-					$prelude .= substr( $css, $i, 2 );
-				}
+				$prelude .= substr( $css, $i, 2 );
 				++$i;
 				continue;
 			}
@@ -135,47 +158,57 @@ class Ai_Tailwind_Css_Policy {
 			}
 
 			if ( '"' === $char || "'" === $char ) {
-				$end = self::skip_string( $css, $i, $char, $length );
-				if ( 0 === $depth ) {
-					$prelude .= substr( $css, $i, $end - $i + 1 );
-				}
-				$i = $end;
+				$end      = self::skip_string( $css, $i, $char, $length );
+				$prelude .= substr( $css, $i, $end - $i + 1 );
+				$i        = $end;
 				continue;
 			}
 
 			if ( '{' === $char ) {
-				if ( 0 === $depth ) {
-					$selector = self::normalize_selector( $prelude );
-					if ( '' !== $selector && '@' !== $selector[0] ) {
-						$selectors[] = $selector;
+				$selector = self::normalize_selector( $prelude );
+				$is_rule  = '' !== $selector && '@' !== $selector[0];
+
+				if ( $is_rule ) {
+					$ancestors[] = $selector;
+					if ( 0 === $at_depth ) {
+						$selectors[] = implode( ' ', $ancestors );
 					}
+				} else {
+					++$at_depth;
 				}
-				++$depth;
-				$prelude = '';
+
+				$blocks[] = $is_rule;
+				$prelude  = '';
 				continue;
 			}
 
 			if ( '}' === $char ) {
-				$depth   = max( 0, $depth - 1 );
-				$prelude = '';
-				continue;
-			}
-
-			if ( ';' === $char && 0 === $depth ) {
-				// A top-level statement such as `@import "tailwindcss";` ends here
-				// and never opens a block, so it must not leak into the next
-				// prelude.
-				$statement = trim( $prelude );
-				if ( '' !== $statement ) {
-					$statements[] = $statement;
+				if ( count( $blocks ) > 0 ) {
+					if ( array_pop( $blocks ) ) {
+						array_pop( $ancestors );
+					} else {
+						--$at_depth;
+					}
 				}
 				$prelude = '';
 				continue;
 			}
 
-			if ( 0 === $depth ) {
-				$prelude .= $char;
+			if ( ';' === $char ) {
+				// A top-level statement such as `@import "tailwindcss";` ends
+				// here and never opens a block, so it must not leak into the
+				// next prelude. Inside any block it is a declaration.
+				if ( 0 === count( $blocks ) ) {
+					$statement = trim( $prelude );
+					if ( '' !== $statement ) {
+						$statements[] = $statement;
+					}
+				}
+				$prelude = '';
+				continue;
 			}
+
+			$prelude .= $char;
 		}
 
 		return array(
@@ -244,52 +277,65 @@ class Ai_Tailwind_Css_Policy {
 	 * The result is only ever used as a comparison key and as message text, so
 	 * it is canonicalized rather than merely tidied. Collapsing whitespace runs
 	 * is not enough on its own: a model that rewrites an existing rule commonly
-	 * respaces its selector on the way past, and `.a,.b` reformatted to
-	 * `.a, .b` would then read as a rule it had just added -- exactly the
-	 * legacy-CSS case this guard promises to stay out of. So the optional space
-	 * around each combinator is dropped too, which makes every spelling of one
-	 * selector compare equal.
+	 * respaces its selector on the way past, and `.a,.b` reformatted to `.a, .b`
+	 * would then read as a rule it had just added -- exactly the legacy-CSS case
+	 * this guard promises to stay out of. So the optional space around each
+	 * combinator is dropped too, which makes every spelling of one selector
+	 * compare equal.
 	 *
-	 * Strings are stepped over, so a quoted `>` in an attribute selector is left
-	 * alone. Combinators are canonicalized at any nesting depth, which also
-	 * settles `:not(.a, .b)` against `:not(.a,.b)`.
+	 * Canonicalization runs in the same pass that steps over strings, never as a
+	 * prepass: whitespace inside a quoted value is significant. `[data-x="a  b"]`
+	 * and `[data-x="a b"]` match different attribute values and must not share a
+	 * key, or swapping one for the other would read as no change at all.
+	 * Combinators are canonicalized at any nesting depth outside strings, which
+	 * also settles `:not(.a, .b)` against `:not(.a,.b)`.
+	 *
+	 * A descendant combinator is a real space and stays one, so `.a .b` remains
+	 * distinct from `.a.b`. Going further would collapse two different selectors
+	 * onto one key and let a genuinely new rule through.
 	 *
 	 * @param string $prelude Raw text preceding the opening brace.
 	 * @return string
 	 */
 	private static function normalize_selector( string $prelude ): string {
-		$collapsed = trim( (string) preg_replace( '/\s+/', ' ', $prelude ) );
-		$length    = strlen( $collapsed );
+		$length    = strlen( $prelude );
 		$canonical = '';
 
 		for ( $i = 0; $i < $length; $i++ ) {
-			$char = $collapsed[ $i ];
+			$char = $prelude[ $i ];
 
 			if ( '\\' === $char ) {
-				$canonical .= substr( $collapsed, $i, 2 );
+				$canonical .= substr( $prelude, $i, 2 );
 				++$i;
 				continue;
 			}
 
 			if ( '"' === $char || "'" === $char ) {
-				$end        = self::skip_string( $collapsed, $i, $char, $length );
-				$canonical .= substr( $collapsed, $i, $end - $i + 1 );
+				$end        = self::skip_string( $prelude, $i, $char, $length );
+				$canonical .= substr( $prelude, $i, $end - $i + 1 );
 				$i          = $end;
 				continue;
 			}
 
-			if ( false !== strpos( ',>+~', $char ) ) {
-				$canonical = rtrim( $canonical, ' ' ) . $char;
-				while ( $i + 1 < $length && ' ' === $collapsed[ $i + 1 ] ) {
-					++$i;
+			if ( ' ' === $char || "\t" === $char || "\n" === $char || "\r" === $char || "\f" === $char ) {
+				$last = ( '' === $canonical ) ? '' : substr( $canonical, -1 );
+				// Leading space, a run already reduced to one, and the space
+				// after a combinator all collapse away.
+				if ( '' !== $last && ' ' !== $last && false === strpos( self::COMBINATORS, $last ) ) {
+					$canonical .= ' ';
 				}
+				continue;
+			}
+
+			if ( false !== strpos( self::COMBINATORS, $char ) ) {
+				$canonical = rtrim( $canonical, ' ' ) . $char;
 				continue;
 			}
 
 			$canonical .= $char;
 		}
 
-		return $canonical;
+		return rtrim( $canonical, ' ' );
 	}
 
 	/**

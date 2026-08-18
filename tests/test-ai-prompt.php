@@ -124,9 +124,11 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
 			$prompt = Ai_Prompt::system_prompt( $intent );
 
-			$this->assertStringContainsString( 'Use an image only when its URL was given to you', $prompt, $intent );
+			$this->assertStringContainsString( 'Use an image, video or audio clip only when its URL was given to you', $prompt, $intent );
 			$this->assertStringContainsString( 'Never invent, guess, or recall one', $prompt, $intent );
-			$this->assertStringContainsString( 'Images already on the page keep the URLs they have.', $prompt, $intent );
+			// Leaving existing media alone is the default, not a veto on a
+			// replacement the user asked for.
+			$this->assertStringContainsString( 'unless the request asks for it to be changed or removed', $prompt, $intent );
 		}
 	}
 

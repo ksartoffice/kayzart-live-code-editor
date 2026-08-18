@@ -250,11 +250,20 @@ PROMPT;
 	 * visual language, often with real photographs in it, and an edit has no
 	 * business overruling that.
 	 *
+	 * It names every tag the policy exempts, not just images. MEDIA_TAGS covers
+	 * video, audio and source as well, so a rule that spoke only of images left
+	 * an invented clip URL free to reach the page and render a dead player.
+	 *
+	 * Leaving existing media alone is a default, not a prohibition. Written
+	 * unconditionally it contradicted the editing rule directly above it, which
+	 * preserves what is there until the user asks for a change -- and an edit
+	 * that hands over a replacement URL is exactly such a request.
+	 *
 	 * @return string
 	 */
 	private static function common_output_rules(): string {
 		$prompt = <<<'PROMPT'
-- Use an image only when its URL was given to you, and write that URL exactly. Never invent, guess, or recall one: a URL you were not given renders as a broken image on the published page. Images already on the page keep the URLs they have.
+- Use an image, video or audio clip only when its URL was given to you, and write that URL exactly. Never invent, guess, or recall one: a URL you were not given renders as a broken image or player on the published page. Leave media already on the page at the URLs it has unless the request asks for it to be changed or removed.
 - Ensure the result is responsive and looks good on both mobile and desktop screens.
 - Match the human-readable language of the HTML to the existing document content, not to the language of the user's instruction. If the document already contains copy in a given language (for example English), keep writing in that language even when the instruction is written in a different language.
 - Only switch the output language when the user explicitly asks to translate or to write in a specific language.

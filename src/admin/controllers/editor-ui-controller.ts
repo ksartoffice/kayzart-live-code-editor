@@ -293,9 +293,22 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.htmlEditor.focus();
   };
 
+  const editorForCompactTab = (tab: CompactEditorTab): EditorInstance => {
+    if (tab === 'customHead') return deps.customHeadEditor;
+    if (tab === 'css') return deps.cssEditor;
+    if (tab === 'js') return deps.jsEditor;
+    return deps.htmlEditor;
+  };
+
+  // Only the editors that are on screen need this; a pane that is currently
+  // behind an inactive tab re-measures when that tab is shown.
   const refreshEditorLayout = () => {
-    deps.htmlEditor.refreshLayout();
-    deps.cssEditor.refreshLayout();
+    if (compactEditorMode) {
+      editorForCompactTab(compactEditorTab).refreshLayout();
+      return;
+    }
+    (activeHtmlTab === 'customHead' ? deps.customHeadEditor : deps.htmlEditor).refreshLayout();
+    (activeCssTab === 'js' ? deps.jsEditor : deps.cssEditor).refreshLayout();
   };
 
   const syncJsState = () => {

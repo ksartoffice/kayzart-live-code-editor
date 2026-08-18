@@ -175,6 +175,31 @@
     return tooltip;
   }
 
+  function positionSelectActionTooltip(tooltip) {
+    const padding = 6;
+    // Reset to the default placement so the measurement is not skewed by the
+    // adjustment made the last time this tooltip was shown.
+    tooltip.style.top = 'calc(100% + 6px)';
+    tooltip.style.bottom = 'auto';
+    tooltip.style.transform = 'none';
+    // getBoundingClientRect still reports layout while the tooltip is hidden,
+    // so this runs before it becomes visible and never shows a jump.
+    const rect = tooltip.getBoundingClientRect();
+    let shiftX = 0;
+    if (rect.left < padding) {
+      shiftX = padding - rect.left;
+    } else if (rect.right > window.innerWidth - padding) {
+      shiftX = window.innerWidth - padding - rect.right;
+    }
+    if (shiftX) {
+      tooltip.style.transform = 'translateX(' + shiftX + 'px)';
+    }
+    if (rect.bottom > window.innerHeight - padding) {
+      tooltip.style.top = 'auto';
+      tooltip.style.bottom = 'calc(100% + 6px)';
+    }
+  }
+
   function createSelectActionButton(args) {
     const button = document.createElement('button');
     button.id = args.id;
@@ -217,6 +242,10 @@
     const tooltip = createSelectActionTooltip(args.tooltip || args.ariaLabel);
     button.appendChild(tooltip);
     const showTooltip = () => {
+      // Measure before fading in: the button group is right-aligned to the
+      // selected element and clamped to the viewport, so a long label on a
+      // leftmost button would otherwise run past the edge and get clipped.
+      positionSelectActionTooltip(tooltip);
       tooltip.style.visibility = 'visible';
       tooltip.style.opacity = '1';
     };

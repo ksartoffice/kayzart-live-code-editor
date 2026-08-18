@@ -172,6 +172,11 @@ async function main() {
   const inferredEntryMode = cfg.initialEntryMode || (cfg.ai?.initialRequest ? 'ai' : '');
   const initialLayoutState = resolveInitialEditorLayout(persistedLayoutState, inferredEntryMode);
   const initialEditorCollapsed = initialLayoutState.editorCollapsed;
+  // Tracks the previous value so the expand restore only runs on an actual
+  // collapsed-to-expanded transition. Crossing the compact breakpoint re-applies
+  // the persisted layout and re-notifies collapsed === false for an already
+  // expanded pane, which must not steal focus back to the HTML editor.
+  let lastEditorCollapsed = initialEditorCollapsed;
   const initialSettingsOpen = initialLayoutState.settingsOpen;
   const initialSettingsTab = initialLayoutState.settingsTab;
   let restoringLayout = false;
@@ -237,10 +242,12 @@ async function main() {
     getCompactEditorMode: () => editorUiController?.isCompactEditorMode() ?? false,
     onViewportModeChange: (mode) => toolbarApi?.update({ viewportMode: mode }),
     onEditorCollapsedChange: (collapsed) => {
+      const expanded = lastEditorCollapsed && !collapsed;
+      lastEditorCollapsed = collapsed;
       toolbarApi?.update({ editorCollapsed: collapsed });
       updatePersistedLayout({ editorCollapsed: collapsed });
       preview?.sendEditorCollapsedState(collapsed);
-      if (!collapsed) {
+      if (expanded) {
         restoreEditorAfterExpand();
       }
     },

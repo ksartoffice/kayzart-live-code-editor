@@ -261,6 +261,17 @@ class Ai_Output_Policy {
 	 * filesystem: -- has no host to compare and stays remote, which keeps the
 	 * exemption to the one case it is meant for.
 	 *
+	 * A backslash disqualifies a URL outright, because browsers and
+	 * wp_parse_url() read one differently and the gap is exactly a host
+	 * confusion. A browser normalizes a backslash to a forward slash in an
+	 * http or https URL, so `https://evil.example\@site.example/a.png` fetches
+	 * evil.example while wp_parse_url() reports site.example as the authority
+	 * and takes the attacker's host for userinfo. A leading `\evil.example/`
+	 * is the same trick from the other side: wp_parse_url() sees a relative
+	 * path with no host at all, and the browser sees a protocol-relative URL.
+	 * A backslash carries no legitimate meaning in a web URL -- the browser
+	 * rewrites it either way -- so refusing to interpret one costs nothing.
+	 *
 	 * @param string $url       URL value.
 	 * @param string $site_host Host:port treated as same-origin. Empty treats
 	 *                          every absolute URL as remote.
@@ -268,7 +279,10 @@ class Ai_Output_Policy {
 	 */
 	private static function is_remote_url( string $url, string $site_host = '' ): bool {
 		$normalized = strtolower( preg_replace( '/[\x00-\x20\x7f]+/', '', html_entity_decode( trim( $url ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
-		$absolute   = 0 === strpos( $normalized, '//' ) || 1 === preg_match( '/^[a-z][a-z0-9+.-]*:/', $normalized );
+		if ( false !== strpos( $normalized, '\\' ) ) {
+			return true;
+		}
+		$absolute = 0 === strpos( $normalized, '//' ) || 1 === preg_match( '/^[a-z][a-z0-9+.-]*:/', $normalized );
 		if ( ! $absolute ) {
 			return false;
 		}

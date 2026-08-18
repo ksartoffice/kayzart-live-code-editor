@@ -525,6 +525,40 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Browsers normalise a backslash to a forward slash inside an http(s) URL,
+	 * and wp_parse_url() does not, so a backslash lets the two disagree about
+	 * which host a URL names. Both spellings must stay remote.
+	 */
+	public function test_output_policy_rejects_backslash_host_confusion(): void {
+		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$cases = array(
+			// parse_url reads the trusted host as authority; the browser fetches evil.example.
+			'<img src="https://evil.example\\@' . $host . '/a.png">',
+			// Not absolute to parse_url; protocol-relative to the browser.
+			'<img src="\\\\evil.example/a.png">',
+			'<form action="https://evil.example\\@' . $host . '/post"><button>Send</button></form>',
+		);
+		foreach ( $cases as $to ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => $to,
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $to );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $to );
+			}
+		}
+	}
+
+	/**
 	 * The dispatcher rejects unknown tool names.
 	 */
 	public function test_run_tool_rejects_unknown_tool(): void {

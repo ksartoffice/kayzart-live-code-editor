@@ -195,13 +195,16 @@ PROMPT;
 			'- Use Tailwind CSS v4 syntax/directives when editing CSS.',
 			'- Treat the CSS tab as Tailwind input source. Generated compiled CSS is not the editing target.',
 			'- The CSS must always keep its `@import "tailwindcss";` line. Removing it disables every utility class.',
+			'- Never add a plain CSS rule such as `.btn { ... }` or `#hero p { ... }` to the CSS tab. Rules written outside the Tailwind system ignore @theme tokens and conflict with the utility classes on the page, so the page ends up styled two ways at once.',
+			'- Choose where a change belongs: a value shared across the page (colour, font, spacing step, radius, shadow) is a @theme token; a class reused across several elements is @utility; a one-off is utility classes on that element in the HTML.',
 		);
 		if ( self::INTENT_CREATE === $intent ) {
 				$lines[] = '- Define the page theme in the CSS tab with @theme so the design is driven by named tokens.';
 			$lines[]     = '- Build layout and styling in HTML with utility classes that reference those tokens.';
 		} else {
-				$lines[] = '- Prefer editing HTML classes and structure first.';
-				$lines[] = '- Edit CSS only when the user explicitly asks for CSS/stylesheet changes.';
+				$lines[] = '- For a change to one element or section, edit its utility classes in the HTML.';
+				$lines[] = '- For a change that should apply everywhere at once, such as "change the button colour" or "make the whole page use a warmer background", edit the matching @theme token in the CSS tab. Read the @theme block first and reuse an existing token name when one already covers the value.';
+				$lines[] = '- When no token covers a site-wide value yet, add one to @theme and reference it from the HTML utility classes instead of writing a rule for it.';
 		}
 
 		return implode( "\n", $lines );

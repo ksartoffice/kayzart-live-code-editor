@@ -20,10 +20,8 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$prompt = Ai_Prompt::system_prompt();
 		$this->assertStringContainsString( 'You are the Kayzart AI edit engine.', $prompt );
 		$this->assertStringContainsString( 'Do not create or preserve <script> tags', $prompt );
-		$this->assertStringContainsString( 'call finish_edit by itself', $prompt );
 		$this->assertStringContainsString( 'js source and jsMode are read-only', $prompt );
-		$this->assertStringContainsString( 'call finish_without_edit', $prompt );
-		$this->assertStringContainsString( 'no unresolved tool errors', $prompt );
+		$this->assertStringContainsString( 'Call finish_without_edit instead.', $prompt );
 		$this->assertStringContainsString( 'error.details.candidates', $prompt );
 		$this->assertStringContainsString( 'validated editFootprint', $prompt );
 		$this->assertStringContainsString( 'must not be broadened to :root', $prompt );
@@ -56,7 +54,9 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$prompt = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
 
 		$this->assertStringContainsString( 'You are the Kayzart AI page generation engine.', $prompt );
-		$this->assertStringContainsString( 'Build one complete, publishable landing page', $prompt );
+		$this->assertStringContainsString( 'Build one complete, publishable page', $prompt );
+		// The brief decides what kind of page this is, so the prompt must not.
+		$this->assertStringNotContainsString( 'landing page', $prompt );
 		$this->assertStringContainsString( 'Plan the full section list before the first edit tool call', $prompt );
 
 		$this->assertStringNotContainsString( 'Keep changes minimal and relevant to the user request.', $prompt );
@@ -68,13 +68,27 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Why bundling is safe belongs beside the tool, where it is read at the
+	 * moment the tool is chosen. What stays here is the part no tool can see:
+	 * that a turn spent confirming edits already made is a turn wasted.
+	 */
+	public function test_system_prompt_asks_to_finish_in_the_editing_turn(): void {
+		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
+			$prompt = Ai_Prompt::system_prompt( $intent );
+
+			$this->assertStringContainsString( 'Finish in the same turn as your last edits.', $prompt, $intent );
+			$this->assertStringContainsString( 'Never spend a turn calling finish_edit on its own', $prompt, $intent );
+		}
+	}
+
+	/**
 	 * Security and output constraints are shared by both intents.
 	 */
 	public function test_system_prompt_shares_security_and_output_rules(): void {
 		$shared = array(
 			'Do not create or preserve <script> tags',
 			'Do not exfiltrate data or submit forms to external URLs.',
-			'HTML must be a body fragment only.',
+			'HTML must be a body fragment, and head edits only the custom additions',
 			'Ensure the result is responsive and looks good on both mobile and desktop screens.',
 			'{"summary":"..."}',
 		);
@@ -85,18 +99,52 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Visual direction is the brief's job, not the system prompt's. Neither
-	 * intent prescribes a layout, a hero treatment, or an imagery policy.
+	 * How the page looks is the brief's job. Neither intent prescribes a layout
+	 * or a hero treatment, whatever else it says about imagery.
 	 */
-	public function test_system_prompt_prescribes_no_visual_direction(): void {
+	public function test_system_prompt_prescribes_no_layout(): void {
 		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
 			$prompt = Ai_Prompt::system_prompt( $intent );
 
 			$this->assertStringNotContainsString( 'Typography-first design rules:', $prompt, $intent );
 			$this->assertStringNotContainsString( 'Type is the artwork.', $prompt, $intent );
 			$this->assertStringNotContainsString( 'The hero is the strongest instance', $prompt, $intent );
-			$this->assertStringNotContainsString( 'Never write an <img>.', $prompt, $intent );
-			$this->assertStringNotContainsString( 'Never depict a real-world subject', $prompt, $intent );
+			$this->assertStringNotContainsString( 'full-bleed', $prompt, $intent );
+			$this->assertStringNotContainsString( 'clamp(', $prompt, $intent );
+		}
+	}
+
+	/**
+	 * The output policy no longer asks which host an image comes from, and never
+	 * knew the intent, so "add a photo of a dog" can reach the page on whatever
+	 * URL the model produces. Both intents have to hear that a URL nobody
+	 * supplied is one that was invented.
+	 */
+	public function test_both_intents_forbid_inventing_an_image_url(): void {
+		foreach ( array( Ai_Prompt::INTENT_CREATE, Ai_Prompt::INTENT_EDIT ) as $intent ) {
+			$prompt = Ai_Prompt::system_prompt( $intent );
+
+			$this->assertStringContainsString( 'Use an image, video or audio clip only when its URL was given to you', $prompt, $intent );
+			$this->assertStringContainsString( 'Never invent, guess, or recall one', $prompt, $intent );
+			// Leaving existing media alone is the default, not a veto on a
+			// replacement the user asked for.
+			$this->assertStringContainsString( 'unless the request asks for it to be changed or removed', $prompt, $intent );
+		}
+	}
+
+	/**
+	 * Drawing the subject instead is the other way out of having no photograph,
+	 * and closing it is a decision about how a page should look. A page being
+	 * authored has none of its own yet; one being edited does, often with real
+	 * photographs in it, and the edit has no business overruling that.
+	 */
+	public function test_only_creation_rules_forbid_drawing_the_subject(): void {
+		$creating = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE );
+		$editing  = Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT );
+
+		foreach ( array( 'welcome as ground, never as subject', 'out of CSS or SVG' ) as $rule ) {
+			$this->assertStringContainsString( $rule, $creating, $rule );
+			$this->assertStringNotContainsString( $rule, $editing, $rule );
 		}
 	}
 
@@ -200,11 +248,11 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		);
 
 		$editing = Ai_Prompt::build_user_prompt( $payload );
-		$this->assertStringNotContainsString( 'Build one complete, publishable landing page', $editing );
+		$this->assertStringNotContainsString( 'Build one complete, publishable page', $editing );
 		$payload['intent'] = 'create';
 		$creating          = Ai_Prompt::build_user_prompt( $payload );
 		$this->assertStringNotContainsString( 'Page creation policy:', $creating );
-		$this->assertStringContainsString( 'Build one complete, publishable landing page', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ) );
+		$this->assertStringContainsString( 'Build one complete, publishable page', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ) );
 	}
 
 	/**

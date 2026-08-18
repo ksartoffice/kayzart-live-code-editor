@@ -188,7 +188,7 @@ class Ai_Tool_Schema {
 			array(
 				'type'        => 'function',
 				'name'        => 'finish_edit',
-				'description' => 'Finish the edit with a concise summary. Prefer including this with the final successful edit tools; it may also be called alone after a prior successful edit when there are no unresolved tool errors.',
+				'description' => 'Finish the edit with a concise summary. Send it in the same response as your final edit tools: if one of them fails this finish is rejected with a retryable error and claims nothing, so waiting a turn to see the result gains you nothing. Call it alone only to finish work an earlier turn already applied.',
 				'parameters'  => array(
 					'type'                 => 'object',
 					'properties'           => array(

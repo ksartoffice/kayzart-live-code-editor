@@ -20,6 +20,29 @@ class Ai_Output_Policy {
 	/** URL-bearing attributes that load a resource rather than navigate. */
 	const RESOURCE_ATTRIBUTES = array( 'src', 'srcset', 'poster', 'data', 'xlink:href' );
 
+	/**
+	 * Tags whose media may come from any origin.
+	 *
+	 * Blocking a remote image never protected anything here. Everyone who can
+	 * run an AI edit can already write the same <img> by hand -- the capability
+	 * that grants AI editing also grants unfiltered_html, and wp_kses_post()
+	 * allows an img src from any host regardless -- so the rule only stopped the
+	 * model from doing what the person asking could do a moment later. An <img>
+	 * executes nothing, so there was no code path to defend either.
+	 *
+	 * What it did buy was a hallucination guard: an invented photo URL was
+	 * refused instead of shipping broken. That job moves to the creation rules,
+	 * which now let the model use an image only when the brief supplies its URL.
+	 *
+	 * Scoped by tag rather than by attribute name. Relaxing `src` alone would be
+	 * safe today, since script, iframe and embed are refused by tag anyway, but
+	 * it would silently open a hole the day BLOCKED_TAGS changes.
+	 */
+	const MEDIA_TAGS = array( 'img', 'source', 'video', 'audio' );
+
+	/** Attributes carrying a media URL on those tags. */
+	const MEDIA_ATTRIBUTES = array( 'src', 'srcset', 'poster' );
+
 	/** Attributes whose values are interpreted as URLs. */
 	const URL_ATTRIBUTES = array( 'href', 'src', 'srcset', 'poster', 'data', 'xlink:href', 'action', 'formaction' );
 
@@ -180,7 +203,8 @@ class Ai_Output_Policy {
 				if ( in_array( $name, self::URL_ATTRIBUTES, true ) && self::attribute_value_is_executable( $name, $value ) ) {
 					$findings[] = sprintf( 'executable URL in <%s %s>', $tag, $name );
 				}
-				if ( in_array( $name, self::RESOURCE_ATTRIBUTES, true ) && self::resource_value_is_remote( $name, $value, $site_host ) ) {
+				$is_media = in_array( $tag, self::MEDIA_TAGS, true ) && in_array( $name, self::MEDIA_ATTRIBUTES, true );
+				if ( in_array( $name, self::RESOURCE_ATTRIBUTES, true ) && ! $is_media && self::resource_value_is_remote( $name, $value, $site_host ) ) {
 					$findings[] = sprintf( 'remote resource in <%s %s="%s">', $tag, $name, self::compact( $value ) );
 				}
 				if ( ( 'action' === $name || 'formaction' === $name ) && self::is_remote_url( $value, $site_host ) ) {

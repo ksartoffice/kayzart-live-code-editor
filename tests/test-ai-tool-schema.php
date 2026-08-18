@@ -115,6 +115,24 @@ class Test_Kayzart_Ai_Tool_Schema extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'selectionId', $this->find_tool( $tools, 'replace_many' )['parameters']['properties'] );
 	}
 
+	/**
+	 * The description is what the model reads while choosing this tool, so it
+	 * carries the reason to send the finish with the edits rather than after
+	 * them. It used to say "final successful edit tools", which taught the
+	 * opposite: an edit is only known to be successful once its result is back,
+	 * so the model spent a turn every run waiting to find out.
+	 */
+	public function test_finish_edit_description_argues_for_the_same_turn(): void {
+		$tools       = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css' ) );
+		$description = $this->find_tool( $tools, 'finish_edit' )['description'];
+
+		$this->assertStringContainsString( 'Send it in the same response as your final edit tools', $description );
+		$this->assertStringContainsString( 'rejected with a retryable error and claims nothing', $description );
+		$this->assertStringContainsString( 'waiting a turn to see the result gains you nothing', $description );
+		$this->assertStringContainsString( 'Call it alone only to finish work an earlier turn already applied.', $description );
+		$this->assertStringNotContainsString( 'successful edit tools', $description );
+	}
+
 	/** Selection-specific tools and arguments are omitted when unavailable. */
 	public function test_build_tool_definitions_without_selection_context(): void {
 		$tools = Ai_Tool_Schema::build_tool_definitions( array( 'html', 'head', 'css', 'js' ), false, false );

@@ -299,6 +299,16 @@ class Ai_Output_Policy {
 	 * both http and https is one site, and mixed content is the browser's
 	 * problem, not a reason to call the site's own uploads remote.
 	 *
+	 * It does decide which port is implicit, though. 80 is the default for http
+	 * and 443 for https, and each is an ordinary port under the other scheme,
+	 * naming a different service on the same machine. Dropping both regardless
+	 * of scheme would read https://site.example:80 as the site itself.
+	 *
+	 * A protocol-relative URL takes its scheme from the page, which is not
+	 * known here, so no port is implicit and an explicit one is always kept.
+	 * Such a URL almost never carries a port, and keeping it errs toward
+	 * calling something remote rather than admitting it.
+	 *
 	 * @param string $url URL value, already normalized to lower case.
 	 * @return string Host with a non-default port, or an empty string when the
 	 *                URL names no comparable host.
@@ -313,10 +323,16 @@ class Ai_Output_Policy {
 			return '';
 		}
 		$port = wp_parse_url( $url, PHP_URL_PORT );
-		if ( is_int( $port ) && 80 !== $port && 443 !== $port ) {
-			return $host . ':' . $port;
+		if ( ! is_int( $port ) ) {
+			return $host;
 		}
-		return $host;
+		$default_port = 0;
+		if ( 'http' === $scheme ) {
+			$default_port = 80;
+		} elseif ( 'https' === $scheme ) {
+			$default_port = 443;
+		}
+		return $port === $default_port ? $host : $host . ':' . $port;
 	}
 
 	/**

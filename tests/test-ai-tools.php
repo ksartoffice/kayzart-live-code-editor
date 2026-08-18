@@ -525,6 +525,50 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A default port belongs to a scheme. Port 80 is implicit for http and 443
+	 * for https, and each is an ordinary port for the other scheme, naming a
+	 * different service on the host.
+	 */
+	public function test_output_policy_reads_default_ports_per_scheme(): void {
+		$host = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+
+		foreach ( array( 'http://' . $host . ':80', 'https://' . $host . ':443' ) as $origin ) {
+			$to     = '<img src="' . $origin . '/wp-content/uploads/a.png" alt="A">';
+			$result = Ai_Tools::run_tool(
+				'replace_string',
+				array(
+					'target' => 'html',
+					'from'   => '',
+					'to'     => $to,
+				),
+				$this->snapshot(),
+				null,
+				array( 'html', 'head', 'css' )
+			);
+			$this->assertSame( $to, $result['snapshot']['html'], $origin );
+		}
+
+		foreach ( array( 'https://' . $host . ':80', 'http://' . $host . ':443' ) as $origin ) {
+			try {
+				Ai_Tools::run_tool(
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => '<img src="' . $origin . '/wp-content/uploads/a.png">',
+					),
+					$this->snapshot(),
+					null,
+					array( 'html', 'head', 'css' )
+				);
+				$this->fail( 'Expected rejection for ' . $origin );
+			} catch ( Ai_Tool_Error $error ) {
+				$this->assertSame( 'unsafe_ai_output', $error->get_details()['code'], $origin );
+			}
+		}
+	}
+
+	/**
 	 * Browsers normalise a backslash to a forward slash inside an http(s) URL,
 	 * and wp_parse_url() does not, so a backslash lets the two disagree about
 	 * which host a URL names. Both spellings must stay remote.

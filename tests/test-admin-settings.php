@@ -516,8 +516,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
 		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 		$this->assertStringNotContainsString( 'class="form-table"', $output );
-		$this->assertStringContainsString( '<details class="kayzart-create-advanced">', $output );
-		$this->assertStringContainsString( 'class="kayzart-create-advanced__chevron" aria-hidden="true"', $output );
+		$this->assertStringNotContainsString( 'kayzart-create-advanced', $output );
+		$this->assertStringContainsString( 'class="kayzart-create-section kayzart-create-section--settings"', $output );
 		$this->assertStringContainsString( 'id="kayzart-generate-ai"', $output );
 		$this->assertStringContainsString( 'name="start_mode" value="ai"', $output );
 		$this->assertStringContainsString( 'id="kayzart-create-blank"', $output );

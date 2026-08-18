@@ -670,8 +670,8 @@ msgid "Create a landing page with AI. By default, it is created as an independen
 msgstr "AIを使ってランディングページを作成できます。デフォルトでは、テーマのデザインに影響されない独立したページとして作成されます。"
 
 #: includes/class-kayzart-admin.php:1980
-msgid "Basic information"
-msgstr "基本情報"
+msgid "Page settings"
+msgstr "ページ設定"
 
 #: includes/class-kayzart-admin.php:1946
 msgid "Landing page title"

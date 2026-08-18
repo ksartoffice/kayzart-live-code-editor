@@ -592,7 +592,7 @@ msgid "Page type and CSS mode"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1980
-msgid "Basic information"
+msgid "Page settings"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:1984

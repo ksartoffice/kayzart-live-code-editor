@@ -141,6 +141,7 @@ export type CodeEditorInstance = {
   pushUndoStop: () => void;
   trigger: (_source: string, action: 'undo' | 'redo', _payload: unknown) => void;
   revealRangeInCenter: (range: EditorRange, _scrollType?: number) => void;
+  refreshLayout: () => void;
   setScrollRulerMarkers: (markers: EditorScrollRulerMarker[]) => void;
   clearScrollRulerMarkers: () => void;
   updateOptions: (options: { wordWrap?: WordWrapMode }) => void;
@@ -1053,6 +1054,11 @@ const createEditorWrapper = (options: {
       view.dispatch({
         effects: EditorView.scrollIntoView(offsets.from, { y: 'center' }),
       });
+    },
+    refreshLayout: () => {
+      // A view that was resized while hidden keeps a stale viewport, which
+      // renders as an empty editor and throws off scrollIntoView targets.
+      view.requestMeasure();
     },
     setScrollRulerMarkers: (markers) => {
       setScrollRulerMarkerSpecs(markers);

@@ -293,6 +293,13 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.htmlEditor.focus();
   };
 
+  const refreshEditorLayout = () => {
+    deps.htmlEditor.refreshLayout();
+    deps.customHeadEditor.refreshLayout();
+    deps.cssEditor.refreshLayout();
+    deps.jsEditor.refreshLayout();
+  };
+
   const syncJsState = () => {
     if ((!deps.getJsEnabled() || !deps.canEditJs) && activeCssTab === 'js') {
       setCssTab('css', { focus: false });
@@ -402,6 +409,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     setCompactEditorTab,
     updateCompactEditorMode,
     focusHtmlEditor,
+    refreshEditorLayout,
     syncJsState,
     syncTailwindState,
     syncMutationLock,

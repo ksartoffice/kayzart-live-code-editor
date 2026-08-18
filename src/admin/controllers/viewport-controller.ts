@@ -162,19 +162,25 @@ export function createViewportController(deps: ViewportControllerDeps) {
       return;
     }
     let done = false;
+    let timer = 0;
     const finalize = () => {
       if (done) return;
       done = true;
+      window.clearTimeout(timer);
       deps.ui.left.removeEventListener('transitionend', onTransitionEnd);
       callback();
     };
     const onTransitionEnd = (event: TransitionEvent) => {
+      // The pane also transitions opacity and transform, and its children
+      // bubble their own transitions, so only the width of the pane itself
+      // marks the layout as settled.
+      if (event.target !== deps.ui.left) return;
       if (event.propertyName === 'width' || event.propertyName === 'flex-basis') {
         finalize();
       }
     };
-    deps.ui.left.addEventListener('transitionend', onTransitionEnd, { once: true });
-    window.setTimeout(finalize, deps.previewBadgeTransitionMs);
+    deps.ui.left.addEventListener('transitionend', onTransitionEnd);
+    timer = window.setTimeout(finalize, deps.previewBadgeTransitionMs);
   };
 
   const showPreviewBadgeAfterLayout = () => {

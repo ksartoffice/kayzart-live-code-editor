@@ -241,7 +241,7 @@ async function main() {
       updatePersistedLayout({ editorCollapsed: collapsed });
       preview?.sendEditorCollapsedState(collapsed);
       if (!collapsed) {
-        restoreSelectionHighlightAfterExpand();
+        restoreEditorAfterExpand();
       }
     },
     onPreviewResizeStart: () => preview?.captureScrollSnapshot(),
@@ -409,19 +409,35 @@ async function main() {
     preview?.sendEditorCollapsedState(viewportController.isEditorCollapsed());
   };
 
-  // While the code pane is collapsed it is inert and zero-width, so the
-  // selection highlight cannot land there. Re-apply it once the pane has
-  // animated open, whichever control expanded it.
-  const restoreSelectionHighlightAfterExpand = () => {
+  // While the code pane is collapsed its editors are zero-width and hidden, so
+  // CodeMirror keeps a stale viewport (an empty-looking editor) and the
+  // selection highlight cannot land there. Re-measure once the pane has
+  // animated open, then re-apply the highlight, whichever control expanded it.
+  // Toggling faster than the animation supersedes the pending restore.
+  let editorExpandToken = 0;
+  const restoreEditorAfterExpand = () => {
+    editorExpandToken += 1;
+    const token = editorExpandToken;
     const lcId = selectedLcId;
-    if (!lcId) {
-      return;
-    }
+    const isStale = () => token !== editorExpandToken || viewportController.isEditorCollapsed();
+    // Measure right away too, so the pane is not blank while it animates.
+    editorUiController?.refreshEditorLayout();
     viewportController.runAfterEditorLayout(() => {
-      if (viewportController.isEditorCollapsed() || selectedLcId !== lcId) {
+      if (isStale()) {
         return;
       }
-      preview?.highlightSelection(lcId);
+      editorUiController?.refreshEditorLayout();
+      if (!lcId || selectedLcId !== lcId) {
+        return;
+      }
+      // Reveal on the next frame so the measure above has been applied and
+      // scrollIntoView resolves against the real viewport.
+      window.requestAnimationFrame(() => {
+        if (isStale() || selectedLcId !== lcId) {
+          return;
+        }
+        preview?.highlightSelection(lcId);
+      });
     });
   };
 

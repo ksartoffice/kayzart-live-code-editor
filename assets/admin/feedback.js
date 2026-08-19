@@ -5,16 +5,25 @@
   // a submission and never disables a choice.
 
   function updateOtherField(container) {
-    var groupName = container.getAttribute('data-kayzart-other-for');
     var trigger = container.getAttribute('data-kayzart-other-value') || 'other';
     var form = container.closest('form');
-    if (!form || !groupName) {
+    var groups = (container.getAttribute('data-kayzart-other-for') || '')
+      .split(',')
+      .filter(function (name) {
+        return name !== '';
+      });
+    if (!form || groups.length === 0) {
       return;
     }
 
-    var inputs = Array.prototype.slice.call(
-      form.querySelectorAll('[name="' + groupName + '"], [name="' + groupName + '[]"]')
-    );
+    // One description can belong to several questions, so it stays visible
+    // while any of them has "Other" selected.
+    var selector = groups
+      .map(function (name) {
+        return '[name="' + name + '"], [name="' + name + '[]"]';
+      })
+      .join(', ');
+    var inputs = Array.prototype.slice.call(form.querySelectorAll(selector));
     var selected = inputs.some(function (input) {
       return input.checked && input.value === trigger;
     });

@@ -146,6 +146,42 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertSame( '1', get_transient( Feedback::CONTENT_TRANSIENT ) );
 	}
 
+	/** A stale invite left open in another tab cannot revive a settled survey. */
+	public function test_invite_action_preserves_terminal_states(): void {
+		$_REQUEST['_wpnonce'] = wp_create_nonce( 'kayzart_feedback_invite_v1' );
+		$_POST                = array(
+			'decision'  => 'postpone',
+			'post_type' => 'page',
+			'_wpnonce'  => $_REQUEST['_wpnonce'],
+		);
+		$redirect             = static function () {
+			throw new Exception( 'redirected' );
+		};
+		add_filter( 'wp_redirect', $redirect );
+
+		foreach ( array( 'submitted', 'dismissed' ) as $status ) {
+			$state = array(
+				'status'     => $status,
+				'updated_at' => 12345,
+			);
+			update_user_meta( $this->admin_id, Feedback::STATE_META_KEY, $state );
+
+			try {
+				Feedback::handle_invite_action();
+				$this->fail( 'The invite action should always redirect.' );
+			} catch ( Exception $e ) {
+				$this->assertSame( 'redirected', $e->getMessage() );
+			}
+
+			$this->assertSame( $state, get_user_meta( $this->admin_id, Feedback::STATE_META_KEY, true ) );
+			$this->assertFalse( Feedback::should_show_invite() );
+		}
+
+		remove_filter( 'wp_redirect', $redirect );
+		$_POST    = array();
+		$_REQUEST = array();
+	}
+
 	/** Editors cannot see the invitation even when a managed page exists. */
 	public function test_invite_is_limited_to_administrators(): void {
 		$post_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
@@ -187,6 +223,33 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'hidden', $output );
 		$this->assertStringContainsString( 'data-kayzart-send-anyway', $output );
 		$this->assertStringNotContainsString( 'optional', strtolower( $output ) );
+	}
+
+	/** The shared "Other" description follows both Pro questions. */
+	public function test_pro_other_description_belongs_to_both_pro_questions(): void {
+		ob_start();
+		Feedback::render_settings_tab();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'data-kayzart-other-for="pro_priorities,pro_decisive"', $output );
+	}
+
+	/** Character limits count characters, not bytes, for multi-byte answers. */
+	public function test_text_limits_count_characters_not_bytes(): void {
+		$input               = $this->valid_input();
+		$input['role']       = 'other';
+		$input['role_other'] = str_repeat( 'あ', 100 );
+		$payload             = Feedback::prepare_submission( $input );
+
+		$this->assertIsArray( $payload );
+		$this->assertSame( $input['role_other'], $payload['role_other'] );
+
+		$input['role_other'] = str_repeat( 'あ', 101 );
+		$this->assertWPError( Feedback::prepare_submission( $input ) );
+
+		$input            = $this->valid_input();
+		$input['comment'] = str_repeat( 'あ', 1000 );
+		$this->assertIsArray( Feedback::prepare_submission( $input ) );
 	}
 
 	/** A sent answer is shown again so it can be corrected and resent. */

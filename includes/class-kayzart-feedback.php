@@ -208,14 +208,27 @@ class Feedback {
 		}
 	}
 
-	/** Handle postpone and dismiss actions without contacting the external service. */
+	/**
+	 * Handle postpone and dismiss actions without contacting the external service.
+	 *
+	 * An invite rendered before the survey was answered or dismissed stays
+	 * submittable in another tab, so a stale decision must never revive a
+	 * settled survey.
+	 */
 	public static function handle_invite_action(): void {
 		self::require_admin();
 		check_admin_referer( self::INVITE_NONCE );
 
 		$decision = isset( $_POST['decision'] ) ? sanitize_key( wp_unslash( (string) $_POST['decision'] ) ) : '';
 		$state    = self::get_state();
-		if ( 'postpone' === $decision && 'postponed' !== ( $state['status'] ?? '' ) ) {
+		$status   = isset( $state['status'] ) ? (string) $state['status'] : '';
+		if ( in_array( $status, array( 'dismissed', 'submitted' ), true ) ) {
+			$post_type = isset( $_POST['post_type'] ) ? sanitize_key( wp_unslash( (string) $_POST['post_type'] ) ) : Post_Type::PAGE_TYPE;
+			wp_safe_redirect( Admin::get_new_screen_url( $post_type ) );
+			exit;
+		}
+
+		if ( 'postpone' === $decision && 'postponed' !== $status ) {
 			self::set_state(
 				array(
 					'status'       => 'postponed',
@@ -341,8 +354,9 @@ class Feedback {
 			self::answer_list( $answers, 'pro_priorities' ),
 			__( 'Select any that apply; around three is ideal.', 'kayzart-live-code-editor' ),
 			array(
-				'name'  => 'pro_priorities_other',
-				'value' => self::answer_string( $answers, 'pro_priorities_other' ),
+				'name'   => 'pro_priorities_other',
+				'value'  => self::answer_string( $answers, 'pro_priorities_other' ),
+				'groups' => array( 'pro_priorities', 'pro_decisive' ),
 			)
 		);
 
@@ -504,6 +518,7 @@ class Feedback {
 				'headers'             => array(
 					'Accept'       => 'application/json',
 					'Content-Type' => 'application/json',
+					// Replaces the WordPress default user agent, which would disclose the site URL.
 					'User-Agent'   => sprintf( 'Kayzart/%s; WordPress/%s', KAYZART_VERSION, (string) $wp_version ),
 				),
 				'body'                => $body,
@@ -544,7 +559,7 @@ class Feedback {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
 			return;
 		}
-		$content  = '<p>' . esc_html__( 'Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years.', 'kayzart-live-code-editor' ) . '</p>';
+		$content  = '<p>' . esc_html__( 'Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form, together with the survey version, the Kayzart and WordPress version numbers, and the administrator interface language. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years.', 'kayzart-live-code-editor' ) . '</p>';
 		$content .= '<p><a href="https://kayzart.com/privacy-policy/">' . esc_html__( 'Kayzart Privacy Policy', 'kayzart-live-code-editor' ) . '</a> | <a href="https://kayzart.com/terms/">' . esc_html__( 'Kayzart Terms', 'kayzart-live-code-editor' ) . '</a></p>';
 		wp_add_privacy_policy_content( 'Kayzart', wp_kses_post( $content ) );
 	}
@@ -853,12 +868,21 @@ class Feedback {
 	}
 
 	/**
-	 * Count characters with a PHP 7.4-safe fallback when mbstring is unavailable.
+	 * Count characters, not bytes, even when mbstring is unavailable.
+	 *
+	 * Counting bytes would reject roughly a third of the documented limit for
+	 * Japanese or any other multi-byte answer, while the browser counts
+	 * characters and shows the field as still within the limit.
 	 *
 	 * @param string $value Text to count.
 	 */
 	private static function text_length( string $value ): int {
-		return function_exists( 'mb_strlen' ) ? (int) mb_strlen( $value ) : strlen( $value );
+		if ( function_exists( 'mb_strlen' ) ) {
+			return (int) mb_strlen( $value );
+		}
+
+		$characters = preg_match_all( '/./us', $value );
+		return false === $characters ? strlen( $value ) : (int) $characters;
 	}
 
 	/**
@@ -885,12 +909,12 @@ class Feedback {
 	/**
 	 * Render one accessible radio group. Answering is always optional.
 	 *
-	 * @param string                    $name        Field name.
-	 * @param string                    $legend      Question text.
-	 * @param array<string,string>      $options     Values and labels.
-	 * @param string                    $selected    Selected value.
-	 * @param string                    $description Optional guidance under the legend.
-	 * @param array<string,string>|null $other       Optional free-text field definition.
+	 * @param string                   $name        Field name.
+	 * @param string                   $legend      Question text.
+	 * @param array<string,string>     $options     Values and labels.
+	 * @param string                   $selected    Selected value.
+	 * @param string                   $description Optional guidance under the legend.
+	 * @param array<string,mixed>|null $other       Optional free-text field definition.
 	 */
 	private static function render_radio_group( string $name, string $legend, array $options, string $selected, string $description = '', ?array $other = null ): void {
 		echo '<fieldset class="kayzart-feedbackQuestion"><legend><strong>' . esc_html( $legend ) . '</strong></legend>';
@@ -910,12 +934,12 @@ class Feedback {
 	/**
 	 * Render one accessible checkbox group. Answering is always optional.
 	 *
-	 * @param string                    $name        Field name.
-	 * @param string                    $legend      Question text.
-	 * @param array<string,string>      $options     Values and labels.
-	 * @param array<int,string>         $selected    Selected values.
-	 * @param string                    $description Guidance under the legend.
-	 * @param array<string,string>|null $other       Optional free-text field definition.
+	 * @param string                   $name        Field name.
+	 * @param string                   $legend      Question text.
+	 * @param array<string,string>     $options     Values and labels.
+	 * @param array<int,string>        $selected    Selected values.
+	 * @param string                   $description Guidance under the legend.
+	 * @param array<string,mixed>|null $other       Optional free-text field definition.
 	 */
 	private static function render_checkbox_group( string $name, string $legend, array $options, array $selected, string $description = '', ?array $other = null ): void {
 		echo '<fieldset class="kayzart-feedbackQuestion"><legend><strong>' . esc_html( $legend ) . '</strong></legend>';
@@ -935,18 +959,22 @@ class Feedback {
 	/**
 	 * Render the optional free-text input that belongs to an "Other" choice.
 	 *
-	 * Without JavaScript the input is simply always visible.
+	 * One input can belong to more than one question: the description of an
+	 * "Other" Pro feature is shared by the priorities and the deciding feature,
+	 * so it appears as soon as either of them selects "Other". Without
+	 * JavaScript the input is simply always visible.
 	 *
-	 * @param string                    $group_name Field name of the owning group.
-	 * @param array<string,string>|null $other      Free-text field definition.
+	 * @param string                   $group_name Field name of the owning group.
+	 * @param array<string,mixed>|null $other      Free-text field definition.
 	 */
 	private static function render_other_text( string $group_name, ?array $other ): void {
 		if ( null === $other || empty( $other['name'] ) ) {
 			return;
 		}
 
-		$id = 'kayzart-feedback-' . $other['name'];
-		echo '<div class="kayzart-feedbackOther" data-kayzart-other-for="' . esc_attr( $group_name ) . '" data-kayzart-other-value="other">';
+		$groups = isset( $other['groups'] ) && is_array( $other['groups'] ) ? $other['groups'] : array( $group_name );
+		$id     = 'kayzart-feedback-' . $other['name'];
+		echo '<div class="kayzart-feedbackOther" data-kayzart-other-for="' . esc_attr( implode( ',', $groups ) ) . '" data-kayzart-other-value="other">';
 		echo '<label for="' . esc_attr( $id ) . '">' . esc_html__( 'Other — please describe', 'kayzart-live-code-editor' ) . '</label> ';
 		echo '<input id="' . esc_attr( $id ) . '" type="text" name="' . esc_attr( (string) $other['name'] ) . '" value="' . esc_attr( (string) ( $other['value'] ?? '' ) ) . '" maxlength="' . esc_attr( (string) self::OTHER_LIMIT ) . '" class="regular-text" />';
 		echo '</div>';

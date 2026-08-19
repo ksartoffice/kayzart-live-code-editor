@@ -50,7 +50,7 @@ msgstr "無題"
 #: includes/class-kayzart-admin.php:521
 #: includes/class-kayzart-admin.php:722
 #: includes/class-kayzart-admin.php:766
-#: includes/class-kayzart-feedback.php:594
+#: includes/class-kayzart-feedback.php:609
 #: includes/class-kayzart-preview.php:198
 #: includes/class-kayzart-rest.php:173
 #: includes/class-kayzart-rest.php:181
@@ -2254,7 +2254,7 @@ msgid "Feedback"
 msgstr ""
 
 #: includes/class-kayzart-feedback.php:136
-#: includes/class-kayzart-feedback.php:272
+#: includes/class-kayzart-feedback.php:285
 msgid "Help shape the future of Kayzart"
 msgstr ""
 
@@ -2270,201 +2270,197 @@ msgstr ""
 msgid "Do not show again"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:650
+#: includes/class-kayzart-feedback.php:665
 msgid "Thank you. Your feedback has been sent to Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:281
-#: includes/class-kayzart-feedback.php:997
+#: includes/class-kayzart-feedback.php:294
+#: includes/class-kayzart-feedback.php:1025
 msgid "Which best describes you?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:293
-#: includes/class-kayzart-feedback.php:998
+#: includes/class-kayzart-feedback.php:306
+#: includes/class-kayzart-feedback.php:1026
 msgid "Where do you use Kayzart?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:301
-#: includes/class-kayzart-feedback.php:999
+#: includes/class-kayzart-feedback.php:314
+#: includes/class-kayzart-feedback.php:1027
 msgid "What do you mainly want to create?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:320
-#: includes/class-kayzart-feedback.php:1001
+#: includes/class-kayzart-feedback.php:333
+#: includes/class-kayzart-feedback.php:1029
 msgid "What is your biggest challenge today?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:339
-#: includes/class-kayzart-feedback.php:1003
+#: includes/class-kayzart-feedback.php:352
+#: includes/class-kayzart-feedback.php:1031
 msgid "Which Pro features would be most valuable?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:359
-#: includes/class-kayzart-feedback.php:1018
+#: includes/class-kayzart-feedback.php:373
+#: includes/class-kayzart-feedback.php:1046
 msgid "Which pricing model would you prefer?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:365
-#: includes/class-kayzart-feedback.php:1019
+#: includes/class-kayzart-feedback.php:379
+#: includes/class-kayzart-feedback.php:1047
 msgid "Anything else you would like us to know?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:367
+#: includes/class-kayzart-feedback.php:381
 msgid "Do not include names, email addresses, login details, or other personal information."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:369
+#: includes/class-kayzart-feedback.php:383
 msgid "Your answers are sent to Kayzart only when you press the button below. Kayzart does not automatically send your site URL, email address, page content, or plugin usage."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:375
+#: includes/class-kayzart-feedback.php:389
 msgid "Send feedback to Kayzart"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:547
-msgid "Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years."
-msgstr ""
-
-#: includes/class-kayzart-feedback.php:548
+#: includes/class-kayzart-feedback.php:563
 msgid "Kayzart Privacy Policy"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:548
+#: includes/class-kayzart-feedback.php:563
 msgid "Kayzart Terms"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:978
+#: includes/class-kayzart-feedback.php:1006
 msgid "Privacy Policy"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:978
+#: includes/class-kayzart-feedback.php:1006
 msgid "Terms"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1030
+#: includes/class-kayzart-feedback.php:1058
 msgid "I run my own website"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1031
+#: includes/class-kayzart-feedback.php:1059
 msgid "In-house web or marketing team"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1032
+#: includes/class-kayzart-feedback.php:1060
 msgid "Freelancer"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1033
+#: includes/class-kayzart-feedback.php:1061
 msgid "Web agency"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1034
+#: includes/class-kayzart-feedback.php:1062
 msgid "Developer"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1035
+#: includes/class-kayzart-feedback.php:1063
 msgid "Learning or evaluation"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1036
-#: includes/class-kayzart-feedback.php:1067
-#: includes/class-kayzart-feedback.php:1101
-#: includes/class-kayzart-feedback.php:1134
+#: includes/class-kayzart-feedback.php:1064
+#: includes/class-kayzart-feedback.php:1095
+#: includes/class-kayzart-feedback.php:1129
+#: includes/class-kayzart-feedback.php:1162
 msgid "Other"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1047
+#: includes/class-kayzart-feedback.php:1075
 msgid "My own or my company's website"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1048
+#: includes/class-kayzart-feedback.php:1076
 msgid "Client websites"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1049
+#: includes/class-kayzart-feedback.php:1077
 msgid "Test or development environments"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1050
+#: includes/class-kayzart-feedback.php:1078
 msgid "I have not used it on a real project yet"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1061
+#: includes/class-kayzart-feedback.php:1089
 msgid "Product or service landing pages"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1062
+#: includes/class-kayzart-feedback.php:1090
 msgid "Campaign pages"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1063
+#: includes/class-kayzart-feedback.php:1091
 msgid "Corporate website pages"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1064
+#: includes/class-kayzart-feedback.php:1092
 msgid "Recruiting or event pages"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1065
+#: includes/class-kayzart-feedback.php:1093
 msgid "Bringing AI-generated HTML into WordPress"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1066
+#: includes/class-kayzart-feedback.php:1094
 msgid "Migrating existing HTML templates"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1093
+#: includes/class-kayzart-feedback.php:1121
 msgid "Creating the design"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1094
+#: includes/class-kayzart-feedback.php:1122
 msgid "Writing effective AI instructions"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1095
+#: includes/class-kayzart-feedback.php:1123
 msgid "Editing HTML or CSS"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1096
+#: includes/class-kayzart-feedback.php:1124
 msgid "Responsive design"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1097
+#: includes/class-kayzart-feedback.php:1125
 msgid "Integrating pages with WordPress"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1098
+#: includes/class-kayzart-feedback.php:1126
 msgid "Reusing pages or sections"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1099
+#: includes/class-kayzart-feedback.php:1127
 msgid "Improving pages after publication"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1100
+#: includes/class-kayzart-feedback.php:1128
 msgid "Working with clients"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1156
+#: includes/class-kayzart-feedback.php:1184
 msgid "Annual plan for one site"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1157
+#: includes/class-kayzart-feedback.php:1185
 msgid "Annual plan for multiple sites"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1158
+#: includes/class-kayzart-feedback.php:1186
 msgid "Monthly plan"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1159
+#: includes/class-kayzart-feedback.php:1187
 msgid "One-time purchase"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1160
+#: includes/class-kayzart-feedback.php:1188
 msgid "Usage-based pricing"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1161
+#: includes/class-kayzart-feedback.php:1189
 msgid "Not sure yet"
 msgstr ""
 
@@ -2489,147 +2485,147 @@ msgstr ""
 msgid "Wait for the AI edit to finish."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:273
+#: includes/class-kayzart-feedback.php:286
 msgid "Your answers help us decide what to build for Kayzart and Kayzart Pro."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:296
+#: includes/class-kayzart-feedback.php:309
 msgid "Select any that apply."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:304
-#: includes/class-kayzart-feedback.php:342
+#: includes/class-kayzart-feedback.php:317
+#: includes/class-kayzart-feedback.php:355
 msgid "Select any that apply; around three is ideal."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:313
-#: includes/class-kayzart-feedback.php:1000
+#: includes/class-kayzart-feedback.php:326
+#: includes/class-kayzart-feedback.php:1028
 msgid "How many landing pages do you build in a month?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:332
-#: includes/class-kayzart-feedback.php:1002
+#: includes/class-kayzart-feedback.php:345
+#: includes/class-kayzart-feedback.php:1030
 msgid "How do you feel about providing your own AI API key?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:351
-#: includes/class-kayzart-feedback.php:1017
+#: includes/class-kayzart-feedback.php:365
+#: includes/class-kayzart-feedback.php:1045
 msgid "Which single feature would actually decide a purchase for you?"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:354
+#: includes/class-kayzart-feedback.php:368
 msgid "Pick the one that matters most, even if several sound useful."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:374
+#: includes/class-kayzart-feedback.php:388
 msgid "Update and resend my feedback"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:385
+#: includes/class-kayzart-feedback.php:399
 msgid "Discard these restored answers"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:539
+#: includes/class-kayzart-feedback.php:554
 msgid "The Kayzart feedback survey has closed. Thank you for your interest."
 msgstr ""
 
 #. translators: %s: survey question title.
-#: includes/class-kayzart-feedback.php:642
+#: includes/class-kayzart-feedback.php:657
 #, php-format
 msgid "Please check your answer to \"%s\" and try again."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:644
+#: includes/class-kayzart-feedback.php:659
 msgid "Nothing was answered yet, so there was nothing to send. Answer at least one question and try again."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:648
+#: includes/class-kayzart-feedback.php:663
 msgid "Your feedback could not be sent. Your answers have been kept, so you can try again."
 msgstr ""
 
 #. translators: %s: date the feedback was sent.
-#: includes/class-kayzart-feedback.php:666
+#: includes/class-kayzart-feedback.php:681
 #, php-format
 msgid "You sent feedback on %s. The form below shows what you sent, and you can change it and send it again."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:668
+#: includes/class-kayzart-feedback.php:683
 msgid "The form below shows the feedback you already sent, and you can change it and send it again."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:950
+#: includes/class-kayzart-feedback.php:978
 msgid "Other — please describe"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1078
+#: includes/class-kayzart-feedback.php:1106
 msgid "None yet"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1079
+#: includes/class-kayzart-feedback.php:1107
 msgid "1 to 2"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1080
+#: includes/class-kayzart-feedback.php:1108
 msgid "3 to 5"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1081
+#: includes/class-kayzart-feedback.php:1109
 msgid "6 to 10"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1082
+#: includes/class-kayzart-feedback.php:1110
 msgid "11 or more"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1112
+#: includes/class-kayzart-feedback.php:1140
 msgid "I set up my own API key without trouble"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1113
+#: includes/class-kayzart-feedback.php:1141
 msgid "It works, but it is a hassle"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1114
+#: includes/class-kayzart-feedback.php:1142
 msgid "The setup is too difficult, so I cannot use AI editing"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1115
+#: includes/class-kayzart-feedback.php:1143
 msgid "I have not tried AI editing yet"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1126
+#: includes/class-kayzart-feedback.php:1154
 msgid "Templates built for specific industries and purposes"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1127
+#: includes/class-kayzart-feedback.php:1155
 msgid "AI included, with no API key to set up"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1128
+#: includes/class-kayzart-feedback.php:1156
 msgid "Locking parts of a page so clients and AI cannot change them"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1129
+#: includes/class-kayzart-feedback.php:1157
 msgid "Traffic analytics with AI improvement suggestions"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1130
+#: includes/class-kayzart-feedback.php:1158
 msgid "Contact and conversion form integration"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1131
+#: includes/class-kayzart-feedback.php:1159
 msgid "AI that can pull in your WordPress content, such as posts, categories, and custom fields"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1132
+#: includes/class-kayzart-feedback.php:1160
 msgid "Reusable sections and shared components"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1133
+#: includes/class-kayzart-feedback.php:1161
 msgid "A/B testing"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1145
+#: includes/class-kayzart-feedback.php:1173
 msgid "None of these would make me pay"
 msgstr ""
 
@@ -2637,17 +2633,17 @@ msgstr ""
 msgid "Share how you use Kayzart and what you would like us to build next. The survey takes about three minutes."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:967
+#: includes/class-kayzart-feedback.php:995
 msgid "One question is still unanswered."
 msgstr ""
 
 #. translators: %d: number of unanswered questions.
-#: includes/class-kayzart-feedback.php:969
+#: includes/class-kayzart-feedback.php:997
 #, php-format
 msgid "%d questions are still unanswered."
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:972
+#: includes/class-kayzart-feedback.php:1000
 msgid "Go back to them"
 msgstr ""
 
@@ -2656,3 +2652,7 @@ msgstr ""
 #: includes/class-kayzart-admin.php:2227
 msgid "Basic settings"
 msgstr "基本設定"
+
+#: includes/class-kayzart-feedback.php:562
+msgid "Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form, together with the survey version, the Kayzart and WordPress version numbers, and the administrator interface language. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years."
+msgstr ""

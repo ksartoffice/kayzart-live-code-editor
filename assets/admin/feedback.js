@@ -31,12 +31,20 @@
     container.hidden = !selected && !(text && text.value !== '');
   }
 
-  function updateCharacterCount(textarea) {
-    var maximum = Number(textarea.getAttribute('data-kayzart-character-limit')) || 0;
-    var question = textarea.closest('.kayzart-feedbackQuestion') || document;
+  // The limit is counted in code points, like the server counts it. The
+  // browser's own maxlength counts UTF-16 units and is set to twice the limit,
+  // so it only ever catches a runaway paste.
+  function updateCharacterCount(field) {
+    var maximum = Number(field.getAttribute('data-kayzart-character-limit')) || 0;
+    var length = Array.from(field.value).length;
+    var over = maximum > 0 && length > maximum;
+    var question = field.closest('.kayzart-feedbackQuestion') || document;
     var counter = question.querySelector('[data-kayzart-character-count]');
+
+    field.classList.toggle('kayzart-feedbackOverLimit', over);
     if (counter) {
-      counter.textContent = Array.from(textarea.value).length + ' / ' + maximum;
+      counter.textContent = length + ' / ' + maximum;
+      counter.classList.toggle('kayzart-feedbackOverLimit', over);
     }
   }
 
@@ -118,11 +126,11 @@
       updateOtherField(container);
     });
 
-    document.querySelectorAll('[data-kayzart-character-limit]').forEach(function (textarea) {
-      textarea.addEventListener('input', function () {
-        updateCharacterCount(textarea);
+    document.querySelectorAll('[data-kayzart-character-limit]').forEach(function (field) {
+      field.addEventListener('input', function () {
+        updateCharacterCount(field);
       });
-      updateCharacterCount(textarea);
+      updateCharacterCount(field);
     });
 
     document.querySelectorAll('.kayzart-feedbackForm').forEach(setUpUnansweredPrompt);

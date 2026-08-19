@@ -380,7 +380,7 @@ class Feedback {
 
 		$comment = self::answer_string( $answers, 'comment' );
 		echo '<div class="kayzart-feedbackQuestion"><label for="kayzart-feedback-comment"><strong>' . esc_html__( 'Anything else you would like us to know?', 'kayzart-live-code-editor' ) . '</strong></label>';
-		echo '<textarea id="kayzart-feedback-comment" name="comment" rows="6" maxlength="' . esc_attr( (string) self::COMMENT_LIMIT ) . '" data-kayzart-character-limit="' . esc_attr( (string) self::COMMENT_LIMIT ) . '">' . esc_textarea( $comment ) . '</textarea>';
+		echo '<textarea id="kayzart-feedback-comment" name="comment" rows="6" maxlength="' . esc_attr( (string) self::native_maxlength( self::COMMENT_LIMIT ) ) . '" data-kayzart-character-limit="' . esc_attr( (string) self::COMMENT_LIMIT ) . '">' . esc_textarea( $comment ) . '</textarea>';
 		echo '<p class="description">' . esc_html__( 'Do not include names, email addresses, login details, or other personal information.', 'kayzart-live-code-editor' ) . ' <span data-kayzart-character-count aria-live="polite"></span></p></div>';
 
 		echo '<div class="kayzart-feedbackDisclosure"><p>' . esc_html__( 'Your answers are sent to Kayzart only when you press the button below. Kayzart does not automatically send your site URL, email address, page content, or plugin usage.', 'kayzart-live-code-editor' ) . '</p>';
@@ -708,17 +708,43 @@ class Feedback {
 	 * The identifier is kept until a submission succeeds, so opening the survey
 	 * in a second tab reuses it: submitting both tabs then updates one server
 	 * response instead of creating a second one that cannot be corrected.
+	 *
+	 * Two first renders can still overlap, so the identifier is claimed with a
+	 * unique insertion and the loser adopts the stored one. User meta has no
+	 * unique index, so this narrows the race rather than closing it; losing it
+	 * costs one extra response row, never a lost or unanswerable submission.
 	 */
 	private static function pending_submission_id(): string {
 		$user_id = get_current_user_id();
-		$pending = get_user_meta( $user_id, self::PENDING_META_KEY, true );
-		if ( is_string( $pending ) && wp_is_uuid( $pending, 4 ) ) {
-			return $pending;
+		$stored  = self::stored_pending_id( $user_id );
+		if ( '' !== $stored ) {
+			return $stored;
 		}
 
 		$pending = wp_generate_uuid4();
+		if ( add_user_meta( $user_id, self::PENDING_META_KEY, $pending, true ) ) {
+			return $pending;
+		}
+
+		// Another render claimed the identifier first, or an unusable value is
+		// stored; adopt the winner, and replace anything that is not a UUID.
+		$stored = self::stored_pending_id( $user_id );
+		if ( '' !== $stored ) {
+			return $stored;
+		}
+
 		update_user_meta( $user_id, self::PENDING_META_KEY, $pending );
 		return $pending;
+	}
+
+	/**
+	 * Read the claimed submission identifier, ignoring unusable values.
+	 *
+	 * @param int $user_id User to read the identifier for.
+	 */
+	private static function stored_pending_id( int $user_id ): string {
+		$pending = get_user_meta( $user_id, self::PENDING_META_KEY, true );
+		return is_string( $pending ) && wp_is_uuid( $pending, 4 ) ? $pending : '';
 	}
 
 	/**
@@ -891,6 +917,21 @@ class Feedback {
 	}
 
 	/**
+	 * Cap the browser's own maxlength well above the documented limit.
+	 *
+	 * The HTML attribute counts UTF-16 code units, while the counter and the
+	 * server count code points, so an emoji costs twice as much to the browser
+	 * as it does to the limit being enforced. Doubling the attribute keeps it a
+	 * safety net against runaway pastes without ever stopping input that the
+	 * counter still shows as within the limit.
+	 *
+	 * @param int $limit Documented character limit.
+	 */
+	private static function native_maxlength( int $limit ): int {
+		return $limit * 2;
+	}
+
+	/**
 	 * Count characters, not bytes, even when mbstring is unavailable.
 	 *
 	 * Counting bytes would reject roughly a third of the documented limit for
@@ -999,7 +1040,7 @@ class Feedback {
 		$id     = 'kayzart-feedback-' . $other['name'];
 		echo '<div class="kayzart-feedbackOther" data-kayzart-other-for="' . esc_attr( implode( ',', $groups ) ) . '" data-kayzart-other-value="other">';
 		echo '<label for="' . esc_attr( $id ) . '">' . esc_html__( 'Other — please describe', 'kayzart-live-code-editor' ) . '</label> ';
-		echo '<input id="' . esc_attr( $id ) . '" type="text" name="' . esc_attr( (string) $other['name'] ) . '" value="' . esc_attr( (string) ( $other['value'] ?? '' ) ) . '" maxlength="' . esc_attr( (string) self::OTHER_LIMIT ) . '" class="regular-text" />';
+		echo '<input id="' . esc_attr( $id ) . '" type="text" name="' . esc_attr( (string) $other['name'] ) . '" value="' . esc_attr( (string) ( $other['value'] ?? '' ) ) . '" maxlength="' . esc_attr( (string) self::native_maxlength( self::OTHER_LIMIT ) ) . '" data-kayzart-character-limit="' . esc_attr( (string) self::OTHER_LIMIT ) . '" class="regular-text" />';
 		echo '</div>';
 	}
 

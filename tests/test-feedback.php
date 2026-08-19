@@ -229,6 +229,49 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertSame( $ids[0], get_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, true ) );
 	}
 
+	/** A render that loses the claim adopts the identifier already stored. */
+	public function test_pending_submission_id_adopts_an_existing_claim(): void {
+		$claimed = wp_generate_uuid4();
+		add_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, $claimed, true );
+
+		ob_start();
+		Feedback::render_settings_tab();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'name="submission_id" value="' . $claimed . '"', $output );
+		$this->assertCount( 1, get_user_meta( $this->admin_id, Feedback::PENDING_META_KEY ) );
+	}
+
+	/** An unusable stored identifier is replaced instead of being reused. */
+	public function test_pending_submission_id_replaces_an_unusable_value(): void {
+		add_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, 'not-a-uuid', true );
+
+		ob_start();
+		Feedback::render_settings_tab();
+		$output = (string) ob_get_clean();
+
+		$this->assertSame( 1, preg_match( '/name="submission_id" value="([^"]+)"/', $output, $matches ) );
+		$this->assertTrue( wp_is_uuid( $matches[1], 4 ) );
+		$this->assertSame( $matches[1], get_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, true ) );
+	}
+
+	/** The browser limit never stops input the counter still shows as valid. */
+	public function test_native_maxlength_leaves_room_for_astral_characters(): void {
+		ob_start();
+		Feedback::render_settings_tab();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'maxlength="2000" data-kayzart-character-limit="1000"', $output );
+		$this->assertStringContainsString( 'maxlength="200" data-kayzart-character-limit="100"', $output );
+
+		$input            = $this->valid_input();
+		$input['comment'] = str_repeat( '🎉', 1000 );
+		$this->assertIsArray( Feedback::prepare_submission( $input ) );
+
+		$input['comment'] = str_repeat( '🎉', 1001 );
+		$this->assertWPError( Feedback::prepare_submission( $input ) );
+	}
+
 	/** Editors cannot see the invitation even when a managed page exists. */
 	public function test_invite_is_limited_to_administrators(): void {
 		$post_id = self::factory()->post->create( array( 'post_type' => 'page' ) );

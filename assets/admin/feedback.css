@@ -74,3 +74,12 @@
   margin-bottom: 4px;
   color: #50575e;
 }
+
+.kayzart-feedbackOverLimit {
+  color: #d63638;
+}
+
+input.kayzart-feedbackOverLimit,
+textarea.kayzart-feedbackOverLimit {
+  border-color: #d63638;
+}

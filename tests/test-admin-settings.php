@@ -630,7 +630,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		remove_action( 'kayzart_render_settings_tab_sample', $tab_action );
 
 		$this->assertStringContainsString( __( 'Settings', 'kayzart-live-code-editor' ), $output );
-		$this->assertStringContainsString( __( '基本設定', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Basic settings', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'Sample Tab', $output );
 		$this->assertStringContainsString( 'id="sample-settings-tab"', $output );
 	}

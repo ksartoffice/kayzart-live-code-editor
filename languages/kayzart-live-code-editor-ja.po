@@ -162,12 +162,6 @@ msgstr "テーマ"
 msgid "Applies when template mode is set to Use admin default."
 msgstr "テンプレートモードが「デフォルト」に設定されている場合に適用されます。"
 
-#: includes/class-kayzart-admin.php:2202
-#: includes/class-kayzart-admin.php:2213
-#: includes/class-kayzart-admin.php:2227
-msgid "基本設定"
-msgstr "基本設定"
-
 #: includes/class-kayzart-admin.php:2571
 #: includes/class-kayzart-admin.php:2579
 #: assets/dist/main.js:2424
@@ -2656,3 +2650,9 @@ msgstr ""
 #: includes/class-kayzart-feedback.php:972
 msgid "Go back to them"
 msgstr ""
+
+#: includes/class-kayzart-admin.php:2202
+#: includes/class-kayzart-admin.php:2213
+#: includes/class-kayzart-admin.php:2227
+msgid "Basic settings"
+msgstr "基本設定"

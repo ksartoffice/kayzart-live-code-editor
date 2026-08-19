@@ -24,6 +24,7 @@ class Feedback {
 	public const STATE_META_KEY    = 'kayzart_feedback_v1_state';
 	public const DRAFT_META_KEY    = 'kayzart_feedback_v1_draft';
 	public const RESPONSE_META_KEY = 'kayzart_feedback_v1_response';
+	public const PENDING_META_KEY  = 'kayzart_feedback_v1_pending';
 	public const CLOSED_OPTION     = 'kayzart_feedback_v1_closed';
 	public const CONTENT_TRANSIENT = 'kayzart_feedback_has_content';
 
@@ -213,7 +214,9 @@ class Feedback {
 	 *
 	 * An invite rendered before the survey was answered or dismissed stays
 	 * submittable in another tab, so a stale decision must never revive a
-	 * settled survey.
+	 * settled survey. Each decision is handled on its own, so repeating one
+	 * request — a double click, a resubmitted form — repeats its own outcome
+	 * rather than escalating a reminder into a permanent dismissal.
 	 */
 	public static function handle_invite_action(): void {
 		self::require_admin();
@@ -222,27 +225,27 @@ class Feedback {
 		$decision = isset( $_POST['decision'] ) ? sanitize_key( wp_unslash( (string) $_POST['decision'] ) ) : '';
 		$state    = self::get_state();
 		$status   = isset( $state['status'] ) ? (string) $state['status'] : '';
-		if ( in_array( $status, array( 'dismissed', 'submitted' ), true ) ) {
-			$post_type = isset( $_POST['post_type'] ) ? sanitize_key( wp_unslash( (string) $_POST['post_type'] ) ) : Post_Type::PAGE_TYPE;
-			wp_safe_redirect( Admin::get_new_screen_url( $post_type ) );
-			exit;
-		}
+		$settled  = in_array( $status, array( 'dismissed', 'submitted' ), true );
 
-		if ( 'postpone' === $decision && 'postponed' !== $status ) {
-			self::set_state(
-				array(
-					'status'       => 'postponed',
-					'remind_after' => time() + self::REMIND_AFTER,
-					'updated_at'   => time(),
-				)
-			);
-		} else {
-			self::set_state(
-				array(
-					'status'     => 'dismissed',
-					'updated_at' => time(),
-				)
-			);
+		if ( ! $settled ) {
+			if ( 'postpone' === $decision ) {
+				if ( 'postponed' !== $status ) {
+					self::set_state(
+						array(
+							'status'       => 'postponed',
+							'remind_after' => time() + self::REMIND_AFTER,
+							'updated_at'   => time(),
+						)
+					);
+				}
+			} else {
+				self::set_state(
+					array(
+						'status'     => 'dismissed',
+						'updated_at' => time(),
+					)
+				);
+			}
 		}
 
 		$post_type = isset( $_POST['post_type'] ) ? sanitize_key( wp_unslash( (string) $_POST['post_type'] ) ) : Post_Type::PAGE_TYPE;
@@ -273,7 +276,7 @@ class Feedback {
 
 		$submission_id = isset( $answers['submission_id'] ) ? (string) $answers['submission_id'] : '';
 		if ( ! wp_is_uuid( $submission_id, 4 ) ) {
-			$submission_id = wp_generate_uuid4();
+			$submission_id = self::pending_submission_id();
 		}
 
 		echo '<div class="kayzart-feedbackPage">';
@@ -432,6 +435,7 @@ class Feedback {
 		}
 
 		delete_user_meta( get_current_user_id(), self::DRAFT_META_KEY );
+		delete_user_meta( get_current_user_id(), self::PENDING_META_KEY );
 		update_user_meta( get_current_user_id(), self::RESPONSE_META_KEY, $result );
 		self::set_state(
 			array(
@@ -696,6 +700,25 @@ class Feedback {
 	private static function get_draft(): array {
 		$draft = get_user_meta( get_current_user_id(), self::DRAFT_META_KEY, true );
 		return is_array( $draft ) ? $draft : array();
+	}
+
+	/**
+	 * Resolve the identifier a first submission will be sent under.
+	 *
+	 * The identifier is kept until a submission succeeds, so opening the survey
+	 * in a second tab reuses it: submitting both tabs then updates one server
+	 * response instead of creating a second one that cannot be corrected.
+	 */
+	private static function pending_submission_id(): string {
+		$user_id = get_current_user_id();
+		$pending = get_user_meta( $user_id, self::PENDING_META_KEY, true );
+		if ( is_string( $pending ) && wp_is_uuid( $pending, 4 ) ) {
+			return $pending;
+		}
+
+		$pending = wp_generate_uuid4();
+		update_user_meta( $user_id, self::PENDING_META_KEY, $pending );
+		return $pending;
 	}
 
 	/**

@@ -34,6 +34,7 @@ class Test_Feedback extends WP_UnitTestCase {
 		delete_user_meta( $this->admin_id, Feedback::STATE_META_KEY );
 		delete_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY );
 		delete_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY );
+		delete_user_meta( $this->admin_id, Feedback::PENDING_META_KEY );
 		delete_option( Feedback::CLOSED_OPTION );
 		delete_transient( Feedback::CONTENT_TRANSIENT );
 		remove_all_filters( 'pre_http_request' );
@@ -180,6 +181,52 @@ class Test_Feedback extends WP_UnitTestCase {
 		remove_filter( 'wp_redirect', $redirect );
 		$_POST    = array();
 		$_REQUEST = array();
+	}
+
+	/** Repeating a postpone request keeps the reminder instead of dismissing. */
+	public function test_repeated_postpone_does_not_dismiss_the_invite(): void {
+		$_REQUEST['_wpnonce'] = wp_create_nonce( 'kayzart_feedback_invite_v1' );
+		$_POST                = array(
+			'decision'  => 'postpone',
+			'post_type' => 'page',
+			'_wpnonce'  => $_REQUEST['_wpnonce'],
+		);
+		$redirect             = static function () {
+			throw new Exception( 'redirected' );
+		};
+		add_filter( 'wp_redirect', $redirect );
+
+		foreach ( array( 1, 2, 3 ) as $unused ) {
+			try {
+				Feedback::handle_invite_action();
+			} catch ( Exception $e ) {
+				$this->assertSame( 'redirected', $e->getMessage() );
+			}
+		}
+
+		$state = get_user_meta( $this->admin_id, Feedback::STATE_META_KEY, true );
+		$this->assertSame( 'postponed', $state['status'] );
+		$this->assertGreaterThan( time(), $state['remind_after'] );
+
+		remove_filter( 'wp_redirect', $redirect );
+		$_POST    = array();
+		$_REQUEST = array();
+	}
+
+	/** Opening the survey twice before sending reuses one submission ID. */
+	public function test_first_submission_id_is_reused_across_renders(): void {
+		$ids = array();
+		foreach ( array( 1, 2 ) as $unused ) {
+			ob_start();
+			Feedback::render_settings_tab();
+			$output = (string) ob_get_clean();
+			$this->assertSame( 1, preg_match( '/name="submission_id" value="([^"]+)"/', $output, $matches ) );
+			$ids[] = $matches[1];
+		}
+
+		$this->assertSame( $ids[0], $ids[1] );
+		$this->assertTrue( wp_is_uuid( $ids[0], 4 ) );
+		$this->assertSame( $ids[0], get_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, true ) );
 	}
 
 	/** Editors cannot see the invitation even when a managed page exists. */
@@ -466,6 +513,7 @@ class Test_Feedback extends WP_UnitTestCase {
 		update_user_meta( $this->admin_id, Feedback::STATE_META_KEY, array( 'status' => 'dismissed' ) );
 		update_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY, array( 'comment' => 'draft' ) );
 		update_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY, array( 'comment' => 'sent' ) );
+		update_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, wp_generate_uuid4() );
 		update_option( Feedback::CLOSED_OPTION, '1' );
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 			define( 'WP_UNINSTALL_PLUGIN', true );
@@ -476,6 +524,7 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::STATE_META_KEY, true ) );
 		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY, true ) );
 		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY, true ) );
+		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::PENDING_META_KEY, true ) );
 		$this->assertFalse( get_option( Feedback::CLOSED_OPTION ) );
 	}
 

@@ -17,5 +17,6 @@ delete_transient( 'kayzart_ai_backend' );
 delete_metadata( 'user', 0, 'kayzart_feedback_v1_state', '', true );
 delete_metadata( 'user', 0, 'kayzart_feedback_v1_draft', '', true );
 delete_metadata( 'user', 0, 'kayzart_feedback_v1_response', '', true );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_pending', '', true );
 delete_option( 'kayzart_feedback_v1_closed' );
 delete_transient( 'kayzart_feedback_has_content' );

@@ -5,7 +5,6 @@
  * @package KayzArt
  */
 
-use KayzArt\Admin;
 use KayzArt\Feedback;
 use KayzArt\Post_Type;
 
@@ -26,12 +25,17 @@ class Test_Feedback extends WP_UnitTestCase {
 		}
 		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->admin_id );
+		delete_option( Feedback::CLOSED_OPTION );
+		delete_transient( Feedback::CONTENT_TRANSIENT );
 	}
 
 	/** Remove user state and HTTP interception after each test. */
 	protected function tearDown(): void {
 		delete_user_meta( $this->admin_id, Feedback::STATE_META_KEY );
 		delete_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY );
+		delete_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY );
+		delete_option( Feedback::CLOSED_OPTION );
+		delete_transient( Feedback::CONTENT_TRANSIENT );
 		remove_all_filters( 'pre_http_request' );
 		wp_set_current_user( 0 );
 		parent::tearDown();
@@ -47,6 +51,47 @@ class Test_Feedback extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( array( 'basic', 'feedback', 'license' ), array_keys( $tabs ) );
+	}
+
+	/** The campaign closes on its own, and a closed survey exposes no UI at all. */
+	public function test_closed_survey_hides_tab_and_invite(): void {
+		$this->assertTrue( Feedback::is_open() );
+		$this->assertGreaterThan( time(), strtotime( Feedback::SURVEY_END ) );
+
+		$post_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		Post_Type::enable_for_post( $post_id );
+		$this->assertTrue( Feedback::should_show_invite() );
+
+		update_option( Feedback::CLOSED_OPTION, '1' );
+
+		$this->assertFalse( Feedback::is_open() );
+		$this->assertFalse( Feedback::should_show_invite() );
+		$this->assertSame( array( 'basic' ), array_keys( Feedback::add_settings_tab( array( 'basic' => 'Basic' ) ) ) );
+
+		ob_start();
+		Feedback::render_settings_tab();
+		$this->assertSame( '', (string) ob_get_clean() );
+	}
+
+	/** A 410 response marks the survey closed instead of looking like an outage. */
+	public function test_gone_response_reports_a_closed_survey(): void {
+		$payload = Feedback::prepare_submission( $this->valid_input() );
+		add_filter(
+			'pre_http_request',
+			static function () {
+				return array(
+					'headers'  => array(),
+					'body'     => '',
+					'response' => array( 'code' => 410 ),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			}
+		);
+
+		$result = Feedback::send_submission( $payload );
+		$this->assertWPError( $result );
+		$this->assertSame( 'kayzart_feedback_closed', $result->get_error_code() );
 	}
 
 	/** A managed page makes an unanswered administrator eligible for the invite. */
@@ -88,6 +133,19 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertFalse( Feedback::should_show_invite() );
 	}
 
+	/** Enabling Kayzart on a post invalidates the cached managed-content answer. */
+	public function test_managed_content_cache_is_invalidated_when_a_page_is_enabled(): void {
+		$this->assertFalse( Feedback::has_kayzart_content() );
+		$this->assertSame( '0', get_transient( Feedback::CONTENT_TRANSIENT ) );
+
+		$post_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		Post_Type::enable_for_post( $post_id );
+
+		$this->assertFalse( get_transient( Feedback::CONTENT_TRANSIENT ) );
+		$this->assertTrue( Feedback::has_kayzart_content() );
+		$this->assertSame( '1', get_transient( Feedback::CONTENT_TRANSIENT ) );
+	}
+
 	/** Editors cannot see the invitation even when a managed page exists. */
 	public function test_invite_is_limited_to_administrators(): void {
 		$post_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
@@ -116,6 +174,49 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertSame( 0, $calls );
 		$this->assertStringContainsString( 'Send feedback to Kayzart', $output );
 		$this->assertStringContainsString( 'privacy-policy', $output );
+		$this->assertStringNotContainsString( 'required', $output );
+	}
+
+	/** A sent answer is shown again so it can be corrected and resent. */
+	public function test_sent_answers_are_restored_for_editing(): void {
+		$payload = Feedback::prepare_submission( $this->valid_input() );
+		update_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY, $payload );
+		update_user_meta(
+			$this->admin_id,
+			Feedback::STATE_META_KEY,
+			array(
+				'status'        => 'submitted',
+				'submission_id' => $payload['submission_id'],
+				'updated_at'    => time(),
+			)
+		);
+
+		ob_start();
+		Feedback::render_settings_tab();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'Update and resend my feedback', $output );
+		$this->assertStringContainsString( 'value="' . $payload['submission_id'] . '"', $output );
+		$this->assertStringContainsString( 'kayzart-feedback-role-freelancer" type="radio" name="role" value="freelancer" checked', $output );
+	}
+
+	/** A kept draft survives repeated renders so a reload never loses answers. */
+	public function test_draft_survives_repeated_renders(): void {
+		$draft = array(
+			'submission_id' => wp_generate_uuid4(),
+			'comment'       => 'Restored comment',
+		);
+		update_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY, $draft );
+
+		foreach ( array( 1, 2 ) as $unused ) {
+			ob_start();
+			Feedback::render_settings_tab();
+			$output = (string) ob_get_clean();
+			$this->assertStringContainsString( 'Restored comment', $output );
+			$this->assertStringContainsString( 'value="' . $draft['submission_id'] . '"', $output );
+		}
+
+		$this->assertSame( $draft, get_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY, true ) );
 	}
 
 	/** A complete form maps to the documented payload without site identifiers. */
@@ -128,26 +229,73 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertSame( 'freelancer', $payload['role'] );
 		$this->assertSame( array( 'client' ), $payload['usage_targets'] );
 		$this->assertSame( array( 'landing_page', 'ai_html_wordpress' ), $payload['use_cases'] );
+		$this->assertSame( 'three_five', $payload['monthly_volume'] );
 		$this->assertSame( 'responsive', $payload['primary_problem'] );
-		$this->assertSame( array( 'ai_chat_editing', 'reusable_components' ), $payload['pro_priorities'] );
+		$this->assertSame( 'workable', $payload['api_key_attitude'] );
+		$this->assertSame( array( 'included_ai', 'client_lock' ), $payload['pro_priorities'] );
+		$this->assertSame( 'included_ai', $payload['pro_decisive'] );
 		$this->assertSame( 'multi_site_annual', $payload['pricing_preference'] );
 		$this->assertArrayNotHasKey( 'site_url', $payload );
 		$this->assertArrayNotHasKey( 'email', $payload );
 		$this->assertArrayNotHasKey( 'user_id', $payload );
 	}
 
-	/** Invalid, excessive, and contradictory choices are rejected. */
+	/** Answering a single question is enough, and an empty form is refused. */
+	public function test_every_question_is_optional_but_something_must_be_answered(): void {
+		$payload = Feedback::prepare_submission(
+			array(
+				'submission_id' => wp_generate_uuid4(),
+				'comment'       => 'Just a comment.',
+			)
+		);
+
+		$this->assertIsArray( $payload );
+		$this->assertSame( 'Just a comment.', $payload['comment'] );
+		$this->assertNull( $payload['role'] );
+		$this->assertSame( array(), $payload['usage_targets'] );
+
+		$empty = Feedback::prepare_submission( array( 'submission_id' => wp_generate_uuid4() ) );
+		$this->assertWPError( $empty );
+		$this->assertSame( 'kayzart_feedback_empty', $empty->get_error_code() );
+	}
+
+	/** Choice counts are not capped and combinations are never contradictory. */
+	public function test_prepare_submission_accepts_generous_choices(): void {
+		$input                   = $this->valid_input();
+		$input['pro_priorities'] = array( 'included_ai', 'client_lock', 'ab_testing', 'form_integration', 'niche_templates' );
+		$input['usage_targets']  = array( 'not_used_yet', 'client' );
+		$payload                 = Feedback::prepare_submission( $input );
+
+		$this->assertIsArray( $payload );
+		$this->assertCount( 5, $payload['pro_priorities'] );
+		$this->assertSame( array( 'not_used_yet', 'client' ), $payload['usage_targets'] );
+	}
+
+	/** Free text travels only with the "Other" choice it belongs to. */
+	public function test_other_text_requires_its_choice_and_respects_the_limit(): void {
+		$input               = $this->valid_input();
+		$input['role_other'] = 'Product manager';
+		$payload             = Feedback::prepare_submission( $input );
+		$this->assertNull( $payload['role_other'] );
+
+		$input['role'] = 'other';
+		$payload       = Feedback::prepare_submission( $input );
+		$this->assertSame( 'Product manager', $payload['role_other'] );
+
+		$input['role_other'] = str_repeat( 'a', 101 );
+		$result              = Feedback::prepare_submission( $input );
+		$this->assertWPError( $result );
+		$this->assertSame( 'kayzart_feedback_invalid_role_other', $result->get_error_code() );
+	}
+
+	/** Values outside the allowlist and oversized text are still rejected. */
 	public function test_prepare_submission_rejects_invalid_choices(): void {
 		$input         = $this->valid_input();
 		$input['role'] = 'intruder';
 		$this->assertWPError( Feedback::prepare_submission( $input ) );
 
 		$input                   = $this->valid_input();
-		$input['pro_priorities'] = array( 'ai_chat_editing', 'forms', 'multi_site', 'version_history' );
-		$this->assertWPError( Feedback::prepare_submission( $input ) );
-
-		$input                  = $this->valid_input();
-		$input['usage_targets'] = array( 'not_used_yet', 'client' );
+		$input['pro_priorities'] = array( 'included_ai', 'version_history' );
 		$this->assertWPError( Feedback::prepare_submission( $input ) );
 
 		$input            = $this->valid_input();
@@ -165,19 +313,9 @@ class Test_Feedback extends WP_UnitTestCase {
 		$input                    = $this->valid_input();
 		$input['usage_targets'][] = array( 'client' );
 		$this->assertWPError( Feedback::prepare_submission( $input ) );
-	}
 
-	/** Pricing may be omitted while required questions remain enforced. */
-	public function test_prepare_submission_allows_optional_fields_only(): void {
-		$input = $this->valid_input();
-		unset( $input['pricing_preference'], $input['comment'] );
-		$payload = Feedback::prepare_submission( $input );
-
-		$this->assertIsArray( $payload );
-		$this->assertNull( $payload['pricing_preference'] );
-		$this->assertSame( '', $payload['comment'] );
-
-		unset( $input['role'] );
+		$input                  = $this->valid_input();
+		$input['submission_id'] = 'not-a-uuid';
 		$this->assertWPError( Feedback::prepare_submission( $input ) );
 	}
 
@@ -248,10 +386,12 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertWPError( Feedback::send_submission( $payload ) );
 	}
 
-	/** Survey invitation state and failed drafts are removed on uninstall. */
-	public function test_uninstall_removes_feedback_user_meta(): void {
+	/** Survey state, drafts, sent answers, and the closed flag go on uninstall. */
+	public function test_uninstall_removes_feedback_data(): void {
 		update_user_meta( $this->admin_id, Feedback::STATE_META_KEY, array( 'status' => 'dismissed' ) );
 		update_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY, array( 'comment' => 'draft' ) );
+		update_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY, array( 'comment' => 'sent' ) );
+		update_option( Feedback::CLOSED_OPTION, '1' );
 		if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 			define( 'WP_UNINSTALL_PLUGIN', true );
 		}
@@ -260,6 +400,8 @@ class Test_Feedback extends WP_UnitTestCase {
 
 		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::STATE_META_KEY, true ) );
 		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::DRAFT_META_KEY, true ) );
+		$this->assertSame( '', get_user_meta( $this->admin_id, Feedback::RESPONSE_META_KEY, true ) );
+		$this->assertFalse( get_option( Feedback::CLOSED_OPTION ) );
 	}
 
 	/**
@@ -273,8 +415,11 @@ class Test_Feedback extends WP_UnitTestCase {
 			'role'               => 'freelancer',
 			'usage_targets'      => array( 'client' ),
 			'use_cases'          => array( 'landing_page', 'ai_html_wordpress' ),
+			'monthly_volume'     => 'three_five',
 			'primary_problem'    => 'responsive',
-			'pro_priorities'     => array( 'ai_chat_editing', 'reusable_components' ),
+			'api_key_attitude'   => 'workable',
+			'pro_priorities'     => array( 'included_ai', 'client_lock' ),
+			'pro_decisive'       => 'included_ai',
 			'pricing_preference' => 'multi_site_annual',
 			'comment'            => 'Please add reusable sections.',
 		);

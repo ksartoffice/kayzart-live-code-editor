@@ -50,3 +50,25 @@
 .kayzart-feedbackDisclosure p:last-child {
   margin-bottom: 0;
 }
+
+.kayzart-feedbackOptionalNote {
+  max-width: 680px;
+  padding: 8px 12px;
+  border-left: 4px solid #dcdcde;
+  background: #f6f7f7;
+}
+
+.kayzart-feedbackOther {
+  margin-top: 10px;
+  padding-left: 24px;
+}
+
+.kayzart-feedbackOther[hidden] {
+  display: none;
+}
+
+.kayzart-feedbackOther label {
+  display: block;
+  margin-bottom: 4px;
+  color: #50575e;
+}

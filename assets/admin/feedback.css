@@ -1,0 +1,52 @@
+.kayzart-feedbackPage {
+  max-width: 760px;
+  margin-top: 24px;
+}
+
+.kayzart-feedbackForm {
+  margin-top: 24px;
+}
+
+.kayzart-feedbackQuestion {
+  margin: 0;
+  padding: 20px 0;
+  border: 0;
+  border-bottom: 1px solid #dcdcde;
+}
+
+.kayzart-feedbackQuestion legend,
+.kayzart-feedbackQuestion > label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.kayzart-feedbackChoices {
+  display: grid;
+  gap: 8px;
+}
+
+.kayzart-feedbackChoices label {
+  width: fit-content;
+}
+
+.kayzart-feedbackQuestion textarea {
+  width: 100%;
+  max-width: 680px;
+}
+
+.kayzart-feedbackDisclosure {
+  max-width: 680px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  border-left: 4px solid #2271b1;
+  background: #f0f6fc;
+}
+
+.kayzart-feedbackDisclosure p {
+  margin: 0 0 6px;
+}
+
+.kayzart-feedbackDisclosure p:last-child {
+  margin-bottom: 0;
+}

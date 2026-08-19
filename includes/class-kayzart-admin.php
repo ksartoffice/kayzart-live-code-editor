@@ -2015,6 +2015,7 @@ class Admin {
 		echo '</div>';
 		echo '</footer>';
 		echo '</form>';
+		Feedback::render_invite_card( $selected );
 		echo '</div>';
 	}
 

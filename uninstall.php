@@ -14,3 +14,5 @@ delete_option( 'kayzart_openai_api_key' );
 delete_option( 'kayzart_connector_migration_notice_shown' );
 delete_option( 'kayzart_dormant_openai_key_notice_shown' );
 delete_transient( 'kayzart_ai_backend' );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_state', '', true );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_draft', '', true );

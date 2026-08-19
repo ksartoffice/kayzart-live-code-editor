@@ -467,6 +467,45 @@
   background: linear-gradient(135deg, #1d4ed8, #5b3be8);
 }
 
+.kayzart-feedbackInvite {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 18px 22px;
+  border: 1px solid #dfe3ec;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.05);
+}
+
+.kayzart-feedbackInvite h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 16px;
+}
+
+.kayzart-feedbackInvite p {
+  margin: 5px 0 0;
+  color: var(--kayzart-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.kayzart-feedbackInvite__actions,
+.kayzart-feedbackInvite__actions form {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 9px;
+  align-items: center;
+}
+
+.kayzart-feedbackInvite__actions .button,
+.kayzart-feedbackInvite__actions .button-link {
+  white-space: nowrap;
+}
+
 .kayzart-create-form__footer .button.button-primary:focus {
   box-shadow:
     0 0 0 2px #fff,
@@ -522,6 +561,13 @@
 
   .kayzart-create-form__footer .button.button-primary {
     width: 100%;
+  }
+
+  .kayzart-feedbackInvite,
+  .kayzart-feedbackInvite__actions,
+  .kayzart-feedbackInvite__actions form {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

@@ -177,6 +177,18 @@ class Test_Feedback extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'required', $output );
 	}
 
+	/** The unanswered reminder ships hidden and never marks a question mandatory. */
+	public function test_unanswered_reminder_is_rendered_hidden(): void {
+		ob_start();
+		Feedback::render_settings_tab();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'kayzart-feedbackUnanswered', $output );
+		$this->assertStringContainsString( 'hidden', $output );
+		$this->assertStringContainsString( 'data-kayzart-send-anyway', $output );
+		$this->assertStringNotContainsString( 'optional', strtolower( $output ) );
+	}
+
 	/** A sent answer is shown again so it can be corrected and resent. */
 	public function test_sent_answers_are_restored_for_editing(): void {
 		$payload = Feedback::prepare_submission( $this->valid_input() );

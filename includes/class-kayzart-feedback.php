@@ -134,7 +134,7 @@ class Feedback {
 
 		echo '<aside class="kayzart-feedbackInvite" aria-labelledby="kayzart-feedback-invite-title">';
 		echo '<div><h2 id="kayzart-feedback-invite-title">' . esc_html__( 'Help shape the future of Kayzart', 'kayzart-live-code-editor' ) . '</h2>';
-		echo '<p>' . esc_html__( 'Share how you use Kayzart and what you would like us to build next. Every question is optional, so answering just one is enough.', 'kayzart-live-code-editor' ) . '</p></div>';
+		echo '<p>' . esc_html__( 'Share how you use Kayzart and what you would like us to build next. The survey takes about three minutes.', 'kayzart-live-code-editor' ) . '</p></div>';
 		echo '<div class="kayzart-feedbackInvite__actions">';
 		echo '<a class="button button-primary" href="' . esc_url( $survey_url ) . '">' . esc_html__( 'Take the survey', 'kayzart-live-code-editor' ) . '</a>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -271,8 +271,6 @@ class Feedback {
 
 		echo '<h2>' . esc_html__( 'Help shape the future of Kayzart', 'kayzart-live-code-editor' ) . '</h2>';
 		echo '<p>' . esc_html__( 'Your answers help us decide what to build for Kayzart and Kayzart Pro.', 'kayzart-live-code-editor' ) . '</p>';
-		echo '<p class="kayzart-feedbackOptionalNote">' . esc_html__( 'Every question below is optional. Answer only what you want to — a single answer is enough to send.', 'kayzart-live-code-editor' ) . '</p>';
-
 		echo '<form class="kayzart-feedbackForm" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::SUBMIT_ACTION ) . '" />';
 		echo '<input type="hidden" name="submission_id" value="' . esc_attr( $submission_id ) . '" />';
@@ -375,6 +373,7 @@ class Feedback {
 		$label = $submitted
 			? __( 'Update and resend my feedback', 'kayzart-live-code-editor' )
 			: __( 'Send feedback to Kayzart', 'kayzart-live-code-editor' );
+		self::render_unanswered_prompt( $label );
 		submit_button( $label );
 		echo '</form>';
 
@@ -951,6 +950,27 @@ class Feedback {
 		echo '<label for="' . esc_attr( $id ) . '">' . esc_html__( 'Other — please describe', 'kayzart-live-code-editor' ) . '</label> ';
 		echo '<input id="' . esc_attr( $id ) . '" type="text" name="' . esc_attr( (string) $other['name'] ) . '" value="' . esc_attr( (string) ( $other['value'] ?? '' ) ) . '" maxlength="' . esc_attr( (string) self::OTHER_LIMIT ) . '" class="regular-text" />';
 		echo '</div>';
+	}
+
+	/**
+	 * Render the soft reminder shown when questions are left unanswered.
+	 *
+	 * The reminder never blocks a submission: it appears once, offers to send
+	 * anyway, and is skipped entirely when JavaScript is unavailable. The free
+	 * comment box is not counted.
+	 *
+	 * @param string $submit_label Label of the primary submit button.
+	 */
+	private static function render_unanswered_prompt( string $submit_label ): void {
+		echo '<div class="kayzart-feedbackUnanswered notice notice-warning inline" hidden>';
+		echo '<p role="status" data-kayzart-unanswered-message';
+		echo ' data-singular="' . esc_attr__( 'One question is still unanswered.', 'kayzart-live-code-editor' ) . '"';
+		/* translators: %d: number of unanswered questions. */
+		echo ' data-plural="' . esc_attr__( '%d questions are still unanswered.', 'kayzart-live-code-editor' ) . '"></p>';
+		echo '<p>';
+		echo '<button type="submit" class="button button-primary" data-kayzart-send-anyway>' . esc_html( $submit_label ) . '</button> ';
+		echo '<button type="button" class="button" data-kayzart-review-unanswered>' . esc_html__( 'Go back to them', 'kayzart-live-code-editor' ) . '</button>';
+		echo '</p></div>';
 	}
 
 	/** Render the public privacy and terms links. */

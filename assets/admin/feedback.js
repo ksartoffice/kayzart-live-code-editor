@@ -31,6 +31,73 @@
     }
   }
 
+  // Only choice questions are counted; the free comment box is not a fieldset.
+  function unansweredQuestions(form) {
+    return Array.prototype.slice.call(form.querySelectorAll('fieldset.kayzart-feedbackQuestion')).filter(
+      function (fieldset) {
+        return !fieldset.querySelector('input[type="radio"]:checked, input[type="checkbox"]:checked');
+      }
+    );
+  }
+
+  function setUpUnansweredPrompt(form) {
+    var prompt = form.querySelector('.kayzart-feedbackUnanswered');
+    if (!prompt) {
+      return;
+    }
+
+    var message = prompt.querySelector('[data-kayzart-unanswered-message]');
+    var sendAnyway = prompt.querySelector('[data-kayzart-send-anyway]');
+    var review = prompt.querySelector('[data-kayzart-review-unanswered]');
+    var acknowledged = false;
+    var pending = [];
+
+    if (sendAnyway) {
+      sendAnyway.addEventListener('click', function () {
+        acknowledged = true;
+      });
+    }
+
+    if (review) {
+      review.addEventListener('click', function () {
+        prompt.hidden = true;
+        if (pending.length === 0) {
+          return;
+        }
+        var first = pending[0];
+        first.scrollIntoView({ block: 'center' });
+        var input = first.querySelector('input');
+        if (input) {
+          input.focus();
+        }
+      });
+    }
+
+    form.addEventListener('submit', function (event) {
+      if (acknowledged) {
+        return;
+      }
+
+      pending = unansweredQuestions(form);
+      if (pending.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      if (message) {
+        var singular = message.getAttribute('data-singular') || '';
+        var plural = message.getAttribute('data-plural') || '';
+        message.textContent =
+          pending.length === 1 ? singular : plural.replace('%d', String(pending.length));
+      }
+      prompt.hidden = false;
+      prompt.scrollIntoView({ block: 'center' });
+      if (sendAnyway) {
+        sendAnyway.focus();
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-kayzart-other-for]').forEach(function (container) {
       var form = container.closest('form');
@@ -48,5 +115,7 @@
       });
       updateCharacterCount(textarea);
     });
+
+    document.querySelectorAll('.kayzart-feedbackForm').forEach(setUpUnansweredPrompt);
   });
 })();

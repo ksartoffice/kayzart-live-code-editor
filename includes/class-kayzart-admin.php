@@ -2015,6 +2015,7 @@ class Admin {
 		echo '</div>';
 		echo '</footer>';
 		echo '</form>';
+		Feedback::render_invite_card( $selected );
 		echo '</div>';
 	}
 
@@ -2198,7 +2199,7 @@ class Admin {
 	 */
 	private static function get_settings_tabs(): array {
 		$tabs = array(
-			'basic' => __( '基本設定', 'kayzart-live-code-editor' ),
+			'basic' => __( 'Basic settings', 'kayzart-live-code-editor' ),
 		);
 
 		/**
@@ -2209,7 +2210,7 @@ class Admin {
 		$tabs = apply_filters( 'kayzart_settings_tabs', $tabs );
 		if ( ! is_array( $tabs ) || empty( $tabs ) ) {
 			return array(
-				'basic' => __( '基本設定', 'kayzart-live-code-editor' ),
+				'basic' => __( 'Basic settings', 'kayzart-live-code-editor' ),
 			);
 		}
 
@@ -2223,7 +2224,7 @@ class Admin {
 		}
 
 		if ( empty( $normalized ) ) {
-			$normalized['basic'] = __( '基本設定', 'kayzart-live-code-editor' );
+			$normalized['basic'] = __( 'Basic settings', 'kayzart-live-code-editor' );
 		}
 
 		return $normalized;

@@ -122,6 +122,9 @@ Theme mode renders your Kayzart content inside the active theme's template, so t
 = Where is the code stored? =
 HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, and other Kayzart settings are stored in post meta.
 
+= Does Kayzart send usage data to its own servers? =
+No usage data is sent automatically. Kayzart includes an optional administrator survey under Kayzart > Settings > Feedback. Every question in it is optional, and answers are sent to Kayzart only when an administrator presses Send feedback to Kayzart. The survey does not include the site URL, administrator email address, page content, or an installation identifier. AI editing also does not pass through a Kayzart server; it continues to use the AI connection configured by the site.
+
 == Screenshots ==
 1. Describe the page you want on the create screen, then pick TailwindCSS or Normal HTML/CSS mode.
 2. The AI builds the page as soon as the editor opens, with a live activity log you can watch or cancel.
@@ -267,6 +270,10 @@ Kayzart sends AI requests only after a site administrator configures an AI conne
 On WordPress 5.9–6.9, and as a fallback on newer versions, requests are sent directly to the OpenAI Responses API using the site's API key and gpt-5.6-luna. OpenAI terms: https://openai.com/policies/terms-of-use/ — privacy policy: https://openai.com/policies/privacy-policy/
 
 On WordPress 7.0+, a configured WordPress Connector is preferred. Data handling and terms are determined by the provider selected in WordPress Connectors.
+
+Kayzart also offers administrators an optional product feedback survey. Every question in it is optional. No request is made merely by installing, activating, updating, or viewing the plugin or survey. When an administrator explicitly submits the form, the selected answers, optional free-text comments, survey version, plugin version, WordPress version, and administrator interface locale are sent to https://feedback.kayzart.com/ and retained for two years. An administrator can review what they sent and send a correction, which replaces the earlier answer. The survey does not send the site URL, administrator name or email address, page content, installed plugin list, or a persistent installation identifier. The receiving server may process IP addresses in short-lived security and abuse-prevention logs. The survey stops being offered after 31 August 2027, or earlier if the service reports that it has closed.
+
+Kayzart privacy policy: https://kayzart.com/privacy-policy/ — terms: https://kayzart.com/terms/
 
 == Credits ==
 This plugin bundles third-party libraries:

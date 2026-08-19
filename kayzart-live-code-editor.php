@@ -39,6 +39,7 @@ if ( file_exists( $kayzart_action_scheduler ) ) {
 require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-css-mode.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-admin.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-feedback.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-editor-bridge.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-limits.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-tailwind-compiler.php';
@@ -105,6 +106,7 @@ add_action(
 
 		// Admin UI.
 		\KayzArt\Admin::init();
+		\KayzArt\Feedback::init();
 		\KayzArt\Editor_Bridge::init();
 		\KayzArt\Snapshot::init();
 		add_action(

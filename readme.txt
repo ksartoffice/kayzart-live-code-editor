@@ -14,7 +14,7 @@ Build landing pages with AI inside WordPress — bring your own AI key. Real HTM
 Kayzart builds landing pages the way a developer would: it writes real HTML, CSS, and JavaScript, renders them live as you edit, and publishes them as clean pages independent from your active theme. It is not a drag-and-drop page builder — no blocks, and no builder markup left behind in your database. What you get is code you own, and AI that writes and edits it for you, right inside WordPress.
 
 **New in 3.0: AI builds the page, you keep the code**
-Start from Kayzart > Add new: give the page a title, describe the page you want in plain language, and choose Generate with AI. Not sure how to phrase the request? Improve with AI rewrites your rough instruction into a fuller brief before you send it. Page type and CSS mode stay out of the way under Advanced settings, and Start with a blank page remains available whenever you want to write or paste the code yourself.
+Start from Kayzart > Add new: give the page a title, describe the page you want in plain language, and choose Generate with AI. Page type and CSS mode sit right below in Page settings, and Start with a blank page remains available whenever you want to write or paste the code yourself.
 
 From there, keep going by prompt or by hand. Describe a change and the AI edits your page's HTML and CSS directly — no copy-pasting between a chatbot and your editor. Select an element in the preview and tell the AI what to change about just that part. Each request runs as a background job with a running activity log you can watch or cancel, and the result is applied to your editor tabs for you to review before you save.
 
@@ -32,7 +32,6 @@ Freelancers, agencies, and developers who need a clean landing page fast and wan
 
 **What you can do**
 * Describe a page from Kayzart > Add new and have the AI build it as the editor opens
-* Turn a rough instruction into a fuller brief with Improve with AI before you send it
 * Edit your page with AI in plain language — it changes the actual HTML and CSS, inside WordPress
 * Keep JavaScript AI-safe: the AI reads your JS for context but never edits it
 * Point the AI at a selected preview element to refine just that part
@@ -60,7 +59,7 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 == Installation ==
 1. Install and activate Kayzart from Plugins.
 2. To use AI on WordPress 7.0+, configure a provider in Connectors. On WordPress 5.9–6.9, add your OpenAI API key in Kayzart > Settings. The same settings screen shows whether AI editing is ready. AI editing is available by default to administrators and editors.
-3. Go to Kayzart > Add new. Enter an optional title and describe the page you want. Page type and CSS mode are available under Advanced settings.
+3. Go to Kayzart > Add new. Enter an optional title and describe the page you want. Page type and CSS mode are set in Page settings on the same screen.
 4. Choose Generate with AI. The editor opens with the AI panel ready while the page is built; watch the activity log and review the result. To work from your own code instead, choose Start with a blank page.
 5. Keep refining by prompt or by hand — or paste your own HTML/CSS/JS from any source — while the live preview renders as you edit.
 6. Publish or update. Use Standalone mode for a clean, theme-free landing page.
@@ -72,7 +71,7 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 Kayzart is an AI-assisted, live HTML/CSS/JavaScript editor for WordPress. You build clean, theme-independent landing pages: describe the page and let the AI write it, or write and paste your own HTML, CSS, and JavaScript — then watch the live preview render as you edit, and publish. No drag-and-drop builder, no child theme, no build pipeline. Use Standalone mode to keep the page free of your theme's header, footer, and styles, or Theme mode to render inside your theme.
 
 = How do I create a page with AI from scratch? =
-Go to Kayzart > Add new, enter an optional title, and describe the page you want in plain language — for example, a landing page for a new service with a hero section, features, pricing, and a contact form. If your instruction feels thin, Improve with AI expands it into a fuller brief first, and you can undo that in one click. Choose Generate with AI: the page is created, the editor opens with code hidden and the AI panel visible, and the AI begins building immediately. You review the result and nothing is published until you save.
+Go to Kayzart > Add new, enter an optional title, and describe the page you want in plain language — for example, a landing page for a new service with a hero section, features, pricing, and a contact form. Choose Generate with AI: the page is created, the editor opens with code hidden and the AI panel visible, and the AI begins building immediately. You review the result and nothing is published until you save.
 
 = How does Kayzart remember the editor layout? =
 When you open an existing Kayzart page, Kayzart restores your last code visibility, tools-panel state, selected tab, and panel width for that site, WordPress user, browser, and screen size. An AI-created page opens with code hidden and the AI panel visible; a blank page opens with code visible and the tools panel closed. Those entry-specific starting states do not overwrite your saved preference. Compact screens keep a separate layout and start with the tools panel closed until you choose otherwise.
@@ -140,7 +139,6 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 = 3.0.0 =
 * Add: AI editing inside WordPress — describe a change in plain language and the AI edits your page's HTML and CSS directly.
 * Add: Create a page from a prompt. Describe the page on Kayzart > Add new and the AI starts building it as soon as the editor opens.
-* Add: Improve with AI rewrites a rough instruction into a fuller brief before you send it, with one-click undo.
 * Add: Point the AI at a selected preview element to refine just that part.
 * Add: Offer the AI the fonts your site can actually render — theme.json and Font Library families plus system font stacks — so AI-chosen typography no longer falls back to the browser default.
 * Security: AI editing treats JavaScript as read-only context and never modifies it, so it can't inject or rewrite scripts.
@@ -154,7 +152,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 * Improve: Compile TailwindCSS reliably on large HTML documents.
 * Change: Show a Kayzart card in the block and classic editors for Kayzart-managed pages, with the page title, a view link, and a way into the Kayzart editor.
 * Change: Rename the plugin to Kayzart — AI Landing Page Builder with Real HTML.
-* Change: Make Add new AI-first with Generate with AI and Start with a blank page actions, while moving page type and CSS mode into Advanced settings.
+* Change: Make Add new AI-first with Generate with AI and Start with a blank page actions, with page type and CSS mode grouped under Page settings.
 * Change: Open AI-created pages with code hidden and the AI panel visible, and blank pages with code visible and the tools panel closed. Normal visits restore each user's last desktop or compact layout.
 * Change: Remove the site-wide Default editor layout setting while retaining its saved value as an upgrade fallback.
 * Improve: Add accessible panel and tab semantics, keyboard tab navigation, compact Escape handling, focus restoration, and keyboard panel resizing.

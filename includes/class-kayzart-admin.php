@@ -1665,7 +1665,11 @@ class Admin {
 	 */
 	public static function render_ai_section(): void {
 
-		echo '<p>' . esc_html__( 'WordPress 7.0 and later use a configured Connector first. On older versions, or when no Connector is ready, Kayzart can connect directly to OpenAI.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html(
+			Ai_OpenAI_Key::connectors_available()
+				? __( 'AI providers are configured in WordPress Connectors, which every plugin on this site shares.', 'kayzart-live-code-editor' )
+				: __( 'Kayzart connects directly to OpenAI with the API key you save here.', 'kayzart-live-code-editor' )
+		) . '</p>';
 		self::render_ai_status_section();
 	}
 
@@ -1684,24 +1688,45 @@ class Admin {
 		}
 
 		$configured = 'database' === $source;
-		$status     = Ai_Availability::get_status();
+
+		// WordPress can manage providers for every plugin from one place, so once
+		// it can, Kayzart stops offering a second one. A key saved before the
+		// upgrade stays manageable below; removing it is one-way.
+		if ( ! Ai_OpenAI_Key::is_entry_allowed() ) {
+			printf(
+				'<p class="description">%1$s <a href="%2$s">%3$s</a></p>',
+				esc_html__( 'AI providers are configured in WordPress Connectors, which every plugin on this site shares.', 'kayzart-live-code-editor' ),
+				esc_url( admin_url( 'options-connectors.php' ) ),
+				esc_html__( 'Open Connectors', 'kayzart-live-code-editor' )
+			);
+			return;
+		}
+
+		$status = Ai_Availability::get_status();
 
 		// Only a Connector that is actually serving requests makes this credential
 		// inert. A configured Connector below WordPress 7.0 still loses to the
 		// direct backend, and calling the key unused there would be wrong.
 		$connector_active = Ai_Client_Factory::WORDPRESS === $status['backend'];
 
-		if ( $connector_active && $configured ) {
+		if ( $configured && $connector_active ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'This key is not in use. Kayzart is running AI edits through a WordPress Connector, and removing the saved key keeps an unused credential off your site.', 'kayzart-live-code-editor' ) . '</p></div>';
+		} elseif ( $configured && Ai_OpenAI_Key::connectors_available() ) {
+			printf(
+				'<div class="notice notice-info inline"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
+				esc_html__( 'This key still runs your AI edits. WordPress can hold one provider for every plugin on this site instead — move the key to Connectors and remove it here. Once removed, it cannot be entered again.', 'kayzart-live-code-editor' ),
+				esc_url( admin_url( 'options-connectors.php' ) ),
+				esc_html__( 'Open Connectors', 'kayzart-live-code-editor' )
+			);
 		}
 
-		if ( $connector_active ) {
-			echo '<details' . ( $configured ? ' open' : '' ) . '>';
-			echo '<summary>' . esc_html(
-				$configured
-					? __( 'Saved OpenAI API key', 'kayzart-live-code-editor' )
-					: __( 'Advanced: connect directly to OpenAI instead', 'kayzart-live-code-editor' )
-			) . '</summary>';
+		// Folding this away is only meaningful when there is a saved key to fold.
+		// A site that reopened entry through the filter wants the field in plain
+		// sight, and calling it a saved key when none exists would be wrong.
+		$demote = $connector_active && $configured;
+		if ( $demote ) {
+			echo '<details open>';
+			echo '<summary>' . esc_html__( 'Saved OpenAI API key', 'kayzart-live-code-editor' ) . '</summary>';
 		}
 
 		printf(
@@ -1718,7 +1743,7 @@ class Admin {
 			echo '<p><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Remove saved API key', 'kayzart-live-code-editor' ) . '</a></p>';
 		}
 
-		if ( $connector_active ) {
+		if ( $demote ) {
 			echo '</details>';
 		}
 	}

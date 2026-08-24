@@ -63,6 +63,49 @@ class Ai_OpenAI_Key {
 	}
 
 	/**
+	 * Whether WordPress can manage AI providers for this site itself.
+	 *
+	 * Deliberately does not consult Ai_Availability::is_provider_configured():
+	 * that probes the provider, and a site that has simply not filled in
+	 * Connectors yet is exactly the site this rule exists for. Checking the SDK
+	 * rather than the version alone keeps a 7.0 site that has no AI Client from
+	 * losing the direct field while having no Connectors screen to use instead.
+	 */
+	public static function connectors_available(): bool {
+		global $wp_version;
+
+		return version_compare( (string) $wp_version, '7.0', '>=' ) && Ai_Availability::is_sdk_present();
+	}
+
+	/**
+	 * Whether this site may still be given a direct OpenAI key through the admin.
+	 *
+	 * Once WordPress can manage providers itself, Kayzart stops offering a second
+	 * place to put a credential. Sites upgraded from 6.9 keep managing the key
+	 * they already saved, including replacing it, so an upgrade never strands a
+	 * credential with no way to see or remove it. Removing that key is one-way:
+	 * the field does not come back, and Connectors takes over from there.
+	 *
+	 * Both the settings field and {@see self::sanitize()} gate on this, so hiding
+	 * the field and refusing the write can never disagree.
+	 *
+	 * @return bool
+	 */
+	public static function is_entry_allowed(): bool {
+		$allowed = ! self::connectors_available() || 'database' === self::source();
+
+		/**
+		 * Filter whether the direct OpenAI key may still be entered here.
+		 *
+		 * Returning true restores the field, and the matching write, on a site
+		 * where Connectors cannot serve text generation.
+		 *
+		 * @param bool $allowed Whether direct key entry is offered.
+		 */
+		return (bool) apply_filters( 'kayzart_show_direct_openai_key_field', $allowed );
+	}
+
+	/**
 	 * Sanitize a Settings API value while preserving a masked/blank credential.
 	 *
 	 * The initial add is performed explicitly with autoload disabled so this
@@ -80,6 +123,10 @@ class Ai_OpenAI_Key {
 		$value   = is_string( $value ) ? trim( wp_unslash( $value ) ) : '';
 
 		if ( '' === $value ) {
+			return $current;
+		}
+		if ( ! self::is_entry_allowed() ) {
+			add_settings_error( self::OPTION, 'kayzart_openai_key_not_offered', __( 'This site manages AI providers through WordPress Connectors, so a direct OpenAI key cannot be saved here.', 'kayzart-live-code-editor' ) );
 			return $current;
 		}
 		if ( strlen( $value ) > 512 || preg_match( '/[\x00-\x20\x7f]/', $value ) ) {

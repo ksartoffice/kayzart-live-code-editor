@@ -1839,7 +1839,8 @@ class Admin {
 			),
 		);
 
-		echo '<h2>' . esc_html__( 'AI editing', 'kayzart-live-code-editor' ) . '</h2>';
+		// No heading here: this runs inside the "AI editing" settings section, whose
+		// own title already stands above the description that calls this.
 		if ( ! empty( $status['available'] ) ) {
 			$backend_label = Ai_Client_Factory::WORDPRESS === $status['backend'] ? __( 'WordPress AI Client / Connectors', 'kayzart-live-code-editor' ) : __( 'Direct OpenAI connection', 'kayzart-live-code-editor' );
 			printf( '<p>%s <strong>%s</strong></p>', esc_html__( 'AI editing is ready. Active backend:', 'kayzart-live-code-editor' ), esc_html( $backend_label ) );

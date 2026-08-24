@@ -126,7 +126,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 
 == Screenshots ==
 1. Describe the page you want on the create screen, then pick TailwindCSS or Normal HTML/CSS mode.
-2. The AI builds the page as soon as the editor opens, with a live activity log you can watch or cancel.
+2. An AI-created page opens with the code hidden — just the live page and the AI panel beside it.
 3. Edit the result in the split editor with HTML, CSS, JavaScript, and live preview panes.
 4. Ask the AI for a change in plain language from the AI tab, right inside WordPress.
 5. Select an element in the preview and have the AI refine just that part.

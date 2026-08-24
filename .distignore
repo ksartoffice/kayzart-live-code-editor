@@ -9,6 +9,7 @@
 /tests
 /bin
 /scripts
+/docs
 /overview.md
 /tailwindphp.md
 /.vscode

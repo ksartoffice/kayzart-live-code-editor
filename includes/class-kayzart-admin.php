@@ -1719,6 +1719,7 @@ class Admin {
 		}
 
 		if ( $connector_active ) {
+			echo '</details>';
 		}
 	}
 	/**

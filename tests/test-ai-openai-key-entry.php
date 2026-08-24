@@ -31,7 +31,7 @@ class Test_Kayzart_Ai_OpenAI_Key_Entry extends WP_UnitTestCase {
 		global $wp_version;
 		$wp_version = $this->original_wp_version;
 		remove_all_filters( 'kayzart_ai_sdk_present' );
-		remove_all_filters( 'kayzart_show_direct_openai_key_field' );
+		remove_all_filters( 'kayzart_ai_show_direct_key_field' );
 		delete_option( Ai_OpenAI_Key::OPTION );
 		global $wp_settings_errors;
 		$wp_settings_errors = array();
@@ -122,7 +122,7 @@ class Test_Kayzart_Ai_OpenAI_Key_Entry extends WP_UnitTestCase {
 	public function test_filter_restores_entry_and_the_write(): void {
 		$this->with_wp_version( '7.0' );
 		$this->with_ai_client( true );
-		add_filter( 'kayzart_show_direct_openai_key_field', '__return_true' );
+		add_filter( 'kayzart_ai_show_direct_key_field', '__return_true' );
 
 		$this->assertTrue( Ai_OpenAI_Key::is_entry_allowed() );
 
@@ -136,7 +136,7 @@ class Test_Kayzart_Ai_OpenAI_Key_Entry extends WP_UnitTestCase {
 	public function test_filter_can_close_entry_below_wordpress_7(): void {
 		$this->with_wp_version( '6.9' );
 		$this->with_ai_client( false );
-		add_filter( 'kayzart_show_direct_openai_key_field', '__return_false' );
+		add_filter( 'kayzart_ai_show_direct_key_field', '__return_false' );
 
 		$this->assertFalse( Ai_OpenAI_Key::is_entry_allowed() );
 	}

@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_OpenAI_Key;
 use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
@@ -1223,17 +1224,12 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Evaluate the direct field gate as if the settings screen were being rendered.
+	 * Evaluate the gate that decides whether the direct field row is registered.
 	 *
 	 * @return bool
 	 */
 	private function should_show_direct_field_on_settings_screen(): bool {
-		$original_get = $_GET;
-		$_GET['page'] = Admin::SETTINGS_SLUG;
-		$result       = Admin::should_show_direct_openai_field();
-		$_GET         = $original_get;
-
-		return $result;
+		return Ai_OpenAI_Key::is_entry_allowed();
 	}
 
 	/** A Connector-configured site with no stored key is not offered the field. */
@@ -1270,12 +1266,18 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 	}
 
-	/** WordPress 7.0 without a ready Connector keeps the direct fallback available. */
-	public function test_direct_openai_field_is_offered_when_no_connector_is_configured(): void {
+	/**
+	 * An empty Connectors screen is not a reason to offer a second credential.
+	 *
+	 * This is the case the rule exists for: a site that can use Connectors but
+	 * has not filled it in yet must be sent there, not handed an easier way to
+	 * put an OpenAI key somewhere else.
+	 */
+	public function test_direct_openai_field_is_withheld_when_no_connector_is_configured_yet(): void {
 		$this->set_ai_gates( true, false );
 
 		try {
-			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+			$this->assertFalse( $this->should_show_direct_field_on_settings_screen() );
 		} finally {
 			$this->clear_ai_gates();
 		}
@@ -1293,8 +1295,13 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 	}
 
-	/** The probe is skipped outside the settings screen so admin_init stays cheap. */
-	public function test_direct_openai_field_gate_does_not_probe_outside_the_settings_screen(): void {
+	/**
+	 * The gate never probes the provider, so admin_init stays cheap.
+	 *
+	 * register_settings() runs on every admin screen, so the decision has to be
+	 * answerable from the WordPress version and the stored key alone.
+	 */
+	public function test_direct_openai_field_gate_never_probes_the_provider(): void {
 		$this->set_ai_gates( true, true );
 		$probes = 0;
 		$filter = function ( $configured ) use ( &$probes ) {
@@ -1304,7 +1311,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		add_filter( 'kayzart_ai_provider_configured', $filter );
 
 		try {
-			$this->assertTrue( Admin::should_show_direct_openai_field() );
+			Ai_OpenAI_Key::is_entry_allowed();
 			$this->assertSame( 0, $probes );
 		} finally {
 			remove_filter( 'kayzart_ai_provider_configured', $filter );

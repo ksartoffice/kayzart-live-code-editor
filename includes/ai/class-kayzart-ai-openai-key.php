@@ -86,8 +86,8 @@ class Ai_OpenAI_Key {
 	 * credential with no way to see or remove it. Removing that key is one-way:
 	 * the field does not come back, and Connectors takes over from there.
 	 *
-	 * Both the settings field and {@see self::sanitize()} gate on this, so hiding
-	 * the field and refusing the write can never disagree.
+	 * The settings field, its label and {@see self::sanitize()} all gate on this,
+	 * so what is shown and what is accepted can never disagree.
 	 *
 	 * @return bool
 	 */
@@ -102,7 +102,7 @@ class Ai_OpenAI_Key {
 		 *
 		 * @param bool $allowed Whether direct key entry is offered.
 		 */
-		return (bool) apply_filters( 'kayzart_show_direct_openai_key_field', $allowed );
+		return (bool) apply_filters( 'kayzart_ai_show_direct_key_field', $allowed );
 	}
 
 	/**

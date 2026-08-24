@@ -1254,7 +1254,9 @@ class Admin {
 
 		// The setting itself stays registered unconditionally so sanitization,
 		// removal and uninstall behave the same however the field is presented.
-		if ( self::should_show_direct_openai_field() ) {
+		// The whole row goes when entry is closed: leaving the "OpenAI API key"
+		// label behind would read as though Connectors only accepted OpenAI.
+		if ( Ai_OpenAI_Key::is_entry_allowed() ) {
 			add_settings_field(
 				self::OPTION_OPENAI_API_KEY,
 				__( 'OpenAI API key', 'kayzart-live-code-editor' ),
@@ -1357,44 +1359,6 @@ class Admin {
 	public static function should_show_post_slug_settings(): bool {
 		$slug = self::sanitize_post_slug( get_option( self::OPTION_POST_SLUG, Post_Type::SLUG ) );
 		return Post_Type::SLUG !== $slug;
-	}
-
-	/** Check whether the current request targets the Kayzart settings screen. */
-	private static function is_settings_page_request(): bool {
-		return self::SETTINGS_SLUG === self::read_request_value( 'page' );
-	}
-
-	/**
-	 * Check whether the direct OpenAI credential field belongs on the settings screen.
-	 *
-	 * WordPress 7.0 configures AI providers through Connectors, so the direct field
-	 * is no longer the way in. It is kept only where it is still the site's sole
-	 * route to AI editing, or where a key is already stored and the site owner needs
-	 * a way to review and remove it.
-	 *
-	 * @return bool
-	 */
-	public static function should_show_direct_openai_field(): bool {
-		// register_settings() runs on every admin_init, and get_status() probes the
-		// configured provider, so the decision is only made where the field renders.
-		if ( ! self::is_settings_page_request() ) {
-			return true;
-		}
-
-		// The selected backend, not raw SDK presence, decides this: a site below
-		// WordPress 7.0 can load the AI Client and still be served by the direct
-		// backend, and hiding the field there would lock AI editing out entirely.
-		$status = Ai_Availability::get_status();
-		$show   = Ai_Client_Factory::WORDPRESS !== $status['backend']
-			|| 'none' !== $status['direct_key_source'];
-
-		/**
-		 * Filter whether the direct OpenAI API key field is offered.
-		 *
-		 * @param bool                $show   Whether to render the field.
-		 * @param array<string,mixed> $status Current AI availability status.
-		 */
-		return (bool) apply_filters( 'kayzart_ai_show_direct_key_field', $show, $status );
 	}
 
 	/**
@@ -1687,22 +1651,10 @@ class Admin {
 			return;
 		}
 
+		// register_settings() drops the whole row when entry is closed, so reaching
+		// here means this site may still be given a direct key.
 		$configured = 'database' === $source;
-
-		// WordPress can manage providers for every plugin from one place, so once
-		// it can, Kayzart stops offering a second one. A key saved before the
-		// upgrade stays manageable below; removing it is one-way.
-		if ( ! Ai_OpenAI_Key::is_entry_allowed() ) {
-			printf(
-				'<p class="description">%1$s <a href="%2$s">%3$s</a></p>',
-				esc_html__( 'AI providers are configured in WordPress Connectors, which every plugin on this site shares.', 'kayzart-live-code-editor' ),
-				esc_url( admin_url( 'options-connectors.php' ) ),
-				esc_html__( 'Open Connectors', 'kayzart-live-code-editor' )
-			);
-			return;
-		}
-
-		$status = Ai_Availability::get_status();
+		$status     = Ai_Availability::get_status();
 
 		// Only a Connector that is actually serving requests makes this credential
 		// inert. A configured Connector below WordPress 7.0 still loses to the

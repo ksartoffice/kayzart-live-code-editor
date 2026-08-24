@@ -12,7 +12,7 @@ use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
 use KayzArt\Post_Type;
 
-require_once dirname( __DIR__ ) . '/includes/ai/class-kayzart-ai-client-fake.php';
+require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 
 /** Verifies worker success and safe terminal failures with a fake client. */
 class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {

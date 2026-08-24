@@ -11,7 +11,7 @@ use KayzArt\Ai_Agent_Canceled;
 use KayzArt\Ai_Client_Fake;
 use KayzArt\Ai_Message;
 
-require_once dirname( __DIR__ ) . '/includes/ai/class-kayzart-ai-client-fake.php';
+require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 
 /**
  * Verify multi-turn tool calling, recovery, guards and finalization.

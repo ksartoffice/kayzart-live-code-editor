@@ -12,7 +12,7 @@ use KayzArt\Ai_Message;
 use KayzArt\Ai_Setup;
 use KayzArt\Ai_Worker;
 
-require_once dirname( __DIR__ ) . '/includes/ai/class-kayzart-ai-client-fake.php';
+require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 
 /** Verifies signed dispatch, fallback behavior, and Action Scheduler execution. */
 class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {

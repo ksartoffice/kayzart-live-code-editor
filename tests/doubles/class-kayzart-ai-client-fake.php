@@ -5,6 +5,10 @@
  * Returns queued results in order and records the arguments of each call so the
  * agent loop can be unit-tested without a live model or the SDK.
  *
+ * This is a test double only. It lives under tests/ so it is never autoloaded by
+ * the plugin and never reaches the distributed package; test cases that need it
+ * require this file explicitly.
+ *
  * @package KayzArt
  */
 

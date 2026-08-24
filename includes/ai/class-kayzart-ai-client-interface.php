@@ -3,9 +3,9 @@
  * Contract between the AI agent loop and the underlying model provider.
  *
  * The agent loop ({@see Ai_Agent}) depends only on this interface, never on a
- * concrete SDK. This keeps the loop testable with {@see Ai_Client_Fake} and
- * lets the WordPress AI Client adapter ({@see Ai_Client_Wp}) evolve
- * independently as the SDK changes.
+ * concrete SDK. This keeps the loop testable with the Ai_Client_Fake double in
+ * tests/doubles/ and lets the WordPress AI Client adapter ({@see Ai_Client_Wp})
+ * evolve independently as the SDK changes.
  *
  * @package KayzArt
  */

@@ -132,6 +132,9 @@ class Ai_Setup {
 
 		dbDelta( $sql );
 		dbDelta( $timeline_sql );
+		// Confirming dbDelta() actually created the tables has no core API and must
+		// see the schema as it is now, so neither a wrapper nor a cache applies.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$installed_table    = $wpdb->get_var(
 			$wpdb->prepare(
 				'SHOW TABLES LIKE %s',
@@ -144,6 +147,7 @@ class Ai_Setup {
 				$wpdb->esc_like( $timeline_table )
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		if ( $table_name !== $installed_table || $timeline_table !== $installed_timeline ) {
 			return;
 		}

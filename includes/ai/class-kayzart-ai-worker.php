@@ -103,7 +103,7 @@ class Ai_Worker {
 		}
 
 		if ( function_exists( 'set_time_limit' ) ) {
-			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged
 		}
 
 		$job = $store->get( $job_uuid );
@@ -210,7 +210,7 @@ class Ai_Worker {
 		// max_execution_time applies. Page-creation turns routinely take tens of
 		// seconds, so lift the limit here exactly as the legacy run() path does.
 		if ( function_exists( 'set_time_limit' ) ) {
-			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			@set_time_limit( 0 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, Squiz.PHP.DiscouragedFunctions.Discouraged
 		}
 
 		$lease_token = '';
@@ -775,7 +775,9 @@ class Ai_Worker {
 		if ( ! is_array( $decoded ) || empty( $decoded['expires'] ) || (int) $decoded['expires'] >= time() ) {
 			return false;
 		}
-		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::EXECUTION_LOCK_OPTION, $current ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// Compare-and-delete in one statement is what makes this a lock; a read then
+		// a delete, or a cached read, would let two workers claim it.
+		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::EXECUTION_LOCK_OPTION, $current ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
 		wp_cache_delete( self::EXECUTION_LOCK_OPTION, 'options' );
 		return 1 === $deleted && add_option( self::EXECUTION_LOCK_OPTION, $value, '', 'no' ) ? $value : false;
 	}
@@ -786,7 +788,9 @@ class Ai_Worker {
 	 */
 	private static function release_execution_lock( string $value ): void {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::EXECUTION_LOCK_OPTION, $value ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// Deleting only when the value still matches keeps this request from
+		// releasing a lock another request has since taken.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::EXECUTION_LOCK_OPTION, $value ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
 		wp_cache_delete( self::EXECUTION_LOCK_OPTION, 'options' );
 	}
 

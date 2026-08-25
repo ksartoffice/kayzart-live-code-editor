@@ -10,8 +10,21 @@ use KayzArt\Ai_OpenAI_Key;
 /** Verify that credentials are never stored in autoloaded options. */
 class Test_Kayzart_Ai_OpenAI_Key extends WP_UnitTestCase {
 
+	/**
+	 * Storage mechanics are only reachable on a site that still offers the field.
+	 *
+	 * These cases cover how the credential is written, not whether it may be
+	 * written; Test_Kayzart_Ai_OpenAI_Key_Entry covers the policy. Reporting the
+	 * AI Client as absent puts every case here on a site with no Connectors.
+	 */
+	protected function setUp(): void {
+		parent::setUp();
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+	}
+
 	/** Remove the credential and registered default after each test. */
 	protected function tearDown(): void {
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
 		delete_option( Ai_OpenAI_Key::OPTION );
 		remove_all_filters( 'default_option_' . Ai_OpenAI_Key::OPTION );
 		parent::tearDown();

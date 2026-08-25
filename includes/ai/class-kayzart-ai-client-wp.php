@@ -44,7 +44,10 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	 * @throws Ai_Client_Exception When the SDK is unavailable or the request fails.
 	 */
 	public function generate( array $messages, array $tools, array $options = array() ): array {
-		if ( ! Ai_Availability::is_sdk_present() ) {
+		// Ai_Availability::is_sdk_present() is filterable, so a site can report the
+		// SDK as present when it is not. Check the function this adapter actually
+		// calls before entering the turn, rather than fataling inside it.
+		if ( ! function_exists( 'wp_ai_client_prompt' ) || ! Ai_Availability::is_sdk_present() ) {
 			throw new Ai_Client_Exception( 'WordPress AI Client SDK is not available.', false );
 		}
 		try {
@@ -52,7 +55,7 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 		} catch ( Ai_Client_Exception $error ) {
 			throw $error;
 		} catch ( \Throwable $error ) {
-			throw new Ai_Client_Exception( 'AI Client request failed: ' . $error->getMessage(), true );
+			throw new Ai_Client_Exception( 'AI Client request failed: ' . esc_html( $error->getMessage() ), true );
 		}
 
 		try {
@@ -63,7 +66,7 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 				'model'     => $this->extract_model( $sdk_result ),
 			);
 		} catch ( \Throwable $error ) {
-			throw new Ai_Client_Exception( 'AI Client returned an invalid result: ' . $error->getMessage(), true );
+			throw new Ai_Client_Exception( 'AI Client returned an invalid result: ' . esc_html( $error->getMessage() ), true );
 		}
 	}
 
@@ -161,7 +164,8 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 			$data      = $result->get_error_data();
 			$status    = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 0;
 			$retryable = 408 === $status || 429 === $status || $status >= 500;
-			throw new Ai_Client_Exception( $result->get_error_message(), $retryable );
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The retryable flag is a boolean, not output.
+			throw new Ai_Client_Exception( esc_html( $result->get_error_message() ), $retryable );
 		}
 
 		return $result;

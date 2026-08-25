@@ -371,7 +371,10 @@ class Admin {
 			return '';
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
+		// Deliberately not sanitize_text_field(): this is a multi-line instruction and
+		// that would collapse the line breaks the author typed. It is validated as UTF-8
+		// and length-checked below, stored as post meta, and never echoed unescaped.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- See above.
 		$prompt = wp_unslash( (string) $_POST['initial_ai_prompt'] );
 		if ( ! mb_check_encoding( $prompt, 'UTF-8' ) ) {
 			$prompt = mb_convert_encoding( $prompt, 'UTF-8', 'UTF-8' );
@@ -1254,7 +1257,9 @@ class Admin {
 
 		// The setting itself stays registered unconditionally so sanitization,
 		// removal and uninstall behave the same however the field is presented.
-		if ( self::should_show_direct_openai_field() ) {
+		// The whole row goes when entry is closed: leaving the "OpenAI API key"
+		// label behind would read as though Connectors only accepted OpenAI.
+		if ( Ai_OpenAI_Key::is_entry_allowed() ) {
 			add_settings_field(
 				self::OPTION_OPENAI_API_KEY,
 				__( 'OpenAI API key', 'kayzart-live-code-editor' ),
@@ -1357,44 +1362,6 @@ class Admin {
 	public static function should_show_post_slug_settings(): bool {
 		$slug = self::sanitize_post_slug( get_option( self::OPTION_POST_SLUG, Post_Type::SLUG ) );
 		return Post_Type::SLUG !== $slug;
-	}
-
-	/** Check whether the current request targets the Kayzart settings screen. */
-	private static function is_settings_page_request(): bool {
-		return self::SETTINGS_SLUG === self::read_request_value( 'page' );
-	}
-
-	/**
-	 * Check whether the direct OpenAI credential field belongs on the settings screen.
-	 *
-	 * WordPress 7.0 configures AI providers through Connectors, so the direct field
-	 * is no longer the way in. It is kept only where it is still the site's sole
-	 * route to AI editing, or where a key is already stored and the site owner needs
-	 * a way to review and remove it.
-	 *
-	 * @return bool
-	 */
-	public static function should_show_direct_openai_field(): bool {
-		// register_settings() runs on every admin_init, and get_status() probes the
-		// configured provider, so the decision is only made where the field renders.
-		if ( ! self::is_settings_page_request() ) {
-			return true;
-		}
-
-		// The selected backend, not raw SDK presence, decides this: a site below
-		// WordPress 7.0 can load the AI Client and still be served by the direct
-		// backend, and hiding the field there would lock AI editing out entirely.
-		$status = Ai_Availability::get_status();
-		$show   = Ai_Client_Factory::WORDPRESS !== $status['backend']
-			|| 'none' !== $status['direct_key_source'];
-
-		/**
-		 * Filter whether the direct OpenAI API key field is offered.
-		 *
-		 * @param bool                $show   Whether to render the field.
-		 * @param array<string,mixed> $status Current AI availability status.
-		 */
-		return (bool) apply_filters( 'kayzart_ai_show_direct_key_field', $show, $status );
 	}
 
 	/**
@@ -1665,7 +1632,11 @@ class Admin {
 	 */
 	public static function render_ai_section(): void {
 
-		echo '<p>' . esc_html__( 'WordPress 7.0 and later use a configured Connector first. On older versions, or when no Connector is ready, Kayzart can connect directly to OpenAI.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html(
+			Ai_OpenAI_Key::connectors_available()
+				? __( 'AI providers are configured in WordPress Connectors, which every plugin on this site shares.', 'kayzart-live-code-editor' )
+				: __( 'Kayzart connects directly to OpenAI with the API key you save here.', 'kayzart-live-code-editor' )
+		) . '</p>';
 		self::render_ai_status_section();
 	}
 
@@ -1683,6 +1654,8 @@ class Admin {
 			return;
 		}
 
+		// register_settings() drops the whole row when entry is closed, so reaching
+		// here means this site may still be given a direct key.
 		$configured = 'database' === $source;
 		$status     = Ai_Availability::get_status();
 
@@ -1691,17 +1664,24 @@ class Admin {
 		// direct backend, and calling the key unused there would be wrong.
 		$connector_active = Ai_Client_Factory::WORDPRESS === $status['backend'];
 
-		if ( $connector_active && $configured ) {
+		if ( $configured && $connector_active ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'This key is not in use. Kayzart is running AI edits through a WordPress Connector, and removing the saved key keeps an unused credential off your site.', 'kayzart-live-code-editor' ) . '</p></div>';
+		} elseif ( $configured && Ai_OpenAI_Key::connectors_available() ) {
+			printf(
+				'<div class="notice notice-info inline"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
+				esc_html__( 'This key still runs your AI edits. WordPress can hold one provider for every plugin on this site instead — move the key to Connectors and remove it here. Once removed, it cannot be entered again.', 'kayzart-live-code-editor' ),
+				esc_url( admin_url( 'options-connectors.php' ) ),
+				esc_html__( 'Open Connectors', 'kayzart-live-code-editor' )
+			);
 		}
 
-		if ( $connector_active ) {
-			echo '<details' . ( $configured ? ' open' : '' ) . '>';
-			echo '<summary>' . esc_html(
-				$configured
-					? __( 'Saved OpenAI API key', 'kayzart-live-code-editor' )
-					: __( 'Advanced: connect directly to OpenAI instead', 'kayzart-live-code-editor' )
-			) . '</summary>';
+		// Folding this away is only meaningful when there is a saved key to fold.
+		// A site that reopened entry through the filter wants the field in plain
+		// sight, and calling it a saved key when none exists would be wrong.
+		$demote = $connector_active && $configured;
+		if ( $demote ) {
+			echo '<details open>';
+			echo '<summary>' . esc_html__( 'Saved OpenAI API key', 'kayzart-live-code-editor' ) . '</summary>';
 		}
 
 		printf(
@@ -1718,7 +1698,8 @@ class Admin {
 			echo '<p><a class="button button-secondary" href="' . esc_url( $url ) . '">' . esc_html__( 'Remove saved API key', 'kayzart-live-code-editor' ) . '</a></p>';
 		}
 
-		if ( $connector_active ) {
+		if ( $demote ) {
+			echo '</details>';
 		}
 	}
 	/**
@@ -1861,7 +1842,8 @@ class Admin {
 			),
 		);
 
-		echo '<h2>' . esc_html__( 'AI editing', 'kayzart-live-code-editor' ) . '</h2>';
+		// No heading here: this runs inside the "AI editing" settings section, whose
+		// own title already stands above the description that calls this.
 		if ( ! empty( $status['available'] ) ) {
 			$backend_label = Ai_Client_Factory::WORDPRESS === $status['backend'] ? __( 'WordPress AI Client / Connectors', 'kayzart-live-code-editor' ) : __( 'Direct OpenAI connection', 'kayzart-live-code-editor' );
 			printf( '<p>%s <strong>%s</strong></p>', esc_html__( 'AI editing is ready. Active backend:', 'kayzart-live-code-editor' ), esc_html( $backend_label ) );

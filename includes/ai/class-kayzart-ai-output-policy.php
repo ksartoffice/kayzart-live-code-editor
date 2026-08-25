@@ -99,6 +99,7 @@ class Ai_Output_Policy {
 				true,
 				array(
 					'code'       => 'unsafe_ai_output',
+					// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Structured detail for the model, not output.
 					'violations' => array_slice( $violations, 0, 10 ),
 				)
 			);

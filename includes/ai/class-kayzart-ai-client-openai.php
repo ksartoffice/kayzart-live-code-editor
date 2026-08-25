@@ -11,6 +11,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// The WordPress AI Client is preferred and used whenever it can serve the site;
+// this adapter is the fallback for WordPress 5.9-6.9, which predate it. Both
+// backends and what each sends are documented in readme.txt.
+// phpcs:disable PluginCheck.CodeAnalysis.AIProvider.DirectIntegration
+
 /** Provider adapter backed by the WordPress HTTP API. */
 class Ai_Client_OpenAI implements Ai_Client_Interface {
 	const ENDPOINT = 'https://api.openai.com/v1/responses';
@@ -70,13 +75,14 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			throw new Ai_Client_Exception( 'OpenAI request failed: ' . $response->get_error_message(), true );
+			throw new Ai_Client_Exception( 'OpenAI request failed: ' . esc_html( $response->get_error_message() ), true );
 		}
 
 		$status = (int) wp_remote_retrieve_response_code( $response );
 		$body   = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $status < 200 || $status >= 300 ) {
-			throw new Ai_Client_Exception( 'OpenAI rejected the request with HTTP ' . $status . '.', 408 === $status || 429 === $status || $status >= 500 );
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The retryable flag is a boolean, not output.
+			throw new Ai_Client_Exception( 'OpenAI rejected the request with HTTP ' . esc_html( (string) $status ) . '.', 408 === $status || 429 === $status || $status >= 500 );
 		}
 		if ( ! is_array( $body ) || ! isset( $body['output'] ) || ! is_array( $body['output'] ) ) {
 			throw new Ai_Client_Exception( 'OpenAI returned an invalid response.', true );

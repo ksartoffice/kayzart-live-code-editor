@@ -9,7 +9,7 @@ use KayzArt\Ai_Message;
 use KayzArt\Ai_Client_Fake;
 use KayzArt\Ai_Client_Exception;
 
-require_once dirname( __DIR__ ) . '/includes/ai/class-kayzart-ai-client-fake.php';
+require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 
 /**
  * Verify the client abstraction the agent loop depends on.

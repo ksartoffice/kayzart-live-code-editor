@@ -610,7 +610,7 @@ class Ai_Agent {
 		try {
 			Ai_Output_Policy::assert_safe_transition( $initial_snapshot, $snapshot );
 		} catch ( Ai_Tool_Error $error ) {
-			throw new Ai_Agent_Error( 'The completed AI edit violates the server safety policy: ' . $error->getMessage(), false );
+			throw new Ai_Agent_Error( 'The completed AI edit violates the server safety policy: ' . esc_html( $error->getMessage() ), false );
 		}
 		$state['snapshot'] = $snapshot;
 		$state['usage']    = $usage;

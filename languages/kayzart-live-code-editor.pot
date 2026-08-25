@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-25T04:37:34+02:00\n"
+"POT-Creation-Date: 2026-08-25T09:28:13+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -946,7 +946,7 @@ msgstr ""
 #: includes/class-kayzart-feedback.php:1132
 #: includes/class-kayzart-feedback.php:1163
 #: includes/class-kayzart-feedback.php:1197
-#: includes/class-kayzart-feedback.php:1230
+#: includes/class-kayzart-feedback.php:1233
 msgid "Other"
 msgstr ""
 
@@ -1066,55 +1066,59 @@ msgstr ""
 msgid "AI included, with no API key to set up"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1224
-msgid "Locking parts of a page so clients and AI cannot change them"
-msgstr ""
-
-#: includes/class-kayzart-feedback.php:1225
-msgid "Traffic analytics with AI improvement suggestions"
-msgstr ""
-
 #: includes/class-kayzart-feedback.php:1226
-msgid "Contact and conversion form integration"
+msgid "A monthly cap on AI usage, with per-user budgets and a usage dashboard"
 msgstr ""
 
 #: includes/class-kayzart-feedback.php:1227
-msgid "AI that can pull in your WordPress content, such as posts, categories, and custom fields"
+msgid "Locking parts of a page so clients and AI cannot change them"
 msgstr ""
 
 #: includes/class-kayzart-feedback.php:1228
-msgid "Reusable sections and shared components"
+msgid "Traffic analytics with AI improvement suggestions"
 msgstr ""
 
 #: includes/class-kayzart-feedback.php:1229
+msgid "Contact and conversion form integration"
+msgstr ""
+
+#: includes/class-kayzart-feedback.php:1230
+msgid "AI that can pull in your WordPress content, such as posts, categories, and custom fields"
+msgstr ""
+
+#: includes/class-kayzart-feedback.php:1231
+msgid "Reusable sections and shared components"
+msgstr ""
+
+#: includes/class-kayzart-feedback.php:1232
 msgid "A/B testing"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1241
+#: includes/class-kayzart-feedback.php:1244
 msgid "None of these would make me pay"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1252
+#: includes/class-kayzart-feedback.php:1255
 msgid "Annual plan for one site"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1253
+#: includes/class-kayzart-feedback.php:1256
 msgid "Annual plan for multiple sites"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1254
+#: includes/class-kayzart-feedback.php:1257
 msgid "Monthly plan"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1255
+#: includes/class-kayzart-feedback.php:1258
 msgid "One-time purchase"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1256
+#: includes/class-kayzart-feedback.php:1259
 msgid "Usage-based pricing"
 msgstr ""
 
-#: includes/class-kayzart-feedback.php:1257
+#: includes/class-kayzart-feedback.php:1260
 msgid "Not sure yet"
 msgstr ""
 

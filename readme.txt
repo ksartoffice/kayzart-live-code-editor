@@ -47,7 +47,6 @@ Freelancers, agencies, and developers who need a clean landing page fast and wan
 * Open Kayzart straight from the block or classic editor, which shows a Kayzart card instead of the usual content area
 * Duplicate an existing landing page as a draft from the page list
 * Tune AI editing site-wide: default model, maximum turns per request, and maximum instruction length
-* Restrict external embeds with an allowlist
 
 **Works great with**
 Bring HTML from anywhere — hand-written, a template, a designer, or an AI tool like ChatGPT, Claude, Gemini, or v0 — then keep editing it with the AI built into Kayzart. Whether the code starts as a paste from a chatbot or a hand-written draft, Kayzart is where it becomes a real, publishable WordPress page you can refine by hand or by prompt.
@@ -156,7 +155,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 * Change: Open AI-created pages with code hidden and the AI panel visible, and blank pages with code visible and the tools panel closed. Normal visits restore each user's last desktop or compact layout.
 * Change: Remove the site-wide Default editor layout setting while retaining its saved value as an upgrade fallback.
 * Improve: Add accessible panel and tab semantics, keyboard tab navigation, compact Escape handling, focus restoration, and keyboard panel resizing.
-* Change: Creating a page no longer happens the instant you click a menu item. Choose the title, AI instruction, and optional advanced settings first, then create — so the editor opens ready to use and stray drafts are not left behind.
+* Change: Creating a page no longer happens the instant you click a menu item. Choose the title, AI instruction, and the page settings first, then create — so the editor opens ready to use and stray drafts are not left behind.
 * Change: Move Kayzart settings from Settings to the Kayzart menu.
 * Change: Rename the page list actions to Edit with Kayzart, Add with Kayzart, Duplicate with Kayzart, and Start editing with Kayzart, and show them ahead of the default row actions. Opening an existing page with Kayzart shows a confirmation screen that states the page content is kept.
 * Change: Mark Kayzart-managed pages in the page list with a Kayzart label.

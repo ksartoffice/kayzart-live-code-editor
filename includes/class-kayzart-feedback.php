@@ -1221,6 +1221,9 @@ class Feedback {
 		return array(
 			'niche_templates'      => __( 'Templates built for specific industries and purposes', 'kayzart-live-code-editor' ),
 			'included_ai'          => __( 'AI included, with no API key to set up', 'kayzart-live-code-editor' ),
+			// Sits next to included_ai so the two read as the alternatives they are:
+			// bring no key at all, or bring your own and cap what it spends.
+			'cost_control'         => __( 'A monthly cap on AI usage, with per-user budgets and a usage dashboard', 'kayzart-live-code-editor' ),
 			'client_lock'          => __( 'Locking parts of a page so clients and AI cannot change them', 'kayzart-live-code-editor' ),
 			'analytics_ai_improve' => __( 'Traffic analytics with AI improvement suggestions', 'kayzart-live-code-editor' ),
 			'form_integration'     => __( 'Contact and conversion form integration', 'kayzart-live-code-editor' ),

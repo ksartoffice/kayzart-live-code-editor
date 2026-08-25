@@ -1559,7 +1559,7 @@ msgstr "外部 CSS、Google Fonts、OGP、構造化データなど、head に置
 
 #: assets/dist/main.js:3050
 msgid "Write external JS here, or add it as <script src=\"\"> at the bottom of the HTML editor."
-msgstr "外部 JS はここに記述するか、HTML エディターの末尾に <script src=\\"\\"> として追加してください。"
+msgstr "外部 JS はここに記述するか、HTML エディターの末尾に <script src=\"\"> として追加してください。"
 
 #: assets/dist/main.js:3051
 msgid "Note: <title>, <meta charset>, viewport, and <base> cannot be used."
@@ -1767,7 +1767,7 @@ msgstr "テーマテンプレートを利用できません"
 
 #: assets/dist/main.js:6936
 msgid "This theme does not output \"the_content\", so the preview cannot be rendered. Kayzart will switch the template mode to Standalone."
-msgstr "このテーマは \\"the_content\\" を出力しないため、プレビューを表示できません。Kayzart はテンプレートモードをスタンドアロンに切り替えます。"
+msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。Kayzart はテンプレートモードをスタンドアロンに切り替えます。"
 
 #: assets/dist/main.js:6940
 msgid "OK"
@@ -1775,7 +1775,7 @@ msgstr "OK"
 
 #: assets/dist/main.js:6941
 msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
-msgstr "テンプレートモードを切り替えても、プレビュー用のマーカーが見つかりません。現在のテンプレートは \\"the_content\\" を出力していません。"
+msgstr "テンプレートモードを切り替えても、プレビュー用のマーカーが見つかりません。現在のテンプレートは \"the_content\" を出力していません。"
 
 #: assets/dist/main.js:7063
 #: assets/dist/main.js:8973

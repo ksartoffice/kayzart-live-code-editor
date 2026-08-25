@@ -182,11 +182,11 @@ class Ai_Tools {
 	public static function parse_snapshot_target( $value, array $allowed_targets ): string {
 		if ( ! in_array( $value, self::TARGETS, true ) ) {
 			// Internal tool error surfaced to the model as JSON, not HTML output.
-			throw new Ai_Tool_Error( 'Invalid target: ' . ( is_string( $value ) ? $value : '' ), false );
+			throw new Ai_Tool_Error( 'Invalid target: ' . esc_html( is_string( $value ) ? $value : '' ), false );
 		}
 		if ( ! in_array( $value, $allowed_targets, true ) ) {
 			// Internal tool error surfaced to the model as JSON, not HTML output.
-			throw new Ai_Tool_Error( 'Target "' . $value . '" is not editable in this mode.', false );
+			throw new Ai_Tool_Error( 'Target "' . esc_html( $value ) . '" is not editable in this mode.', false );
 		}
 		return (string) $value;
 	}
@@ -683,21 +683,19 @@ class Ai_Tools {
 		$count = self::count_occurrences( $current, $from );
 		if ( 0 === $count ) {
 			// Internal tool error surfaced to the model as JSON, not HTML output.
-			throw new Ai_Tool_Error(
-				'replace_string matched 0 occurrences in ' . $target . '.',
-				true,
-				self::build_replace_no_match_details(
-					$target,
-					$from,
-					$current,
-					isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '',
-					$selection_id
-				)
+			$details = self::build_replace_no_match_details(
+				$target,
+				$from,
+				$current,
+				isset( $snapshot['baseHash'] ) ? (string) $snapshot['baseHash'] : '',
+				$selection_id
 			);
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Structured detail for the model, not output.
+			throw new Ai_Tool_Error( 'replace_string matched 0 occurrences in ' . esc_html( $target ) . '.', true, $details );
 		}
 		if ( ! $replace_all && $count > 1 ) {
 			// Internal tool error surfaced to the model as JSON, not HTML output.
-			throw new Ai_Tool_Error( 'replace_string is ambiguous in ' . $target . '; ' . $count . ' matches found.', false );
+			throw new Ai_Tool_Error( 'replace_string is ambiguous in ' . esc_html( $target ) . '; ' . esc_html( (string) $count ) . ' matches found.', false );
 		}
 
 		if ( $replace_all ) {
@@ -799,7 +797,8 @@ class Ai_Tools {
 					);
 					$details['failedStepIndex']       = $index;
 					$details['transactionRolledBack'] = true;
-					throw new Ai_Tool_Error( $error->getMessage(), $error->is_retryable(), $details );
+					// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Retryable flag and structured detail are not output.
+					throw new Ai_Tool_Error( esc_html( $error->getMessage() ), $error->is_retryable(), $details );
 				}
 				throw $error;
 			}
@@ -876,7 +875,7 @@ class Ai_Tools {
 				throw new Ai_Tool_Error( 'JavaScript mode is read-only for AI edits.', false );
 		}
 		// Internal tool error surfaced to the model as JSON, not HTML output.
-		throw new Ai_Tool_Error( 'Unknown tool: ' . $name, false );
+		throw new Ai_Tool_Error( 'Unknown tool: ' . esc_html( $name ), false );
 	}
 
 	/**

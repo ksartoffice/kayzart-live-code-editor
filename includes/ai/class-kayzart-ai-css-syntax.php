@@ -144,9 +144,10 @@ class Ai_Css_Syntax {
 		}
 
 		throw new Ai_Tool_Error(
-			'The CSS you wrote has unbalanced brackets and cannot compile: ' . $imbalance['message']
-				. ' Re-read the CSS around line ' . $imbalance['line'] . ' and fix the bracket, then continue.',
+			'The CSS you wrote has unbalanced brackets and cannot compile: ' . esc_html( $imbalance['message'] )
+				. ' Re-read the CSS around line ' . esc_html( (string) $imbalance['line'] ) . ' and fix the bracket, then continue.',
 			true,
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Structured detail for the model, not output.
 			array_merge( array( 'code' => 'css_bracket_imbalance' ), $imbalance )
 		);
 	}

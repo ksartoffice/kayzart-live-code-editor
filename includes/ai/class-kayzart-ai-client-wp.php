@@ -44,7 +44,10 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 	 * @throws Ai_Client_Exception When the SDK is unavailable or the request fails.
 	 */
 	public function generate( array $messages, array $tools, array $options = array() ): array {
-		if ( ! Ai_Availability::is_sdk_present() ) {
+		// Ai_Availability::is_sdk_present() is filterable, so a site can report the
+		// SDK as present when it is not. Check the function this adapter actually
+		// calls before entering the turn, rather than fataling inside it.
+		if ( ! function_exists( 'wp_ai_client_prompt' ) || ! Ai_Availability::is_sdk_present() ) {
 			throw new Ai_Client_Exception( 'WordPress AI Client SDK is not available.', false );
 		}
 		try {

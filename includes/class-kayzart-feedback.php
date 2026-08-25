@@ -581,7 +581,11 @@ class Feedback {
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
 				'no_found_rows'  => true,
+				// Asked once a day at most: the answer is cached in CONTENT_TRANSIENT, and
+				// the query stops at one ID with no row count.
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 				'meta_key'       => Post_Type::ENABLED_META,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 				'meta_value'     => '1',
 			)
 		);

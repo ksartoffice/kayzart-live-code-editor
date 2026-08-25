@@ -7,6 +7,20 @@
 
 namespace KayzArt;
 
+/*
+ * This class owns a custom table, so every read and write in it is a direct
+ * query by definition and there is no core API to route them through.
+ *
+ * Caching them would be a bug rather than an optimisation: these rows are the
+ * locks, leases and state versions that keep two workers off the same job, and
+ * a claim decided from a cached row is a claim decided from a stale one.
+ *
+ * Table names come from $wpdb->prefix through Ai_Setup and never from input;
+ * every value is bound with $wpdb->prepare(). Plugin Check reads the name
+ * through a method call and cannot see that, hence UnescapedDBParameter.
+ */
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

@@ -10,6 +10,17 @@ namespace KayzArt;
 // Parameter types are part of each method signature; concise comments keep this storage class readable.
 // phpcs:disable Squiz.Commenting.FunctionComment.MissingParamTag
 
+/*
+ * This class owns a custom table, so every read and write in it is a direct
+ * query by definition. The timeline is written and re-read within a single edit
+ * as it happens, so a cached read would show the user a stale activity list.
+ *
+ * Table names come from $wpdb->prefix through Ai_Setup and never from input;
+ * every value is bound with $wpdb->prepare(). Plugin Check reads the name
+ * through a method call and cannot see that, hence UnescapedDBParameter.
+ */
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

@@ -168,6 +168,9 @@ class Ai_OpenAI_Key {
 	private static function disable_autoload_legacy(): void {
 		global $wpdb;
 
+		// wp_set_option_autoload() does not exist on these versions, so the autoload
+		// column can only be reached directly. The option cache is cleared below.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$updated = $wpdb->update(
 			$wpdb->options,
 			array( 'autoload' => 'no' ),

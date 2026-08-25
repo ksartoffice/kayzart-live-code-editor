@@ -11,6 +11,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// The WordPress AI Client is preferred and used whenever it can serve the site;
+// this adapter is the fallback for WordPress 5.9-6.9, which predate it. Both
+// backends and what each sends are documented in readme.txt.
+// phpcs:disable PluginCheck.CodeAnalysis.AIProvider.DirectIntegration
+
 /** Provider adapter backed by the WordPress HTTP API. */
 class Ai_Client_OpenAI implements Ai_Client_Interface {
 	const ENDPOINT = 'https://api.openai.com/v1/responses';

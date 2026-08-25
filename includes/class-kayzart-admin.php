@@ -371,7 +371,10 @@ class Admin {
 			return '';
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- See above.
+		// Deliberately not sanitize_text_field(): this is a multi-line instruction and
+		// that would collapse the line breaks the author typed. It is validated as UTF-8
+		// and length-checked below, stored as post meta, and never echoed unescaped.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- See above.
 		$prompt = wp_unslash( (string) $_POST['initial_ai_prompt'] );
 		if ( ! mb_check_encoding( $prompt, 'UTF-8' ) ) {
 			$prompt = mb_convert_encoding( $prompt, 'UTF-8', 'UTF-8' );

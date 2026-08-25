@@ -5,7 +5,7 @@
  * Description: Build AI-assisted landing pages with real HTML/CSS/JS you can edit live, with no drag-and-drop or builder lock-in.
  * Version: 3.0.0
  * Requires at least: 5.9
- * Tested up to: 7.0
+ * Tested up to: 7.1
  * Requires PHP: 7.4
  * Author: K's Art Office
  * License: GPL-2.0-or-later

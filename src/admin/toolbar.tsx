@@ -32,6 +32,9 @@ import {
   subscribeExternalToolbarActions,
   type ResolvedToolbarAction,
 } from './extensions/toolbar-action-registry';
+import type { AiActivityState } from './logic/ai-activity';
+
+export type { AiActivityState } from './logic/ai-activity';
 
 export type ViewportMode = 'desktop' | 'tablet' | 'mobile';
 
@@ -44,9 +47,12 @@ type ToolbarState = {
   editorCollapsed: boolean;
   compactEditorMode: boolean;
   settingsOpen: boolean;
+  aiActivity: AiActivityState;
   tailwindEnabled: boolean;
   viewportMode: ViewportMode;
   hasUnsavedChanges: boolean;
+  saveDisabled: boolean;
+  mutationLocked: boolean;
   viewPostUrl: string;
   postStatus: string;
   postTitle: string;
@@ -152,8 +158,11 @@ function Toolbar({
   editorCollapsed,
   compactEditorMode,
   settingsOpen,
+  aiActivity,
   tailwindEnabled,
   hasUnsavedChanges,
+  saveDisabled,
+  mutationLocked,
   viewPostUrl,
   postStatus,
   postTitle,
@@ -197,7 +206,17 @@ function Toolbar({
   const isPublished = postStatus === 'publish' || postStatus === 'private';
   const isDraft = postStatus === 'draft' || postStatus === 'auto-draft';
   const viewPostLabel = isPublished ? __( 'View post', 'kayzart-live-code-editor') : __( 'Preview', 'kayzart-live-code-editor');
-  const settingsTitle = settingsOpen ? '右パネルを閉じる' : '右パネル';
+  const settingsTitle = settingsOpen
+    ? __( 'Close editor tools', 'kayzart-live-code-editor')
+    : __( 'Open editor tools', 'kayzart-live-code-editor');
+  const aiActivityLabel =
+    aiActivity === 'running'
+      ? __( 'AI edit in progress', 'kayzart-live-code-editor')
+      : aiActivity === 'complete'
+        ? __( 'AI edit completed', 'kayzart-live-code-editor')
+        : aiActivity === 'error'
+          ? __( 'AI edit needs attention', 'kayzart-live-code-editor')
+          : '';
   const viewportDesktopLabel = __( 'Desktop', 'kayzart-live-code-editor');
   const viewportTabletLabel = __( 'Tablet', 'kayzart-live-code-editor');
   const viewportMobileLabel = __( 'Mobile', 'kayzart-live-code-editor');
@@ -254,6 +273,7 @@ function Toolbar({
   }, [resolvedTitle, postSlug, titleModalOpen]);
 
   const openTitleModal = () => {
+    if (mutationLocked) return;
     setTitleDraft(resolvedTitle);
     setSlugDraft(postSlug);
     setTitleError('');
@@ -268,7 +288,7 @@ function Toolbar({
   };
 
   const handleTitleSave = async () => {
-    if (titleSaving) {
+    if (titleSaving || mutationLocked) {
       return;
     }
     setTitleSaving(true);
@@ -319,6 +339,7 @@ function Toolbar({
 
   const toggleSaveMenu = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
+    if (mutationLocked) return;
     setExportMenuOpen(false);
     setSaveMenuOpen((prev) => !prev);
   };
@@ -332,6 +353,7 @@ function Toolbar({
   const handleImportFullHtml = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
     setExportMenuOpen(false);
+    if (mutationLocked) return;
     onImportFullHtml();
   };
 
@@ -352,7 +374,7 @@ function Toolbar({
     nextStatus: 'draft' | 'pending' | 'private' | 'publish'
   ) => {
     event.stopPropagation();
-    if (statusSaving || nextStatus === normalizedStatus) {
+    if (statusSaving || mutationLocked || nextStatus === normalizedStatus) {
       return;
     }
     setStatusSaving(true);
@@ -429,7 +451,7 @@ function Toolbar({
           className={`kayzart-btn kayzart-btn-muted kayzart-btn-icon${canUndo ? ' is-active' : ''}`}
           type="button"
           onClick={onUndo}
-          disabled={!canUndo}
+          disabled={!canUndo || mutationLocked}
           aria-label={__( 'Undo', 'kayzart-live-code-editor')}
           data-tooltip={__( 'Undo', 'kayzart-live-code-editor')}
         >
@@ -439,7 +461,7 @@ function Toolbar({
           className={`kayzart-btn kayzart-btn-muted kayzart-btn-icon${canRedo ? ' is-active' : ''}`}
           type="button"
           onClick={onRedo}
-          disabled={!canRedo}
+          disabled={!canRedo || mutationLocked}
           aria-label={__( 'Redo', 'kayzart-live-code-editor')}
           data-tooltip={__( 'Redo', 'kayzart-live-code-editor')}
         >
@@ -452,7 +474,8 @@ function Toolbar({
           data-tooltip={titleTooltip}
           aria-label={titleText}
           role="button"
-          tabIndex={0}
+          tabIndex={mutationLocked ? -1 : 0}
+          aria-disabled={mutationLocked}
           onClick={openTitleModal}
           onKeyDown={handleTitleKeyDown}
         >
@@ -495,10 +518,13 @@ function Toolbar({
         </div>
         <div className="kayzart-toolbarCluster kayzart-toolbarCluster-divider">
           <button
+            id="kayzart-editor-toggle"
             className="kayzart-btn kayzart-btn-icon"
             type="button"
             onClick={onToggleEditor}
             aria-label={toggleLabel}
+            aria-expanded={!editorCollapsed}
+            aria-controls="kayzart-code-editors"
             data-tooltip={toggleLabel}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: toggleIcon }} />
@@ -546,6 +572,7 @@ function Toolbar({
                     className="kayzart-formInput"
                     type="text"
                     value={titleDraft}
+                    disabled={mutationLocked}
                     onChange={(event) => setTitleDraft(event.target.value)}
                     onKeyDown={handleTitleInputKeyDown}
                     autoFocus
@@ -560,6 +587,7 @@ function Toolbar({
                     className="kayzart-formInput"
                     type="text"
                     value={slugDraft}
+                    disabled={mutationLocked}
                     onChange={(event) => setSlugDraft(event.target.value)}
                     onKeyDown={handleTitleInputKeyDown}
                   />
@@ -573,7 +601,7 @@ function Toolbar({
                   >
                     {__( 'Cancel', 'kayzart-live-code-editor')}
                   </button>
-                  <button className="kayzart-btn kayzart-btn-primary" type="submit" disabled={titleSaving}>
+                  <button className="kayzart-btn kayzart-btn-primary" type="submit" disabled={titleSaving || mutationLocked}>
                     {titleSaving ? __( 'Saving...', 'kayzart-live-code-editor') : __( 'Save', 'kayzart-live-code-editor')}
                   </button>
                 </div>
@@ -589,6 +617,7 @@ function Toolbar({
               className={`kayzart-btn kayzart-btn-save kayzart-splitButton-main${hasUnsavedChanges ? ' is-unsaved' : ''}`}
               type="button"
               onClick={onSave}
+              disabled={saveDisabled}
               aria-label={saveLabel}
             >
               <IconLabel label={saveLabel} svg={ICONS.save} />
@@ -601,6 +630,7 @@ function Toolbar({
               aria-label={__( 'Save options', 'kayzart-live-code-editor')}
               data-tooltip={__( 'Save options', 'kayzart-live-code-editor')}
               onClick={toggleSaveMenu}
+              disabled={saveDisabled}
             >
               <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.chevronDown }} />
             </button>
@@ -635,7 +665,7 @@ function Toolbar({
                         type="button"
                         role="menuitem"
                         onClick={(event) => handleStatusSelect(event, option.value)}
-                        disabled={statusSaving}
+                        disabled={statusSaving || mutationLocked}
                       >
                         <span className="kayzart-splitMenuLabel">{option.label}</span>
                       </button>
@@ -692,6 +722,7 @@ function Toolbar({
                     type="button"
                     role="menuitem"
                     onClick={handleImportFullHtml}
+                    disabled={mutationLocked}
                   >
                     <span className="kayzart-splitMenuLabel">{importFullHtmlLabel}</span>
                   </button>
@@ -717,15 +748,17 @@ function Toolbar({
           </div>
           {beforeSettingsActions.map(renderExternalToolbarAction)}
           <button
-            className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}`}
+            id="kayzart-settings-toggle"
+            className={`kayzart-btn kayzart-btn-settings kayzart-btn-icon${settingsOpen ? ' is-active' : ''}${aiActivity !== 'idle' ? ` has-ai-activity is-ai-${aiActivity}` : ''}`}
             type="button"
             onClick={onToggleSettings}
-            aria-label={settingsTitle}
+            aria-label={aiActivityLabel ? `${settingsTitle}. ${aiActivityLabel}.` : settingsTitle}
             aria-expanded={settingsOpen}
             aria-controls="kayzart-settings"
             data-tooltip={settingsTitle}
           >
             <span className="kayzart-btnIcon" dangerouslySetInnerHTML={{ __html: ICONS.settings }} />
+            {aiActivity !== 'idle' ? <span className="kayzart-aiActivityDot" aria-hidden="true" /> : null}
           </button>
           {afterSettingsActions.map(renderExternalToolbarAction)}
         </div>

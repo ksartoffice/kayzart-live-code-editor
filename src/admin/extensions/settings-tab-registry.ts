@@ -56,6 +56,11 @@ export type EditorSnapshot = {
   js: string;
   jsMode: 'classic' | 'module';
   baseHash: string;
+  editorMode?: EditorMode;
+  cssByMode?: {
+    normal: string | null;
+    tailwind: string | null;
+  };
 };
 
 export type EditorMode = 'normal' | 'tailwind';
@@ -65,10 +70,13 @@ export type KayzArtExtensionApi = {
   registerToolbarAction?: RegisterToolbarAction;
   openSettingsTab?: (tabId: string) => void;
   getEditorSnapshot?: () => EditorSnapshot | null;
+  subscribeEditorSnapshot?: (listener: () => void) => () => void;
   replaceEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
+  applyAiEditorSnapshot?: (snapshot: EditorSnapshot) => boolean;
   reloadPreview?: () => void;
   getEditorMode?: () => EditorMode;
   getSelectedContext?: () => SelectedElementContext | null;
+  getElementContext?: (lcId: string) => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;
   isEditorLocked?: () => boolean;
 };

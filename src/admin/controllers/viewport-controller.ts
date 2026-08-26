@@ -105,10 +105,20 @@ export function createViewportController(deps: ViewportControllerDeps) {
     return clamped;
   };
 
+  const restoreSettingsWidth = (width?: number) => {
+    if (typeof width === 'number' && Number.isFinite(width) && width > 0) {
+      return setSettingsWidth(width);
+    }
+    deps.ui.app.style.removeProperty('--kayzart-settings-width');
+    return getCurrentSettingsWidth();
+  };
+
   if (typeof deps.initialSettingsWidth === 'number' && Number.isFinite(deps.initialSettingsWidth)) {
     setSettingsWidth(deps.initialSettingsWidth);
   }
   deps.ui.app.classList.toggle('is-editor-collapsed', editorCollapsed);
+  deps.ui.left.toggleAttribute('inert', editorCollapsed);
+  deps.ui.left.setAttribute('aria-hidden', editorCollapsed ? 'true' : 'false');
   if (editorCollapsed) {
     deps.ui.left.style.width = '0px';
     deps.ui.left.style.flex = '0 0 0';
@@ -143,27 +153,41 @@ export function createViewportController(deps: ViewportControllerDeps) {
     }, deps.previewBadgeHideMs);
   };
 
-  const showPreviewBadgeAfterLayout = () => {
+  // Runs a callback once the editor pane has finished animating to its new
+  // width, so callers measure against the settled layout instead of a
+  // mid-transition box.
+  const runAfterEditorLayout = (callback: () => void) => {
     if (isStackedLayout()) {
-      applyViewportLayout();
-      showPreviewBadge();
+      callback();
       return;
     }
     let done = false;
+    let timer = 0;
     const finalize = () => {
       if (done) return;
       done = true;
+      window.clearTimeout(timer);
       deps.ui.left.removeEventListener('transitionend', onTransitionEnd);
-      applyViewportLayout();
-      showPreviewBadge();
+      callback();
     };
     const onTransitionEnd = (event: TransitionEvent) => {
+      // The pane also transitions opacity and transform, and its children
+      // bubble their own transitions, so only the width of the pane itself
+      // marks the layout as settled.
+      if (event.target !== deps.ui.left) return;
       if (event.propertyName === 'width' || event.propertyName === 'flex-basis') {
         finalize();
       }
     };
-    deps.ui.left.addEventListener('transitionend', onTransitionEnd, { once: true });
-    window.setTimeout(finalize, deps.previewBadgeTransitionMs);
+    deps.ui.left.addEventListener('transitionend', onTransitionEnd);
+    timer = window.setTimeout(finalize, deps.previewBadgeTransitionMs);
+  };
+
+  const showPreviewBadgeAfterLayout = () => {
+    runAfterEditorLayout(() => {
+      applyViewportLayout();
+      showPreviewBadge();
+    });
   };
 
   const schedulePreviewBadge = () => {
@@ -270,8 +294,18 @@ export function createViewportController(deps: ViewportControllerDeps) {
   };
 
   const setEditorCollapsed = (collapsed: boolean) => {
+    if (collapsed && deps.ui.left.contains(document.activeElement)) {
+      // Marking an ancestor inert blurs the active element, so hand focus back
+      // to the toggle instead of dropping the keyboard user on <body>.
+      document.getElementById('kayzart-editor-toggle')?.focus();
+    }
     editorCollapsed = collapsed;
     deps.ui.app.classList.toggle('is-editor-collapsed', collapsed);
+    // The collapsed pane keeps its editors in the DOM and is only hidden
+    // visually, so mark it inert to drop its tabs, CodeMirror inputs and
+    // actions from the tab order.
+    deps.ui.left.toggleAttribute('inert', collapsed);
+    deps.ui.left.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
     deps.onEditorCollapsedChange?.(collapsed);
     if (collapsed) {
       const currentWidth = deps.ui.left.getBoundingClientRect().width;
@@ -428,6 +462,10 @@ export function createViewportController(deps: ViewportControllerDeps) {
     getViewportMode: () => viewportMode,
     setEditorCollapsed,
     isEditorCollapsed: () => editorCollapsed,
+    runAfterEditorLayout,
+    restoreSettingsWidth,
+    getSettingsWidth: getCurrentSettingsWidth,
+    getMaxSettingsWidth,
     setEditorSplitHeight,
     getEditorSplitState: () => ({ active: editorSplitActive, lastHtmlHeight }),
   };

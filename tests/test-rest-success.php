@@ -10,6 +10,7 @@ use KayzArt\Custom_Head;
 use KayzArt\Html_Document;
 use KayzArt\Post_Type;
 use KayzArt\Rest_Settings;
+use KayzArt\Tailwind_Compiler;
 
 class Test_Rest_Success extends WP_UnitTestCase {
 	private const SETTINGS_PAYLOAD_KEYS = array(
@@ -342,6 +343,7 @@ class Test_Rest_Success extends WP_UnitTestCase {
 	}
 
 	public function test_save_compiles_tailwind_and_stores_generated_css(): void {
+
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -353,10 +355,11 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$response = $this->dispatch_route(
 			'/kayzart/v1/save',
 			array(
-				'post_id'         => $post_id,
-				'html'            => $html,
-				'css'             => $css,
-				'tailwindEnabled' => true,
+				'post_id'            => $post_id,
+				'html'               => $html,
+				'css'                => $css,
+				'tailwindEnabled'    => true,
+				'tailwindCandidates' => array( 'text-sm' ),
 			)
 		);
 
@@ -367,8 +370,149 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$this->assertStringContainsString( '.text-sm', $generated_css, 'Generated CSS should include the expected utility.' );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame(
+			'["text-sm"]',
+			get_post_meta( $post_id, Tailwind_Compiler::CANDIDATES_META_KEY, true )
+		);
 	}
 
+	public function test_save_accepts_tailwind_html_larger_than_legacy_limit(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		$html     = '<div class="text-sm">Large</div>' . str_repeat( '<p>Large content</p>', 15000 );
+
+		$this->assertGreaterThan( 262144, strlen( $html ) );
+		wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'            => $post_id,
+				'html'               => $html,
+				'css'                => '@import "tailwindcss";',
+				'tailwindEnabled'    => true,
+				'tailwindCandidates' => array( 'text-sm' ),
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( $html, (string) get_post_field( 'post_content', $post_id ) );
+		$this->assertStringContainsString(
+			'.text-sm',
+			(string) get_post_meta( $post_id, '_kayzart_generated_css', true )
+		);
+	}
+
+	public function test_save_can_switch_modes_and_preserves_css_for_each_mode(): void {
+
+			$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+			$post_id  = $this->create_kayzart_post( $admin_id );
+			wp_set_current_user( $admin_id );
+
+		update_post_meta( $post_id, '_kayzart_css', '.normal{color:blue;}' );
+		update_post_meta( $post_id, '_kayzart_tailwind', '0' );
+		update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
+
+		$tailwind_source = '@import "tailwindcss";';
+			$response    = $this->dispatch_route(
+				'/kayzart/v1/save',
+				array(
+					'post_id'            => $post_id,
+					'html'               => '<div class="text-sm">Tailwind</div>',
+					'css'                => $tailwind_source,
+					'tailwindEnabled'    => true,
+					'tailwindCandidates' => array( 'text-sm' ),
+					'editorMode'         => 'tailwind',
+					'cssByMode'          => array(
+						'normal'   => '.normal{color:blue;}',
+						'tailwind' => $tailwind_source,
+					),
+				)
+			);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( $tailwind_source, get_post_meta( $post_id, '_kayzart_css', true ) );
+		$this->assertSame( '.normal{color:blue;}', get_post_meta( $post_id, '_kayzart_normal_css', true ) );
+			$this->assertSame( $tailwind_source, get_post_meta( $post_id, '_kayzart_tailwind_css', true ) );
+			$this->assertNotSame( '', get_post_meta( $post_id, '_kayzart_generated_css', true ) );
+
+		$normal_css = '.compiled{display:block;}';
+		$response   = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<div class="compiled">Normal</div>',
+				'css'             => $normal_css,
+				'tailwindEnabled' => false,
+				'editorMode'      => 'normal',
+				'cssByMode'       => array(
+					'normal'   => $normal_css,
+					'tailwind' => $tailwind_source,
+				),
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '0', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( $normal_css, get_post_meta( $post_id, '_kayzart_css', true ) );
+		$this->assertSame( $normal_css, get_post_meta( $post_id, '_kayzart_normal_css', true ) );
+		$this->assertSame( $tailwind_source, get_post_meta( $post_id, '_kayzart_tailwind_css', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_generated_css', true ) );
+	}
+
+	public function test_save_deletes_explicitly_null_inactive_mode_css(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = $this->create_kayzart_post( $admin_id );
+		wp_set_current_user( $admin_id );
+
+		update_post_meta( $post_id, '_kayzart_tailwind', '0' );
+		update_post_meta( $post_id, '_kayzart_tailwind_locked', '1' );
+		update_post_meta( $post_id, '_kayzart_normal_css', '.current{}' );
+		update_post_meta( $post_id, '_kayzart_tailwind_css', '@import "tailwindcss";' );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'         => $post_id,
+				'html'            => '<main>Normal revision</main>',
+				'css'             => '.restored{}',
+				'tailwindEnabled' => false,
+				'editorMode'      => 'normal',
+				'cssByMode'       => array(
+					'normal'   => '.restored{}',
+					'tailwind' => null,
+				),
+			)
+		);
+		$data     = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '.restored{}', get_post_meta( $post_id, '_kayzart_normal_css', true ) );
+		$this->assertFalse( metadata_exists( 'post', $post_id, '_kayzart_tailwind_css' ) );
+		$this->assertNull( $data['cssByMode']['tailwind'] );
+	}
+
+	public function test_save_rejects_incomplete_editor_mode_payload(): void {
+
+		$admin_id    = self::factory()->user->create( array( 'role' => 'administrator' ) );
+			$post_id = $this->create_kayzart_post( $admin_id );
+			wp_set_current_user( $admin_id );
+
+		$response = $this->dispatch_route(
+			'/kayzart/v1/save',
+			array(
+				'post_id'    => $post_id,
+				'html'       => '<p>Invalid</p>',
+				'css'        => '',
+				'editorMode' => 'tailwind',
+				'cssByMode'  => array( 'tailwind' => '@import "tailwindcss";' ),
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+	}
 	public function test_save_splits_body_tag_into_content_and_body_attrs(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
@@ -496,9 +640,9 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		$response = $this->dispatch_route(
 			'/kayzart/v1/compile-tailwind',
 			array(
-				'post_id' => $post_id,
-				'html'    => '<div class="text-sm">Tailwind</div>',
-				'css'     => '@import "tailwindcss";',
+				'post_id'    => $post_id,
+				'candidates' => array( 'text-sm' ),
+				'css'        => '@import "tailwindcss";',
 			)
 		);
 
@@ -550,4 +694,3 @@ class Test_Rest_Success extends WP_UnitTestCase {
 		}
 	}
 }
-

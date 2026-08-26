@@ -155,4 +155,49 @@ describe('codemirror editor selection highlight', () => {
     expect(onBeforeHtmlUserInteraction).not.toHaveBeenCalled();
     expect(document.querySelector('.kayzart-highlight-inline')).toBeTruthy();
   });
+
+  it('resets document history when replacing a mode-specific CSS buffer', async () => {
+    const { codemirror, cssModel } = await createEditors();
+    cssModel.pushEditOperations(
+      [],
+      [{ range: new codemirror.Range(1, 1, 1, 1), text: '.old {}' }],
+      () => null
+    );
+    expect(cssModel.canUndo()).toBe(true);
+
+    cssModel.resetValue('@import "tailwindcss";');
+
+    expect(cssModel.getValue()).toBe('@import "tailwindcss";');
+    expect(cssModel.canUndo()).toBe(false);
+    expect(cssModel.canRedo()).toBe(false);
+  });
+
+  it('does not dispatch or rebuild gutter markers for unchanged unsaved lines', async () => {
+    const { htmlModel } = await createEditors();
+    const view = EditorView.findFromDOM(document.querySelector('.cm-editor') as HTMLElement);
+    expect(view).toBeTruthy();
+
+    htmlModel.setUnsavedChangeLines([1]);
+    htmlModel.setUnsavedDeletionLines([1]);
+
+    const dispatched: unknown[] = [];
+    const originalDispatch = view!.dispatch.bind(view!);
+    vi.spyOn(view!, 'dispatch').mockImplementation((...args: any[]) => {
+      dispatched.push(args);
+      return (originalDispatch as any)(...args);
+    });
+
+    // Repeating the same marker set must be a no-op. Otherwise the gutter's
+    // identity check sees a fresh Set every time and CodeMirror rebuilds every
+    // marker, which is what starved the microtask queue.
+    htmlModel.setUnsavedChangeLines([1]);
+    htmlModel.setUnsavedDeletionLines([1]);
+    htmlModel.setUnsavedChangeLines([1]);
+
+    expect(dispatched).toHaveLength(0);
+
+    htmlModel.setUnsavedChangeLines([]);
+    expect(dispatched).toHaveLength(1);
+  });
+
 });

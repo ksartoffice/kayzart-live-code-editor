@@ -17,6 +17,7 @@ type EditorUiControllerDeps = {
   compactEditorBreakpoint: number;
   getViewportWidth: () => number;
   getJsEnabled: () => boolean;
+  getMutationLocked?: () => boolean;
   onActiveEditorChange?: (editor: EditorInstance) => void;
   onEditorViewChange?: () => void;
   onCompactEditorModeChange?: (isCompact: boolean) => void;
@@ -72,6 +73,17 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     syncFormatButtonLabel(deps.ui.compactFormatButton, label);
   };
 
+  const syncMutationLock = () => {
+    const locked = deps.getMutationLocked?.() ?? false;
+    deps.ui.addMediaButton.disabled = locked;
+    deps.ui.compactAddMediaButton.disabled = locked;
+    deps.ui.htmlFormatButton.disabled = locked;
+    deps.ui.cssFormatButton.disabled = locked;
+    deps.ui.compactFormatButton.disabled = locked;
+    deps.ui.jsModeSelect.disabled = locked || !deps.canEditJs || activeCssTab !== 'js';
+    deps.ui.compactJsModeSelect.disabled = locked || !deps.canEditJs || compactEditorTab !== 'js';
+  };
+
   const syncCompactEditorUi = () => {
     if (!canEditCustomHead() && compactEditorTab === 'customHead') {
       compactEditorTab = 'html';
@@ -94,6 +106,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactFormatButton.style.display = '';
     deps.ui.compactJsModeSelect.style.display = isJsTab && deps.canEditJs ? '' : 'none';
     syncFormatControls();
+    syncMutationLock();
     deps.onEditorViewChange?.();
   };
 
@@ -124,6 +137,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.compactAddMediaButton.style.display = isCompactHtmlTab ? '' : 'none';
     deps.ui.compactFormatButton.style.display = '';
     syncFormatControls();
+    syncMutationLock();
     deps.onEditorViewChange?.();
   };
 
@@ -132,6 +146,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.htmlPane.classList.toggle('is-active', pane === deps.ui.htmlPane);
     deps.ui.cssPane.classList.toggle('is-active', pane === deps.ui.cssPane);
     syncFormatControls();
+    syncMutationLock();
     if (compactEditorMode) {
       compactEditorTab = pane === deps.ui.htmlPane ? activeHtmlTab : activeCssTab === 'js' ? 'js' : 'css';
       syncCompactEditorUi();
@@ -153,6 +168,7 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.ui.htmlFormatButton.style.display = '';
     deps.ui.htmlWordWrapButton.style.display = nextTab === 'html' ? '' : 'none';
     syncFormatControls();
+    syncMutationLock();
     if (compactEditorMode && options.syncCompactTab !== false) {
       compactEditorTab = nextTab;
       syncCompactEditorUi();
@@ -277,6 +293,24 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     deps.htmlEditor.focus();
   };
 
+  const editorForCompactTab = (tab: CompactEditorTab): EditorInstance => {
+    if (tab === 'customHead') return deps.customHeadEditor;
+    if (tab === 'css') return deps.cssEditor;
+    if (tab === 'js') return deps.jsEditor;
+    return deps.htmlEditor;
+  };
+
+  // Only the editors that are on screen need this; a pane that is currently
+  // behind an inactive tab re-measures when that tab is shown.
+  const refreshEditorLayout = () => {
+    if (compactEditorMode) {
+      editorForCompactTab(compactEditorTab).refreshLayout();
+      return;
+    }
+    (activeHtmlTab === 'customHead' ? deps.customHeadEditor : deps.htmlEditor).refreshLayout();
+    (activeCssTab === 'js' ? deps.jsEditor : deps.cssEditor).refreshLayout();
+  };
+
   const syncJsState = () => {
     if ((!deps.getJsEnabled() || !deps.canEditJs) && activeCssTab === 'js') {
       setCssTab('css', { focus: false });
@@ -386,8 +420,10 @@ export function createEditorUiController(deps: EditorUiControllerDeps) {
     setCompactEditorTab,
     updateCompactEditorMode,
     focusHtmlEditor,
+    refreshEditorLayout,
     syncJsState,
     syncTailwindState,
+    syncMutationLock,
   };
 }
 

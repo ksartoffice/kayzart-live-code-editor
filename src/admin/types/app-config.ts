@@ -1,11 +1,14 @@
 import type { SettingsData } from '../settings';
 import type { JsMode } from './js-mode';
+import type { CssByMode, EditorCssMode } from './css-mode';
 
 export type AppConfig = {
   post_id: number;
   initialHtml: string;
   initialCustomHead?: string;
   initialCss: string;
+  initialCssByMode?: CssByMode;
+  initialEditorMode?: EditorCssMode;
   initialJs: string;
   initialJsMode?: JsMode;
   canEditJs: boolean;
@@ -18,7 +21,9 @@ export type AppConfig = {
   setupRestUrl: string;
   settingsRestUrl: string;
   settingsData: SettingsData;
-  defaultEditorLayout?: 'code_visible' | 'code_hidden';
+  legacyCodeVisibilityFallback?: 'code_visible' | 'code_hidden';
+  initialEntryMode?: 'ai' | 'blank' | '';
+  layoutStorageNamespace?: string;
   backUrl?: string;
   listUrl?: string;
   listLabel?: string;
@@ -30,4 +35,31 @@ export type AppConfig = {
   canUpdateCore?: boolean;
   updateCoreUrl?: string;
   adminTitleSeparators?: string[];
+  ai?: {
+    available: boolean;
+	setupState?: 'ready' | 'setup_required' | 'system_unavailable';
+	backend?: 'wordpress_ai_client' | 'openai_direct' | 'none';
+    featureEnabled: boolean;
+    sdkPresent: boolean;
+    providerConfigured: boolean;
+	connectorConfigured?: boolean;
+	directKeyConfigured?: boolean;
+	directKeySource?: 'environment' | 'constant' | 'database' | 'none';
+    schedulerPresent: boolean;
+    mbstringPresent: boolean;
+    domPresent: boolean;
+    canEdit: boolean;
+    jobsUrl: string;
+    jobsBaseUrl: string;
+    timelineUrl: string;
+    timelineBaseUrl: string;
+    connectorsUrl: string;
+	settingsUrl?: string;
+    canManageConnectors: boolean;
+	canManageSettings?: boolean;
+    initialRequest?: {
+      requestId: string;
+      prompt: string;
+    } | null;
+  };
 };

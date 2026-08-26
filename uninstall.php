@@ -10,3 +10,13 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 // User-created content and KayzArt-managed posts are intentionally preserved.
+delete_option( 'kayzart_openai_api_key' );
+delete_option( 'kayzart_connector_migration_notice_shown' );
+delete_option( 'kayzart_dormant_openai_key_notice_shown' );
+delete_transient( 'kayzart_ai_backend' );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_state', '', true );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_draft', '', true );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_response', '', true );
+delete_metadata( 'user', 0, 'kayzart_feedback_v1_pending', '', true );
+delete_option( 'kayzart_feedback_v1_closed' );
+delete_transient( 'kayzart_feedback_has_content' );

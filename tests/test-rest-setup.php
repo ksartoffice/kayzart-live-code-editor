@@ -22,6 +22,8 @@ class Test_Rest_Setup extends WP_UnitTestCase {
 	public function test_setup_tailwind_locks_tailwind_mode(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
+		$normal_css = '.legacy { color: red; }';
+		update_post_meta( $post_id, '_kayzart_css', $normal_css );
 		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
 
 		wp_set_current_user( $admin_id );
@@ -38,6 +40,15 @@ class Test_Rest_Setup extends WP_UnitTestCase {
 		$this->assertSame( true, $response->get_data()['tailwindEnabled'] ?? false );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
 		$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame( $normal_css, get_post_meta( $post_id, '_kayzart_normal_css', true ) );
+		$this->assertStringContainsString(
+			'@import "tailwindcss";',
+			get_post_meta( $post_id, '_kayzart_css', true )
+		);
+		$this->assertSame(
+			get_post_meta( $post_id, '_kayzart_css', true ),
+			get_post_meta( $post_id, '_kayzart_tailwind_css', true )
+		);
 		$this->assertSame( '', get_post_meta( $post_id, '_kayzart_setup_required', true ) );
 	}
 

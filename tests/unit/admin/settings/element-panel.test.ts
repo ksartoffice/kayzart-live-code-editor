@@ -60,7 +60,8 @@ describe('ElementPanel', () => {
   const mountPanel = async (
     initialSegments = [{ id: 'text-1', text: 'Original', labelHint: 'Heading' }],
     initialActionInfo: ElementPanelActionInfo | null = null,
-    initialImageInfo: ElementPanelImageInfo | null = null
+    initialImageInfo: ElementPanelImageInfo | null = null,
+    mutationLocked = false
   ) => {
     const { createRoot } = await import('react-dom/client');
     const React = await import('react');
@@ -111,7 +112,7 @@ describe('ElementPanel', () => {
     document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
-      root.render(React.createElement(ElementPanel, { api }));
+      root.render(React.createElement(ElementPanel, { api, mutationLocked }));
     });
     await act(async () => {
       selectionListener?.('heading-1');
@@ -398,5 +399,22 @@ describe('ElementPanel', () => {
     expect(container.textContent).toContain('Link destination');
     expect(container.textContent).toContain('Image URL');
     expect(container.textContent).toContain('Advanced settings');
+  });
+
+  it('keeps the selected element visible but disables its editing fields while locked', async () => {
+    const { api, container, textareas } = await mountPanel(
+      [{ id: 'text-1', text: 'Locked text', labelHint: 'Heading' }],
+      null,
+      createImageInfo(),
+      true
+    );
+
+    expect(container.textContent).toContain('Selected: Image');
+    expect(textareas()[0].matches(':disabled')).toBe(true);
+    expect((container.querySelector('#kayzart-elements-image-url') as HTMLInputElement).matches(':disabled')).toBe(true);
+    const replace = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Replace image') as HTMLButtonElement;
+    expect(replace.matches(':disabled')).toBe(true);
+    replace.click();
+    expect(api.replaceElementImage).not.toHaveBeenCalled();
   });
 });

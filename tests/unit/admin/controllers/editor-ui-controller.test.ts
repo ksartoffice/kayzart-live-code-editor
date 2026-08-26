@@ -195,4 +195,36 @@ describe('editor ui controller', () => {
     expect(ui.cssFormatButton.style.display).toBe('');
     expect(ui.cssFormatButton.getAttribute('aria-label')).toBe('Format JavaScript');
   });
+
+  it('disables mutation controls while keeping code tabs available', () => {
+    const ui = createUi();
+    let locked = true;
+    const controller = createEditorUiController({
+      ui,
+      canEditJs: true,
+      htmlEditor: createEditor(),
+      customHeadEditor: createEditor(),
+      cssEditor: createEditor(),
+      jsEditor: createEditor(),
+      compactEditorBreakpoint: 900,
+      getViewportWidth: () => 1200,
+      getJsEnabled: () => true,
+      getMutationLocked: () => locked,
+      onOpenMedia: () => {},
+      onFormatCode: () => {},
+    });
+
+    controller.initialize();
+    ui.jsTab.click();
+    expect(ui.addMediaButton.disabled).toBe(true);
+    expect(ui.htmlFormatButton.disabled).toBe(true);
+    expect(ui.cssFormatButton.disabled).toBe(true);
+    expect(ui.jsModeSelect.disabled).toBe(true);
+    expect(ui.jsTab.disabled).toBe(false);
+
+    locked = false;
+    controller.syncMutationLock();
+    expect(ui.htmlFormatButton.disabled).toBe(false);
+    expect(ui.jsModeSelect.disabled).toBe(false);
+  });
 });

@@ -76,6 +76,15 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		update_post_meta( $page_id, Html_Document::BODY_ATTRS_META_KEY, wp_slash( $body_attrs ) );
 		update_post_meta( $page_id, '_kayzart_array_slashes', wp_slash( $array_meta ) );
 		update_post_meta( $page_id, '_kayzart_setup_required', '1' );
+		update_post_meta(
+			$page_id,
+			Admin::INITIAL_AI_REQUEST_META_KEY,
+			array(
+				'requestId' => 'initial-duplicate-request',
+				'prompt'    => 'Create the landing page.',
+				'userId'    => $admin_id,
+			)
+		);
 
 		$source_title = get_post( $page_id )->post_title;
 
@@ -122,6 +131,11 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 			'',
 			get_post_meta( $copy_id, '_kayzart_setup_required', true ),
 			'The transient setup flag must not be carried over to the copy.'
+		);
+		$this->assertSame(
+			'',
+			get_post_meta( $copy_id, Admin::INITIAL_AI_REQUEST_META_KEY, true ),
+			'The pending initial AI request must not be carried over to the copy.'
 		);
 
 		$this->assertStringContainsString( 'kayzart_duplicated=1', $location );
@@ -323,8 +337,12 @@ class Test_Admin_Duplicate extends WP_UnitTestCase {
 		$actions = Post_Type::add_kayzart_row_action( array(), $managed );
 
 		$this->assertArrayHasKey( 'kayzart_duplicate', $actions );
-		$this->assertStringContainsString( esc_html__( 'Duplicate landing page', 'kayzart-live-code-editor' ), $actions['kayzart_duplicate'] );
+		$this->assertStringContainsString( esc_html__( 'Duplicate with Kayzart', 'kayzart-live-code-editor' ), $actions['kayzart_duplicate'] );
 		$this->assertStringContainsString( 'action=' . Admin::DUPLICATE_POST_ACTION, $actions['kayzart_duplicate'] );
+
+		// Kayzart actions must come before the existing row actions.
+		$actions = Post_Type::add_kayzart_row_action( array( 'edit' => '<a href="#">Edit</a>' ), $managed );
+		$this->assertSame( array( 'kayzart_edit', 'kayzart_duplicate', 'edit' ), array_keys( $actions ) );
 	}
 
 	private function get_page_ids(): array {

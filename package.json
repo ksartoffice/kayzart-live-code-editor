@@ -1,20 +1,24 @@
 {
   "name": "kayzart-live-code-editor",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "description": "Live HTML/CSS/JS editor with a custom Kayzart post type, CodeMirror editor, and live preview.",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "version:set": "node scripts/version-set.mjs",
     "version:check": "node scripts/version-check.mjs",
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:admin",
+    "build:admin": "vite build",
+    "build:i18n": "vite build --mode i18n --minify false",
+    "i18n:build": "npm run build:i18n && wp i18n make-pot . languages/kayzart-live-code-editor.pot --domain=kayzart-live-code-editor --exclude=.wordpress,tests,test,scripts,kayzart-svn --skip-audit && wp i18n update-po languages/kayzart-live-code-editor.pot languages && wp i18n make-mo languages/kayzart-live-code-editor-ja.po languages/kayzart-live-code-editor-ja.mo && wp i18n make-json languages/kayzart-live-code-editor-ja.po languages --no-purge && npm run build",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "plugin-zip": "npm run build && composer install --no-dev --optimize-autoloader && node scripts/plugin-zip.mjs && composer install",
     "plugin-zip:version": "node scripts/plugin-zip-version.mjs",
     "release:svn": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-to-svn.ps1",
     "e2e": "playwright test",
-    "e2e:install": "playwright install"
+    "e2e:install": "playwright install",
+    "e2e:freeze": "playwright test tests/e2e/snapshot-apply-freeze.spec.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.0",

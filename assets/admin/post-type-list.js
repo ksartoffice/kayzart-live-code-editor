@@ -27,7 +27,7 @@
     var button = document.createElement('a');
     button.className = 'page-title-action kayzart-post-type-list-create';
     button.href = data.createUrl;
-    button.textContent = __( 'Add landing page', 'kayzart-live-code-editor' );
+    button.textContent = __( 'Add with Kayzart', 'kayzart-live-code-editor' );
 
     addNewButton.insertAdjacentElement('afterend', button);
   });

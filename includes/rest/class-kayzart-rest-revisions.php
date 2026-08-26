@@ -217,7 +217,11 @@ class Rest_Revisions {
 		if ( $before['html'] !== $after['html'] ) {
 			$changed[] = 'html';
 		}
-		if ( $before['css'] !== $after['css'] ) {
+		if (
+			$before['css'] !== $after['css']
+			|| ( isset( $before['editorMode'] ) ? $before['editorMode'] : null ) !== ( isset( $after['editorMode'] ) ? $after['editorMode'] : null )
+			|| ( isset( $before['cssByMode'] ) ? $before['cssByMode'] : null ) !== ( isset( $after['cssByMode'] ) ? $after['cssByMode'] : null )
+		) {
 			$changed[] = 'css';
 		}
 		if ( $before['js'] !== $after['js'] || $before['jsMode'] !== $after['jsMode'] ) {

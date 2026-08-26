@@ -3,6 +3,11 @@ import { __, sprintf } from '@wordpress/i18n';
 import type { ApiFetch } from './types/api-fetch';
 import type { CompileTailwindResponse, SaveResponse } from './types/rest';
 import type { JsMode } from './types/js-mode';
+import type { CssByMode, EditorCssMode } from './types/css-mode';
+import {
+  createTailwindCompileSignature,
+  extractTailwindCandidates,
+} from './logic/tailwind-candidates';
 
 const resolveUnknownErrorMessage = (error: unknown, fallbackMessage: string): string => {
   if (error instanceof Error && error.message.trim()) {
@@ -64,7 +69,7 @@ export async function compileTailwindSnapshot(
     method: 'POST',
     data: {
       post_id: params.postId,
-      html: params.html,
+      candidates: extractTailwindCandidates(params.html),
       css: params.css,
     },
   });
@@ -80,6 +85,7 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
   let tailwindCompileToken = 0;
   let tailwindCompileInFlight = false;
   let tailwindCompileQueued = false;
+  let lastSuccessfulSignature: string | null = null;
 
   const compile = async () => {
     if (!deps.isTailwindEnabled()) return;
@@ -90,6 +96,13 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
     tailwindCompileInFlight = true;
     tailwindCompileQueued = false;
     const currentToken = ++tailwindCompileToken;
+    const candidates = extractTailwindCandidates(deps.getHtml());
+    const css = deps.getCss();
+    const signature = createTailwindCompileSignature(candidates, css);
+    if (signature === lastSuccessfulSignature) {
+      tailwindCompileInFlight = false;
+      return;
+    }
 
     try {
       const res = await deps.apiFetch<CompileTailwindResponse>({
@@ -97,8 +110,8 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
         method: 'POST',
         data: {
           post_id: deps.postId,
-          html: deps.getHtml(),
-          css: deps.getCss(),
+          candidates,
+          css,
         },
       });
 
@@ -107,6 +120,7 @@ export function createTailwindCompiler(deps: TailwindCompilerDeps): TailwindComp
       }
 
       if (res?.ok && typeof res.css === 'string') {
+        lastSuccessfulSignature = signature;
         deps.onCssCompiled(res.css);
         deps.onStatusClear();
       } else {
@@ -147,6 +161,8 @@ type SaveParams = {
   customHead: string;
   css: string;
   tailwindEnabled: boolean;
+  editorMode: EditorCssMode;
+  cssByMode: CssByMode;
   canEditJs: boolean;
   js: string;
   jsMode: JsMode;
@@ -155,14 +171,27 @@ type SaveParams = {
 
 export async function saveKayzArt(
   params: SaveParams
-): Promise<{ ok: boolean; error?: string; customHead?: string; customHeadRemovedTags?: string[]; settings?: SettingsData }> {
+): Promise<{
+  ok: boolean;
+  error?: string;
+  customHead?: string;
+  customHeadRemovedTags?: string[];
+  settings?: SettingsData;
+  editorMode?: EditorCssMode;
+  cssByMode?: CssByMode;
+}> {
   try {
     const payload: Record<string, unknown> = {
       post_id: params.postId,
       html: params.html,
       css: params.css,
       tailwindEnabled: params.tailwindEnabled,
+      editorMode: params.editorMode,
+      cssByMode: params.cssByMode,
     };
+    if (params.tailwindEnabled) {
+      payload.tailwindCandidates = extractTailwindCandidates(params.html);
+    }
     if (params.canEditJs) {
       payload.customHead = params.customHead;
       payload.js = params.js;
@@ -186,7 +215,14 @@ export async function saveKayzArt(
       const customHeadRemovedTags = Array.isArray(res?.customHeadRemovedTags)
         ? res.customHeadRemovedTags.filter((tag): tag is string => typeof tag === 'string')
         : undefined;
-      return { ok: true, customHead, customHeadRemovedTags, settings };
+      return {
+        ok: true,
+        customHead,
+        customHeadRemovedTags,
+        settings,
+        editorMode: res.editorMode,
+        cssByMode: res.cssByMode,
+      };
     }
     if (typeof res?.error === 'string' && res.error.trim()) {
       return { ok: false, error: res.error };

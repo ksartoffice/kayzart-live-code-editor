@@ -9,12 +9,14 @@ import {
   useRef,
   useState,
 } from '@wordpress/element';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { __ } from '@wordpress/i18n';
 import { X } from 'lucide';
 import { renderLucideIcon } from '../lucide-icons';
 import { SettingsPanel } from './settings-panel';
 import { ElementPanel, type ElementPanelApi } from './element-panel';
 import { HistoryPanel } from './history-panel';
+import { AiEditorPanel } from '../../editor-ai/main';
 import type { EditorSnapshot } from '../extensions/settings-tab-registry';
 import { resolveDefaultTemplateMode, resolveTemplateMode } from '../logic/template-mode';
 import {
@@ -22,6 +24,7 @@ import {
   subscribeExternalSettingsTabs,
   type ResolvedExternalSettingsTab,
 } from '../extensions/settings-tab-registry';
+import type { EditorCssMode } from '../types/css-mode';
 
 export type SettingsData = {
   title: string;
@@ -54,12 +57,16 @@ type SettingsConfig = {
   hasUnsavedChanges: () => boolean;
   onLoadSnapshot: (snapshot: EditorSnapshot) => boolean;
   onTemplateModeChange?: (mode: 'default' | 'standalone' | 'theme') => void;
+  editorMode: EditorCssMode;
+  onEditorModeChange?: (mode: EditorCssMode) => void;
   onLiveHighlightToggle?: (enabled: boolean) => void;
   onTabChange?: (tab: SettingsTab) => void;
   onPendingUpdatesChange?: (state: PendingSettingsState) => void;
   onClosePanel?: () => void;
   elementsApi?: ElementPanelApi;
   onApiReady?: (api: SettingsApi) => void;
+  aiEnabled: boolean;
+	initialTab?: string;
 };
 
 type SettingsTab = string;
@@ -68,23 +75,58 @@ export type SettingsApi = {
   applySettings: (next: Partial<SettingsData>) => void;
   openTab: (tab: SettingsTab) => void;
   refreshHistory: () => void;
+  setEditorModeState: (mode: EditorCssMode, disabled: boolean) => void;
+  setMutationLocked: (locked: boolean) => void;
 };
 
 const CLOSE_ICON = renderLucideIcon(X, {
   class: 'lucide lucide-x-icon lucide-x',
 });
 
+export function getCoreSettingsTabs(aiEnabled: boolean) {
+  return [
+    ...(aiEnabled
+      ? [{ id: 'kayzart-ai', label: __( 'AI Edit', 'kayzart-live-code-editor' ) }]
+      : []),
+    {
+      id: 'elements',
+      label: __( 'Elements', 'kayzart-live-code-editor'),
+    },
+    {
+      id: 'history',
+      label: __( 'History', 'kayzart-live-code-editor'),
+    },
+    {
+      id: 'settings',
+      label: __( 'Settings', 'kayzart-live-code-editor'),
+    },
+  ];
+}
+
+export function getKeyboardTabIndex(key: string, currentIndex: number, tabCount: number) {
+  if (tabCount < 1) return null;
+  if (key === 'ArrowRight') return (currentIndex + 1) % tabCount;
+  if (key === 'ArrowLeft') return (currentIndex - 1 + tabCount) % tabCount;
+  if (key === 'Home') return 0;
+  if (key === 'End') return tabCount - 1;
+  return null;
+}
+
 function SettingsSidebar({
   data,
   postId,
   header,
   onTemplateModeChange,
+  editorMode: initialEditorMode,
+  onEditorModeChange,
   onLiveHighlightToggle,
   onTabChange,
   onPendingUpdatesChange,
   onClosePanel,
   elementsApi,
   onApiReady,
+  aiEnabled,
+	initialTab,
   apiFetch,
   revisionsRestUrl,
   revisionsSupported,
@@ -96,11 +138,16 @@ function SettingsSidebar({
 }: SettingsConfig) {
   const settingsRef = useRef<SettingsData>({ ...data });
   const [settings, setSettings] = useState<SettingsData>({ ...data });
-  const [activeTab, setActiveTab] = useState<SettingsTab>('settings');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+	initialTab || (aiEnabled ? 'kayzart-ai' : 'elements')
+  );
   const [externalTabs, setExternalTabs] = useState<ResolvedExternalSettingsTab[]>(() =>
     getExternalSettingsTabs()
   );
   const [historyRefreshToken, setHistoryRefreshToken] = useState(0);
+  const [editorMode, setEditorMode] = useState<EditorCssMode>(initialEditorMode);
+  const [editorModeDisabled, setEditorModeDisabled] = useState(false);
+  const [mutationLocked, setMutationLocked] = useState(false);
   const externalTabHostRef = useRef<HTMLDivElement | null>(null);
   const externalTabCleanupRef = useRef<(() => void) | null>(null);
   const resolveLiveHighlightEnabled = (value?: boolean) =>
@@ -135,6 +182,11 @@ function SettingsSidebar({
         setActiveTab(tab);
       },
       refreshHistory: () => setHistoryRefreshToken((current) => current + 1),
+      setEditorModeState: (mode: EditorCssMode, disabled: boolean) => {
+        setEditorMode(mode);
+        setEditorModeDisabled(disabled);
+      },
+      setMutationLocked,
     });
   }, [onApiReady]);
 
@@ -149,31 +201,20 @@ function SettingsSidebar({
 
   const tabItems = useMemo(
     () => [
-      {
-        id: 'settings',
-        label: __( 'Settings', 'kayzart-live-code-editor'),
-      },
-      {
-        id: 'elements',
-        label: __( 'Elements', 'kayzart-live-code-editor'),
-      },
-      {
-        id: 'history',
-        label: __( 'History', 'kayzart-live-code-editor'),
-      },
+      ...getCoreSettingsTabs(aiEnabled),
       ...externalTabs.map((tab) => ({
         id: tab.id,
         label: tab.label,
       })),
     ],
-    [externalTabs]
+    [aiEnabled, externalTabs]
   );
 
   useEffect(() => {
     if (!tabItems.some((tab) => tab.id === activeTab)) {
-      setActiveTab('settings');
+      setActiveTab(aiEnabled ? 'kayzart-ai' : 'elements');
     }
-  }, [activeTab, tabItems]);
+  }, [activeTab, aiEnabled, tabItems]);
 
   const activeExternalTab = useMemo(
     () => externalTabs.find((tab) => tab.id === activeTab) || null,
@@ -229,8 +270,20 @@ function SettingsSidebar({
     setActiveTab(tab);
   };
 
+  const tabDomId = (tab: SettingsTab) => `kayzart-settings-tab-${tab.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  const panelDomId = (tab: SettingsTab) => `kayzart-settings-panel-${tab.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+
+  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    const nextIndex = getKeyboardTabIndex(event.key, index, tabItems.length);
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = tabItems[nextIndex];
+    setActiveTab(nextTab.id);
+    document.getElementById(tabDomId(nextTab.id))?.focus();
+  };
+
   const handleTemplateModeChange = (next: 'default' | 'standalone' | 'theme') => {
-    if (!canEditJs) {
+    if (!canEditJs || mutationLocked) {
       return;
     }
     setTemplateMode(next);
@@ -280,14 +333,18 @@ function SettingsSidebar({
         role="tablist"
         aria-label={__( 'Settings tabs', 'kayzart-live-code-editor')}
       >
-        {tabItems.map((tab) => (
+        {tabItems.map((tab, index) => (
           <button
             key={tab.id}
+            id={tabDomId(tab.id)}
             className={`kayzart-settingsTab${activeTab === tab.id ? ' is-active' : ''}`}
             type="button"
             role="tab"
             aria-selected={activeTab === tab.id}
+            aria-controls={panelDomId(tab.id)}
+            tabIndex={activeTab === tab.id ? 0 : -1}
             onClick={() => handleTabChange(tab.id)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
           >
             {tab.label}
           </button>
@@ -313,37 +370,68 @@ function SettingsSidebar({
     <Fragment>
       {tabsNode}
 
-      {activeTab === 'settings' ? (
-        <SettingsPanel
-          canEditJs={canEditJs}
-          templateMode={templateMode}
-          defaultTemplateMode={defaultTemplateMode}
-          onChangeTemplateMode={handleTemplateModeChange}
-          liveHighlightEnabled={liveHighlightEnabled}
-          onToggleLiveHighlight={handleLiveHighlightToggle}
-          disabled={!canEditJs}
-        />
+      {aiEnabled ? (
+        <div
+          id={panelDomId('kayzart-ai')}
+          className="kayzart-settingsAiPanel"
+          role="tabpanel"
+          aria-labelledby={tabDomId('kayzart-ai')}
+          hidden={activeTab !== 'kayzart-ai'}
+        >
+          <AiEditorPanel active={activeTab === 'kayzart-ai'} />
+        </div>
       ) : null}
 
-      {activeTab === 'elements' ? <ElementPanel api={elementsApi} /> : null}
+      {activeTab === 'settings' ? (
+        <div id={panelDomId('settings')} role="tabpanel" aria-labelledby={tabDomId('settings')}>
+          <SettingsPanel
+            canEditJs={canEditJs}
+            templateMode={templateMode}
+            defaultTemplateMode={defaultTemplateMode}
+            onChangeTemplateMode={handleTemplateModeChange}
+            liveHighlightEnabled={liveHighlightEnabled}
+            onToggleLiveHighlight={handleLiveHighlightToggle}
+            editorMode={editorMode}
+            onChangeEditorMode={(mode) => onEditorModeChange?.(mode)}
+            editorModeDisabled={editorModeDisabled}
+            mutationLocked={mutationLocked}
+            disabled={!canEditJs}
+          />
+        </div>
+      ) : null}
+
+      {activeTab === 'elements' ? (
+        <div id={panelDomId('elements')} role="tabpanel" aria-labelledby={tabDomId('elements')}>
+          <ElementPanel api={elementsApi} mutationLocked={mutationLocked} />
+        </div>
+      ) : null}
 
       {activeTab === 'history' ? (
-        <HistoryPanel
-          postId={postId}
-          restUrl={revisionsRestUrl}
-          apiFetch={apiFetch}
-          supported={revisionsSupported}
-          currentVersion={wpVersion}
-          canUpdateCore={canUpdateCore}
-          updateCoreUrl={updateCoreUrl}
-          refreshToken={historyRefreshToken}
-          hasUnsavedChanges={hasUnsavedChanges}
-          onLoadSnapshot={onLoadSnapshot}
-        />
+        <div id={panelDomId('history')} role="tabpanel" aria-labelledby={tabDomId('history')}>
+          <HistoryPanel
+            postId={postId}
+            restUrl={revisionsRestUrl}
+            apiFetch={apiFetch}
+            supported={revisionsSupported}
+            currentVersion={wpVersion}
+            canUpdateCore={canUpdateCore}
+            updateCoreUrl={updateCoreUrl}
+            refreshToken={historyRefreshToken}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onLoadSnapshot={onLoadSnapshot}
+            mutationLocked={mutationLocked}
+          />
+        </div>
       ) : null}
 
       {activeExternalTab ? (
-        <div className="kayzart-settingsExternalPanel" ref={externalTabHostRef} />
+        <div
+          id={panelDomId(activeExternalTab.id)}
+          className="kayzart-settingsExternalPanel"
+          role="tabpanel"
+          aria-labelledby={tabDomId(activeExternalTab.id)}
+          ref={externalTabHostRef}
+        />
       ) : null}
     </Fragment>
   );
@@ -354,6 +442,10 @@ export function initSettings(config: SettingsConfig) {
   let applySettingsImpl: (next: Partial<SettingsData>) => void = () => {};
   let openTabImpl: (tab: SettingsTab) => void = () => {};
   let refreshHistoryImpl: () => void = () => {};
+  let setEditorModeStateImpl: (mode: EditorCssMode, disabled: boolean) => void = () => {};
+  let setMutationLockedImpl: (locked: boolean) => void = () => {};
+  let latestEditorModeState = { mode: config.editorMode, disabled: false };
+  let latestMutationLocked = false;
   const api: SettingsApi = {
     applySettings(next: Partial<SettingsData>) {
       applySettingsImpl(next);
@@ -363,6 +455,14 @@ export function initSettings(config: SettingsConfig) {
     },
     refreshHistory() {
       refreshHistoryImpl();
+    },
+    setEditorModeState(mode: EditorCssMode, disabled: boolean) {
+      latestEditorModeState = { mode, disabled };
+      setEditorModeStateImpl(mode, disabled);
+    },
+    setMutationLocked(locked: boolean) {
+      latestMutationLocked = locked;
+      setMutationLockedImpl(locked);
     },
   };
 
@@ -374,6 +474,10 @@ export function initSettings(config: SettingsConfig) {
         applySettingsImpl = nextApi.applySettings;
         openTabImpl = nextApi.openTab;
         refreshHistoryImpl = nextApi.refreshHistory;
+        setEditorModeStateImpl = nextApi.setEditorModeState;
+        setMutationLockedImpl = nextApi.setMutationLocked;
+        setEditorModeStateImpl(latestEditorModeState.mode, latestEditorModeState.disabled);
+        setMutationLockedImpl(latestMutationLocked);
       }}
     />
   );

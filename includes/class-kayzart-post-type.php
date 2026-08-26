@@ -21,6 +21,27 @@ class Post_Type {
 	const ENABLED_META = '_kayzart_enabled';
 
 	/**
+	 * Admin menu icon: the Kayzart mark (landing page + K) as a monochrome SVG.
+	 *
+	 * WordPress renders a data URI icon as a CSS background image, so the SVG
+	 * cannot inherit the menu colour via currentColor. #a7aaad matches the
+	 * default Dashicons colour in the admin menu.
+	 *
+	 * @return string Base64 encoded data URI.
+	 */
+	public static function menu_icon(): string {
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20" fill="#a7aaad">'
+			. '<path fill-rule="evenodd" d="M2 2.5h6.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H2a1.5 1.5 0 0 1-1.5-1.5V4A1.5 1.5 0 0 1 2 2.5ZM0.5 5.8h9.5v1.1H0.5ZM2.2 8.4h6.1v3.4H2.2ZM2.2 13.4h4.2v1.8H2.2Z"/>'
+			. '<path d="M18.6 1.2v4.6L14.4 10l4.2 4.2v4.6l-7.2-7.2V8.4Z"/>'
+			. '</svg>';
+
+		// The argument is the SVG literal directly above, and add_menu_page() takes
+		// its icon as a base64 data URI. Nothing here is user input or obfuscation.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+	}
+
+	/**
 	 * Register hooks for the post type.
 	 */
 	public static function init(): void {
@@ -85,7 +106,7 @@ class Post_Type {
 			'supports'            => array( 'title', 'editor', 'author', 'thumbnail' ),
 			'show_in_rest'        => true,
 			'menu_position'       => 21,
-			'menu_icon'           => 'dashicons-editor-code',
+			'menu_icon'           => self::menu_icon(),
 		);
 
 		register_post_type( self::POST_TYPE, $args );
@@ -253,9 +274,19 @@ class Post_Type {
 	 * @param int $post_id Post ID.
 	 */
 	public static function enable_for_post( int $post_id ): void {
+
 		update_post_meta( $post_id, self::ENABLED_META, '1' );
 	}
 
+	/**
+	 * Stop managing a regular WordPress post with Kayzart.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public static function disable_for_post( int $post_id ): void {
+
+		delete_post_meta( $post_id, self::ENABLED_META );
+	}
 	/**
 	 * Check whether a post is a KayzArt post.
 	 *
@@ -320,12 +351,7 @@ class Post_Type {
 			return $states;
 		}
 
-		$states['kayzart_lp'] = __( 'Landing page', 'kayzart-live-code-editor' );
-
-		$is_tailwind = '1' === get_post_meta( $post->ID, '_kayzart_tailwind', true );
-		if ( $is_tailwind ) {
-			$states['kayzart_tailwind'] = __( 'TailwindCSS', 'kayzart-live-code-editor' );
-		}
+		$states['kayzart_lp'] = 'Kayzart';
 
 		return $states;
 	}
@@ -347,26 +373,30 @@ class Post_Type {
 		}
 
 		$is_managed = self::POST_TYPE === $post->post_type || self::is_kayzart_enabled_post( (int) $post->ID );
-		if ( $is_managed ) {
-			$actions['kayzart_edit']      = sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( self::get_editor_url( $post->ID ) ),
-				esc_html__( 'Edit landing page', 'kayzart-live-code-editor' )
-			);
-			$actions['kayzart_duplicate'] = sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( Admin::get_duplicate_post_action_url( (int) $post->ID ) ),
-				esc_html__( 'Duplicate landing page', 'kayzart-live-code-editor' )
-			);
-		} else {
+		if ( ! $is_managed ) {
 			$actions['kayzart_convert'] = sprintf(
 				'<a href="%s">%s</a>',
-				esc_url( Admin::get_convert_post_action_url( (int) $post->ID ) ),
-				esc_html__( 'Convert to landing page', 'kayzart-live-code-editor' )
+				esc_url( Admin::get_convert_screen_url( (int) $post->ID ) ),
+				esc_html__( 'Start editing with Kayzart', 'kayzart-live-code-editor' )
 			);
+
+			return $actions;
 		}
 
-		return $actions;
+		$kayzart_actions                      = array();
+		$kayzart_actions['kayzart_edit']      = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( self::get_editor_url( $post->ID ) ),
+			esc_html__( 'Edit with Kayzart', 'kayzart-live-code-editor' )
+		);
+		$kayzart_actions['kayzart_duplicate'] = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( Admin::get_duplicate_post_action_url( (int) $post->ID ) ),
+			esc_html__( 'Duplicate with Kayzart', 'kayzart-live-code-editor' )
+		);
+
+		// Show the Kayzart actions before the default row actions.
+		return array_merge( $kayzart_actions, $actions );
 	}
 
 	/**

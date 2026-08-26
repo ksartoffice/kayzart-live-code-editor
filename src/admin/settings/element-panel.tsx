@@ -65,6 +65,7 @@ export type ElementPanelApi = {
 
 type ElementPanelProps = {
   api?: ElementPanelApi;
+  mutationLocked?: boolean;
 };
 
 const LIVE_TEXT_COMMIT_DELAY_MS = 250;
@@ -110,7 +111,7 @@ function hasResponsiveImageSources(imageInfo: ElementPanelImageInfo | null) {
   );
 }
 
-export function ElementPanel({ api }: ElementPanelProps) {
+export function ElementPanel({ api, mutationLocked = false }: ElementPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [segments, setSegments] = useState<ElementPanelTextSegment[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -288,6 +289,14 @@ export function ElementPanel({ api }: ElementPanelProps) {
   }, [refreshElement]);
 
   useEffect(() => {
+    if (!mutationLocked) return;
+    focusedSegmentIdRef.current = null;
+    focusedActionFieldRef.current = null;
+    focusedImageFieldRef.current = null;
+    refreshElement();
+  }, [mutationLocked, refreshElement]);
+
+  useEffect(() => {
     segments.forEach((segment) => {
       adjustTextareaHeight(textareaRefs.current[segment.id] ?? null);
     });
@@ -304,7 +313,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
 
   const commitSegment = useCallback(
     (segmentId: string, nextValue: string) => {
-      if (!selectedId || !api?.updateTextSegment) {
+      if (mutationLocked || !selectedId || !api?.updateTextSegment) {
         return false;
       }
       if (nextValue === committedDraftsRef.current[segmentId]) {
@@ -319,11 +328,11 @@ export function ElementPanel({ api }: ElementPanelProps) {
       }
       return didUpdate;
     },
-    [api, selectedId]
+    [api, mutationLocked, selectedId]
   );
 
   const commitActionDraft = useCallback(() => {
-    if (!selectedId || !actionInfo || !api?.updateElementActionInfo) {
+    if (mutationLocked || !selectedId || !actionInfo || !api?.updateElementActionInfo) {
       return false;
     }
     const current = actionDraftRef.current;
@@ -346,10 +355,10 @@ export function ElementPanel({ api }: ElementPanelProps) {
       committedActionDraftRef.current = current;
     }
     return didUpdate;
-  }, [actionInfo, api, selectedId]);
+  }, [actionInfo, api, mutationLocked, selectedId]);
 
   const commitImageDraft = useCallback(() => {
-    if (!selectedId || !imageInfo || !api?.updateElementImageInfo) {
+    if (mutationLocked || !selectedId || !imageInfo || !api?.updateElementImageInfo) {
       return false;
     }
     const current = imageDraftRef.current;
@@ -369,7 +378,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
       committedImageDraftRef.current = current;
     }
     return didUpdate;
-  }, [api, imageInfo, selectedId]);
+  }, [api, imageInfo, mutationLocked, selectedId]);
 
   useEffect(() => {
     const timers = segments
@@ -482,7 +491,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
   };
 
   const handleReplaceImage = () => {
-    if (!selectedId || !api?.replaceElementImage) {
+    if (mutationLocked || !selectedId || !api?.replaceElementImage) {
       return;
     }
     api.replaceElementImage(selectedId);
@@ -491,7 +500,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
   const commitAttributes = useCallback(
     (nextAttributes: ElementPanelAttribute[]) => {
       setAttributes(nextAttributes);
-      if (!selectedId || !api?.updateElementAttributes) {
+      if (mutationLocked || !selectedId || !api?.updateElementAttributes) {
         return;
       }
       const payload = nextAttributes
@@ -499,7 +508,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
         .filter((attr) => attr.name !== '');
       api.updateElementAttributes(selectedId, payload);
     },
-    [api, selectedId]
+    [api, mutationLocked, selectedId]
   );
 
   const handleAttributeNameChange = (index: number, name: string) => {
@@ -541,6 +550,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
     <div className="kayzart-settingsSection" data-kayzart-panel="elements">
       <div className="kayzart-settingsSectionTitle">{__( 'Elements', 'kayzart-live-code-editor')}</div>
       <div className="kayzart-settingsHelp">{selectedLabel}</div>
+      <fieldset className="kayzart-elementsEditorFields" disabled={mutationLocked}>
       {actionInfo ? (
         <div className="kayzart-formGroup kayzart-elementsActionGroup">
           <div className="kayzart-formLabel">
@@ -726,6 +736,7 @@ export function ElementPanel({ api }: ElementPanelProps) {
           </button>
         </div>
       </details>
+      </fieldset>
     </div>
   );
 }

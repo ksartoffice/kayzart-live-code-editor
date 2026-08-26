@@ -1,5 +1,6 @@
 import { createElement, Fragment } from '@wordpress/element';
 import { __, sprintf } from '@wordpress/i18n';
+import type { EditorCssMode } from '../types/css-mode';
 
 type SettingsPanelProps = {
   canEditJs: boolean;
@@ -8,6 +9,10 @@ type SettingsPanelProps = {
   onChangeTemplateMode: (mode: 'default' | 'standalone' | 'theme') => void;
   liveHighlightEnabled: boolean;
   onToggleLiveHighlight: (enabled: boolean) => void;
+  editorMode: EditorCssMode;
+  onChangeEditorMode: (mode: EditorCssMode) => void;
+  editorModeDisabled?: boolean;
+  mutationLocked?: boolean;
   disabled?: boolean;
 };
 
@@ -18,6 +23,10 @@ export function SettingsPanel({
   onChangeTemplateMode,
   liveHighlightEnabled,
   onToggleLiveHighlight,
+  editorMode,
+  onChangeEditorMode,
+  editorModeDisabled = false,
+  mutationLocked = false,
   disabled = false,
 }: SettingsPanelProps) {
   const templateModeLabels: Record<'standalone' | 'theme', string> = {
@@ -36,6 +45,35 @@ export function SettingsPanel({
   return (
     <Fragment>
       <div className="kayzart-settingsSection">
+        <div className="kayzart-settingsSectionTitle">
+          {__( 'CSS mode', 'kayzart-live-code-editor')}
+        </div>
+        <div className="kayzart-settingsItem">
+          <select
+            className="kayzart-formSelect"
+            value={editorMode}
+            onChange={(event) => onChangeEditorMode(event.target.value as EditorCssMode)}
+            aria-label={__( 'CSS mode', 'kayzart-live-code-editor')}
+            disabled={editorModeDisabled || mutationLocked}
+          >
+            <option value="normal">{__( 'Normal HTML/CSS', 'kayzart-live-code-editor')}</option>
+            <option value="tailwind">{__( 'TailwindCSS', 'kayzart-live-code-editor')}</option>
+          </select>
+        </div>
+        <div className="kayzart-settingsHelp">
+          {editorMode === 'tailwind'
+            ? __(
+                'The CSS editor contains Tailwind CSS source. Changing modes restores the last CSS saved for that mode.',
+                'kayzart-live-code-editor'
+              )
+            : __(
+                'The CSS editor contains browser-ready CSS. Changing modes restores the last CSS saved for that mode.',
+                'kayzart-live-code-editor'
+              )}
+        </div>
+      </div>
+
+      <div className="kayzart-settingsSection">
         <div className="kayzart-settingsSectionTitle">{__( 'Page template', 'kayzart-live-code-editor')}</div>
         <div className="kayzart-settingsItem">
           <select
@@ -47,7 +85,7 @@ export function SettingsPanel({
               )
             }
             aria-label={__( 'Template mode', 'kayzart-live-code-editor')}
-            disabled={disabled || !canEditJs}
+            disabled={disabled || !canEditJs || mutationLocked}
           >
             <option value="default">
               {sprintf(__( 'Use default (%s)', 'kayzart-live-code-editor'), resolvedDefaultTemplateMode)}

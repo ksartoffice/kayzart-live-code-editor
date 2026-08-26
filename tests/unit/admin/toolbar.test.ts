@@ -29,7 +29,7 @@ describe('toolbar', () => {
     document.body.replaceChildren();
   });
 
-  const mount = async () => {
+  const mount = async (stateOverrides: Record<string, unknown> = {}) => {
     const { mountToolbar } = await import('../../../src/admin/toolbar');
     const container = document.createElement('div');
     const handlers = {
@@ -49,7 +49,7 @@ describe('toolbar', () => {
     document.body.append(container);
 
     await act(async () => {
-      mountToolbar(
+      const toolbar = mountToolbar(
         container,
         {
           backUrl: '/wp-admin/',
@@ -60,19 +60,23 @@ describe('toolbar', () => {
           editorCollapsed: false,
           compactEditorMode: false,
           settingsOpen: false,
+          aiActivity: 'idle',
           tailwindEnabled: false,
           viewportMode: 'desktop',
           hasUnsavedChanges: false,
+          saveDisabled: false,
+          mutationLocked: false,
           viewPostUrl: '',
           postStatus: 'draft',
           postTitle: 'Draft page',
           postSlug: 'draft-page',
+          ...stateOverrides,
         },
         handlers
       );
     });
 
-    return { container, handlers };
+    return { container, handlers, toolbar };
   };
 
   it('renders the import and export button', async () => {
@@ -111,5 +115,50 @@ describe('toolbar', () => {
 
     expect(handlers.onImportFullHtml).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain('Import full HTML');
+  });
+
+  it('disables save controls while saving is unavailable', async () => {
+    const { container } = await mount({ saveDisabled: true });
+
+    expect(
+      (container.querySelector('.kayzart-splitButton-main') as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (container.querySelector('.kayzart-splitButton-toggle') as HTMLButtonElement).disabled
+    ).toBe(true);
+  });
+
+  it('blocks mutation actions while leaving export available during an AI edit', async () => {
+    const { container } = await mount({ mutationLocked: true, saveDisabled: true, canUndo: true, canRedo: true });
+
+    expect((container.querySelector('[aria-label="Undo"]') as HTMLButtonElement).disabled).toBe(true);
+    expect((container.querySelector('[aria-label="Redo"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelector('.kayzart-toolbarTitle')?.getAttribute('aria-disabled')).toBe('true');
+
+    const exportButton = container.querySelector('[aria-label="Import / Export"]') as HTMLButtonElement;
+    await act(async () => exportButton.click());
+    const items = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    expect(items.find((item) => item.textContent === 'Import full HTML')?.disabled).toBe(true);
+    expect(items.find((item) => item.textContent === 'Copy full HTML')?.disabled).toBe(false);
+    expect(items.find((item) => item.textContent === 'Download full HTML')?.disabled).toBe(false);
+  });
+
+  it('exposes code and tools panel state to assistive technology', async () => {
+    const { container } = await mount({ editorCollapsed: true, settingsOpen: true });
+    const codeToggle = container.querySelector('[aria-controls="kayzart-code-editors"]');
+    const toolsToggle = container.querySelector('#kayzart-settings-toggle');
+
+    expect(codeToggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toolsToggle?.getAttribute('aria-controls')).toBe('kayzart-settings');
+    expect(toolsToggle?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('shows AI progress on the tools toggle without opening the panel', async () => {
+    const { container } = await mount({ aiActivity: 'complete', settingsOpen: false });
+    const toolsToggle = container.querySelector('#kayzart-settings-toggle');
+
+    expect(toolsToggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(toolsToggle?.getAttribute('aria-label')).toContain('AI edit complete');
+    expect(toolsToggle?.classList.contains('is-ai-complete')).toBe(true);
   });
 });

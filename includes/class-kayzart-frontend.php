@@ -7,8 +7,6 @@
 
 namespace KayzArt;
 
-use TailwindPHP\tw;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -222,6 +220,13 @@ class Frontend {
 			return;
 		}
 
+		// Core's wp_print_font_faces (wp_head, priority 50) is deliberately left in
+		// place. It is a separate action from wp_enqueue_global_styles and emits
+		// only @font-face rules, no theme layout or color CSS. Kayzart depends on
+		// it: Ai_Fonts offers the registered font families to the AI, and those
+		// families render only because core still serves their @font-face here.
+		// Removing it would silently break every AI-selected font.
+		// See Test_Frontend_Output::test_standalone_mode_preserves_core_font_face_hook().
 		remove_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
 		remove_action( 'wp_footer', 'wp_enqueue_global_styles', 1 );
 		remove_action( 'wp_head', 'wp_custom_css_cb', 101 );
@@ -412,15 +417,12 @@ class Frontend {
 		if ( $should_compile ) {
 			$post = get_post( $post_id );
 			if ( $post instanceof \WP_Post ) {
-				try {
-					$css = tw::generate(
-						array(
-							'content' => (string) $post->post_content,
-							'css'     => '@import "tailwindcss";',
-						)
-					);
-				} catch ( \Throwable $e ) {
-					$css = $stored_css;
+				$candidates = Tailwind_Compiler::extract_candidates( (string) $post->post_content );
+				if ( ! is_wp_error( $candidates ) ) {
+					$generated_css = Tailwind_Compiler::generate( $candidates, '@import "tailwindcss";' );
+					if ( ! is_wp_error( $generated_css ) ) {
+						$css = $generated_css;
+					}
 				}
 			}
 		}

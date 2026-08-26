@@ -11,8 +11,8 @@ describe('document title logic', () => {
   });
 
   it('builds editor title label with fallback', () => {
-    expect(buildEditorDocumentTitleLabel('My Page')).toBe('Kayzart Landing Page Editor: My Page');
-    expect(buildEditorDocumentTitleLabel('')).toBe('Kayzart Landing Page Editor: Untitled');
+    expect(buildEditorDocumentTitleLabel('My Page')).toBe('Kayzart: My Page');
+    expect(buildEditorDocumentTitleLabel('')).toBe('Kayzart: Untitled');
   });
 
   it('extracts admin suffix using configured separators', () => {
@@ -25,6 +25,6 @@ describe('document title logic', () => {
   it('syncs document title while preserving suffix', () => {
     const sync = createDocumentTitleSync('Kayzart < Test Site - WordPress', [' < ']);
     sync('Landing');
-    expect(document.title).toBe('Kayzart Landing Page Editor: Landing < Test Site - WordPress');
+    expect(document.title).toBe('Kayzart: Landing < Test Site - WordPress');
   });
 });

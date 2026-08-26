@@ -11,7 +11,12 @@ DB_NAME=$1
 DB_USER=$2
 DB_PASS=$3
 DB_HOST=${4-localhost}
-WP_VERSION=${5-latest}
+# Defaults to the minimum version the plugin header declares, not "latest".
+# Core behavior differs between releases (for example wp_get_global_settings()
+# dropped its theme.json origin check in 7.0), and a local suite silently
+# running an older core lets tests pass that would fail on the supported floor.
+# CI covers "latest" separately in .github/workflows/phpunit-matrix.yml.
+WP_VERSION=${5-7.0}
 SKIP_DB_CREATE=${6-false}
 
 TMPDIR=${TMPDIR-/tmp}
@@ -103,6 +108,18 @@ install_wp() {
     archive_name="wordpress-$WP_VERSION"
   fi
 
+  # An existing checkout is reused, but only when it is the requested version.
+  # Without this a version argument is silently ignored once a core is present,
+  # so the suite keeps running whatever was installed first.
+  if [ -f "$WP_CORE_DIR/wp-settings.php" ] && [[ "$WP_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    local installed
+    installed=$(sed -n "s/^\$wp_version = '\([^']*\)';.*/\1/p" "$WP_CORE_DIR/wp-includes/version.php" 2>/dev/null || true)
+    if [ -n "$installed" ] && [ "$installed" != "$WP_VERSION" ] && [ "${installed%.0}" != "$WP_VERSION" ]; then
+      echo "Replacing WordPress $installed with $WP_VERSION in $WP_CORE_DIR"
+      rm -rf "$WP_CORE_DIR" "$WP_TESTS_DIR"
+    fi
+  fi
+
   if [ ! -f "$WP_CORE_DIR/wp-settings.php" ]; then
     mkdir -p "$WP_CORE_DIR"
     download "https://wordpress.org/${archive_name}.tar.gz" "$TMPDIR/wordpress.tar.gz"
@@ -110,7 +127,18 @@ install_wp() {
   fi
 
   if [ ! -f "$WP_CORE_DIR/wp-config.php" ]; then
-    download "https://raw.githubusercontent.com/WordPress/WordPress/$WP_VERSION/wp-config-sample.php" "$WP_CORE_DIR/wp-config.php"
+    # The core tarball already ships wp-config-sample.php, so prefer the local
+    # copy. Falling back to raw.githubusercontent requires a real git ref, and
+    # "latest"/"nightly"/"trunk" are not refs (they 404), so map them to master.
+    if [ -f "$WP_CORE_DIR/wp-config-sample.php" ]; then
+      cp "$WP_CORE_DIR/wp-config-sample.php" "$WP_CORE_DIR/wp-config.php"
+    else
+      local config_ref="$WP_VERSION"
+      if [ "$WP_VERSION" = "latest" ] || [ "$WP_VERSION" = "nightly" ] || [ "$WP_VERSION" = "trunk" ]; then
+        config_ref='master'
+      fi
+      download "https://raw.githubusercontent.com/WordPress/WordPress/$config_ref/wp-config-sample.php" "$WP_CORE_DIR/wp-config.php"
+    fi
     sed -i.bak "s/database_name_here/$DB_NAME/" "$WP_CORE_DIR/wp-config.php"
     sed -i.bak "s/username_here/$DB_USER/" "$WP_CORE_DIR/wp-config.php"
     sed -i.bak "s/password_here/$DB_PASS/" "$WP_CORE_DIR/wp-config.php"

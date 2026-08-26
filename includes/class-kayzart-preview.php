@@ -50,13 +50,40 @@ class Preview {
 	 * @return array
 	 */
 	public static function register_query_vars( array $vars ): array {
+
 		$vars[] = 'kayzart_preview';
+		$vars[] = 'kayzart_preview_context';
 		$vars[] = 'kayzart_template_mode';
 		$vars[] = 'post_id';
 		$vars[] = 'token';
 		return $vars;
 	}
 
+	/**
+	 * Build a nonce-protected preview URL for a KayzArt post.
+	 *
+	 * @param int    $post_id Preview post ID.
+	 * @param string $context Optional preview context.
+	 * @return string
+	 */
+	public static function get_preview_url( int $post_id, string $context = '' ): string {
+
+		$permalink = get_permalink( $post_id );
+		if ( ! is_string( $permalink ) || '' === $permalink ) {
+			$permalink = home_url( '/' );
+		}
+
+		$args = array(
+			'kayzart_preview' => 1,
+			'post_id'         => $post_id,
+			'token'           => wp_create_nonce( 'kayzart_preview_' . $post_id ),
+		);
+		if ( '' !== $context ) {
+				$args['kayzart_preview_context'] = sanitize_key( $context );
+		}
+
+		return add_query_arg( $args, $permalink );
+	}
 	/**
 	 * Check whether the current request is a preview.
 	 *
@@ -392,11 +419,13 @@ class Preview {
 			true
 		);
 		$admin_origin           = self::build_admin_origin();
+		$preview_context        = sanitize_key( (string) get_query_var( 'kayzart_preview_context' ) );
 		$highlight_meta         = get_post_meta( self::$post_id, '_kayzart_live_highlight', true );
 		$live_highlight_enabled = '' === $highlight_meta ? true : rest_sanitize_boolean( $highlight_meta );
 		$payload                = array(
 			'allowedOrigin'        => $admin_origin,
 			'post_id'              => self::$post_id,
+			'context'              => $preview_context,
 			'liveHighlightEnabled' => $live_highlight_enabled,
 			'shortcodeTags'        => self::registered_shortcode_tags(),
 			'markers'              => array(
@@ -412,10 +441,12 @@ class Preview {
 				'delete'               => __( 'Delete', 'kayzart-live-code-editor' ),
 				'shortcodeLabel'       => __( 'Shortcode', 'kayzart-live-code-editor' ),
 				'shortcodeUnavailable' => __( 'Not available in preview. It will render on the front end.', 'kayzart-live-code-editor' ),
+				'openElementSettings'  => __( 'Element settings', 'kayzart-live-code-editor' ),
+				'openSelectionMenu'    => __( 'More actions', 'kayzart-live-code-editor' ),
+				'openCodePanel'        => __( 'Show code', 'kayzart-live-code-editor' ),
 			),
 			'restNonce'            => wp_create_nonce( 'wp_rest' ),
 		);
-
 		/**
 		 * Filter preview script payload before it is injected into the iframe.
 		 *
@@ -424,7 +455,7 @@ class Preview {
 		 */
 		$payload = apply_filters( 'kayzart_preview_payload', $payload, self::$post_id );
 
-		$json = wp_json_encode( $payload );
+		$json = wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
 		if ( false === $json ) {
 			$json = '{}';
 		}

@@ -1,0 +1,442 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+const bridgeScript = readFileSync('assets/admin/editor-bridge.js', 'utf8');
+const editPost = vi.fn();
+const savePost = vi.fn();
+const confirmReturn = vi.fn(() => true);
+const submitReturn = vi.fn();
+let editorDirty = false;
+let saveSucceeded = false;
+
+const setupWordPress = (supportsTitle = true) => {
+  (window as any).wp = {
+    domReady: (callback: () => void) => callback(),
+    i18n: { __: (text: string) => text },
+    data: {
+      select: () => ({
+        getCurrentPostId: () => 42,
+        isEditedPostDirty: () => editorDirty,
+        didPostSaveRequestSucceed: () => saveSucceeded,
+        getEditedPostAttribute: (attribute: string) =>
+          attribute === 'title' ? 'Translated page' : '',
+      }),
+      dispatch: () => ({ editPost, savePost }),
+    },
+  };
+  (window as any).KAYZART_EDITOR = {
+    postId: 42,
+    supportsTitle,
+    enabled: true,
+    actionUrl: 'http://localhost/wp-admin/admin.php?action=kayzart&_wpnonce=nonce',
+    returnUrl: 'http://localhost/wp-admin/admin.php?action=kayzart_return_to_wordpress&post_id=42&_wpnonce=return-nonce',
+    viewUrl: 'http://localhost/sample/?preview=true',
+    labels: {
+      edit: 'Edit with Kayzart',
+      eyebrow: 'Managed by Kayzart',
+      description: 'Content is edited in Kayzart.',
+      titleLabel: 'Page title',
+      view: 'View page',
+      return: 'Return to WordPress editor',
+      returning: 'Returning…',
+      returnConfirm: 'Return this page to the WordPress editor?',
+    },
+  };
+};
+
+const renderBlockEditor = (supportsTitle = true) => {
+  document.body.className = 'block-editor-page';
+  document.body.innerHTML = [
+    '<div class="interface-interface-skeleton">',
+    '<div class="interface-interface-skeleton__header">',
+    '<div class="editor-document-tools"></div>',
+    '</div>',
+    '<div class="interface-interface-skeleton__content"></div>',
+    '</div>',
+  ].join('');
+  setupWordPress(supportsTitle);
+  window.eval(bridgeScript);
+};
+
+const renderClassicEditor = ({
+  includeEditor = true,
+  includeTitle = true,
+  postStatus = 'draft',
+  originalPostStatus = postStatus,
+}: {
+  includeEditor?: boolean;
+  includeTitle?: boolean;
+  postStatus?: string;
+  originalPostStatus?: string;
+} = {}) => {
+  document.body.className = 'wp-admin post-php';
+  document.body.innerHTML = [
+    '<form id="post">',
+    '<div id="post-body-content">',
+    includeTitle
+      ? '<div id="titlediv"><input id="title" value="Translated page"></div>'
+      : '',
+    includeEditor
+      ? '<div id="postdivrich"><textarea id="content">Stored Kayzart HTML</textarea></div>'
+      : '',
+    '</div>',
+    '<div id="postbox-container-1"><div id="submitdiv">Publish settings</div></div>',
+    '<div id="acf-group">ACF settings</div>',
+    '<input id="post_ID" value="42">',
+    `<input id="post_status" name="post_status" value="${postStatus}">`,
+    `<input id="original_post_status" value="${originalPostStatus}">`,
+    '<button id="save-post" type="submit">Save draft</button>',
+    '<button id="publish" type="submit">Update</button>',
+    '</form>',
+  ].join('');
+  setupWordPress();
+  window.eval(bridgeScript);
+};
+
+const rerenderClassicEditor = (options: {
+  includeEditor?: boolean;
+  includeTitle?: boolean;
+  postStatus?: string;
+  originalPostStatus?: string;
+}) => {
+  vi.clearAllTimers();
+  document.body.className = '';
+  document.body.innerHTML = '';
+  renderClassicEditor(options);
+};
+
+const rerenderBlockEditor = (supportsTitle: boolean) => {
+  window.dispatchEvent(new Event('unload'));
+  vi.clearAllTimers();
+  document.body.className = '';
+  document.body.innerHTML = '';
+  renderBlockEditor(supportsTitle);
+};
+
+const cleanup = () => {
+  window.dispatchEvent(new Event('unload'));
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  document.body.className = '';
+  document.body.innerHTML = '';
+  delete (window as any).KAYZART_EDITOR;
+  delete (window as any).wp;
+  vi.restoreAllMocks();
+};
+
+describe('Gutenberg editor bridge', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    editPost.mockReset();
+    savePost.mockReset();
+    confirmReturn.mockClear();
+    submitReturn.mockClear();
+    vi.spyOn(window, 'confirm').mockImplementation(confirmReturn);
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(submitReturn);
+    editorDirty = false;
+    saveSucceeded = false;
+    renderBlockEditor();
+  });
+
+  afterEach(cleanup);
+
+  it('replaces the content canvas with a managed bridge card', () => {
+    const host = document.querySelector('.interface-interface-skeleton__content')!;
+    const panel = host.querySelector<HTMLElement>('.kayzart-editor-bridge')!;
+
+    expect(host.classList.contains('kayzart-editor-bridge-host')).toBe(true);
+    expect(panel.querySelector('.kayzart-editor-bridge__title')?.textContent).toBe(
+      'Managed by Kayzart'
+    );
+    expect(panel.querySelector<HTMLInputElement>('.kayzart-editor-bridge__titleInput')?.value).toBe(
+      'Translated page'
+    );
+    expect(panel.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')?.href).toContain(
+      'post_id=42'
+    );
+    expect(panel.querySelector('iframe')).toBeNull();
+    expect(panel.querySelector('.kayzart-editor-bridge__reload')).toBeNull();
+    expect(document.body.classList.contains('kayzart-editor-locked')).toBe(true);
+  });
+
+  it('uses only the edit action inside the bridge card', () => {
+    expect(document.querySelectorAll('.kayzart-editor-bridge__edit')).toHaveLength(1);
+    expect(document.querySelector('.kayzart-editor-toolbar')).toBeNull();
+    expect(document.querySelector('.editor-document-tools')?.children).toHaveLength(0);
+  });
+
+  it('offers a confirmed return to the WordPress editor', () => {
+    const returnLink = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__return')!;
+
+    returnLink.click();
+
+    expect(confirmReturn).toHaveBeenCalledWith('Return this page to the WordPress editor?');
+    expect(submitReturn).toHaveBeenCalledTimes(1);
+    const form = document.querySelector<HTMLFormElement>('form[action*="kayzart_return_to_wordpress"]')!;
+    expect(form.method).toBe('post');
+    expect(form.action).toContain('post_id=42');
+  });
+
+  it('keeps the bridge active when returning is canceled', () => {
+    confirmReturn.mockReturnValueOnce(false);
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__return')!.click();
+
+    expect(submitReturn).not.toHaveBeenCalled();
+  });
+
+  it('keeps the WordPress page title editable', () => {
+    const input = document.querySelector<HTMLInputElement>('.kayzart-editor-bridge__titleInput')!;
+    input.value = 'Updated translated page';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(editPost).toHaveBeenCalledWith({ title: 'Updated translated page' });
+  });
+
+  it('omits the title input when the post type does not support titles', () => {
+    rerenderBlockEditor(false);
+
+    expect(document.querySelector('.kayzart-editor-bridge__titleInput')).toBeNull();
+    expect(document.querySelector('.kayzart-editor-bridge__titleLabel')).toBeNull();
+    expect(editPost).not.toHaveBeenCalled();
+  });
+
+  it('waits for a dirty post to save and prevents duplicate saves', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let finishSave: (() => void) | undefined;
+    editorDirty = true;
+    savePost.mockReturnValue(new Promise<void>((resolve) => {
+      finishSave = resolve;
+    }));
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(savePost).toHaveBeenCalledTimes(1);
+    expect(edit.getAttribute('aria-disabled')).toBe('true');
+    expect(edit.textContent).toBe('Saving...');
+
+    editorDirty = false;
+    saveSucceeded = true;
+    finishSave?.();
+    await Promise.resolve();
+
+    expect(edit.classList.contains('is-busy')).toBe(true);
+    consoleError.mockRestore();
+  });
+
+  it('restores the edit action when saving fails', async () => {
+    editorDirty = true;
+    savePost.mockRejectedValue(new Error('save failed'));
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+
+    expect(edit.getAttribute('aria-disabled')).toBeNull();
+    expect(edit.textContent).toBe('Edit with Kayzart');
+  });
+
+  it('stays in Gutenberg when the post remains dirty after saving', async () => {
+    editorDirty = true;
+    saveSucceeded = true;
+    savePost.mockResolvedValue(undefined);
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+
+    edit.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+
+    expect(edit.classList.contains('is-busy')).toBe(false);
+    expect(edit.textContent).toBe('Edit with Kayzart');
+  });
+
+  it('does not issue a REST save when there are no pending changes', () => {
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    edit.addEventListener('click', (clickEvent) => clickEvent.preventDefault());
+    edit.dispatchEvent(event);
+
+    expect(savePost).not.toHaveBeenCalled();
+  });
+
+  it('stays in Gutenberg when the editor save API is unavailable', () => {
+    editorDirty = true;
+    (window as any).wp.data.dispatch = () => ({ editPost });
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    expect(edit.dispatchEvent(event)).toBe(false);
+    expect(edit.classList.contains('is-busy')).toBe(false);
+  });
+});
+
+describe('Classic Editor bridge', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    editPost.mockReset();
+    savePost.mockReset();
+    confirmReturn.mockClear();
+    submitReturn.mockClear();
+    vi.spyOn(window, 'confirm').mockImplementation(confirmReturn);
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(submitReturn);
+    editorDirty = false;
+    saveSucceeded = false;
+    renderClassicEditor();
+  });
+
+  afterEach(cleanup);
+
+  it('replaces only the Classic content editor with the managed bridge card', () => {
+    const editor = document.querySelector<HTMLElement>('#postdivrich')!;
+    const panel = document.querySelector<HTMLElement>('.kayzart-editor-bridge--classic')!;
+
+    expect(editor.classList.contains('kayzart-classic-editor-source')).toBe(true);
+    expect(editor.getAttribute('aria-hidden')).toBe('true');
+    expect(panel.nextElementSibling).toBe(editor);
+    expect(panel.querySelector('iframe')).toBeNull();
+    expect(panel.querySelector('.kayzart-editor-bridge__reload')).toBeNull();
+  });
+
+  it('keeps the native title, publish settings, and plugin meta boxes', () => {
+    expect(document.querySelector<HTMLInputElement>('#title')?.value).toBe('Translated page');
+    expect(document.querySelector('#submitdiv')?.textContent).toBe('Publish settings');
+    expect(document.querySelector('#acf-group')?.textContent).toBe('ACF settings');
+    expect(document.querySelector('.kayzart-editor-bridge__titleInput')).toBeNull();
+  });
+
+  it('renders one set of Classic-styled view and edit actions', () => {
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+    const view = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__view')!;
+
+    expect(edit.classList.contains('button-primary')).toBe(true);
+    expect(edit.href).toContain('post_id=42');
+    expect(view.classList.contains('button-secondary')).toBe(true);
+    expect(view.target).toBe('_blank');
+    expect(document.querySelectorAll('.kayzart-editor-bridge__edit')).toHaveLength(1);
+    expect(document.querySelector('.kayzart-editor-bridge__return')).not.toBeNull();
+  });
+
+  it('saves Classic Editor settings before returning to WordPress editing', () => {
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    const save = document.querySelector<HTMLElement>('#save-post')!;
+    const saveClick = vi.fn((event: Event) => event.preventDefault());
+    save.addEventListener('click', saveClick);
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__return')!.click();
+
+    expect(confirmReturn).toHaveBeenCalledTimes(1);
+    expect(saveClick).toHaveBeenCalledTimes(1);
+    expect(form.querySelector<HTMLInputElement>('[name="kayzart_return_after_save"]')?.value).toBe('1');
+  });
+
+  it('mounts the bridge card after the title when the post type has no editor support', () => {
+    rerenderClassicEditor({ includeEditor: false });
+
+    const title = document.querySelector<HTMLElement>('#titlediv')!;
+    const panel = document.querySelector<HTMLElement>('.kayzart-editor-bridge--classic')!;
+
+    expect(document.querySelector('#postdivrich')).toBeNull();
+    expect(title.nextElementSibling).toBe(panel);
+    expect(document.querySelectorAll('.kayzart-editor-bridge__edit')).toHaveLength(1);
+  });
+
+  it('mounts the bridge card at the start of post content without editor or title support', () => {
+    rerenderClassicEditor({ includeEditor: false, includeTitle: false });
+
+    const content = document.querySelector<HTMLElement>('#post-body-content')!;
+    const panel = document.querySelector<HTMLElement>('.kayzart-editor-bridge--classic')!;
+
+    expect(content.firstElementChild).toBe(panel);
+    expect(document.querySelectorAll('.kayzart-editor-bridge__edit')).toHaveLength(1);
+  });
+
+  it.each([
+    ['auto-draft', 'save-post'],
+    ['draft', 'save-post'],
+    ['pending', 'save-post'],
+    ['publish', 'publish'],
+    ['private', 'publish'],
+    ['future', 'publish'],
+  ])('submits %s posts with the standard %s control', (postStatus, expectedButton) => {
+    rerenderClassicEditor({ postStatus });
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    const expected = document.getElementById(expectedButton)!;
+    const unexpected = document.getElementById(expectedButton === 'publish' ? 'save-post' : 'publish')!;
+    const expectedClick = vi.fn((event: Event) => event.preventDefault());
+    const unexpectedClick = vi.fn((event: Event) => event.preventDefault());
+    expected.addEventListener('click', expectedClick);
+    unexpected.addEventListener('click', unexpectedClick);
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!.click();
+
+    expect(expectedClick).toHaveBeenCalledTimes(1);
+    expect(unexpectedClick).not.toHaveBeenCalled();
+    expect(form.querySelector<HTMLInputElement>('[name="kayzart_open_after_save"]')?.value).toBe('1');
+  });
+
+  it('submits a custom status without draft or publish button semantics', () => {
+    rerenderClassicEditor({ postStatus: 'pending', originalPostStatus: 'in-review' });
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    const statusInput = document.querySelector<HTMLInputElement>('#post_status')!;
+    const saveClick = vi.fn();
+    const publishClick = vi.fn();
+    document.querySelector('#save-post')!.addEventListener('click', saveClick);
+    document.querySelector('#publish')!.addEventListener('click', publishClick);
+    let submittedStatus = '';
+    let submittedPreserveStatus = '';
+    let submitterName: string | null = null;
+    form.addEventListener('submit', (event) => {
+      const formData = new FormData(form);
+      submittedStatus = String(formData.get('post_status') || '');
+      submittedPreserveStatus = String(formData.get('kayzart_preserve_post_status') || '');
+      submitterName = (event as SubmitEvent).submitter?.getAttribute('name') || null;
+      event.preventDefault();
+    });
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!.click();
+
+    expect(saveClick).not.toHaveBeenCalled();
+    expect(publishClick).not.toHaveBeenCalled();
+    expect(submittedStatus).toBe('in-review');
+    expect(submittedPreserveStatus).toBe('in-review');
+    expect(submitterName).toBeNull();
+    expect(statusInput.disabled).toBe(true);
+
+    vi.runOnlyPendingTimers();
+    expect(statusInput.disabled).toBe(false);
+    expect(form.querySelector('[name="kayzart_preserve_post_status"]')).toBeNull();
+  });
+
+  it('honors an explicit change from a custom status to draft', () => {
+    rerenderClassicEditor({ postStatus: 'pending', originalPostStatus: 'in-review' });
+    const statusInput = document.querySelector<HTMLInputElement>('#post_status')!;
+    const save = document.querySelector<HTMLElement>('#save-post')!;
+    const saveClick = vi.fn((event: Event) => event.preventDefault());
+    save.addEventListener('click', saveClick);
+    statusInput.value = 'draft';
+    statusInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+    document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!.click();
+
+    expect(saveClick).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[name="kayzart_preserve_post_status"]')).toBeNull();
+  });
+
+  it('clears the redirect flag and busy state when form submission is rejected', () => {
+    const form = document.querySelector<HTMLFormElement>('form#post')!;
+    form.addEventListener('submit', (event) => event.preventDefault());
+    const edit = document.querySelector<HTMLAnchorElement>('.kayzart-editor-bridge__edit')!;
+
+    edit.click();
+    expect(edit.getAttribute('aria-disabled')).toBe('true');
+    expect(form.querySelector('[name="kayzart_open_after_save"]')).not.toBeNull();
+
+    vi.runOnlyPendingTimers();
+
+    expect(edit.getAttribute('aria-disabled')).toBeNull();
+    expect(edit.textContent).toBe('Edit with Kayzart');
+    expect(form.querySelector('[name="kayzart_open_after_save"]')).toBeNull();
+  });
+});

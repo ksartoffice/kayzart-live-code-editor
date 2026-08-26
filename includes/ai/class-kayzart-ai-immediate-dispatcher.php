@@ -1,0 +1,402 @@
+<?php
+/**
+ * Immediate loopback dispatcher for queued AI actions.
+ *
+ * @package KayzArt
+ */
+
+namespace KayzArt;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/** Starts one Action Scheduler AI action without waiting for the default queue runner. */
+class Ai_Immediate_Dispatcher {
+	const ROUTE            = '/ai/internal/run';
+	const SIGNATURE_TTL    = 60;
+	const HEADER_ACTION_ID = 'X-Kayzart-AI-Action';
+	const HEADER_JOB_UUID  = 'X-Kayzart-AI-Job';
+	const HEADER_EXPIRES   = 'X-Kayzart-AI-Expires';
+	const HEADER_NONCE     = 'X-Kayzart-AI-Nonce';
+	const HEADER_SIGNATURE = 'X-Kayzart-AI-Signature';
+
+	/**
+	 * Whether a shutdown dispatch is already registered.
+	 *
+	 * @var bool
+	 */
+	private static $shutdown_dispatch_scheduled = false;
+
+	/** Register the signed internal REST endpoint. */
+	public static function register_route(): void {
+		register_rest_route(
+			'kayzart/v1',
+			self::ROUTE,
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'run' ),
+				'permission_callback' => array( __CLASS__, 'permission' ),
+			)
+		);
+	}
+
+	/** Whether immediate dispatch is enabled for this site. */
+	public static function is_enabled(): bool {
+		/**
+		 * Filter whether Kayzart should immediately dispatch newly queued AI jobs.
+		 *
+		 * @param bool $enabled Whether immediate loopback dispatch is enabled.
+		 */
+		return (bool) apply_filters( 'kayzart_ai_immediate_dispatch_enabled', true );
+	}
+
+	/** Send a signed, non-blocking loopback for one scheduled AI action.
+	 *
+	 * @param int    $action_id Action Scheduler action ID.
+	 * @param string $job_uuid  Kayzart AI job UUID.
+	 */
+	public static function dispatch( int $action_id, string $job_uuid ): bool {
+		if ( $action_id <= 0 || ! self::valid_uuid( $job_uuid ) ) {
+			return false;
+		}
+		if ( ! self::is_enabled() ) {
+			self::performance_log(
+				$job_uuid,
+				'loopback_noop',
+				array(
+					'actionId' => $action_id,
+					'reason'   => 'disabled',
+				)
+			);
+			return false;
+		}
+
+		$expires = time() + self::SIGNATURE_TTL;
+		$nonce   = wp_generate_password( 32, false, false );
+		$result  = wp_remote_post(
+			rest_url( 'kayzart/v1' . self::ROUTE ),
+			array(
+				'blocking'    => false,
+				'timeout'     => 1,
+				'redirection' => 0,
+				'headers'     => array(
+					self::HEADER_ACTION_ID => (string) $action_id,
+					self::HEADER_JOB_UUID  => $job_uuid,
+					self::HEADER_EXPIRES   => (string) $expires,
+					self::HEADER_NONCE     => $nonce,
+					self::HEADER_SIGNATURE => self::sign( $action_id, $job_uuid, $expires, $nonce ),
+				),
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			error_log( 'Kayzart AI immediate dispatch failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			self::performance_log(
+				$job_uuid,
+				'loopback_post_failed',
+				array(
+					'actionId'  => $action_id,
+					'errorCode' => (string) $result->get_error_code(),
+				)
+			);
+			return false;
+		}
+		self::performance_log(
+			$job_uuid,
+			'loopback_post_sent',
+			array(
+				'actionId' => $action_id,
+				'httpCode' => (int) wp_remote_retrieve_response_code( $result ),
+			)
+		);
+		return true;
+	}
+
+	/** Authenticate a signed internal loopback request.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 */
+	public static function permission( \WP_REST_Request $request ) {
+		$identity = self::request_identity( $request );
+		if ( false === $identity ) {
+			return self::forbidden();
+		}
+
+		$expected = self::sign( $identity['action_id'], $identity['job_uuid'], $identity['expires'], $identity['nonce'] );
+		if ( ! hash_equals( $expected, $identity['signature'] ) || ! self::action_matches( $identity['action_id'], $identity['job_uuid'] ) ) {
+			return self::forbidden();
+		}
+		return true;
+	}
+
+	/** Claim and process one Kayzart AI action through Action Scheduler.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 */
+	public static function run( \WP_REST_Request $request ) {
+		if ( ! self::is_enabled() ) {
+			$identity = self::request_identity( $request );
+			if ( false !== $identity ) {
+				self::performance_log(
+					$identity['job_uuid'],
+					'loopback_noop',
+					array(
+						'actionId' => $identity['action_id'],
+						'reason'   => 'disabled',
+					)
+				);
+			}
+			return rest_ensure_response(
+				array(
+					'ok'      => true,
+					'started' => false,
+					'reason'  => 'disabled',
+				)
+			);
+		}
+
+		$identity = self::request_identity( $request );
+		if ( false === $identity || ! class_exists( '\\ActionScheduler' ) ) {
+			if ( false !== $identity ) {
+				self::performance_log(
+					$identity['job_uuid'],
+					'loopback_noop',
+					array(
+						'actionId' => $identity['action_id'],
+						'reason'   => 'unavailable',
+					)
+				);
+			}
+			return rest_ensure_response(
+				array(
+					'ok'      => true,
+					'started' => false,
+					'reason'  => 'unavailable',
+				)
+			);
+		}
+
+		$store      = \ActionScheduler::store();
+		$job_store  = new Ai_Job_Store();
+		$job        = $job_store->get( $identity['job_uuid'] );
+		$as_status  = $store->get_status( $identity['action_id'] );
+		$job_active = $job && in_array( $job['status'], Ai_Job_Store::ACTIVE_STATUSES, true );
+		if ( \ActionScheduler_Store::STATUS_PENDING !== $as_status || ! $job_active ) {
+			self::performance_log(
+				$identity['job_uuid'],
+				'loopback_noop',
+				array(
+					'actionId' => $identity['action_id'],
+					'reason'   => 'settled',
+				)
+			);
+			return rest_ensure_response(
+				array(
+					'ok'      => true,
+					'started' => false,
+					'reason'  => 'settled',
+				)
+			);
+		}
+
+		$claim      = null;
+		$started    = false;
+		$claimed_id = 0;
+		try {
+			// The run hook is Kayzart-specific. Omitting the redundant group here
+			// also supports Action Scheduler's migration-time HybridStore.
+			$claim   = $store->stake_claim( 1, null, array( Ai_Worker::RUN_HOOK, Ai_Worker::STEP_HOOK ) );
+			$actions = $claim->get_actions();
+			if ( empty( $actions ) ) {
+				self::performance_log(
+					$identity['job_uuid'],
+					'loopback_noop',
+					array(
+						'actionId' => $identity['action_id'],
+						'reason'   => 'empty',
+					)
+				);
+				return rest_ensure_response(
+					array(
+						'ok'      => true,
+						'started' => false,
+						'reason'  => 'empty',
+					)
+				);
+			}
+
+			$claimed_id       = (int) $actions[0];
+			$started          = true;
+			$claimed          = $store->fetch_action( $claimed_id );
+			$claim_args       = $claimed->get_args();
+			$claimed_job_uuid = isset( $claim_args[0] ) ? (string) $claim_args[0] : $identity['job_uuid'];
+			self::performance_log(
+				$claimed_job_uuid,
+				'loopback_started',
+				array(
+					'signedActionId'  => $identity['action_id'],
+					'signedJobId'     => $identity['job_uuid'],
+					'claimedActionId' => $claimed_id,
+					'actionId'        => $claimed_id,
+				)
+			);
+			\ActionScheduler::runner()->process_action( $claimed_id, 'Kayzart Immediate Loopback' );
+		} catch ( \Throwable $error ) {
+			error_log( 'Kayzart AI immediate execution failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			self::performance_log( $identity['job_uuid'], 'loopback_execution_failed', array( 'actionId' => $identity['action_id'] ) );
+			return new \WP_Error( 'kayzart_ai_immediate_failed', __( 'The AI job could not be started immediately.', 'kayzart-live-code-editor' ), array( 'status' => 500 ) );
+		} finally {
+			if ( $claim instanceof \ActionScheduler_ActionClaim ) {
+				$store->release_claim( $claim );
+			}
+		}
+
+		self::dispatch_oldest_pending();
+		return rest_ensure_response(
+			array(
+				'ok'       => true,
+				'started'  => $started,
+				'actionId' => $claimed_id,
+			)
+		);
+	}
+
+	/** Schedule a best-effort next-job kick after the current request releases claims. */
+	public static function schedule_pending_dispatch(): void {
+		if ( self::$shutdown_dispatch_scheduled || ! self::is_enabled() ) {
+			return;
+		}
+		self::$shutdown_dispatch_scheduled = true;
+		add_action( 'shutdown', array( __CLASS__, 'dispatch_oldest_pending' ), 999 );
+	}
+
+	/** Dispatch the oldest unclaimed pending Kayzart AI action, if any. */
+	public static function dispatch_oldest_pending(): bool {
+		self::$shutdown_dispatch_scheduled = false;
+		remove_action( 'shutdown', array( __CLASS__, 'dispatch_oldest_pending' ), 999 );
+		if ( ! self::is_enabled() || ! class_exists( '\\ActionScheduler' ) ) {
+			return false;
+		}
+		$store      = \ActionScheduler::store();
+		$query      = array(
+			'group'   => Ai_Worker::GROUP,
+			'status'  => \ActionScheduler_Store::STATUS_PENDING,
+			'claimed' => false,
+			'date'    => new \DateTime( 'now', new \DateTimeZone( 'UTC' ) ),
+		);
+		$candidates = array_filter(
+			array(
+				$store->find_action( Ai_Worker::STEP_HOOK, $query ),
+				$store->find_action( Ai_Worker::RUN_HOOK, $query ),
+			)
+		);
+		$action_id  = 0;
+		$oldest     = PHP_INT_MAX;
+		foreach ( $candidates as $candidate ) {
+			$date      = $store->fetch_action( $candidate )->get_schedule()->get_date();
+			$timestamp = $date instanceof \DateTimeInterface ? $date->getTimestamp() : 0;
+			if ( $timestamp < $oldest ) {
+				$oldest    = $timestamp;
+				$action_id = (int) $candidate;
+			}
+		}
+		if ( empty( $action_id ) ) {
+			return false;
+		}
+		try {
+			$action = $store->fetch_action( $action_id );
+			$args   = $action->get_args();
+			$uuid   = isset( $args[0] ) ? (string) $args[0] : '';
+			return self::dispatch( (int) $action_id, $uuid );
+		} catch ( \Throwable $error ) {
+			error_log( 'Kayzart AI pending dispatch lookup failed.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return false;
+		}
+	}
+
+	/** Clear request-local scheduling on deactivation. */
+	public static function deactivate(): void {
+		self::$shutdown_dispatch_scheduled = false;
+		remove_action( 'shutdown', array( __CLASS__, 'dispatch_oldest_pending' ), 999 );
+	}
+
+	/** Return normalized signed request fields, or false when malformed/expired.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 */
+	private static function request_identity( \WP_REST_Request $request ) {
+		$action_id = absint( $request->get_header( self::HEADER_ACTION_ID ) );
+		$job_uuid  = sanitize_text_field( wp_unslash( (string) $request->get_header( self::HEADER_JOB_UUID ) ) );
+		$expires   = absint( $request->get_header( self::HEADER_EXPIRES ) );
+		$nonce     = sanitize_text_field( wp_unslash( (string) $request->get_header( self::HEADER_NONCE ) ) );
+		$signature = strtolower( sanitize_text_field( wp_unslash( (string) $request->get_header( self::HEADER_SIGNATURE ) ) ) );
+		$now       = time();
+		if ( $action_id <= 0 || ! self::valid_uuid( $job_uuid ) || $expires < $now || $expires > $now + self::SIGNATURE_TTL ) {
+			return false;
+		}
+		if ( ! preg_match( '/^[A-Za-z0-9]{20,64}$/', $nonce ) || ! preg_match( '/^[a-f0-9]{64}$/', $signature ) ) {
+			return false;
+		}
+		return compact( 'action_id', 'job_uuid', 'expires', 'nonce', 'signature' );
+	}
+
+	/** Verify the signed action belongs to the expected Kayzart job.
+	 *
+	 * @param int    $action_id Action Scheduler action ID.
+	 * @param string $job_uuid  Kayzart AI job UUID.
+	 */
+	private static function action_matches( int $action_id, string $job_uuid ): bool {
+		if ( ! class_exists( '\\ActionScheduler' ) ) {
+			return false;
+		}
+		try {
+			$store  = \ActionScheduler::store();
+			$action = $store->fetch_action( $action_id );
+			$args   = $action->get_args();
+			$job    = ( new Ai_Job_Store() )->get( $job_uuid );
+			return $job
+				&& in_array( $action->get_hook(), array( Ai_Worker::RUN_HOOK, Ai_Worker::STEP_HOOK ), true )
+				&& Ai_Worker::GROUP === $action->get_group()
+				&& isset( $args[0] )
+				&& hash_equals( $job_uuid, (string) $args[0] );
+		} catch ( \Throwable $error ) {
+			return false;
+		}
+	}
+
+	/** Build the canonical HMAC signature.
+	 *
+	 * @param int    $action_id Action Scheduler action ID.
+	 * @param string $job_uuid  Kayzart AI job UUID.
+	 * @param int    $expires   Signature expiry timestamp.
+	 * @param string $nonce     One-request random nonce.
+	 */
+	private static function sign( int $action_id, string $job_uuid, int $expires, string $nonce ): string {
+		return hash_hmac( 'sha256', $action_id . '|' . $job_uuid . '|' . $expires . '|' . $nonce, wp_salt( 'auth' ) );
+	}
+
+	/** Validate the canonical WordPress UUID representation.
+	 *
+	 * @param string $uuid Candidate UUID.
+	 */
+	private static function valid_uuid( string $uuid ): bool {
+		return 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $uuid );
+	}
+
+	/** Return a deliberately generic authentication failure. */
+	private static function forbidden(): \WP_Error {
+		return new \WP_Error( 'kayzart_ai_internal_forbidden', __( 'Permission denied.', 'kayzart-live-code-editor' ), array( 'status' => 403 ) );
+	}
+
+	/** Emit one content-free dispatcher performance event.
+	 *
+	 * @param string $job_uuid Job UUID.
+	 * @param string $event    Event name.
+	 * @param array  $data     Safe diagnostic fields.
+	 */
+	private static function performance_log( string $job_uuid, string $event, array $data = array() ): void {
+		$job = ( new Ai_Job_Store() )->get( $job_uuid );
+		Ai_Worker::log_performance_event( $job, $event, $data );
+	}
+}

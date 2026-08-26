@@ -1,4 +1,5 @@
 import type { SettingsData } from '../settings';
+import type { CssByMode, EditorCssMode } from './css-mode';
 
 export type SaveResponse = {
   ok?: boolean;
@@ -9,6 +10,8 @@ export type SaveResponse = {
   revisionsSupported?: boolean;
   revisionsEnabled?: boolean;
   revision?: RevisionSummary | null;
+  editorMode?: EditorCssMode;
+  cssByMode?: CssByMode;
 };
 
 export type RevisionSection = 'html' | 'css' | 'javascript' | 'customHead';
@@ -43,6 +46,8 @@ export type RevisionDetailResponse = {
       js: string;
       jsMode: 'classic' | 'module';
       baseHash: string;
+      editorMode?: EditorCssMode;
+      cssByMode?: CssByMode;
     };
   };
   error?: string;

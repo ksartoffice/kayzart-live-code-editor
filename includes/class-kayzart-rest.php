@@ -26,6 +26,9 @@ class Rest {
 	 * Register REST routes for KayzArt.
 	 */
 	public static function register_routes(): void {
+		Rest_Ai::register_routes();
+		Rest_Ai_Timeline::register_routes();
+
 		register_rest_route(
 			'kayzart/v1',
 			'/save',
@@ -44,16 +47,19 @@ class Rest {
 				'callback'            => array( Rest_Save::class, 'compile_tailwind' ),
 				'permission_callback' => array( __CLASS__, 'permission_check' ),
 				'args'                => array(
-					'post_id' => array(
+					'post_id'    => array(
 						'type'     => 'integer',
 						'required' => true,
 					),
-					'html'    => array(
-						'type'      => 'string',
-						'required'  => true,
-						'maxLength' => Limits::MAX_TAILWIND_HTML_BYTES,
+					'candidates' => array(
+						'type'     => 'array',
+						'required' => true,
+						'maxItems' => Limits::MAX_TAILWIND_CANDIDATES,
+						'items'    => array(
+							'type' => 'string',
+						),
 					),
-					'css'     => array(
+					'css'        => array(
 						'type'      => 'string',
 						'required'  => false,
 						'maxLength' => Limits::MAX_TAILWIND_CSS_BYTES,

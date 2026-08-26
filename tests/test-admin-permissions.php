@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
 if ( ! class_exists( 'KayzArt_Admin_Die_Exception' ) ) {
@@ -49,9 +50,9 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		wp_set_current_user( $subscriber_id );
 
-		$original_get       = $_GET;
-		$_GET['post_id']    = (string) $post_id;
-		$_GET['_wpnonce']   = wp_create_nonce( Admin::REDIRECT_NONCE_ACTION );
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::REDIRECT_NONCE_ACTION );
 
 		$message = $this->capture_wp_die(
 			function () {
@@ -61,7 +62,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		$_GET = $original_get;
 
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
 	}
 
 	public function test_action_redirect_requires_valid_nonce(): void {
@@ -85,6 +86,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 	}
 
 	public function test_action_redirect_redirects_with_valid_nonce(): void {
+
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$post_id  = $this->create_kayzart_post( $admin_id );
 
@@ -107,6 +109,59 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( Post_Type::get_editor_url( $post_id ), $location );
 	}
 
+	public function test_action_return_to_wordpress_preserves_content_and_kayzart_data(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_author'  => $admin_id,
+				'post_content' => '<main>Current Kayzart HTML</main>',
+			)
+		);
+		wp_set_current_user( $admin_id );
+		Post_Type::enable_for_post( $post_id );
+		update_post_meta( $post_id, '_kayzart_css', 'main{}' );
+		update_post_meta( $post_id, '_kayzart_js', 'console.log("kept")' );
+
+		$original_post = $_POST;
+		$_POST         = array(
+			'post_id'  => (string) $post_id,
+			'_wpnonce' => wp_create_nonce( Admin::RETURN_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_return_to_wordpress();
+			}
+		);
+		$_POST    = $original_post;
+
+		$this->assertStringContainsString( 'post=' . $post_id, $location );
+		$this->assertFalse( Post_Type::is_kayzart_enabled_post( $post_id ) );
+		$this->assertSame( '<main>Current Kayzart HTML</main>', get_post_field( 'post_content', $post_id ) );
+		$this->assertSame( 'main{}', get_post_meta( $post_id, '_kayzart_css', true ) );
+		$this->assertSame( 'console.log("kept")', get_post_meta( $post_id, '_kayzart_js', true ) );
+	}
+
+	public function test_action_return_to_wordpress_requires_valid_nonce(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$post_id  = (int) self::factory()->post->create( array( 'post_type' => Post_Type::PAGE_TYPE ) );
+		wp_set_current_user( $admin_id );
+		Post_Type::enable_for_post( $post_id );
+
+		$original_post    = $_POST;
+		$_POST['post_id']  = (string) $post_id;
+		$message           = $this->capture_wp_die(
+			function () {
+				Admin::action_return_to_wordpress();
+			}
+		);
+		$_POST             = $original_post;
+
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
+		$this->assertTrue( Post_Type::is_kayzart_enabled_post( $post_id ) );
+	}
+
 	public function test_maybe_redirect_new_post_allows_legacy_cpt_creation_screen(): void {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 
@@ -119,7 +174,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		Admin::maybe_redirect_new_post();
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
@@ -134,12 +189,12 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$before       = $this->get_kayzart_post_ids();
 		$original_get = $_GET;
 		$_GET         = array(
-			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
+			'_wpnonce' => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
 		);
 
 		Admin::maybe_redirect_new_post();
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'load-post-new should not create drafts directly.' );
@@ -156,7 +211,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 
 		Admin::maybe_redirect_new_post();
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'Non-KayzArt post-new context should be ignored.' );
@@ -179,7 +234,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_kayzart_post_ids();
 
 		$this->assertSame( $before, $after, 'Action without nonce must not create drafts.' );
@@ -201,7 +256,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$original_get = $_GET;
 		$_GET         = array(
 			'post_type' => Post_Type::POST_TYPE,
-			'_wpnonce' => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
+			'_wpnonce'  => wp_create_nonce( Admin::NEW_POST_NONCE_ACTION ),
 		);
 
 		$location = $this->capture_redirect(
@@ -217,7 +272,10 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertCount( 1, $created );
 		$created_id = (int) $created[0];
 		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
-		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
+		$this->assertSame(
+			add_query_arg( 'kayzart_entry', 'blank', Post_Type::get_editor_url( $created_id ) ),
+			$location
+		);
 	}
 
 	public function test_action_create_new_page_creates_marked_draft_page_and_redirects_to_editor(): void {
@@ -229,7 +287,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$original_get = $_GET;
 		$_GET         = array(
 			'post_type' => Post_Type::PAGE_TYPE,
-			'_wpnonce' => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+			'_wpnonce'  => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
 		);
 
 		$location = $this->capture_redirect(
@@ -238,7 +296,7 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET     = $original_get;
+		$_GET      = $original_get;
 		$after_ids = $this->get_page_ids();
 		$created   = array_values( array_diff( $after_ids, $before_ids ) );
 
@@ -252,7 +310,432 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 		$this->assertSame( __( 'Untitled landing page', 'kayzart-live-code-editor' ), $created->post_title );
 		$this->assertSame( $admin_id, (int) $created->post_author );
 		$this->assertSame( '1', get_post_meta( $created_id, Post_Type::ENABLED_META, true ) );
-		$this->assertSame( Post_Type::get_editor_url( $created_id ), $location );
+		$this->assertSame(
+			add_query_arg( 'kayzart_entry', 'blank', Post_Type::get_editor_url( $created_id ) ),
+			$location
+		);
+	}
+
+	/**
+	 * @dataProvider setup_mode_provider
+	 *
+	 * @param string $mode              Requested setup mode.
+	 * @param string $expected_tailwind Expected _kayzart_tailwind meta value.
+	 */
+	public function test_action_create_new_page_applies_setup_mode_and_skips_the_editor_wizard( string $mode, string $expected_tailwind ): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids   = $this->get_page_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_type'  => Post_Type::PAGE_TYPE,
+			'mode'       => $mode,
+			'post_title' => 'Spring campaign',
+			'_wpnonce'   => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET    = $original_get;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$this->assertCount( 1, $created );
+		$created_id = (int) $created[0];
+
+		$this->assertSame( 'Spring campaign', get_post( $created_id )->post_title );
+		$this->assertSame( $expected_tailwind, get_post_meta( $created_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '1', get_post_meta( $created_id, '_kayzart_tailwind_locked', true ) );
+		if ( 'tailwind' === $mode ) {
+			$this->assertStringContainsString(
+				'@import "tailwindcss";',
+				get_post_meta( $created_id, '_kayzart_css', true )
+			);
+			$this->assertSame(
+				get_post_meta( $created_id, '_kayzart_css', true ),
+				get_post_meta( $created_id, '_kayzart_tailwind_css', true )
+			);
+		}
+		$this->assertSame(
+			'',
+			get_post_meta( $created_id, '_kayzart_setup_required', true ),
+			'Choosing the mode up front must skip the in-editor setup wizard.'
+		);
+	}
+
+	/**
+	 * @dataProvider setup_mode_provider
+	 *
+	 * @param string $mode              Requested setup mode.
+	 * @param string $expected_tailwind Expected _kayzart_tailwind meta value.
+	 */
+	public function test_action_convert_existing_post_applies_setup_mode_and_skips_the_editor_wizard( string $mode, string $expected_tailwind ): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$content      = '<section><h1>Existing copy</h1></section>';
+		$page_id      = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_author'  => $admin_id,
+				'post_content' => $content,
+			)
+		);
+		$existing_css = '.legacy { color: red; }';
+		update_post_meta( $page_id, '_kayzart_css', $existing_css );
+
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_id'  => (string) $page_id,
+			'mode'     => $mode,
+			'_wpnonce' => wp_create_nonce( Admin::CONVERT_POST_NONCE_ACTION ),
+		);
+
+		$this->capture_redirect(
+			function () {
+				Admin::action_convert_existing_post();
+			}
+		);
+
+		$_GET = $original_get;
+
+		$this->assertSame( $content, get_post( $page_id )->post_content, 'Existing content must be preserved.' );
+		$this->assertSame( '1', get_post_meta( $page_id, Post_Type::ENABLED_META, true ) );
+		$this->assertSame( $expected_tailwind, get_post_meta( $page_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '1', get_post_meta( $page_id, '_kayzart_tailwind_locked', true ) );
+		$this->assertSame( $existing_css, get_post_meta( $page_id, '_kayzart_normal_css', true ) );
+		if ( 'tailwind' === $mode ) {
+			$this->assertStringContainsString(
+				'@import "tailwindcss";',
+				get_post_meta( $page_id, '_kayzart_css', true )
+			);
+			$this->assertSame(
+				get_post_meta( $page_id, '_kayzart_css', true ),
+				get_post_meta( $page_id, '_kayzart_tailwind_css', true )
+			);
+		}
+		$this->assertSame( '', get_post_meta( $page_id, '_kayzart_setup_required', true ) );
+	}
+
+	/**
+	 * @return array<string,array{0:string,1:string}>
+	 */
+	public function setup_mode_provider(): array {
+		return array(
+			'normal'   => array( 'normal', '0' ),
+			'tailwind' => array( 'tailwind', '1' ),
+		);
+	}
+
+	public function test_action_create_new_page_without_mode_defers_to_the_editor_wizard(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids   = $this->get_page_ids();
+		$original_get = $_GET;
+		$_GET         = array(
+			'post_type' => Post_Type::PAGE_TYPE,
+			'_wpnonce'  => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET    = $original_get;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$this->assertCount( 1, $created );
+
+		$this->assertSame(
+			'1',
+			get_post_meta( (int) $created[0], '_kayzart_setup_required', true ),
+			'Legacy entry points without a mode must still reach the in-editor wizard.'
+		);
+	}
+
+	public function test_action_convert_existing_post_accepts_the_confirmation_form_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$content = '<section><h1>Existing copy</h1></section>';
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'    => Post_Type::PAGE_TYPE,
+				'post_author'  => $admin_id,
+				'post_content' => $content,
+			)
+		);
+
+		$original_get  = $_GET;
+		$original_post = $_POST;
+		$_GET          = array();
+		// The confirmation screen submits a form, so every field arrives via POST.
+		$_POST = array(
+			'post_id'  => (string) $page_id,
+			'mode'     => 'tailwind',
+			'_wpnonce' => wp_create_nonce( Admin::CONVERT_POST_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_convert_existing_post();
+			}
+		);
+
+		$_GET  = $original_get;
+		$_POST = $original_post;
+
+		$this->assertSame( Post_Type::get_editor_url( $page_id ), $location );
+		$this->assertSame( $content, get_post( $page_id )->post_content );
+		$this->assertSame( '1', get_post_meta( $page_id, Post_Type::ENABLED_META, true ) );
+		$this->assertSame( '1', get_post_meta( $page_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '', get_post_meta( $page_id, '_kayzart_setup_required', true ) );
+	}
+
+	public function test_action_create_new_page_accepts_the_create_form_post(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids    = $this->get_page_ids();
+		$original_get  = $_GET;
+		$original_post = $_POST;
+		$_GET          = array();
+		$_POST         = array(
+			'post_type'  => Post_Type::PAGE_TYPE,
+			'mode'       => 'normal',
+			'post_title' => 'Autumn campaign',
+			'start_mode' => 'blank',
+			'_wpnonce'   => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET    = $original_get;
+		$_POST   = $original_post;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+
+		$this->assertCount( 1, $created );
+		$created_id = (int) $created[0];
+		$this->assertSame( 'Autumn campaign', get_post( $created_id )->post_title );
+		$this->assertSame( '0', get_post_meta( $created_id, '_kayzart_tailwind', true ) );
+		$this->assertSame( '', get_post_meta( $created_id, '_kayzart_setup_required', true ) );
+		$this->assertStringContainsString( 'kayzart_entry=blank', $location );
+	}
+
+	public function test_action_create_new_page_stores_an_initial_ai_request_for_an_ai_editor(): void {
+		Ai_Setup::activate();
+		update_option( 'kayzart_openai_api_key', 'sk-test-create' );
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids    = $this->get_page_ids();
+		$original_get  = $_GET;
+		$original_post = $_POST;
+		$_GET          = array();
+		$prompt        = "Use <header> and <main>.\nKeep </script> and `<section>` as instruction text.";
+		$_POST         = array(
+			'post_type'         => Post_Type::PAGE_TYPE,
+			'mode'              => 'normal',
+			'start_mode'        => 'ai',
+			'initial_ai_prompt' => $prompt,
+			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_GET    = $original_get;
+		$_POST   = $original_post;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$this->assertCount( 1, $created );
+		$request = get_post_meta( (int) $created[0], Admin::INITIAL_AI_REQUEST_META_KEY, true );
+
+		$this->assertIsArray( $request );
+		$this->assertSame( $prompt, $request['prompt'] );
+		$this->assertSame( $admin_id, $request['userId'] );
+		$this->assertStringStartsWith( 'initial-', $request['requestId'] );
+		$this->assertStringContainsString( 'kayzart_entry=ai', $location );
+		delete_option( 'kayzart_openai_api_key' );
+	}
+
+	public function test_action_create_new_page_blank_mode_does_not_store_an_entered_prompt(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$before_ids    = $this->get_page_ids();
+		$original_post = $_POST;
+		$_POST         = array(
+			'post_type'         => Post_Type::PAGE_TYPE,
+			'start_mode'        => 'blank',
+			'initial_ai_prompt' => 'This prompt must be ignored.',
+			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$this->capture_redirect(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+
+		$_POST   = $original_post;
+		$created = array_values( array_diff( $this->get_page_ids(), $before_ids ) );
+		$this->assertCount( 1, $created );
+		$this->assertSame( '', get_post_meta( (int) $created[0], Admin::INITIAL_AI_REQUEST_META_KEY, true ) );
+	}
+
+	public function test_action_create_new_page_removes_invalid_utf8_from_initial_ai_request(): void {
+		$original_post = $_POST;
+		$_POST         = array( 'initial_ai_prompt' => "Keep \xC3\x28 this text" );
+		$method        = new ReflectionMethod( Admin::class, 'read_requested_initial_ai_prompt' );
+		$method->setAccessible( true );
+
+		$prompt = (string) $method->invoke( null );
+		$_POST  = $original_post;
+
+		$this->assertSame( $prompt, wp_check_invalid_utf8( $prompt ) );
+		$this->assertStringNotContainsString( "\xC3", $prompt );
+	}
+
+	public function test_action_create_new_page_rejects_an_initial_ai_request_over_the_character_limit(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$original_get  = $_GET;
+		$original_post = $_POST;
+		$_GET          = array();
+		$_POST         = array(
+			'post_type'         => Post_Type::PAGE_TYPE,
+			'mode'              => 'normal',
+			'initial_ai_prompt' => str_repeat( 'a', Admin::get_ai_max_prompt_chars() + 1 ),
+			'_wpnonce'          => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+		$_GET    = $original_get;
+		$_POST   = $original_post;
+
+		$this->assertStringContainsString( 'The initial AI instruction is too large.', $message );
+	}
+
+	public function test_action_create_new_page_requires_a_prompt_for_explicit_ai_mode(): void {
+		Ai_Setup::activate();
+		update_option( 'kayzart_openai_api_key', 'sk-test-create' );
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$original_post = $_POST;
+		$_POST         = array(
+			'post_type'  => Post_Type::PAGE_TYPE,
+			'start_mode' => 'ai',
+			'_wpnonce'   => wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ),
+		);
+
+		$message = $this->capture_wp_die(
+			function () {
+				Admin::action_create_new_page();
+			}
+		);
+		$_POST   = $original_post;
+		delete_option( 'kayzart_openai_api_key' );
+
+		$this->assertStringContainsString( 'Enter an AI instruction', $message );
+	}
+
+	public function test_maybe_skip_convert_screen_redirects_already_managed_posts(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+			)
+		);
+		Post_Type::enable_for_post( $page_id );
+
+		$original_get = $_GET;
+		$_GET         = array(
+			'page'    => Admin::CONVERT_SLUG,
+			'post_id' => (string) $page_id,
+		);
+
+		$location = $this->capture_redirect(
+			function () {
+				Admin::maybe_skip_convert_screen();
+			}
+		);
+
+		$_GET = $original_get;
+
+		$this->assertSame( Post_Type::get_editor_url( $page_id ), $location );
+	}
+
+	public function test_maybe_skip_convert_screen_leaves_unmanaged_posts_on_the_confirmation_screen(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$page_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+			)
+		);
+
+		$original_get = $_GET;
+		$_GET         = array(
+			'page'    => Admin::CONVERT_SLUG,
+			'post_id' => (string) $page_id,
+		);
+
+		Admin::maybe_skip_convert_screen();
+
+		$_GET = $original_get;
+
+		$this->assertSame(
+			'',
+			get_post_meta( $page_id, Post_Type::ENABLED_META, true ),
+			'Visiting the confirmation screen must not enable Kayzart on its own.'
+		);
+	}
+
+	public function test_convert_screen_explains_one_way_content_editing(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$page_id      = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::PAGE_TYPE,
+				'post_author' => $admin_id,
+				'post_title'  => 'Translated page',
+			)
+		);
+		$original_get = $_GET;
+		$_GET         = array( 'post_id' => (string) $page_id );
+
+		ob_start();
+		Admin::render_convert_page();
+		$output = (string) ob_get_clean();
+		$_GET   = $original_get;
+
+		$this->assertStringContainsString( 'Start editing with Kayzart', $output );
+		$this->assertStringContainsString( 'Convert and edit with Kayzart', $output );
+		$this->assertStringContainsString( 'the WordPress editor will show a Kayzart management card instead of the content editor', $output );
+		$this->assertStringContainsString( 'name="_wpnonce"', $output );
 	}
 
 	public function test_action_create_new_page_requires_valid_nonce(): void {
@@ -272,10 +755,10 @@ class Test_Admin_Permissions extends WP_UnitTestCase {
 			}
 		);
 
-		$_GET = $original_get;
+		$_GET  = $original_get;
 		$after = $this->get_page_ids();
 
-		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor'), $message );
+		$this->assertStringContainsString( __( 'Permission denied.', 'kayzart-live-code-editor' ), $message );
 		$this->assertSame( $before, $after, 'Action without nonce must not create page drafts.' );
 	}
 

@@ -90,7 +90,7 @@ describe('viewport controller settings width persistence hooks', () => {
   it('applies initial settings width with current clamp range', () => {
     const ui = createUi();
 
-    createViewportController({
+    const controller = createViewportController({
       ui,
       compactDesktopViewportWidth: 1280,
       viewportPresetWidths: { mobile: 375, tablet: 768 },
@@ -106,6 +106,7 @@ describe('viewport controller settings width persistence hooks', () => {
     });
 
     expect(ui.app.style.getPropertyValue('--kayzart-settings-width')).toBe('330px');
+    expect(controller.getMaxSettingsWidth()).toBe(330);
   });
 
   it('commits settings width on resize end', () => {

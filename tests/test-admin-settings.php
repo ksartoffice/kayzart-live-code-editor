@@ -6,6 +6,8 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_OpenAI_Key;
+use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
 
 class Test_Admin_Settings extends WP_UnitTestCase {
@@ -27,6 +29,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_ENABLED_POST_TYPES );
 		delete_option( Admin::OPTION_DEFAULT_TEMPLATE_MODE );
 		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
+		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
+		delete_option( Admin::OPTION_AI_MAX_TURNS );
+		delete_option( Admin::OPTION_AI_MAX_PROMPT_CHARS );
+		delete_option( 'kayzart_openai_api_key' );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
 	}
@@ -69,9 +75,186 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 	public function test_sanitize_default_editor_layout_allows_known_values_only(): void {
 		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'code_visible' ) );
 		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( 'code_hidden' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( 'hidden' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( '' ) );
-		$this->assertSame( 'code_visible', Admin::sanitize_default_editor_layout( array() ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( 'hidden' ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( '' ) );
+		$this->assertSame( 'code_hidden', Admin::sanitize_default_editor_layout( array() ) );
+	}
+
+	public function test_sanitize_ai_default_model_validates_against_discovered_models(): void {
+		$filter = static function ( $models ) {
+			return array_merge( $models, array(
+				array(
+					'id'    => 'provider/model-a',
+					'label' => 'Model A',
+				),
+			) );
+		};
+		add_filter( 'kayzart_ai_available_models', $filter );
+
+		try {
+			$this->assertSame( 'provider/model-a', Admin::sanitize_ai_default_model( 'provider/model-a' ) );
+			$this->assertSame( '', Admin::sanitize_ai_default_model( 'provider/model-b' ) );
+			$this->assertSame( '', Admin::sanitize_ai_default_model( '' ) );
+		} finally {
+			remove_filter( 'kayzart_ai_available_models', $filter );
+		}
+	}
+
+	/** An omitted conditional field is distinct from explicitly selecting Auto. */
+	public function test_sanitize_ai_default_model_preserves_stored_value_when_field_is_omitted(): void {
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+
+		$this->assertSame( 'provider/model-a', Admin::sanitize_ai_default_model( null ) );
+		$this->assertSame( '', Admin::sanitize_ai_default_model( '' ) );
+	}
+
+	public function test_sanitize_ai_max_turns_uses_default_and_clamps_to_the_supported_range(): void {
+		$this->assertSame( 15, Admin::sanitize_ai_max_turns( '' ) );
+		$this->assertSame( 15, Admin::sanitize_ai_max_turns( 'invalid' ) );
+		$this->assertSame( 10, Admin::sanitize_ai_max_turns( 1 ) );
+		$this->assertSame( 10, Admin::sanitize_ai_max_turns( 10 ) );
+		$this->assertSame( 15, Admin::sanitize_ai_max_turns( '15' ) );
+		$this->assertSame( 30, Admin::sanitize_ai_max_turns( 30 ) );
+		$this->assertSame( 30, Admin::sanitize_ai_max_turns( 100 ) );
+	}
+
+	public function test_sanitize_ai_max_prompt_chars_uses_default_and_clamps_to_the_supported_range(): void {
+		$this->assertSame( 8000, Admin::sanitize_ai_max_prompt_chars( '' ) );
+		$this->assertSame( 8000, Admin::sanitize_ai_max_prompt_chars( 'invalid' ) );
+		$this->assertSame( 1000, Admin::sanitize_ai_max_prompt_chars( 1 ) );
+		$this->assertSame( 1000, Admin::sanitize_ai_max_prompt_chars( 1000 ) );
+		$this->assertSame( 12000, Admin::sanitize_ai_max_prompt_chars( '12000' ) );
+		$this->assertSame( 50000, Admin::sanitize_ai_max_prompt_chars( 50000 ) );
+		$this->assertSame( 50000, Admin::sanitize_ai_max_prompt_chars( 999999 ) );
+	}
+
+	public function test_get_ai_max_prompt_chars_reads_the_option_and_honors_the_filter(): void {
+		$this->assertSame( 8000, Admin::get_ai_max_prompt_chars() );
+
+		update_option( Admin::OPTION_AI_MAX_PROMPT_CHARS, 20000 );
+		$this->assertSame( 20000, Admin::get_ai_max_prompt_chars() );
+
+		// The filter is the escape hatch for values outside the settings range.
+		$filter = static function () {
+			return 120000;
+		};
+		add_filter( 'kayzart_ai_max_prompt_chars', $filter );
+
+		try {
+			$this->assertSame( 120000, Admin::get_ai_max_prompt_chars() );
+			$this->assertSame( 20000, Admin::get_stored_ai_max_prompt_chars() );
+		} finally {
+			remove_filter( 'kayzart_ai_max_prompt_chars', $filter );
+		}
+	}
+
+	public function test_render_ai_default_model_field_discovers_models_once(): void {
+		$calls  = 0;
+		$filter = static function ( $models ) use ( &$calls ) {
+			++$calls;
+			return array_merge( $models, array(
+				array(
+					'id'    => 'provider/model-a',
+					'label' => 'Model A',
+				),
+			) );
+		};
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+		add_filter( 'kayzart_ai_available_models', $filter );
+
+		try {
+			ob_start();
+			Admin::render_ai_default_model_field();
+			$output = ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_available_models', $filter );
+		}
+
+		$this->assertSame( 1, $calls );
+		$this->assertStringContainsString( 'value="provider/model-a"', $output );
+		$this->assertStringContainsString( "selected='selected'", $output );
+	}
+
+	/** Direct OpenAI output carries the inactive Connector preference forward. */
+	public function test_render_ai_default_model_field_preserves_connector_model_for_direct_openai(): void {
+		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+		update_option( 'kayzart_openai_api_key', 'sk-test-direct-settings' );
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		try {
+			ob_start();
+			Admin::render_ai_default_model_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+			remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+			remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
+			remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+			remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+			remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+		}
+
+		$this->assertStringContainsString( 'type="hidden"', $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_DEFAULT_MODEL . '"', $output );
+		$this->assertStringContainsString( 'value="provider/model-a"', $output );
+		$this->assertStringContainsString( 'Direct OpenAI access uses this fixed model.', $output );
+	}
+
+	public function test_render_ai_max_turns_field_shows_the_configured_value_and_range(): void {
+		update_option( Admin::OPTION_AI_MAX_TURNS, 20 );
+
+		ob_start();
+		Admin::render_ai_max_turns_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_MAX_TURNS . '"', $output );
+		$this->assertStringContainsString( 'value="20"', $output );
+		$this->assertStringContainsString( 'min="10"', $output );
+		$this->assertStringContainsString( 'max="30"', $output );
+		$this->assertStringContainsString( 'step="1"', $output );
+	}
+
+	public function test_render_ai_max_prompt_chars_field_shows_the_configured_value_and_range(): void {
+		update_option( Admin::OPTION_AI_MAX_PROMPT_CHARS, 12000 );
+
+		ob_start();
+		Admin::render_ai_max_prompt_chars_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_MAX_PROMPT_CHARS . '"', $output );
+		$this->assertStringContainsString( 'value="12000"', $output );
+		$this->assertStringContainsString( 'min="1000"', $output );
+		$this->assertStringContainsString( 'max="50000"', $output );
+		$this->assertStringContainsString( 'step="1"', $output );
+		$this->assertStringNotContainsString( 'A filter currently overrides', $output );
+	}
+
+	public function test_render_ai_max_prompt_chars_field_shows_the_stored_value_when_a_filter_overrides_it(): void {
+		update_option( Admin::OPTION_AI_MAX_PROMPT_CHARS, 12000 );
+
+		$filter = static function () {
+			return 120000;
+		};
+		add_filter( 'kayzart_ai_max_prompt_chars', $filter );
+
+		try {
+			ob_start();
+			Admin::render_ai_max_prompt_chars_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_max_prompt_chars', $filter );
+		}
+
+		// The input is bound to the option, so it must stay inside min/max and must
+		// not write the filtered value back when another setting is saved.
+		$this->assertStringContainsString( 'value="12000"', $output );
+		$this->assertStringNotContainsString( 'value="120000"', $output );
+		$this->assertStringContainsString( 'The limit in use is 120000 characters.', $output );
 	}
 
 	public function test_filter_admin_url_keeps_kayzart_add_new_url_unchanged(): void {
@@ -163,32 +346,57 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$matched_slug  = '';
 		foreach ( (array) ( $submenu[ $page_parent_slug ] ?? array() ) as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( false !== strpos( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+			if ( false !== strpos( $slug, 'page=' . Admin::NEW_SLUG ) ) {
 				$matched_label = isset( $item[0] ) ? (string) $item[0] : '';
 				$matched_slug  = $slug;
 				break;
 			}
 		}
 
-		$this->assertSame( __( 'Add landing page', 'kayzart-live-code-editor' ), $matched_label );
-		$this->assertStringContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
-		$this->assertStringContainsString( 'post_type=page', $matched_slug );
-		$this->assertStringContainsString( '_wpnonce=', $matched_slug );
+		$this->assertSame( __( 'Add with Kayzart', 'kayzart-live-code-editor' ), $matched_label );
+		$this->assertStringContainsString( 'page=' . Admin::NEW_SLUG, $matched_slug );
+		$this->assertStringContainsString( Admin::NEW_TYPE_PARAM . '=page', $matched_slug );
+		// The create screen has no side effects, so it needs no nonce; the form
+		// it renders carries one.
+		$this->assertStringNotContainsString( 'action=' . Admin::NEW_PAGE_ACTION, $matched_slug );
 
 		$post_matched_slug = '';
 		foreach ( (array) ( $submenu[ $post_parent_slug ] ?? array() ) as $item ) {
 			$slug = isset( $item[2] ) ? (string) $item[2] : '';
-			if ( false !== strpos( $slug, 'action=' . Admin::NEW_PAGE_ACTION ) ) {
+			if ( false !== strpos( $slug, 'page=' . Admin::NEW_SLUG ) ) {
 				$post_matched_slug = $slug;
 				break;
 			}
 		}
-		$this->assertStringContainsString( 'post_type=post', $post_matched_slug );
+		$this->assertStringContainsString( Admin::NEW_TYPE_PARAM . '=post', $post_matched_slug );
 
 		$submenu = $original_submenu;
 	}
 
-	public function test_register_menu_adds_lp_settings_under_options_not_legacy_cpt(): void {
+	public function test_get_new_screen_url_avoids_a_post_type_query_arg(): void {
+		// A post_type query arg sets $typenow, which makes admin.php resolve the
+		// page's parent as "admin.php?post_type=..." instead of the Kayzart menu.
+		// The screen then dies with "Cannot load kayzart-new".
+		$url = Admin::get_new_screen_url( Post_Type::PAGE_TYPE );
+
+		$args = array();
+		parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $args );
+
+		$this->assertSame( Admin::NEW_SLUG, $args['page'] ?? '' );
+		$this->assertSame( Post_Type::PAGE_TYPE, $args[ Admin::NEW_TYPE_PARAM ] ?? '' );
+		$this->assertArrayNotHasKey( 'post_type', $args );
+	}
+
+	public function test_get_convert_screen_url_avoids_a_post_type_query_arg(): void {
+		$args = array();
+		parse_str( (string) wp_parse_url( Admin::get_convert_screen_url( 123 ), PHP_URL_QUERY ), $args );
+
+		$this->assertSame( Admin::CONVERT_SLUG, $args['page'] ?? '' );
+		$this->assertSame( '123', (string) ( $args['post_id'] ?? '' ) );
+		$this->assertArrayNotHasKey( 'post_type', $args );
+	}
+
+	public function test_register_menu_adds_settings_under_kayzart_not_options_or_legacy_cpt(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -197,31 +405,204 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$options_parent   = 'options-general.php';
 		$legacy_parent    = 'edit.php?post_type=' . Post_Type::POST_TYPE;
 		$submenu          = is_array( $submenu ) ? $submenu : array();
-		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ] );
+		unset( $submenu[ $options_parent ], $submenu[ $legacy_parent ], $submenu[ Admin::NEW_SLUG ] );
 
 		Admin::register_menu();
 
-		$options_has_settings = false;
-		foreach ( (array) ( $submenu[ $options_parent ] ?? array() ) as $item ) {
+		$hub_settings_cap = '';
+		foreach ( (array) ( $submenu[ Admin::NEW_SLUG ] ?? array() ) as $item ) {
 			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
-				$options_has_settings = true;
-				$this->assertSame( __( 'Landing page settings', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
+				$hub_settings_cap = (string) ( $item[1] ?? '' );
+				$this->assertSame( __( 'Settings', 'kayzart-live-code-editor' ), (string) ( $item[0] ?? '' ) );
 				break;
 			}
 		}
 
-		$legacy_has_settings = false;
-		foreach ( (array) ( $submenu[ $legacy_parent ] ?? array() ) as $item ) {
-			if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
-				$legacy_has_settings = true;
-				break;
+		$stale_parents = array( $options_parent, $legacy_parent );
+		$stale_hits    = array();
+		foreach ( $stale_parents as $parent ) {
+			foreach ( (array) ( $submenu[ $parent ] ?? array() ) as $item ) {
+				if ( Admin::SETTINGS_SLUG === (string) ( $item[2] ?? '' ) ) {
+					$stale_hits[] = $parent;
+					break;
+				}
 			}
 		}
 
 		$submenu = $original_submenu;
 
-		$this->assertTrue( $options_has_settings );
-		$this->assertFalse( $legacy_has_settings );
+		$this->assertSame( 'manage_options', $hub_settings_cap );
+		$this->assertSame( array(), $stale_hits );
+	}
+
+	public function test_register_menu_adds_kayzart_top_level_at_edit_posts(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		global $menu, $submenu;
+		$original_menu    = $menu;
+		$original_submenu = $submenu;
+		$menu             = is_array( $menu ) ? $menu : array();
+		$submenu          = is_array( $submenu ) ? $submenu : array();
+		unset( $submenu[ Admin::NEW_SLUG ] );
+
+		Admin::register_menu();
+
+		$hub_cap = '';
+		foreach ( $menu as $item ) {
+			if ( Admin::NEW_SLUG === (string) ( $item[2] ?? '' ) ) {
+				$hub_cap = (string) ( $item[1] ?? '' );
+				break;
+			}
+		}
+
+		$child_slugs = array();
+		foreach ( (array) ( $submenu[ Admin::NEW_SLUG ] ?? array() ) as $item ) {
+			$child_slugs[] = (string) ( $item[2] ?? '' );
+		}
+
+		$menu    = $original_menu;
+		$submenu = $original_submenu;
+
+		$this->assertSame( 'edit_posts', $hub_cap );
+		$this->assertSame(
+			array( Admin::NEW_SLUG, Admin::SETTINGS_SLUG ),
+			$child_slugs,
+			'The menu must expose exactly Add new and Settings — no landing screen and no duplicate page list.'
+		);
+	}
+
+	public function test_render_ai_section_reports_ai_availability(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+
+		$unavailable = static function () {
+			return false;
+		};
+		add_filter( 'kayzart_ai_sdk_present', $unavailable );
+
+		ob_start();
+		Admin::render_ai_section();
+		$output = (string) ob_get_clean();
+
+		remove_filter( 'kayzart_ai_sdk_present', $unavailable );
+
+		$this->assertStringContainsString( __( 'AI connection configured', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Action Scheduler', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString(
+			__( 'AI editing is unavailable until every requirement below is met.', 'kayzart-live-code-editor' ),
+			$output
+		);
+	}
+
+	public function test_render_new_page_uses_modern_sections_and_preserves_defaults(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		update_option( 'kayzart_openai_api_key', 'sk-test-create-screen' );
+		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, 'post' ) );
+
+		ob_start();
+		Admin::render_new_page();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'class="wrap kayzart-create-page"', $output );
+		$this->assertStringContainsString(
+			__( 'Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design.', 'kayzart-live-code-editor' ),
+			$output
+		);
+		$this->assertStringContainsString( 'name="post_type" value="page" checked=', $output );
+		$this->assertStringContainsString( 'name="mode" value="tailwind" checked=', $output );
+		$this->assertStringContainsString( __( 'Recommended', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( __( 'You can change this later in the editor.', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( 'name="initial_ai_prompt"', $output );
+		$this->assertStringContainsString( 'name="_wpnonce"', $output );
+		$this->assertStringNotContainsString( 'class="form-table"', $output );
+		$this->assertStringNotContainsString( 'kayzart-create-advanced', $output );
+		$this->assertStringContainsString( 'class="kayzart-create-section kayzart-create-section--settings"', $output );
+		$this->assertStringContainsString( 'id="kayzart-generate-ai"', $output );
+		$this->assertStringContainsString( 'name="start_mode" value="ai"', $output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank"', $output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank-hint" hidden="hidden"', $output );
+		$this->assertStringContainsString( 'name="start_mode" value="blank"', $output );
+		$this->assertStringNotContainsString( 'name="start_mode" type="radio"', $output );
+		delete_option( 'kayzart_openai_api_key' );
+
+		$title_position    = strpos( $output, 'name="post_title"' );
+		$prompt_position   = strpos( $output, 'name="initial_ai_prompt"' );
+		$page_position     = strpos( $output, 'name="post_type" value="page"' );
+		$post_position     = strpos( $output, 'name="post_type" value="post"' );
+		$tailwind_position = strpos( $output, 'name="mode" value="tailwind"' );
+		$normal_position   = strpos( $output, 'name="mode" value="normal"' );
+
+		$this->assertIsInt( $title_position );
+		$this->assertIsInt( $prompt_position );
+		$this->assertIsInt( $page_position );
+		$this->assertIsInt( $post_position );
+		$this->assertIsInt( $tailwind_position );
+		$this->assertIsInt( $normal_position );
+		$this->assertLessThan( $prompt_position, $title_position );
+		$this->assertLessThan( $page_position, $prompt_position );
+		$this->assertLessThan( $post_position, $page_position );
+		$this->assertLessThan( $normal_position, $tailwind_position );
+	}
+
+	public function test_enqueue_assets_loads_only_new_page_assets_on_new_screen(): void {
+		Admin::enqueue_assets( 'toplevel_page_' . Admin::NEW_SLUG );
+
+		$this->assertTrue( wp_style_is( 'kayzart-new-page', 'enqueued' ) );
+		$this->assertTrue( wp_script_is( 'kayzart-new-page', 'enqueued' ) );
+		$this->assertFalse( wp_script_is( 'kayzart-admin', 'enqueued' ) );
+
+		$registered = wp_scripts()->registered['kayzart-new-page'] ?? null;
+		$this->assertNotNull( $registered );
+		$before_inline = isset( $registered->extra['before'] ) ? (array) $registered->extra['before'] : array();
+		$inline        = implode( "\n", $before_inline );
+		$this->assertStringContainsString( 'maxPromptChars', $inline );
+	}
+
+	public function test_render_new_page_shows_the_ai_instruction_only_when_ai_is_available(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+		wp_set_current_user( $admin_id );
+		update_option( 'kayzart_openai_api_key', 'sk-test-create-screen' );
+
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		ob_start();
+		Admin::render_new_page();
+		$available_output = (string) ob_get_clean();
+		$this->assertStringContainsString( 'id="kayzart-initial-ai-prompt"', $available_output );
+		$this->assertStringContainsString( 'id="kayzart-generate-ai"', $available_output );
+
+		delete_option( 'kayzart_openai_api_key' );
+		ob_start();
+		Admin::render_new_page();
+		$unavailable_output = (string) ob_get_clean();
+		$this->assertStringNotContainsString( 'id="kayzart-initial-ai-prompt"', $unavailable_output );
+		$this->assertStringNotContainsString( 'id="kayzart-generate-ai"', $unavailable_output );
+		$this->assertStringContainsString( 'id="kayzart-create-blank"', $unavailable_output );
+		$this->assertStringContainsString( __( 'Create blank page', 'kayzart-live-code-editor' ), $unavailable_output );
+
+		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
+	}
+
+	public function test_get_settings_url_points_at_the_hub_and_keeps_tab_support(): void {
+		$this->assertSame(
+			admin_url( 'admin.php?page=' . Admin::SETTINGS_SLUG ),
+			Admin::get_settings_url()
+		);
+		$this->assertSame(
+			admin_url( 'admin.php?page=' . Admin::SETTINGS_SLUG . '&tab=license' ),
+			Admin::get_settings_url( 'license' )
+		);
 	}
 
 	public function test_render_settings_page_supports_extension_tabs(): void {
@@ -249,8 +630,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		remove_filter( 'kayzart_settings_tabs', $tabs_filter );
 		remove_action( 'kayzart_render_settings_tab_sample', $tab_action );
 
-		$this->assertStringContainsString( __( 'Landing page settings', 'kayzart-live-code-editor' ), $output );
-		$this->assertStringContainsString( __( '基本設定', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Settings', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringContainsString( __( 'Basic settings', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringContainsString( 'Sample Tab', $output );
 		$this->assertStringContainsString( 'id="sample-settings-tab"', $output );
 	}
@@ -269,6 +650,23 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertStringNotContainsString( __( 'Kayzart slug', 'kayzart-live-code-editor' ), $output );
 		$this->assertStringNotContainsString( 'name="' . Admin::OPTION_POST_SLUG . '"', $output );
+	}
+
+	public function test_render_settings_page_places_ai_editing_first(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$this->reset_kayzart_settings_api_state();
+		Admin::register_settings();
+
+		ob_start();
+		Admin::render_settings_page();
+		$output = (string) ob_get_clean();
+
+		$ai_position       = strpos( $output, __( 'AI editing', 'kayzart-live-code-editor' ) );
+		$template_position = strpos( $output, __( 'Page template', 'kayzart-live-code-editor' ) );
+		$this->assertIsInt( $ai_position );
+		$this->assertIsInt( $template_position );
+		$this->assertTrue( $ai_position < $template_position );
 	}
 
 	public function test_render_settings_page_shows_post_slug_field_for_custom_slug(): void {
@@ -303,7 +701,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'kayzart_delete_on_uninstall', $output );
 	}
 
-	public function test_render_settings_page_shows_default_editor_layout_field(): void {
+	public function test_render_settings_page_hides_legacy_default_editor_layout_field(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 
@@ -314,10 +712,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_settings_page();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( __( 'Default editor layout', 'kayzart-live-code-editor' ), $output );
-		$this->assertStringContainsString( 'name="' . Admin::OPTION_DEFAULT_EDITOR_LAYOUT . '"', $output );
-		$this->assertStringContainsString( 'value="code_visible"', $output );
-		$this->assertStringContainsString( 'value="code_hidden"', $output );
+		$this->assertStringNotContainsString( __( 'Default editor layout', 'kayzart-live-code-editor' ), $output );
+		$this->assertStringNotContainsString( 'name="' . Admin::OPTION_DEFAULT_EDITOR_LAYOUT . '"', $output );
 	}
 
 	public function test_render_enabled_post_types_field_mentions_convert_action_for_existing_posts(): void {
@@ -328,8 +724,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		Admin::render_enabled_post_types_field();
 		$output = (string) ob_get_clean();
 
-		$this->assertStringContainsString( 'Convert to landing page', $output );
-		$this->assertStringContainsString( 'Add landing page', $output );
+		$this->assertStringContainsString( 'Start editing with Kayzart', $output );
+		$this->assertStringContainsString( 'Add with Kayzart', $output );
 		$this->assertStringNotContainsString( 'opened in the Kayzart editor', $output );
 	}
 
@@ -371,8 +767,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		$original_get    = $_GET;
-		$_GET['post_id'] = (string) $post_id;
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 		$before          = did_action( 'wp_enqueue_media' );
 
@@ -430,8 +826,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			)
 		);
 
-		$original_get     = $_GET;
-		$_GET['post_id']  = (string) $post_id;
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
@@ -454,7 +850,81 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'lang=', $payload['documentHtmlAttributes'] );
 	}
 
-	public function test_enqueue_assets_inline_config_includes_default_editor_layout(): void {
+	/**
+	 * Editor configuration includes the complete AI availability status.
+	 */
+	public function test_enqueue_assets_inline_config_includes_ai_availability(): void {
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin_id );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => Post_Type::POST_TYPE,
+				'post_status' => 'draft',
+			)
+		);
+		update_option( 'kayzart_openai_api_key', 'sk-test-inline-config' );
+
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
+
+		wp_dequeue_script( 'kayzart-admin' );
+		wp_deregister_script( 'kayzart-admin' );
+		$original_get    = $_GET;
+		$_GET['post_id'] = (string) $post_id;
+		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
+		$_GET = $original_get;
+
+		remove_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		delete_option( 'kayzart_openai_api_key' );
+		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
+		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		remove_filter( 'kayzart_ai_dom_present', '__return_true' );
+
+		$registered    = wp_scripts()->registered['kayzart-admin'] ?? null;
+		$before_inline = is_object( $registered ) && isset( $registered->extra['before'] ) ? $registered->extra['before'] : array();
+		$inline        = implode( "\n", (array) $before_inline );
+		preg_match( '/window\\.KAYZART = (.+);/', $inline, $matches );
+		$payload = json_decode( $matches[1] ?? '', true );
+
+		$this->assertSame(
+			array(
+				'available'           => true,
+				'setupState'          => 'ready',
+				'backend'             => 'openai_direct',
+				'featureEnabled'      => true,
+				'sdkPresent'          => false,
+				'providerConfigured'  => true,
+				'connectorConfigured' => false,
+				'directKeyConfigured' => true,
+				'directKeySource'     => 'database',
+				'schedulerPresent'    => true,
+				'mbstringPresent'     => true,
+				'domPresent'          => true,
+				'canEdit'             => true,
+				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
+				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
+				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+				'settingsUrl'         => Admin::get_settings_url(),
+				'canManageConnectors' => true,
+				'canManageSettings'   => true,
+				'maxPromptChars'      => Admin::AI_MAX_PROMPT_CHARS_DEFAULT,
+				'initialRequest'      => null,
+			),
+			$payload['ai'] ?? null
+		);
+	}
+
+	public function test_enqueue_assets_inline_config_includes_layout_migration_data(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin_id );
 		$post_id = (int) self::factory()->post->create(
@@ -471,6 +941,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$original_get     = $_GET;
 		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
+		$_GET['kayzart_entry'] = 'ai';
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
 
@@ -487,7 +958,27 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$payload = json_decode( $matches[1], true );
 		$this->assertIsArray( $payload );
-		$this->assertSame( 'code_hidden', $payload['defaultEditorLayout'] ?? '' );
+		$this->assertSame( 'code_hidden', $payload['legacyCodeVisibilityFallback'] ?? '' );
+		$this->assertArrayNotHasKey( 'defaultEditorLayout', $payload );
+		$this->assertSame( 'ai', $payload['initialEntryMode'] ?? null );
+		$this->assertSame(
+			'kayzart.editorLayout.v1.site.' . get_current_blog_id() . '.user.' . $admin_id,
+			$payload['layoutStorageNamespace'] ?? ''
+		);
+	}
+
+	public function test_legacy_editor_layout_fallback_respects_only_valid_saved_settings(): void {
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_visible' );
+		$this->assertSame( 'code_visible', Admin::get_legacy_editor_layout_fallback() );
+
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'code_hidden' );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
+
+		update_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT, 'invalid' );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
+
+		delete_option( Admin::OPTION_DEFAULT_EDITOR_LAYOUT );
+		$this->assertSame( 'code_hidden', Admin::get_legacy_editor_layout_fallback() );
 	}
 
 	public function test_enqueue_assets_inline_config_escapes_script_breakout_sequences(): void {
@@ -543,8 +1034,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		};
 		add_action( 'kayzart_editor_enqueue_assets', $listener, 10, 1 );
 
-		$original_get    = $_GET;
-		$_GET['post_id'] = (string) $post_id;
+		$original_get     = $_GET;
+		$_GET['post_id']  = (string) $post_id;
 		$_GET['_wpnonce'] = wp_create_nonce( Admin::EDITOR_PAGE_NONCE_ACTION );
 
 		Admin::enqueue_assets( 'admin_page_' . Admin::MENU_SLUG );
@@ -679,5 +1170,389 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertIsString( $page_title );
 		$this->assertNotSame( '', $page_title );
 		$this->assertSame( 'Kayzart', $page_title );
+	}
+
+	/**
+	 * WordPress version in place before a test overrode it.
+	 *
+	 * @var string|null
+	 */
+	private $original_wp_version = null;
+
+	/**
+	 * Apply the shared AI runtime gates with an explicit connector state.
+	 *
+	 * @param bool   $sdk_present         Whether the AI Client SDK is present.
+	 * @param bool   $provider_configured Whether a Connector is configured.
+	 * @param string $version             WordPress version to run the test under.
+	 */
+	private function set_ai_gates( bool $sdk_present, bool $provider_configured, string $version = '7.0' ): void {
+		global $wp_version;
+
+		$this->original_wp_version = (string) $wp_version;
+		$wp_version                = $version;
+
+		add_filter( 'kayzart_ai_feature_enabled', '__return_true' );
+		add_filter( 'kayzart_ai_scheduler_present', '__return_true' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_true' );
+		add_filter( 'kayzart_ai_dom_present', '__return_true' );
+		add_filter( 'kayzart_ai_sdk_present', $sdk_present ? '__return_true' : '__return_false' );
+		add_filter( 'kayzart_ai_provider_configured', $provider_configured ? '__return_true' : '__return_false' );
+	}
+
+	/**
+	 * Remove every AI gate override applied by a test.
+	 */
+	private function clear_ai_gates(): void {
+		global $wp_version;
+
+		if ( null !== $this->original_wp_version ) {
+			$wp_version                = $this->original_wp_version;
+			$this->original_wp_version = null;
+		}
+
+		remove_all_filters( 'kayzart_ai_feature_enabled' );
+		remove_all_filters( 'kayzart_ai_scheduler_present' );
+		remove_all_filters( 'kayzart_ai_mbstring_present' );
+		remove_all_filters( 'kayzart_ai_dom_present' );
+		remove_all_filters( 'kayzart_ai_sdk_present' );
+		remove_all_filters( 'kayzart_ai_provider_configured' );
+		remove_all_filters( 'kayzart_ai_show_direct_key_field' );
+		delete_option( Admin::OPTION_DORMANT_KEY_NOTICE );
+		delete_option( Admin::OPTION_CONNECTOR_NOTICE );
+		Admin::flush_cached_ai_backend();
+	}
+
+	/**
+	 * Evaluate the gate that decides whether the direct field row is registered.
+	 *
+	 * @return bool
+	 */
+	private function should_show_direct_field_on_settings_screen(): bool {
+		return Ai_OpenAI_Key::is_entry_allowed();
+	}
+
+	/** A Connector-configured site with no stored key is not offered the field. */
+	public function test_direct_openai_field_is_hidden_once_a_connector_serves_the_site(): void {
+		$this->set_ai_gates( true, true );
+
+		try {
+			$this->assertFalse( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** A stored key keeps the field reachable so it can be reviewed and removed. */
+	public function test_direct_openai_field_stays_visible_while_a_key_is_stored(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-dormant' );
+		$this->set_ai_gates( true, true );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** Sites without the AI Client SDK still need the direct field. */
+	public function test_direct_openai_field_is_offered_without_the_sdk(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/**
+	 * An empty Connectors screen is not a reason to offer a second credential.
+	 *
+	 * This is the case the rule exists for: a site that can use Connectors but
+	 * has not filled it in yet must be sent there, not handed an easier way to
+	 * put an OpenAI key somewhere else.
+	 */
+	public function test_direct_openai_field_is_withheld_when_no_connector_is_configured_yet(): void {
+		$this->set_ai_gates( true, false );
+
+		try {
+			$this->assertFalse( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** The gate is filterable for bespoke integrations. */
+	public function test_direct_openai_field_visibility_is_filterable(): void {
+		$this->set_ai_gates( true, true );
+		add_filter( 'kayzart_ai_show_direct_key_field', '__return_true' );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/**
+	 * The gate never probes the provider, so admin_init stays cheap.
+	 *
+	 * register_settings() runs on every admin screen, so the decision has to be
+	 * answerable from the WordPress version and the stored key alone.
+	 */
+	public function test_direct_openai_field_gate_never_probes_the_provider(): void {
+		$this->set_ai_gates( true, true );
+		$probes = 0;
+		$filter = function ( $configured ) use ( &$probes ) {
+			++$probes;
+			return $configured;
+		};
+		add_filter( 'kayzart_ai_provider_configured', $filter );
+
+		try {
+			Ai_OpenAI_Key::is_entry_allowed();
+			$this->assertSame( 0, $probes );
+		} finally {
+			remove_filter( 'kayzart_ai_provider_configured', $filter );
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** A dormant key is flagged for removal instead of reading as configuration. */
+	public function test_render_openai_api_key_field_flags_a_dormant_key(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-dormant-render' );
+		$this->set_ai_gates( true, true );
+
+		try {
+			ob_start();
+			Admin::render_openai_api_key_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'This key is not in use.', $output );
+		$this->assertStringContainsString( '<details open>', $output );
+		$this->assertStringContainsString( 'Remove saved API key', $output );
+	}
+
+	/** Without a Connector the field renders plainly, with no disclosure wrapper. */
+	public function test_render_openai_api_key_field_stays_plain_without_a_connector(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			ob_start();
+			Admin::render_openai_api_key_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringNotContainsString( '<details', $output );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_OPENAI_API_KEY . '"', $output );
+	}
+
+	/** The dormant-key notice fires once and only for a database-stored key. */
+	public function test_dormant_openai_key_notice_is_shown_once(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-dormant-notice' );
+		$this->set_ai_gates( true, true );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$first = (string) ob_get_clean();
+
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$second = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'no longer used', $first );
+		$this->assertSame( '', $second );
+	}
+
+	/** No Connector means the saved key is still in use, so nothing is announced. */
+	public function test_dormant_openai_key_notice_is_silent_while_the_key_is_in_use(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-active-notice' );
+		$this->set_ai_gates( true, false );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertSame( '', $output );
+	}
+
+	/**
+	 * A Connector below WordPress 7.0 still loses to the direct backend.
+	 *
+	 * The AI Client can be present and configured on 5.9-6.9, where
+	 * Ai_Availability rejects it on version, so the stored key is still serving
+	 * every request and must not be presented as unused.
+	 */
+	public function test_configured_connector_below_wp_70_leaves_the_direct_key_active(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-legacy-connector' );
+		$this->set_ai_gates( true, true, '6.9' );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+
+			ob_start();
+			Admin::render_openai_api_key_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringNotContainsString( 'This key is not in use.', $output );
+		$this->assertStringNotContainsString( '<details', $output );
+	}
+
+	/** Hiding the field below WordPress 7.0 would lock AI editing out entirely. */
+	public function test_direct_openai_field_is_offered_below_wp_70_even_with_a_configured_sdk(): void {
+		$this->set_ai_gates( true, true, '6.9' );
+
+		try {
+			$this->assertTrue( $this->should_show_direct_field_on_settings_screen() );
+		} finally {
+			$this->clear_ai_gates();
+		}
+	}
+
+	/** The notice probe is bounded, not repeated on every admin page load. */
+	public function test_dormant_openai_key_notice_probes_the_provider_at_most_once(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-probe-budget' );
+		// The direct-key fallback state: SDK present, no Connector, key in use.
+		$this->set_ai_gates( true, false );
+		$probes = 0;
+		$filter = function ( $configured ) use ( &$probes ) {
+			++$probes;
+			return $configured;
+		};
+		add_filter( 'kayzart_ai_provider_configured', $filter );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			Admin::maybe_render_dormant_openai_key_notice();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_provider_configured', $filter );
+			$this->clear_ai_gates();
+		}
+
+		$this->assertSame( '', $output );
+		$this->assertSame( 1, $probes );
+	}
+
+	/** Below WordPress 7.0 the dormant notice never probes at all. */
+	public function test_dormant_openai_key_notice_skips_the_probe_below_wp_70(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		update_option( 'kayzart_openai_api_key', 'sk-test-legacy-probe' );
+		$this->set_ai_gates( true, true, '6.9' );
+		$probes = 0;
+		$filter = function ( $configured ) use ( &$probes ) {
+			++$probes;
+			return $configured;
+		};
+		add_filter( 'kayzart_ai_provider_configured', $filter );
+
+		try {
+			ob_start();
+			Admin::maybe_render_dormant_openai_key_notice();
+			$output = (string) ob_get_clean();
+		} finally {
+			remove_filter( 'kayzart_ai_provider_configured', $filter );
+			$this->clear_ai_gates();
+		}
+
+		$this->assertSame( '', $output );
+		$this->assertSame( 0, $probes );
+	}
+
+	/**
+	 * Setup advice below WordPress 7.0 names the only action that can work.
+	 *
+	 * A separately loaded AI Client does not make Connectors reachable there:
+	 * the backend is rejected on version and options-connectors.php does not
+	 * exist, so entering a direct key is the only way to enable AI editing.
+	 */
+	public function test_setup_advice_below_wp_70_points_at_the_direct_key(): void {
+		$this->set_ai_gates( true, false, '6.9' );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Enter an OpenAI API key below.', $output );
+		$this->assertStringNotContainsString( 'Configure a WordPress Connector', $output );
+		$this->assertStringNotContainsString( 'options-connectors.php', $output );
+	}
+
+	/** On WordPress 7.0 the checklist points at Connectors instead. */
+	public function test_setup_advice_on_wp_70_points_at_connectors(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->set_ai_gates( true, false );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Configure a WordPress Connector', $output );
+		$this->assertStringContainsString( 'options-connectors.php', $output );
+	}
+
+	/** Without the SDK the advice stays on the direct key. */
+	public function test_setup_advice_without_the_sdk_points_at_the_direct_key(): void {
+		$this->set_ai_gates( false, false );
+
+		try {
+			ob_start();
+			Admin::render_ai_section();
+			$output = (string) ob_get_clean();
+		} finally {
+			$this->clear_ai_gates();
+		}
+
+		$this->assertStringContainsString( 'Enter an OpenAI API key below.', $output );
+		$this->assertStringNotContainsString( 'Configure a WordPress Connector', $output );
+	}
+
+	/** Saving or removing the key invalidates the cached backend. */
+	public function test_cached_ai_backend_is_flushed_when_the_direct_key_changes(): void {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->set_ai_gates( true, false );
+
+		try {
+			update_option( 'kayzart_openai_api_key', 'sk-test-cache-flush' );
+			ob_start();
+			Admin::maybe_render_connector_migration_notice();
+			ob_end_clean();
+			$this->assertNotFalse( get_transient( Admin::TRANSIENT_AI_BACKEND ) );
+
+			delete_option( 'kayzart_openai_api_key' );
+			$this->assertFalse( get_transient( Admin::TRANSIENT_AI_BACKEND ) );
+		} finally {
+			$this->clear_ai_gates();
+		}
 	}
 }

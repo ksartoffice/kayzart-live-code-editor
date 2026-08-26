@@ -558,6 +558,18 @@ class Feedback {
 		echo '<div class="notice notice-info"><p>' . esc_html__( 'The Kayzart feedback survey has closed. Thank you for your interest.', 'kayzart-live-code-editor' ) . '</p></div>';
 	}
 
+	/** Policy page paths, keyed by document then by language. */
+	private const POLICY_PATHS = array(
+		'privacy' => array(
+			'ja' => 'privacy-policy/',
+			'en' => 'en/privacy/',
+		),
+		'terms'   => array(
+			'ja' => 'terms/',
+			'en' => 'en/terms-of-use/',
+		),
+	);
+
 	/**
 	 * Resolve a policy page URL for the reader's own language.
 	 *
@@ -565,12 +577,21 @@ class Feedback {
 	 * serving a page that rewrites itself: a policy should read the same every
 	 * time it is opened at a given address.
 	 *
-	 * @param string $slug Page slug without slashes.
+	 * The two languages do not share a slug, so each path is spelled out in
+	 * full rather than built from a prefix. kayzart.com translates pages with a
+	 * plugin that gives every translation its own slug, and WordPress will not
+	 * let two pages with the same parent share one.
+	 *
+	 * @param string $document Either 'privacy' or 'terms'.
 	 * @return string
 	 */
-	private static function policy_url( string $slug ): string {
-		$base = 0 === strpos( get_user_locale(), 'ja' ) ? 'https://kayzart.com/' : 'https://kayzart.com/en/';
-		return $base . $slug . '/';
+	private static function policy_url( string $document ): string {
+		$language = 0 === strpos( get_user_locale(), 'ja' ) ? 'ja' : 'en';
+		$path     = isset( self::POLICY_PATHS[ $document ][ $language ] )
+			? self::POLICY_PATHS[ $document ][ $language ]
+			: '';
+
+		return 'https://kayzart.com/' . $path;
 	}
 
 	/** Add suggested site privacy policy text. */
@@ -579,7 +600,7 @@ class Feedback {
 			return;
 		}
 		$content  = '<p>' . esc_html__( 'Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form, together with the survey version, the Kayzart and WordPress version numbers, and the administrator interface language. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years.', 'kayzart-live-code-editor' ) . '</p>';
-		$content .= '<p><a href="' . esc_url( self::policy_url( 'privacy-policy' ) ) . '">' . esc_html__( 'Kayzart Privacy Policy', 'kayzart-live-code-editor' ) . '</a> | <a href="' . esc_url( self::policy_url( 'terms' ) ) . '">' . esc_html__( 'Kayzart Terms', 'kayzart-live-code-editor' ) . '</a></p>';
+		$content .= '<p><a href="' . esc_url( self::policy_url( 'privacy' ) ) . '">' . esc_html__( 'Kayzart Privacy Policy', 'kayzart-live-code-editor' ) . '</a> | <a href="' . esc_url( self::policy_url( 'terms' ) ) . '">' . esc_html__( 'Kayzart Terms', 'kayzart-live-code-editor' ) . '</a></p>';
 		wp_add_privacy_policy_content( 'Kayzart', wp_kses_post( $content ) );
 	}
 
@@ -1086,7 +1107,7 @@ class Feedback {
 
 	/** Render the public privacy and terms links. */
 	private static function render_privacy_links(): void {
-		echo '<p class="description"><a href="' . esc_url( self::policy_url( 'privacy-policy' ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Privacy Policy', 'kayzart-live-code-editor' ) . '</a> · <a href="' . esc_url( self::policy_url( 'terms' ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Terms', 'kayzart-live-code-editor' ) . '</a></p>';
+		echo '<p class="description"><a href="' . esc_url( self::policy_url( 'privacy' ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Privacy Policy', 'kayzart-live-code-editor' ) . '</a> · <a href="' . esc_url( self::policy_url( 'terms' ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Terms', 'kayzart-live-code-editor' ) . '</a></p>';
 	}
 
 	/**

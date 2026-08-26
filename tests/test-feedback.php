@@ -299,8 +299,38 @@ class Test_Feedback extends WP_UnitTestCase {
 
 		$this->assertSame( 0, $calls );
 		$this->assertStringContainsString( 'Send feedback to Kayzart', $output );
-		$this->assertStringContainsString( 'privacy-policy', $output );
+		// Assert the whole URL rather than a slug fragment. The two languages do
+		// not share slugs, so a fragment would match whichever page happened to
+		// be linked and could not tell a wrong link from a right one.
+		$this->assertStringContainsString( 'https://kayzart.com/en/privacy/', $output );
+		$this->assertStringContainsString( 'https://kayzart.com/en/terms-of-use/', $output );
 		$this->assertStringNotContainsString( 'required', $output );
+	}
+
+	/**
+	 * Policy links follow the reader's locale, and each language has its own slug.
+	 *
+	 * kayzart.com translates pages with a plugin that cannot share a slug between
+	 * languages, so the English paths are not the Japanese ones under a prefix.
+	 */
+	public function test_policy_links_follow_user_locale(): void {
+		$method = new ReflectionMethod( Feedback::class, 'policy_url' );
+		$method->setAccessible( true );
+
+		$user = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user );
+
+		update_user_meta( $user, 'locale', 'ja' );
+		$this->assertSame( 'https://kayzart.com/privacy-policy/', $method->invoke( null, 'privacy' ) );
+		$this->assertSame( 'https://kayzart.com/terms/', $method->invoke( null, 'terms' ) );
+
+		update_user_meta( $user, 'locale', 'en_US' );
+		$this->assertSame( 'https://kayzart.com/en/privacy/', $method->invoke( null, 'privacy' ) );
+		$this->assertSame( 'https://kayzart.com/en/terms-of-use/', $method->invoke( null, 'terms' ) );
+
+		// Anything that is not Japanese reads the English pages.
+		update_user_meta( $user, 'locale', 'de_DE' );
+		$this->assertSame( 'https://kayzart.com/en/privacy/', $method->invoke( null, 'privacy' ) );
 	}
 
 	/** The unanswered reminder ships hidden and never marks a question mandatory. */

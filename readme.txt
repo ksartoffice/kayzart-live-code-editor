@@ -270,7 +270,7 @@ On WordPress 7.0+, a configured WordPress Connector is preferred. Data handling 
 
 Kayzart also offers administrators an optional product feedback survey. Every question in it is optional. No request is made merely by installing, activating, updating, or viewing the plugin or survey. When an administrator explicitly submits the form, the selected answers, optional free-text comments, survey version, plugin version, WordPress version, and administrator interface locale are sent to https://feedback.kayzart.com/ and retained for two years. An administrator can review what they sent and send a correction, which replaces the earlier answer. The survey does not send the site URL, administrator name or email address, page content, installed plugin list, or a persistent installation identifier. The receiving server may process IP addresses in short-lived security and abuse-prevention logs. The survey stops being offered after 31 August 2027, or earlier if the service reports that it has closed.
 
-Kayzart privacy policy: https://kayzart.com/en/privacy-policy/ — terms: https://kayzart.com/en/terms/
+Kayzart privacy policy: https://kayzart.com/en/privacy/ — terms: https://kayzart.com/en/terms-of-use/
 
 == Credits ==
 This plugin bundles third-party libraries:

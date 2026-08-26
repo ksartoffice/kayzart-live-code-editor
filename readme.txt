@@ -11,7 +11,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Build landing pages with AI inside WordPress — bring your own AI key. Real HTML/CSS you can edit live. No drag-and-drop, no builder lock-in.
 
 == Description ==
-Kayzart builds landing pages the way a developer would: it writes real HTML, CSS, and JavaScript, renders them live as you edit, and publishes them as clean pages independent from your active theme. It is not a drag-and-drop page builder — no blocks, and no builder markup left behind in your database. What you get is code you own, and AI that writes and edits it for you, right inside WordPress.
+Kayzart turns a plain-language brief into real, editable HTML and CSS inside WordPress. Its live editor gives you direct access to HTML, CSS, and JavaScript, renders every change as you work, and publishes the result as a clean page independent from your active theme. It is not a drag-and-drop page builder — no blocks, and no builder markup left behind in your database. What you get is code you own, with AI built into the workflow.
 
 **New in 3.0: AI builds the page, you keep the code**
 Start from Kayzart > Add new: give the page a title, describe the page you want in plain language, and choose Generate with AI. Page type and CSS mode sit right below in Page settings, and Start with a blank page remains available whenever you want to write or paste the code yourself.

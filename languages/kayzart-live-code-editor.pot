@@ -26,7 +26,7 @@ msgstr ""
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "Build AI-assisted landing pages with real HTML/CSS/JS you can edit live, with no drag-and-drop or builder lock-in."
+msgid "Build landing pages with AI inside WordPress — bring your own AI key. Real HTML/CSS you can edit live. No drag-and-drop, no builder lock-in."
 msgstr ""
 
 #. Author of the plugin

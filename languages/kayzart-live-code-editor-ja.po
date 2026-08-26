@@ -1981,8 +1981,8 @@ msgstr "「%s」の本文編集をKayzartに切り替えます。現在のコン
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
-msgid "Build AI-assisted landing pages with real HTML/CSS/JS you can edit live, with no drag-and-drop or builder lock-in."
-msgstr "AI と一緒に、本物の HTML/CSS/JS でランディングページを作成。ライブ編集でき、ドラッグ&ドロップにもビルダーにも縛られません。"
+msgid "Build landing pages with AI inside WordPress — bring your own AI key. Real HTML/CSS you can edit live. No drag-and-drop, no builder lock-in."
+msgstr "WordPress 内の AI でランディングページを作成。お持ちの AI キーを利用できます。ライブ編集できる本物の HTML/CSS。ドラッグ＆ドロップ不要、ビルダーに縛られません。"
 
 #: includes/ai/class-kayzart-ai-openai-key.php:133
 msgid "Enter a valid OpenAI API key without spaces."

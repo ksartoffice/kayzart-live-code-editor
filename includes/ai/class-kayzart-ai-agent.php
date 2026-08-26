@@ -1068,7 +1068,11 @@ class Ai_Agent {
 	 * @return void
 	 */
 	private function log_input_token_breakdown( string $phase, int $turn, array $messages, array $tools, array $options, array $result ): void {
-		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG || ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG ) {
+		// Gated exactly like write_model_trace(). This is the same kind of
+		// developer diagnostic and just as verbose — several kilobytes of JSON
+		// per turn — so it takes the same opt-in rather than firing on any site
+		// that merely has WP_DEBUG_LOG on.
+		if ( ! $this->is_debug_logging_enabled() || 'off' === $this->debug_trace_mode ) {
 			return;
 		}
 

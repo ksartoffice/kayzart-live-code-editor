@@ -1177,7 +1177,11 @@ body.admin_page_kayzart #wpbody-content {
 .kayzart-settingsTabs {
   display: flex;
   min-width: 0;
-  gap: 16px;
+  /* The four English labels needed 257px inside a 254px strip, so the row
+     scrolled by three pixels at the default panel width. Tightening the gap
+     buys enough room without shrinking the panel or the tap targets.
+     overflow-x stays: a longer-worded locale still has somewhere to go. */
+  gap: 12px;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;

@@ -310,7 +310,7 @@ class Test_Feedback extends WP_UnitTestCase {
 	/**
 	 * Policy links follow the reader's locale, and each language has its own slug.
 	 *
-	 * kayzart.com translates pages with a plugin that cannot share a slug between
+	 * The site translates pages with a plugin that cannot share a slug between
 	 * languages, so the English paths are not the Japanese ones under a prefix.
 	 */
 	public function test_policy_links_follow_user_locale(): void {

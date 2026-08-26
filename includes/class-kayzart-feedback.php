@@ -558,13 +558,28 @@ class Feedback {
 		echo '<div class="notice notice-info"><p>' . esc_html__( 'The Kayzart feedback survey has closed. Thank you for your interest.', 'kayzart-live-code-editor' ) . '</p></div>';
 	}
 
+	/**
+	 * Resolve a policy page URL for the reader's own language.
+	 *
+	 * Both translations exist as separate pages, so this picks one rather than
+	 * serving a page that rewrites itself: a policy should read the same every
+	 * time it is opened at a given address.
+	 *
+	 * @param string $slug Page slug without slashes.
+	 * @return string
+	 */
+	private static function policy_url( string $slug ): string {
+		$base = 0 === strpos( get_user_locale(), 'ja' ) ? 'https://kayzart.com/' : 'https://kayzart.com/en/';
+		return $base . $slug . '/';
+	}
+
 	/** Add suggested site privacy policy text. */
 	public static function add_privacy_policy_content(): void {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
 			return;
 		}
 		$content  = '<p>' . esc_html__( 'Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form, together with the survey version, the Kayzart and WordPress version numbers, and the administrator interface language. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years.', 'kayzart-live-code-editor' ) . '</p>';
-		$content .= '<p><a href="https://kayzart.com/privacy-policy/">' . esc_html__( 'Kayzart Privacy Policy', 'kayzart-live-code-editor' ) . '</a> | <a href="https://kayzart.com/terms/">' . esc_html__( 'Kayzart Terms', 'kayzart-live-code-editor' ) . '</a></p>';
+		$content .= '<p><a href="' . esc_url( self::policy_url( 'privacy-policy' ) ) . '">' . esc_html__( 'Kayzart Privacy Policy', 'kayzart-live-code-editor' ) . '</a> | <a href="' . esc_url( self::policy_url( 'terms' ) ) . '">' . esc_html__( 'Kayzart Terms', 'kayzart-live-code-editor' ) . '</a></p>';
 		wp_add_privacy_policy_content( 'Kayzart', wp_kses_post( $content ) );
 	}
 
@@ -1071,7 +1086,7 @@ class Feedback {
 
 	/** Render the public privacy and terms links. */
 	private static function render_privacy_links(): void {
-		echo '<p class="description"><a href="https://kayzart.com/privacy-policy/" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Privacy Policy', 'kayzart-live-code-editor' ) . '</a> · <a href="https://kayzart.com/terms/" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Terms', 'kayzart-live-code-editor' ) . '</a></p>';
+		echo '<p class="description"><a href="' . esc_url( self::policy_url( 'privacy-policy' ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Privacy Policy', 'kayzart-live-code-editor' ) . '</a> · <a href="' . esc_url( self::policy_url( 'terms' ) ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Terms', 'kayzart-live-code-editor' ) . '</a></p>';
 	}
 
 	/**

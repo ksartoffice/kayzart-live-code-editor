@@ -1,0 +1,22 @@
+# The repository stores every text file with LF, and WordPress Coding Standards
+# requires LF in the files it checks. Without this, core.autocrlf=true hands
+# Windows checkouts a CRLF working tree and `composer run phpcs` fails on every
+# file before it looks at any real problem.
+#
+# Declaring the attribute here rather than relying on each developer's git
+# config keeps the rule with the repository, so a fresh clone on any machine
+# gets the same result.
+* text=auto eol=lf
+
+# Binary files must never be touched.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.mo binary
+*.zip binary
+*.mp4 binary

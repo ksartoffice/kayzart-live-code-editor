@@ -35,6 +35,9 @@ class Post_Type {
 			. '<path d="M18.6 1.2v4.6L14.4 10l4.2 4.2v4.6l-7.2-7.2V8.4Z"/>'
 			. '</svg>';
 
+		// The argument is the SVG literal directly above, and add_menu_page() takes
+		// its icon as a base64 data URI. Nothing here is user input or obfuscation.
+		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
 	}
 

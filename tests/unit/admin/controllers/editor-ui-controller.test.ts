@@ -42,6 +42,7 @@ function createUi() {
     addMediaButton: document.createElement('button'),
     htmlFormatButton: document.createElement('button'),
     htmlWordWrapButton: document.createElement('button'),
+    editorCloseButton: document.createElement('button'),
     compactAddMediaButton: document.createElement('button'),
     compactFormatButton: document.createElement('button'),
     cssFormatButton: document.createElement('button'),
@@ -186,6 +187,9 @@ describe('editor ui controller', () => {
     ui.compactCustomHeadTab.click();
     expect(ui.compactFormatButton.style.display).toBe('');
     expect(ui.compactFormatButton.getAttribute('aria-label')).toBe('Format HTML');
+
+    controller.setHtmlTab('customHead', { focus: true });
+    expect(ui.editorCloseButton.style.display).toBe('');
 
     controller.setCssTab('css', { focus: true });
     expect(ui.cssFormatButton.style.display).toBe('');

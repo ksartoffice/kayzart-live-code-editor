@@ -351,7 +351,7 @@ function SettingsSidebar({
         ))}
       </div>
       <button
-        className="kayzart-settingsClose"
+        className="kayzart-panelClose kayzart-settingsClose"
         type="button"
         aria-label={__( 'Close settings panel', 'kayzart-live-code-editor')}
         onClick={() => onClosePanel?.()}
@@ -488,4 +488,3 @@ export function initSettings(config: SettingsConfig) {
   }
   return api;
 }
-

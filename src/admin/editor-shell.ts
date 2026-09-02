@@ -1,6 +1,6 @@
 import { __ } from '@wordpress/i18n';
 
-import { AlignLeft, ImagePlus } from 'lucide';
+import { AlignLeft, ImagePlus, PanelLeftClose } from 'lucide';
 import { renderLucideIcon } from './lucide-icons';
 
 type EditorShellRefs = {
@@ -23,6 +23,7 @@ type EditorShellRefs = {
   addMediaButton: HTMLButtonElement;
   htmlFormatButton: HTMLButtonElement;
   htmlWordWrapButton: HTMLButtonElement;
+  editorCloseButton: HTMLButtonElement;
   htmlEditorDiv: HTMLDivElement;
   customHeadEditorDiv: HTMLDivElement;
   customHeadHelp: HTMLDivElement;
@@ -202,7 +203,20 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
   htmlWordWrapButton.className = 'kayzart-editorAction kayzart-editorAction-wrap';
   htmlWordWrapButton.textContent = __( 'Wrap: Off', 'kayzart-live-code-editor');
   htmlWordWrapButton.setAttribute('aria-label', __( 'Wrap: Off', 'kayzart-live-code-editor'));
-  htmlActions.append(addMediaButton, htmlFormatButton, htmlWordWrapButton);
+  const editorCloseLabel = __( 'Hide code', 'kayzart-live-code-editor');
+  const editorCloseButton = document.createElement('button');
+  editorCloseButton.type = 'button';
+  editorCloseButton.className = 'kayzart-panelClose kayzart-editorClose';
+  editorCloseButton.setAttribute('aria-label', editorCloseLabel);
+  editorCloseButton.setAttribute('title', editorCloseLabel);
+  editorCloseButton.setAttribute('aria-controls', 'kayzart-code-editors');
+  const editorCloseIcon = el('span');
+  editorCloseIcon.setAttribute('aria-hidden', 'true');
+  editorCloseIcon.innerHTML = renderLucideIcon(PanelLeftClose, {
+    class: 'lucide lucide-panel-left-close-icon lucide-panel-left-close',
+  });
+  editorCloseButton.append(editorCloseIcon);
+  htmlActions.append(addMediaButton, htmlFormatButton, htmlWordWrapButton, editorCloseButton);
   htmlHeader.append(htmlTabs, htmlActions);
   const htmlWrap = el('div', 'kayzart-editorWrap kayzart-editorWrap-tabs');
   const htmlEditorDiv = el('div', 'kayzart-editor kayzart-editor-html is-active');
@@ -311,6 +325,7 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
     addMediaButton,
     htmlFormatButton,
     htmlWordWrapButton,
+    editorCloseButton,
     htmlEditorDiv,
     customHeadEditorDiv,
     customHeadHelp,
@@ -341,5 +356,4 @@ export function buildEditorShell(root: HTMLElement): EditorShellRefs {
 }
 
 export type { EditorShellRefs };
-
 

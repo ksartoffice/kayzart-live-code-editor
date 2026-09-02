@@ -1188,7 +1188,7 @@ body.admin_page_kayzart #wpbody-content {
   scrollbar-width: thin;
 }
 
-.kayzart-settingsClose {
+.kayzart-panelClose {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1200,17 +1200,17 @@ body.admin_page_kayzart #wpbody-content {
   cursor: pointer;
 }
 
-.kayzart-settingsClose:hover {
+.kayzart-panelClose:hover {
   color: #e6e8ea;
   background: #202734;
 }
 
-.kayzart-settingsClose:focus-visible {
+.kayzart-panelClose:focus-visible {
   outline: 2px solid #4c84ff;
   outline-offset: 2px;
 }
 
-.kayzart-settingsClose svg {
+.kayzart-panelClose svg {
   width: 18px;
   height: 18px;
 }

@@ -74,12 +74,23 @@ describe('editor shell iframe security attributes', () => {
     expect(ui.htmlFormatButton.textContent).toBe('Format');
     expect(ui.htmlFormatButton.previousElementSibling).toBe(ui.addMediaButton);
     expect(ui.htmlFormatButton.nextElementSibling).toBe(ui.htmlWordWrapButton);
+    expect(ui.htmlWordWrapButton.nextElementSibling).toBe(ui.editorCloseButton);
     expect(ui.cssFormatButton.textContent).toBe('Format');
     expect(ui.cssFormatButton.previousElementSibling).toBeNull();
     expect(ui.cssFormatButton.nextElementSibling).toBe(ui.jsPendingNotice);
     expect(ui.compactFormatButton.textContent).toContain('Format HTML');
     expect(ui.compactFormatButton.previousElementSibling).toBe(ui.compactAddMediaButton);
     expect(ui.compactFormatButton.nextElementSibling).toBe(ui.compactJsModeSelect);
+  });
+
+  it('renders an accessible code panel close button after the wrap control', () => {
+    const root = document.createElement('div');
+    const ui = buildEditorShell(root);
+
+    expect(ui.editorCloseButton.getAttribute('aria-label')).toBe('Hide code');
+    expect(ui.editorCloseButton.getAttribute('title')).toBe('Hide code');
+    expect(ui.editorCloseButton.getAttribute('aria-controls')).toBe('kayzart-code-editors');
+    expect(ui.editorCloseButton.querySelector('.lucide-panel-left-close')).not.toBeNull();
   });
 
   it('renders custom head tabs and help text', () => {

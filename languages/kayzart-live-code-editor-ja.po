@@ -171,12 +171,12 @@ msgstr "投稿"
 #: includes/class-kayzart-post-type.php:73
 msgctxt "post type general name"
 msgid "旧Kayzart"
-msgstr "旧Kayzart"
+msgstr "旧 Kayzart"
 
 #: includes/class-kayzart-post-type.php:74
 msgctxt "post type singular name"
 msgid "旧Kayzart"
-msgstr "旧Kayzart"
+msgstr "旧 Kayzart"
 
 #: includes/class-kayzart-post-type.php:75
 msgctxt "kayzart"
@@ -214,7 +214,7 @@ msgstr "ゴミ箱に Kayzart はありません"
 
 #: includes/class-kayzart-post-type.php:84
 msgid "旧Kayzart一覧"
-msgstr "旧Kayzart一覧"
+msgstr "旧 Kayzart 一覧"
 
 #: includes/class-kayzart-post-type.php:85
 msgid "Kayzart Archives"
@@ -222,7 +222,7 @@ msgstr "Kayzart アーカイブ"
 
 #: includes/class-kayzart-post-type.php:89
 msgid "旧Kayzart"
-msgstr "旧Kayzart"
+msgstr "旧 Kayzart"
 
 #: includes/class-kayzart-admin.php:1978
 #: includes/class-kayzart-admin.php:2094
@@ -284,7 +284,7 @@ msgstr "親要素へ移動"
 
 #: includes/class-kayzart-preview.php:440
 msgid "Copy HTML"
-msgstr "HTMLをコピー"
+msgstr "HTML をコピー"
 
 #: includes/class-kayzart-preview.php:441
 msgid "Delete"
@@ -321,7 +321,7 @@ msgstr "保存中..."
 #: includes/class-kayzart-admin.php:532
 #, php-format
 msgid "%s (copy)"
-msgstr "%s（コピー）"
+msgstr "%s (コピー)"
 
 #: includes/class-kayzart-admin.php:631
 msgid "Landing page duplicated. The copy was saved as a draft."
@@ -386,7 +386,7 @@ msgstr "プラグインが無効化されました。"
 
 #: includes/ai/class-kayzart-ai-job-store.php:509
 msgid "This request ID was already used for different input."
-msgstr "このリクエスト ID は、別の内容で既に使用されています。"
+msgstr "このリクエスト ID は、別の内容ですでに使用されています。"
 
 #: includes/ai/class-kayzart-ai-timeline-store.php:461
 msgid "Deleted user"
@@ -631,13 +631,13 @@ msgstr "エディターモードのデータが不正です。"
 
 #: includes/class-kayzart-admin.php:1932
 msgid "AI instruction"
-msgstr "AIへの指示"
+msgstr "AI への指示"
 
 #. translators: %s: CSS framework name.
 #: includes/class-kayzart-admin.php:2093
 #, php-format
 msgid "%s (Recommended)"
-msgstr "%s（推奨）"
+msgstr "%s (推奨)"
 
 #: includes/class-kayzart-admin.php:1979
 #: includes/class-kayzart-admin.php:2100
@@ -651,11 +651,11 @@ msgstr "Tailwind CSS のユーティリティクラスでページを作成し�
 
 #: includes/class-kayzart-admin.php:1882
 msgid "Create with Kayzart"
-msgstr "Kayzartで作成"
+msgstr "Kayzart で作成"
 
 #: includes/class-kayzart-admin.php:1884
 msgid "Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design."
-msgstr "AIを使ってランディングページを作成できます。デフォルトでは、テーマのデザインに影響されない独立したページとして作成されます。"
+msgstr "AI を使ってランディングページを作成できます。デフォルトでは、テーマのデザインに影響されない独立したページとして作成されます。"
 
 #: includes/class-kayzart-admin.php:1952
 msgid "Page settings"
@@ -675,7 +675,7 @@ msgstr "例：ヒーローセクション、特徴、料金表、お問い合わ
 
 #: includes/class-kayzart-admin.php:1985
 msgid "Ready to create?"
-msgstr "作成の準備ができましたか？"
+msgstr "作成の準備ができましたか ?"
 
 #: includes/class-kayzart-admin.php:1985
 msgid "The editor will open after the page is created."
@@ -737,7 +737,7 @@ msgstr "テンプレートモード"
 #: assets/dist/main.js:73
 #, js-format
 msgid "Use default (%s)"
-msgstr "既定を使用（%s）"
+msgstr "既定を使用 (%s)"
 
 #: assets/dist/main.js:76
 msgid "Standalone reflects body attributes directly. Theme can add only class values to body_class; some body attributes may not be reflected in theme display."
@@ -879,7 +879,7 @@ msgstr "履歴を読み込めませんでした。"
 
 #: assets/dist/main.js:663
 msgid "Loading this version will discard your current unsaved changes. Continue?"
-msgstr "このバージョンを読み込むと、保存していない変更は破棄されます。続行しますか？"
+msgstr "このバージョンを読み込むと、保存していない変更は破棄されます。続行しますか ?"
 
 #: assets/dist/main.js:678
 #: assets/dist/main.js:682
@@ -991,7 +991,7 @@ msgstr "処理しています…"
 #: assets/dist/main.js:1008
 #, js-format
 msgid "Still working… (%1$d/%2$d)"
-msgstr "まだ処理しています…（%1$d/%2$d 回目）"
+msgstr "まだ処理しています… (%1$d/%2$d 回目)"
 
 #: assets/dist/main.js:1012
 msgid "Thinking…"
@@ -1148,7 +1148,7 @@ msgstr "中止の要求に失敗しました。"
 
 #: assets/dist/main.js:1565
 msgid "Your current unsaved changes will be replaced. Continue?"
-msgstr "保存していない現在の変更が置き換えられます。続行しますか？"
+msgstr "保存していない現在の変更が置き換えられます。続行しますか ?"
 
 #: assets/dist/main.js:1571
 msgid "The edit could not be restored because the editor rejected the snapshot."
@@ -1166,7 +1166,7 @@ msgstr "編集を復元できませんでした。"
 #: assets/dist/main.js:1597
 #, js-format
 msgid "%1$s (%2$s)"
-msgstr "%1$s（%2$s）"
+msgstr "%1$s (%2$s)"
 
 #: assets/dist/main.js:1600
 msgid "Run log"
@@ -1352,7 +1352,7 @@ msgstr "WordPress に戻る"
 
 #: assets/dist/main.js:2414
 msgid "(Draft)"
-msgstr "（下書き）"
+msgstr "(下書き)"
 
 #: assets/dist/main.js:2418
 msgid "Tailwind CSS"
@@ -1626,7 +1626,7 @@ msgstr "TailwindCSS モードか通常モードかを選択します。この選
 
 #: assets/dist/main.js:6635
 msgid "Normal (HTML/CSS)"
-msgstr "通常（HTML/CSS）"
+msgstr "通常 (HTML/CSS)"
 
 #: assets/dist/main.js:6635
 msgid "Edit HTML and CSS directly in the code editor."
@@ -1654,11 +1654,11 @@ msgstr "wp.apiFetch を利用できません。"
 
 #: assets/dist/main.js:6695
 msgid "Switch to TailwindCSS?"
-msgstr "TailwindCSS に切り替えますか？"
+msgstr "TailwindCSS に切り替えますか ?"
 
 #: assets/dist/main.js:6695
 msgid "Switch to Normal HTML/CSS?"
-msgstr "通常の HTML/CSS に切り替えますか？"
+msgstr "通常の HTML/CSS に切り替えますか ?"
 
 #: assets/dist/main.js:6696
 msgid "The CSS last used in the selected mode will be restored. CSS in the current mode is kept separately."
@@ -1747,7 +1747,7 @@ msgstr "分割して取り込む"
 
 #: assets/dist/main.js:6902
 msgid "Include compiled Tailwind CSS?"
-msgstr "コンパイル済みの Tailwind CSS を含めますか？"
+msgstr "コンパイル済みの Tailwind CSS を含めますか ?"
 
 #: assets/dist/main.js:6913
 msgid "Include it if this HTML should keep the current Tailwind styling when opened by itself. Choose “No” to write the CSS editor content instead."
@@ -1867,7 +1867,7 @@ msgstr "選択した要素の範囲が見つかりませんでした。"
 
 #: assets/dist/main.js:9381
 msgid "Delete the selected element?"
-msgstr "選択した要素を削除しますか？"
+msgstr "選択した要素を削除しますか ?"
 
 #: assets/dist/main.js:9394
 msgid "Element deleted."
@@ -1941,27 +1941,27 @@ msgstr "Tailwind 候補を利用できません。"
 
 #: includes/class-kayzart-admin.php:1627
 msgid "Existing posts start using Kayzart only when you choose Start editing with Kayzart, or create one with Add with Kayzart."
-msgstr "既存の投稿は「Kayzartで編集を開始」を選択したときにのみKayzartを使用します。新規作成する場合は「Kayzartで追加」を使用します。"
+msgstr "既存の投稿は「Kayzart で編集を開始」を選択したときにのみ Kayzart を使用します。新規作成する場合は「Kayzart で追加」を使用します。"
 
 #: includes/class-kayzart-admin.php:2039
 #: includes/class-kayzart-post-type.php:377
 msgid "Start editing with Kayzart"
-msgstr "Kayzartで編集を開始"
+msgstr "Kayzart で編集を開始"
 
 #: includes/class-kayzart-admin.php:2075
 msgid "Convert and edit with Kayzart"
-msgstr "Kayzartに変換して編集"
+msgstr "Kayzart に変換して編集"
 
 #: includes/class-kayzart-editor-bridge.php:117
 #: assets/admin/editor-bridge.js:296
 #: assets/admin/editor-bridge.js:305
 msgid "Managed by Kayzart"
-msgstr "Kayzartで管理されています"
+msgstr "Kayzart で管理されています"
 
 #: includes/class-kayzart-editor-bridge.php:118
 #: assets/admin/editor-bridge.js:334
 msgid "Edit the page content in Kayzart. You can continue to change WordPress page settings here."
-msgstr "ページ本文はKayzartで編集します。WordPressのページ設定はここで引き続き変更できます。"
+msgstr "ページ本文は Kayzart で編集します。WordPress のページ設定はここで引き続き変更できます。"
 
 #: includes/class-kayzart-editor-bridge.php:119
 #: assets/admin/editor-bridge.js:311
@@ -1977,7 +1977,7 @@ msgstr "ページを表示"
 #: includes/class-kayzart-admin.php:2063
 #, php-format
 msgid "The content editing for \"%s\" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a Kayzart management card instead of the content editor."
-msgstr "「%s」の本文編集をKayzartに切り替えます。現在のコンテンツは初期HTMLとして引き継がれます。変換後の本文はKayzartで編集し、WordPressエディターでは本文エディターの代わりにKayzart管理カードが表示されます。"
+msgstr "「%s」の本文編集を Kayzart に切り替えます。現在のコンテンツは初期 HTML として引き継がれます。変換後の本文は Kayzart で編集し、WordPress エディターでは本文エディターの代わりに Kayzart 管理カードが表示されます。"
 
 #. Description of the plugin
 #: kayzart-live-code-editor.php
@@ -2135,11 +2135,11 @@ msgstr "作成したいランディングページを入力"
 
 #: includes/class-kayzart-admin.php:1923
 msgid "Tell Kayzart what you want to build. AI will create the first draft when the editor opens."
-msgstr "作成したい内容をKayzartに伝えてください。エディターが開くと、AIが最初の案を作成します。"
+msgstr "作成したい内容を Kayzart に伝えてください。エディターが開くと、AI が最初の案を作成します。"
 
 #: includes/class-kayzart-admin.php:1942
 msgid "Required to generate with AI. It will be sent automatically when the editor opens."
-msgstr "AIで生成する場合は必須です。エディターが開くと自動的に送信されます。"
+msgstr "AI で生成する場合は必須です。エディターが開くと自動的に送信されます。"
 
 #: includes/class-kayzart-admin.php:1992
 msgid "Start with a blank page"
@@ -2147,7 +2147,7 @@ msgstr "空白ページから始める"
 
 #: includes/class-kayzart-admin.php:1993
 msgid "Generate with AI"
-msgstr "AIで生成"
+msgstr "AI で生成"
 
 #: includes/class-kayzart-admin.php:1995
 msgid "Create blank page"
@@ -2163,15 +2163,15 @@ msgstr "エディターツールを開く"
 
 #: assets/dist/main.js:2400
 msgid "AI edit in progress"
-msgstr "AI編集中"
+msgstr "AI 編集中"
 
 #: assets/dist/main.js:2400
 msgid "AI edit completed"
-msgstr "AI編集が完了しました"
+msgstr "AI 編集が完了しました"
 
 #: assets/dist/main.js:2400
 msgid "AI edit needs attention"
-msgstr "AI編集を確認してください"
+msgstr "AI 編集を確認してください"
 
 #: assets/dist/main.js:2954
 msgid "Editor tools"
@@ -2183,7 +2183,7 @@ msgstr "エディターツールの幅を変更"
 
 #: includes/class-kayzart-admin.php:1987
 msgid "Clear the AI instruction to start with a blank page."
-msgstr "AIへの指示を空にすると、空白ページから始められます。"
+msgstr "AI への指示を空にすると、空白ページから始められます。"
 
 #: includes/class-kayzart-admin.php:453
 msgid "This post is not a converted Kayzart post."
@@ -2220,7 +2220,7 @@ msgstr "下の欄に OpenAI API キーを入力してください。"
 #: includes/class-kayzart-editor-bridge.php:121
 #: assets/admin/editor-bridge.js:21
 msgid "Return to WordPress editor"
-msgstr "WordPressエディターに戻す"
+msgstr "WordPress エディターに戻す"
 
 #: includes/class-kayzart-editor-bridge.php:122
 #: assets/admin/editor-bridge.js:88
@@ -2230,7 +2230,7 @@ msgstr "戻しています…"
 #: includes/class-kayzart-editor-bridge.php:123
 #: assets/admin/editor-bridge.js:22
 msgid "Return this page to the WordPress editor? The current HTML will be kept, but Kayzart CSS and JavaScript will no longer be applied."
-msgstr "このページをWordPressエディターに戻しますか？現在のHTMLは保持されますが、KayzartのCSSとJavaScriptは適用されなくなります。"
+msgstr "このページを WordPress エディターに戻しますか ? 現在の HTML は保持されますが、Kayzart の CSS と JavaScript は適用されなくなります。"
 
 #: includes/ai/class-kayzart-ai-editor.php:41
 msgid "Add to AI context"
@@ -2269,32 +2269,32 @@ msgstr "ありがとうございます。ご回答を Kayzart へ送信しまし
 #: includes/class-kayzart-feedback.php:297
 #: includes/class-kayzart-feedback.php:1093
 msgid "Which best describes you?"
-msgstr "あなたに最も近いものはどれですか？"
+msgstr "あなたに最も近いものはどれですか ?"
 
 #: includes/class-kayzart-feedback.php:309
 #: includes/class-kayzart-feedback.php:1094
 msgid "Where do you use Kayzart?"
-msgstr "Kayzart をどこで使っていますか？"
+msgstr "Kayzart をどこで使っていますか ?"
 
 #: includes/class-kayzart-feedback.php:317
 #: includes/class-kayzart-feedback.php:1095
 msgid "What do you mainly want to create?"
-msgstr "主に何を作りたいですか？"
+msgstr "主に何を作りたいですか ?"
 
 #: includes/class-kayzart-feedback.php:336
 #: includes/class-kayzart-feedback.php:1097
 msgid "What is your biggest challenge today?"
-msgstr "いま最も困っていることは何ですか？"
+msgstr "いま最も困っていることは何ですか ?"
 
 #: includes/class-kayzart-feedback.php:355
 #: includes/class-kayzart-feedback.php:1099
 msgid "Which Pro features would be most valuable?"
-msgstr "Pro のどの機能に価値を感じますか？"
+msgstr "Pro のどの機能に価値を感じますか ?"
 
 #: includes/class-kayzart-feedback.php:376
 #: includes/class-kayzart-feedback.php:1114
 msgid "Which pricing model would you prefer?"
-msgstr "どの料金体系が望ましいですか？"
+msgstr "どの料金体系が望ましいですか ?"
 
 #: includes/class-kayzart-feedback.php:382
 #: includes/class-kayzart-feedback.php:1115
@@ -2493,17 +2493,17 @@ msgstr "当てはまるものを選んでください。3 つ程度が目安で�
 #: includes/class-kayzart-feedback.php:329
 #: includes/class-kayzart-feedback.php:1096
 msgid "How many landing pages do you build in a month?"
-msgstr "1 か月に作るランディングページは何本くらいですか？"
+msgstr "1 か月に作るランディングページは何本くらいですか ?"
 
 #: includes/class-kayzart-feedback.php:348
 #: includes/class-kayzart-feedback.php:1098
 msgid "How do you feel about providing your own AI API key?"
-msgstr "AI の API キーをご自身で用意することについて、どう感じますか？"
+msgstr "AI の API キーをご自身で用意することについて、どう感じますか ?"
 
 #: includes/class-kayzart-feedback.php:368
 #: includes/class-kayzart-feedback.php:1113
 msgid "Which single feature would actually decide a purchase for you?"
-msgstr "購入の決め手になる機能を 1 つ挙げるとしたら、どれですか？"
+msgstr "購入の決め手になる機能を 1 つ挙げるとしたら、どれですか ?"
 
 #: includes/class-kayzart-feedback.php:371
 msgid "Pick the one that matters most, even if several sound useful."

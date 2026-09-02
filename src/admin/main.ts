@@ -1051,6 +1051,9 @@ async function main() {
   ui.htmlWordWrapButton.addEventListener('click', () => {
     toggleHtmlWordWrapMode();
   });
+  ui.editorCloseButton.addEventListener('click', () => {
+    viewportController.setEditorCollapsed(true);
+  });
   createSnackbar('info', __( 'Loading editor...', 'kayzart-live-code-editor'), NOTICE_IDS.editor);
 
   // iframe
@@ -2446,7 +2449,6 @@ main().catch((e) => {
   // eslint-disable-next-line no-console
   console.error(e);
 });
-
 
 
 

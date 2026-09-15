@@ -22,7 +22,7 @@ async function currentRestNonce(page: Page): Promise<string> {
 
 export async function createTemporaryPage(
   page: Page,
-  input: { title: string; content: string }
+  input: { title: string; content: string; author?: number }
 ): Promise<number> {
   const nonce = await currentRestNonce(page);
   const response = await page.request.post(new URL('wp-json/wp/v2/pages', baseUrl).toString(), {

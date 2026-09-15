@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.0.1
+Stable tag: 3.0.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,7 +53,7 @@ Bring HTML from anywhere — hand-written, a template, a designer, or an AI tool
 
 Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
-The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sources in src/ with Vite. To reproduce the build from the repository: install dependencies with `npm install` and `composer install`, then run `npm run build` to generate the bundled assets. `npm run plugin-zip` produces the distributable package.
+The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sources in src/ with Vite. Building requires Node.js 20.19 or later. To reproduce the build from the repository: install dependencies with `npm install` and `composer install`, then run `npm run build` to generate the bundled assets. `npm run plugin-zip` produces the distributable package.
 
 == Installation ==
 1. Install and activate Kayzart from Plugins.
@@ -135,6 +135,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.0.2 =
+* Improve: Update CodeMirror, Emmet, and HTML parsing dependencies for improved editor stability.
+* Maintenance: Remove unused frontend dependencies.
+
 = 3.0.1 =
 * Improve: Add a button inside the code panel to collapse it directly.
 

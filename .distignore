@@ -2,6 +2,7 @@
 /.github
 /.gitignore
 /.gitattributes
+/.nvmrc
 /.distignore
 /AGENTS.md
 /STYLEGUIDE.md

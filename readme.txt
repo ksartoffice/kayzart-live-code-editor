@@ -53,7 +53,7 @@ Bring HTML from anywhere — hand-written, a template, a designer, or an AI tool
 
 Development repository: https://github.com/ksartoffice/kayzart-live-code-editor
 
-The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sources in src/ with Vite. To reproduce the build from the repository: install dependencies with `npm install` and `composer install`, then run `npm run build` to generate the bundled assets. `npm run plugin-zip` produces the distributable package.
+The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sources in src/ with Vite. Building requires Node.js 20.19 or later. To reproduce the build from the repository: install dependencies with `npm install` and `composer install`, then run `npm run build` to generate the bundled assets. `npm run plugin-zip` produces the distributable package. Node.js is only needed to build these assets; running the plugin requires PHP only.
 
 == Installation ==
 1. Install and activate Kayzart from Plugins.

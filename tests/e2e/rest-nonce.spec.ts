@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { openKayzartEditor } from './helpers/open-editor';
+import { createTemporaryPage, deleteTemporaryPage } from './helpers/temporary-page';
 
 const adminUser = process.env.WP_ADMIN_USER ?? '';
 const adminPass = process.env.WP_ADMIN_PASS ?? '';
-const postIdRaw = process.env.KAYZART_POST_ID ?? '';
 const baseUrlRaw = process.env.WP_BASE_URL ?? 'http://localhost';
 const baseUrl = (() => {
   const url = new URL(baseUrlRaw);
@@ -12,10 +13,8 @@ const baseUrl = (() => {
   return url;
 })();
 
-test.skip(
-  !adminUser || !adminPass || !postIdRaw,
-  'Set WP_ADMIN_USER, WP_ADMIN_PASS, and KAYZART_POST_ID.'
-);
+test.skip(!adminUser || !adminPass, 'Set WP_ADMIN_USER and WP_ADMIN_PASS.');
+test.setTimeout(120_000);
 
 const login = async (
   page: import('@playwright/test').Page,
@@ -129,6 +128,37 @@ const openEditorAndGetNonce = async (
   return nonce;
 };
 
+const createNormalManagedPage = async (
+  page: import('@playwright/test').Page,
+  title: string,
+  author?: number
+): Promise<number> => {
+  await login(page, adminUser, adminPass);
+  const postId = await createTemporaryPage(page, {
+    title,
+    content: `<p>${title}</p>`,
+    ...(author ? { author } : {}),
+  });
+  try {
+    await openKayzartEditor(page, String(postId), 'normal');
+    return postId;
+  } catch (error) {
+    await login(page, adminUser, adminPass);
+    await deleteTemporaryPage(page, postId);
+    throw error;
+  }
+};
+
+const deletePagesAsAdmin = async (
+  page: import('@playwright/test').Page,
+  postIds: number[]
+): Promise<void> => {
+  await login(page, adminUser, adminPass);
+  for (const postId of postIds) {
+    await deleteTemporaryPage(page, postId);
+  }
+};
+
 const saveRequest = async (
   page: import('@playwright/test').Page,
   postId: number,
@@ -149,54 +179,33 @@ const saveRequest = async (
   });
 };
 
-const createAuthorAndPost = async (
+const createEditorAndPage = async (
   page: import('@playwright/test').Page,
   adminNonce: string
 ): Promise<{ username: string; password: string; postId: number }> => {
   const seed = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const username = `kayzart_author_${seed}`;
+  const username = `kayzart_editor_${seed}`;
   const password = `Cd!${seed}pass`;
   const email = `${username}@example.com`;
 
-  const userResponse = await page.request.post(
-    new URL('wp-json/wp/v2/users', baseUrl).toString(),
-    {
-      headers: {
-        'X-WP-Nonce': adminNonce,
-      },
-      data: {
-        username,
-        email,
-        password,
-        roles: ['author'],
-      },
-    }
-  );
+  const userResponse = await page.request.post(new URL('wp-json/wp/v2/users', baseUrl).toString(), {
+    headers: {
+      'X-WP-Nonce': adminNonce,
+    },
+    data: {
+      username,
+      email,
+      password,
+      roles: ['editor'],
+    },
+  });
 
   expect([200, 201]).toContain(userResponse.status());
   const user = await userResponse.json();
   const userId = Number(user.id);
   expect(Number.isFinite(userId)).toBe(true);
 
-  const postResponse = await page.request.post(
-    new URL('wp-json/wp/v2/kayzart', baseUrl).toString(),
-    {
-      headers: {
-        'X-WP-Nonce': adminNonce,
-      },
-      data: {
-        title: `Author Draft ${seed}`,
-        status: 'draft',
-        author: userId,
-        content: '<p>Author content</p>',
-      },
-    }
-  );
-
-  expect([200, 201]).toContain(postResponse.status());
-  const created = await postResponse.json();
-  const createdPostId = Number(created.id);
-  expect(Number.isFinite(createdPostId)).toBe(true);
+  const createdPostId = await createNormalManagedPage(page, `Editor Draft ${seed}`, userId);
 
   return {
     username,
@@ -206,118 +215,130 @@ const createAuthorAndPost = async (
 };
 
 test('REST rejects missing nonce for cookie auth', async ({ page }) => {
-  await login(page, adminUser, adminPass);
+  const postId = await createNormalManagedPage(page, 'Missing nonce test');
+  try {
+    const cookies = await page.context().cookies();
+    const hasLoggedInCookie = cookies.some((cookie) =>
+      cookie.name.startsWith('wordpress_logged_in')
+    );
+    expect(hasLoggedInCookie).toBe(true);
 
-  const cookies = await page.context().cookies();
-  const hasLoggedInCookie = cookies.some((cookie) =>
-    cookie.name.startsWith('wordpress_logged_in')
-  );
-  expect(hasLoggedInCookie).toBe(true);
-
-  const postId = Number(postIdRaw);
-  const response = await saveRequest(
-    page,
-    Number.isNaN(postId) ? Number(postIdRaw) : postId,
-    { html: '<p>Missing nonce</p>' }
-  );
-
-  expect(response.status()).toBe(401);
+    const response = await saveRequest(page, postId, {
+      html: '<p>Missing nonce</p>',
+    });
+    expect(response.status()).toBe(401);
+  } finally {
+    await deletePagesAsAdmin(page, [postId]);
+  }
 });
 
 test('REST rejects invalid nonce for cookie auth', async ({ page }) => {
-  await login(page, adminUser, adminPass);
-
-  const postId = Number(postIdRaw);
-  const nonce = 'invalid-rest-nonce';
-  const response = await saveRequest(page, postId, { html: '<p>Invalid nonce</p>' }, nonce);
-
-  expect(response.status()).toBe(403);
+  const postId = await createNormalManagedPage(page, 'Invalid nonce test');
+  try {
+    const nonce = 'invalid-rest-nonce';
+    const response = await saveRequest(page, postId, { html: '<p>Invalid nonce</p>' }, nonce);
+    expect(response.status()).toBe(403);
+  } finally {
+    await deletePagesAsAdmin(page, [postId]);
+  }
 });
 
 test('REST accepts valid nonce for admin without JS payload', async ({ page }) => {
-  await login(page, adminUser, adminPass);
+  const postId = await createNormalManagedPage(page, 'Admin no JS test');
+  try {
+    const nonce = await openEditorAndGetNonce(page, postId);
+    const response = await saveRequest(
+      page,
+      postId,
+      {
+        html: '<p>Admin no JS</p>',
+        css: 'body{color:#333;}',
+      },
+      nonce
+    );
 
-  const postId = Number(postIdRaw);
-  const nonce = await openEditorAndGetNonce(page, postId);
-  const response = await saveRequest(
-    page,
-    postId,
-    {
-      html: '<p>Admin no JS</p>',
-      css: 'body{color:#333;}',
-    },
-    nonce
-  );
-
-  expect(response.status()).toBe(200);
-  const data = await response.json();
-  expect(data.ok).toBe(true);
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+  } finally {
+    await deletePagesAsAdmin(page, [postId]);
+  }
 });
 
 test('REST accepts valid nonce for admin with JS payload', async ({ page }) => {
-  await login(page, adminUser, adminPass);
+  const postId = await createNormalManagedPage(page, 'Admin with JS test');
+  try {
+    const nonce = await openEditorAndGetNonce(page, postId);
+    const response = await saveRequest(
+      page,
+      postId,
+      {
+        html: '<p>Admin with JS</p>',
+        js: 'console.log("admin-ok");',
+      },
+      nonce
+    );
 
-  const postId = Number(postIdRaw);
-  const nonce = await openEditorAndGetNonce(page, postId);
-  const response = await saveRequest(
-    page,
-    postId,
-    {
-      html: '<p>Admin with JS</p>',
-      js: 'console.log("admin-ok");',
-    },
-    nonce
-  );
-
-  expect(response.status()).toBe(200);
-  const data = await response.json();
-  expect(data.ok).toBe(true);
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+  } finally {
+    await deletePagesAsAdmin(page, [postId]);
+  }
 });
 
-test('REST allows author save with valid nonce when JS is omitted', async ({ page }) => {
-  await login(page, adminUser, adminPass);
+test('REST allows editor save with valid nonce when JS is omitted', async ({ page }) => {
+  const adminPostId = await createNormalManagedPage(page, 'Editor setup test');
+  let editorPostId: number | null = null;
+  try {
+    const adminNonce = await openEditorAndGetNonce(page, adminPostId);
+    const editor = await createEditorAndPage(page, adminNonce);
+    editorPostId = editor.postId;
+    await login(page, editor.username, editor.password);
+    const editorNonce = await openEditorAndGetNonce(page, editor.postId);
 
-  const adminPostId = Number(postIdRaw);
-  const adminNonce = await openEditorAndGetNonce(page, adminPostId);
-  const author = await createAuthorAndPost(page, adminNonce);
+    const response = await saveRequest(
+      page,
+      editor.postId,
+      {
+        html: '<p>Editor no JS</p>',
+        css: 'body{background:#fff;}',
+      },
+      editorNonce
+    );
 
-  await login(page, author.username, author.password);
-  const authorNonce = await openEditorAndGetNonce(page, author.postId);
-
-  const response = await saveRequest(
-    page,
-    author.postId,
-    {
-      html: '<p>Author no JS</p>',
-      css: 'body{background:#fff;}',
-    },
-    authorNonce
-  );
-
-  expect(response.status()).toBe(200);
-  const data = await response.json();
-  expect(data.ok).toBe(true);
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+  } finally {
+    await deletePagesAsAdmin(page, [...(editorPostId !== null ? [editorPostId] : []), adminPostId]);
+  }
 });
 
-test('REST denies author JS save even with valid nonce', async ({ page }) => {
-  await login(page, adminUser, adminPass);
+test('REST allows editor JS save with valid nonce', async ({ page }) => {
+  const adminPostId = await createNormalManagedPage(page, 'Editor JS setup test');
+  let editorPostId: number | null = null;
+  try {
+    const adminNonce = await openEditorAndGetNonce(page, adminPostId);
+    const editor = await createEditorAndPage(page, adminNonce);
+    editorPostId = editor.postId;
+    await login(page, editor.username, editor.password);
+    const editorNonce = await openEditorAndGetNonce(page, editor.postId);
 
-  const adminPostId = Number(postIdRaw);
-  const adminNonce = await openEditorAndGetNonce(page, adminPostId);
-  const author = await createAuthorAndPost(page, adminNonce);
+    const response = await saveRequest(
+      page,
+      editor.postId,
+      {
+        html: '<p>Editor JS allowed</p>',
+        js: 'console.log("allowed");',
+      },
+      editorNonce
+    );
 
-  await login(page, author.username, author.password);
-  const authorNonce = await openEditorAndGetNonce(page, author.postId);
-
-  const response = await saveRequest(
-    page,
-    author.postId,
-    {
-      html: '<p>Author JS denied</p>',
-      js: 'console.log("blocked");',
-    },
-    authorNonce
-  );
-
-  expect(response.status()).toBe(403);
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+  } finally {
+    await deletePagesAsAdmin(page, [...(editorPostId !== null ? [editorPostId] : []), adminPostId]);
+  }
 });

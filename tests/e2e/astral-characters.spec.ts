@@ -66,9 +66,15 @@ test('typing an emoji into the editor keeps the document intact', async ({ page 
   await openKayzartEditor(page);
   await applySnapshot(page, '<p>start</p>');
 
+  const codePanel = page.locator('.kayzart-left');
+  if ((await codePanel.getAttribute('inert')) !== null) {
+    await page.locator('#kayzart-editor-toggle').click();
+  }
+  await expect(codePanel).toHaveAttribute('aria-hidden', 'false');
+
   // The preview iframe covers part of the editor, so focus directly instead of
   // clicking through it.
-  const content = page.locator('.cm-content').first();
+  const content = page.locator('.kayzart-editor-html .cm-content');
   await content.focus();
   await page.keyboard.press('Control+End');
   await page.keyboard.insertText(`<p>${APPLE}</p>`);

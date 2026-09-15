@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.0.1
+Stable tag: 3.0.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -135,6 +135,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.0.2 =
+* Improve: Update CodeMirror, Emmet, and HTML parsing dependencies for improved editor stability.
+* Maintenance: Remove unused frontend dependencies.
+
 = 3.0.1 =
 * Improve: Add a button inside the code panel to collapse it directly.
 

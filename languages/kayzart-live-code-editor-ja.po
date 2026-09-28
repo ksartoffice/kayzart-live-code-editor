@@ -54,6 +54,7 @@ msgstr "無題"
 #: includes/class-kayzart-preview.php:198
 #: includes/class-kayzart-rest.php:173
 #: includes/class-kayzart-rest.php:181
+#: includes/class-kayzart-review.php:140
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:225
 #: includes/rest/class-kayzart-rest-revisions.php:88
@@ -245,7 +246,7 @@ msgstr "プレビュートークンが無効です。"
 
 #: includes/class-kayzart-preview.php:202
 #: includes/rest/class-kayzart-rest-save.php:51
-#: includes/rest/class-kayzart-rest-save.php:420
+#: includes/rest/class-kayzart-rest-save.php:421
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr "投稿タイプが無効です。"
@@ -2260,6 +2261,7 @@ msgid "Remind me in 7 days"
 msgstr "7 日後に再通知"
 
 #: includes/class-kayzart-feedback.php:148
+#: includes/class-kayzart-review.php:128
 msgid "Do not show again"
 msgstr "今後表示しない"
 
@@ -2683,3 +2685,36 @@ msgstr "例: 本文の文字色は #1f2937、セクションの背景色は #f8f
 #, php-format
 msgid "Added to every AI request on this site, for new pages and edits alike, so you do not have to repeat it each time. Use it for things such as text and background colors, fonts, or tone of voice. When an individual instruction says otherwise, that instruction wins. Up to %d characters."
 msgstr "このサイトのすべての AI リクエストに、新規作成・編集を問わず自動で添えられるため、毎回書く必要はありません。文字色や背景色、フォント、文体などの指定に使えます。個別の指示と食い違う場合は、個別の指示が優先されます。最大 %d 文字。"
+
+#: includes/class-kayzart-review.php:111
+msgid "Is Kayzart helping you build pages?"
+msgstr "Kayzart はページ作りのお役に立っていますか ?"
+
+#: includes/class-kayzart-review.php:112
+msgid "If it has been useful, a short review on WordPress.org helps other site owners find Kayzart and tells us what to keep improving."
+msgstr "お役に立っているようでしたら、WordPress.org に短いレビューをお寄せください。ほかのサイト運営者が Kayzart を見つけやすくなり、私たちも今後の改善に生かせます。"
+
+#: includes/class-kayzart-review.php:124
+#: includes/class-kayzart-review.php:207
+msgid "Leave a review"
+msgstr "レビューを書く"
+
+#: includes/class-kayzart-review.php:126
+msgid "Maybe later"
+msgstr "あとで"
+
+#: includes/class-kayzart-review.php:202
+msgid "Support"
+msgstr "サポート"
+
+#. translators: %s: WordPress.org support forum URL.
+#: includes/class-kayzart-review.php:116
+#, php-format
+msgid "Something not working? Let us know in the <a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">support forum</a>."
+msgstr "うまく動かない点がありますか ? <a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">サポートフォーラム</a>でお知らせください。"
+
+#. translators: %s: WordPress.org review form URL.
+#: includes/class-kayzart-review.php:226
+#, php-format
+msgid "If Kayzart is useful to you, please consider <a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">leaving a review on WordPress.org</a>."
+msgstr "Kayzart がお役に立っていましたら、<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">WordPress.org でのレビュー</a>をご検討ください。"

@@ -55,6 +55,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'canEditHead'       => false,
 				'intent'            => 'create',
 				'availableFonts'    => array( 'registered' => array() ),
+				'siteInstructions'  => 'Use a light background.',
 			)
 		);
 		$first          = $this->store->create( 10, 20, 'request-server-settings', $stored_payload );
@@ -67,6 +68,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'canEditHead'       => true,
 				'intent'            => 'edit',
 				'availableFonts'    => array( 'registered' => array( array( 'name' => 'Installed Later' ) ) ),
+				'siteInstructions'  => 'Use a dark background.',
 			)
 		);
 		$again          = $this->store->create( 10, 20, 'request-server-settings', $retry_payload );

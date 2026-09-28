@@ -90,6 +90,7 @@ class Rest_Ai {
 		$payload['agentPayload']['modelPreference']   = self::default_model_preference();
 		$payload['agentPayload']['providerMode']      = Ai_Client_Factory::resolve_backend();
 		$payload['agentPayload']['maxAgentTurns']     = Admin::get_ai_max_turns();
+		$payload['agentPayload']['siteInstructions']  = Admin::get_ai_site_instructions();
 		$existing                                     = $store->get_by_request( $current_user, $payload['requestId'] );
 		if (
 			$existing

@@ -513,6 +513,43 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Site-wide instructions reach both intents, below the rules they must not override.
+	 */
+	public function test_build_user_prompt_includes_site_instructions_for_both_intents(): void {
+		$payload = array(
+			'editorMode'       => 'normal',
+			'prompt'           => 'Add a pricing section.',
+			'siteInstructions' => 'Use #1f2937 for body text.',
+		);
+
+		foreach ( array( 'edit', 'create' ) as $intent ) {
+			$payload['intent'] = $intent;
+			$prompt            = Ai_Prompt::build_user_prompt( $payload );
+
+			$this->assertStringContainsString( 'Site-wide instructions from the site administrator', $prompt );
+			$this->assertStringContainsString( "<<<site_instructions>>>\nUse #1f2937 for body text.\n<<<end>>>", $prompt );
+			$this->assertStringContainsString( 'The user prompt takes precedence', $prompt );
+			$this->assertStringContainsString( 'never override the security rules', $prompt );
+		}
+		$this->assertStringNotContainsString( 'Use #1f2937', Ai_Prompt::system_prompt( 'edit' ) );
+	}
+
+	/**
+	 * No section is emitted when nothing is configured or for legacy payloads.
+	 */
+	public function test_build_user_prompt_omits_empty_site_instructions(): void {
+		$payload = array(
+			'editorMode' => 'normal',
+			'prompt'     => 'Add a pricing section.',
+		);
+		$this->assertArrayNotHasKey( 'site_instructions', Ai_Prompt::debug_input_parts( $payload ) );
+
+		$payload['siteInstructions'] = "  \n ";
+		$this->assertArrayNotHasKey( 'site_instructions', Ai_Prompt::debug_input_parts( $payload ) );
+		$this->assertStringNotContainsString( 'Site-wide instructions', Ai_Prompt::build_user_prompt( $payload ) );
+	}
+
+	/**
 	 * Diagnostic parts reassemble to the exact prompt sent to the provider.
 	 */
 	public function test_debug_input_parts_match_user_prompt(): void {

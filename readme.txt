@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.0.3
+Stable tag: 3.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -46,6 +46,7 @@ Freelancers, agencies, and developers who need a clean landing page fast and wan
 * Bring a full HTML/CSS/JS page from anywhere and run it as-is
 * Open Kayzart straight from the block or classic editor, which shows a Kayzart card instead of the usual content area
 * Duplicate an existing landing page as a draft from the page list
+* Write site-wide AI instructions once — text and background colors, fonts, tone of voice — and every AI request follows them
 * Tune AI editing site-wide: default model, maximum turns per request, and maximum instruction length
 
 **Works great with**
@@ -63,7 +64,7 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 5. Keep refining by prompt or by hand — or paste your own HTML/CSS/JS from any source — while the live preview renders as you edit.
 6. Publish or update. Use Standalone mode for a clean, theme-free landing page.
 7. For an existing page, open Pages and choose Edit with Kayzart, or open the page in the block or classic editor and use the Kayzart card.
-8. Optional: Kayzart > Settings to enable Kayzart for posts or custom post types, and to set the default AI model, maximum AI turns, and maximum instruction length.
+8. Optional: Kayzart > Settings to enable Kayzart for posts or custom post types, and to set the default AI model, site-wide AI instructions, maximum AI turns, and maximum instruction length.
 
 == Frequently Asked Questions ==
 = What is Kayzart and what can I build with it? =
@@ -95,6 +96,9 @@ Only fonts your site can really render. Kayzart passes the AI the font families 
 
 = Can I control how much the AI does per request? =
 Yes. Kayzart > Settings has a maximum number of AI turns per request — the AI works in steps, and this caps how many steps one request may take — and a maximum instruction length in characters. The same screen reports the selected AI backend, connection state, Action Scheduler, and required PHP extensions.
+
+= Do I have to repeat my colors and style rules in every AI instruction? =
+No. Write them once in Site-wide AI instructions under Kayzart > Settings — for example your text and background colors, preferred fonts, or tone of voice — and they are added to every AI request on the site, for new pages and edits alike. When an individual instruction says otherwise, that instruction wins, and on an existing page the AI applies them to what it creates or changes rather than restyling the rest of the page. They never override Kayzart's security rules.
 
 = What happens when I open a Kayzart page in the block or classic editor? =
 Instead of the usual content area you get a Kayzart card, so the page's HTML is never edited in two places at once. You can still change the page title and all the normal WordPress page settings there, view the page, or jump straight into the Kayzart editor from the card.
@@ -135,6 +139,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.1.0 =
+* Add: Site-wide AI instructions in Kayzart > Settings — write your text and background colors, fonts, or tone of voice once, and every AI request, for new pages and edits alike, follows them. An individual instruction still takes precedence.
+
 = 3.0.3 =
 * Improve: Update the Tailwind compiler to TailwindCSS 4.3.3 support.
 * Note: The default sans-serif font stack now matches TailwindCSS 4.3.

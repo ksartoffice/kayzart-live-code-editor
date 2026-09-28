@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.0.3
+Stable tag: 3.1.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.1.0 =
+* Add: Site-wide AI instructions in Kayzart > Settings — write your text and background colors, fonts, or tone of voice once, and every AI request, for new pages and edits alike, follows them. An individual instruction still takes precedence.
+
 = 3.0.3 =
 * Improve: Update the Tailwind compiler to TailwindCSS 4.3.3 support.
 * Note: The default sans-serif font stack now matches TailwindCSS 4.3.

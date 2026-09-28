@@ -20,3 +20,6 @@ delete_metadata( 'user', 0, 'kayzart_feedback_v1_response', '', true );
 delete_metadata( 'user', 0, 'kayzart_feedback_v1_pending', '', true );
 delete_option( 'kayzart_feedback_v1_closed' );
 delete_transient( 'kayzart_feedback_has_content' );
+delete_option( 'kayzart_review_save_count' );
+delete_option( 'kayzart_review_since' );
+delete_metadata( 'user', 0, 'kayzart_review_state', '', true );

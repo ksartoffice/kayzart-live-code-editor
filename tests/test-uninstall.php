@@ -100,6 +100,19 @@ class Test_Uninstall extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_uninstall_removes_review_request_state(): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		update_option( 'kayzart_review_save_count', 3 );
+		update_option( 'kayzart_review_since', time() );
+		update_user_meta( $user_id, 'kayzart_review_state', array( 'status' => 'dismissed' ) );
+
+		$this->run_uninstall_script();
+
+		$this->assertFalse( get_option( 'kayzart_review_save_count' ) );
+		$this->assertFalse( get_option( 'kayzart_review_since' ) );
+		$this->assertSame( '', get_user_meta( $user_id, 'kayzart_review_state', true ) );
+	}
+
 	private function create_post( string $post_type ): int {
 		$author_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 

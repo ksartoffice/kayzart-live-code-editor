@@ -315,6 +315,7 @@ class Rest_Save {
 		if ( $revision_id ) {
 			( new Ai_Timeline_Store() )->record_save( $post_id, get_current_user_id(), $revision_id );
 		}
+		Review::record_save();
 
 		return new \WP_REST_Response(
 			array(

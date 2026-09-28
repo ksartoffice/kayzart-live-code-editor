@@ -25,216 +25,216 @@ msgid "K's Art Office"
 msgstr "K's Art Office"
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:127
-#: assets/dist/main.js:5499
+#: includes/class-kayzart-admin.php:129
+#: assets/dist/main.js:5513
 #, php-format,js-format
 msgid "Kayzart: %s"
 msgstr "Kayzart: %s"
 
-#: includes/class-kayzart-admin.php:157
+#: includes/class-kayzart-admin.php:159
 #: assets/dist/main.js:2413
-#: assets/dist/main.js:5498
+#: assets/dist/main.js:5512
 msgid "Untitled"
 msgstr "無題"
 
 #: includes/ai/class-kayzart-ai-immediate-dispatcher.php:389
-#: includes/class-kayzart-admin.php:182
-#: includes/class-kayzart-admin.php:204
-#: includes/class-kayzart-admin.php:245
-#: includes/class-kayzart-admin.php:255
-#: includes/class-kayzart-admin.php:334
-#: includes/class-kayzart-admin.php:427
-#: includes/class-kayzart-admin.php:457
-#: includes/class-kayzart-admin.php:516
-#: includes/class-kayzart-admin.php:521
-#: includes/class-kayzart-admin.php:524
-#: includes/class-kayzart-admin.php:725
-#: includes/class-kayzart-admin.php:769
-#: includes/class-kayzart-feedback.php:617
+#: includes/class-kayzart-admin.php:184
+#: includes/class-kayzart-admin.php:206
+#: includes/class-kayzart-admin.php:247
+#: includes/class-kayzart-admin.php:257
+#: includes/class-kayzart-admin.php:336
+#: includes/class-kayzart-admin.php:429
+#: includes/class-kayzart-admin.php:459
+#: includes/class-kayzart-admin.php:518
+#: includes/class-kayzart-admin.php:523
+#: includes/class-kayzart-admin.php:526
+#: includes/class-kayzart-admin.php:727
+#: includes/class-kayzart-admin.php:771
+#: includes/class-kayzart-feedback.php:653
 #: includes/class-kayzart-preview.php:198
 #: includes/class-kayzart-rest.php:173
 #: includes/class-kayzart-rest.php:181
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
-#: includes/rest/class-kayzart-rest-ai.php:224
+#: includes/rest/class-kayzart-rest-ai.php:225
 #: includes/rest/class-kayzart-rest-revisions.php:88
 #: includes/rest/class-kayzart-rest-save.php:62
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr "権限がありません。"
 
-#: includes/class-kayzart-admin.php:190
-#: includes/class-kayzart-admin.php:249
-#: includes/class-kayzart-admin.php:419
-#: includes/class-kayzart-admin.php:448
-#: includes/class-kayzart-admin.php:504
+#: includes/class-kayzart-admin.php:192
+#: includes/class-kayzart-admin.php:251
+#: includes/class-kayzart-admin.php:421
+#: includes/class-kayzart-admin.php:450
+#: includes/class-kayzart-admin.php:506
 #: includes/class-kayzart-preview.php:190
 msgid "post_id is required."
 msgstr "post_id は必須です。"
 
-#: includes/class-kayzart-admin.php:197
-#: includes/class-kayzart-admin.php:252
-#: includes/class-kayzart-admin.php:423
-#: includes/class-kayzart-admin.php:509
-#: includes/class-kayzart-admin.php:512
+#: includes/class-kayzart-admin.php:199
+#: includes/class-kayzart-admin.php:254
+#: includes/class-kayzart-admin.php:425
+#: includes/class-kayzart-admin.php:511
+#: includes/class-kayzart-admin.php:514
 msgid "This editor is only available for Kayzart posts."
 msgstr "このエディターは Kayzart 投稿でのみ利用できます。"
 
-#: includes/class-kayzart-admin.php:764
+#: includes/class-kayzart-admin.php:766
 msgid "This post type is not enabled for Kayzart."
 msgstr "この投稿タイプでは Kayzart が有効化されていません。"
 
-#: includes/class-kayzart-admin.php:776
+#: includes/class-kayzart-admin.php:778
 msgid "Untitled landing page"
 msgstr "無題のランディングページ"
 
-#: includes/class-kayzart-admin.php:1106
-#: includes/class-kayzart-admin.php:1107
-#: includes/class-kayzart-admin.php:1139
-#: includes/class-kayzart-admin.php:1140
+#: includes/class-kayzart-admin.php:1108
+#: includes/class-kayzart-admin.php:1109
+#: includes/class-kayzart-admin.php:1141
+#: includes/class-kayzart-admin.php:1142
 msgid "Kayzart"
 msgstr "Kayzart"
 
-#: includes/class-kayzart-admin.php:1166
-#: includes/class-kayzart-admin.php:1167
+#: includes/class-kayzart-admin.php:1168
+#: includes/class-kayzart-admin.php:1169
 #: assets/admin/post-type-list.js:30
 msgid "Add with Kayzart"
 msgstr "Kayzart で新規作成"
 
-#: includes/class-kayzart-admin.php:1127
-#: includes/class-kayzart-admin.php:1128
-#: includes/class-kayzart-admin.php:2158
+#: includes/class-kayzart-admin.php:1129
+#: includes/class-kayzart-admin.php:1130
+#: includes/class-kayzart-admin.php:2244
 #: assets/dist/main.js:1828
 msgid "Settings"
 msgstr "設定"
 
-#: includes/class-kayzart-admin.php:1299
+#: includes/class-kayzart-admin.php:1320
 msgid "Permalink"
 msgstr "パーマリンク"
 
-#: includes/class-kayzart-admin.php:1307
+#: includes/class-kayzart-admin.php:1328
 #: assets/dist/main.js:62
 msgid "Page template"
 msgstr "ページテンプレート"
 
-#: includes/class-kayzart-admin.php:1315
+#: includes/class-kayzart-admin.php:1336
 msgid "Kayzart slug"
 msgstr "Kayzart スラッグ"
 
-#: includes/class-kayzart-admin.php:1324
+#: includes/class-kayzart-admin.php:1345
 msgid "Default template mode"
 msgstr "デフォルトのテンプレートモード"
 
-#: includes/class-kayzart-admin.php:1332
+#: includes/class-kayzart-admin.php:1353
 msgid "Post types"
 msgstr "投稿タイプ"
 
-#: includes/class-kayzart-admin.php:1339
+#: includes/class-kayzart-admin.php:1360
 msgid "Enabled post types"
 msgstr "有効な投稿タイプ"
 
-#: includes/class-kayzart-admin.php:1565
+#: includes/class-kayzart-admin.php:1632
 msgid "Change the URL slug for Kayzart posts. Existing URLs will change after saving."
 msgstr "Kayzart 投稿の URL スラッグを変更します。保存後は既存の URL が変更されます。"
 
-#: includes/class-kayzart-admin.php:1573
+#: includes/class-kayzart-admin.php:1640
 msgid "Choose the default page template mode used by Kayzart previews."
 msgstr "Kayzart プレビューで使用するデフォルトのページテンプレートモードを選択します。"
 
-#: includes/class-kayzart-admin.php:1580
+#: includes/class-kayzart-admin.php:1647
 msgid "Choose which post types can use the Kayzart landing page editor."
 msgstr "Kayzart ランディングページエディターを使用できる投稿タイプを選択します。"
 
-#: includes/class-kayzart-admin.php:1589
+#: includes/class-kayzart-admin.php:1656
 msgid "Allowed: lowercase letters, numbers, and hyphens. Default: kayzart."
 msgstr "使用可能: 英小文字、数字、ハイフン。初期値: kayzart。"
 
-#: includes/class-kayzart-admin.php:1600
+#: includes/class-kayzart-admin.php:1667
 #: assets/dist/main.js:40
 msgid "Standalone"
 msgstr "スタンドアロン"
 
-#: includes/class-kayzart-admin.php:1601
+#: includes/class-kayzart-admin.php:1668
 #: assets/dist/main.js:41
 msgid "Theme"
 msgstr "テーマ"
 
-#: includes/class-kayzart-admin.php:1608
+#: includes/class-kayzart-admin.php:1675
 msgid "Applies when template mode is set to Use admin default."
 msgstr "テンプレートモードが「デフォルト」に設定されている場合に適用されます。"
 
-#: includes/class-kayzart-admin.php:2553
-#: includes/class-kayzart-admin.php:2561
+#: includes/class-kayzart-admin.php:2639
+#: includes/class-kayzart-admin.php:2647
 #: assets/dist/main.js:2424
 msgid "Posts"
 msgstr "投稿"
 
-#: includes/class-kayzart-post-type.php:73
+#: includes/class-kayzart-post-type.php:76
 msgctxt "post type general name"
 msgid "旧Kayzart"
 msgstr "旧 Kayzart"
 
-#: includes/class-kayzart-post-type.php:74
+#: includes/class-kayzart-post-type.php:77
 msgctxt "post type singular name"
 msgid "旧Kayzart"
 msgstr "旧 Kayzart"
 
-#: includes/class-kayzart-post-type.php:75
+#: includes/class-kayzart-post-type.php:78
 msgctxt "kayzart"
 msgid "Add New"
 msgstr "新規追加"
 
-#: includes/class-kayzart-post-type.php:76
+#: includes/class-kayzart-post-type.php:79
 msgid "Add New"
 msgstr "新規追加"
 
-#: includes/class-kayzart-post-type.php:77
+#: includes/class-kayzart-post-type.php:80
 msgid "Edit Kayzart"
 msgstr "Kayzart を編集"
 
-#: includes/class-kayzart-post-type.php:78
+#: includes/class-kayzart-post-type.php:81
 msgid "New Kayzart"
 msgstr "新規 Kayzart"
 
-#: includes/class-kayzart-post-type.php:79
-#: includes/class-kayzart-post-type.php:80
+#: includes/class-kayzart-post-type.php:82
+#: includes/class-kayzart-post-type.php:83
 msgid "View on front end"
 msgstr "フロントを表示"
 
-#: includes/class-kayzart-post-type.php:81
+#: includes/class-kayzart-post-type.php:84
 msgid "Search Kayzart"
 msgstr "Kayzart を検索"
 
-#: includes/class-kayzart-post-type.php:82
+#: includes/class-kayzart-post-type.php:85
 msgid "No Kayzart found"
 msgstr "Kayzart が見つかりません"
 
-#: includes/class-kayzart-post-type.php:83
+#: includes/class-kayzart-post-type.php:86
 msgid "No Kayzart found in Trash"
 msgstr "ゴミ箱に Kayzart はありません"
 
-#: includes/class-kayzart-post-type.php:84
+#: includes/class-kayzart-post-type.php:87
 msgid "旧Kayzart一覧"
 msgstr "旧 Kayzart 一覧"
 
-#: includes/class-kayzart-post-type.php:85
+#: includes/class-kayzart-post-type.php:88
 msgid "Kayzart Archives"
 msgstr "Kayzart アーカイブ"
 
-#: includes/class-kayzart-post-type.php:89
+#: includes/class-kayzart-post-type.php:92
 msgid "旧Kayzart"
 msgstr "旧 Kayzart"
 
-#: includes/class-kayzart-admin.php:1978
-#: includes/class-kayzart-admin.php:2094
+#: includes/class-kayzart-admin.php:2064
+#: includes/class-kayzart-admin.php:2180
 #: assets/dist/main.js:55
-#: assets/dist/main.js:6644
+#: assets/dist/main.js:6658
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
-#: includes/class-kayzart-admin.php:1148
-#: includes/class-kayzart-admin.php:1149
+#: includes/class-kayzart-admin.php:1150
+#: includes/class-kayzart-admin.php:1151
 #: includes/class-kayzart-editor-bridge.php:116
-#: includes/class-kayzart-post-type.php:387
+#: includes/class-kayzart-post-type.php:390
 #: assets/admin/editor-bridge.js:20
 msgid "Edit with Kayzart"
 msgstr "Kayzart で編集"
@@ -304,6 +304,7 @@ msgid "Show code"
 msgstr "コードを表示"
 
 #: assets/dist/main.js:2393
+#: assets/dist/main.js:3039
 msgid "Hide code"
 msgstr "コードを隠す"
 
@@ -312,22 +313,22 @@ msgstr "コードを隠す"
 #: assets/admin/editor-bridge.js:189
 #: assets/admin/editor-bridge.js:477
 #: assets/dist/main.js:2740
-#: assets/dist/main.js:6492
-#: assets/dist/main.js:6652
+#: assets/dist/main.js:6506
+#: assets/dist/main.js:6666
 msgid "Saving..."
 msgstr "保存中..."
 
 #. translators: %s: original post title.
-#: includes/class-kayzart-admin.php:532
+#: includes/class-kayzart-admin.php:534
 #, php-format
 msgid "%s (copy)"
 msgstr "%s (コピー)"
 
-#: includes/class-kayzart-admin.php:631
+#: includes/class-kayzart-admin.php:633
 msgid "Landing page duplicated. The copy was saved as a draft."
 msgstr "ランディングページを複製しました。コピーは下書きとして保存されました。"
 
-#: includes/class-kayzart-post-type.php:392
+#: includes/class-kayzart-post-type.php:395
 msgid "Duplicate with Kayzart"
 msgstr "Kayzart で複製"
 
@@ -357,34 +358,34 @@ msgstr "選択中の要素を AI 編集のコンテキストに追加"
 msgid "The AI job could not be started immediately."
 msgstr "AI ジョブをすぐに開始できませんでした。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:80
-#: includes/ai/class-kayzart-ai-job-store.php:122
+#: includes/ai/class-kayzart-ai-job-store.php:82
+#: includes/ai/class-kayzart-ai-job-store.php:124
 msgid "An AI edit is already active for this post."
 msgstr "この投稿では別の AI 編集が実行中です。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:124
+#: includes/ai/class-kayzart-ai-job-store.php:126
 msgid "The AI edit job could not be created."
 msgstr "AI 編集ジョブを作成できませんでした。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:379
+#: includes/ai/class-kayzart-ai-job-store.php:381
 msgid "The AI edit job was canceled."
 msgstr "AI 編集ジョブをキャンセルしました。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:387
-#: includes/ai/class-kayzart-ai-job-store.php:417
+#: includes/ai/class-kayzart-ai-job-store.php:389
+#: includes/ai/class-kayzart-ai-job-store.php:419
 msgid "The AI edit job timed out."
 msgstr "AI 編集ジョブがタイムアウトしました。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:395
-#: includes/rest/class-kayzart-rest-ai.php:130
+#: includes/ai/class-kayzart-ai-job-store.php:397
+#: includes/rest/class-kayzart-rest-ai.php:131
 msgid "The AI edit job could not be scheduled."
 msgstr "AI 編集ジョブをスケジュールできませんでした。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:448
+#: includes/ai/class-kayzart-ai-job-store.php:450
 msgid "The plugin was deactivated."
 msgstr "プラグインが無効化されました。"
 
-#: includes/ai/class-kayzart-ai-job-store.php:509
+#: includes/ai/class-kayzart-ai-job-store.php:511
 msgid "This request ID was already used for different input."
 msgstr "このリクエスト ID は、別の内容ですでに使用されています。"
 
@@ -419,35 +420,35 @@ msgstr "AI の処理が繰り返し失敗し、途中経過を保存できませ
 msgid "The scheduled AI worker failed."
 msgstr "スケジュールされた AI ワーカーが失敗しました。"
 
-#: includes/class-kayzart-admin.php:1253
+#: includes/class-kayzart-admin.php:1265
 msgid "AI editing"
 msgstr "AI 編集"
 
-#: includes/class-kayzart-admin.php:1274
+#: includes/class-kayzart-admin.php:1286
 msgid "Default AI model"
 msgstr "既定の AI モデル"
 
-#: includes/class-kayzart-admin.php:1282
+#: includes/class-kayzart-admin.php:1303
 msgid "Maximum AI turns"
 msgstr "AI の最大ターン数"
 
 #. translators: 1: minimum number of AI turns, 2: maximum number of AI turns.
-#: includes/class-kayzart-admin.php:1748
+#: includes/class-kayzart-admin.php:1834
 #, php-format
 msgid "Choose between %1$d and %2$d model turns per AI edit. Higher values can increase processing time and AI usage."
 msgstr "AI 編集ごとに %1$d〜%2$d 回のモデルターンを指定します。値を大きくすると、処理時間と AI の使用量が増える場合があります。"
 
-#: includes/class-kayzart-admin.php:1730
+#: includes/class-kayzart-admin.php:1797
 msgid "No selectable models were found. Configure an AI provider (Connector); editing will use the provider default until then."
 msgstr "選択できるモデルが見つかりませんでした。コネクターで AI プロバイダーを設定してください。設定するまでは、プロバイダーの既定モデルで編集します。"
 
-#: includes/class-kayzart-admin.php:1732
+#: includes/class-kayzart-admin.php:1799
 msgid "Auto follows the provider default and any newly added models automatically."
 msgstr "「自動」はプロバイダーの既定モデルに追従し、新しく追加されたモデルも自動で反映します。"
 
 #: includes/class-kayzart-preview.php:439
 #: assets/dist/main.js:520
-#: assets/dist/main.js:9442
+#: assets/dist/main.js:9459
 msgid "Replace image"
 msgstr "画像を差し替え"
 
@@ -477,48 +478,48 @@ msgstr "AI 編集の復元対象が不正です。"
 msgid "AI editing is not currently available."
 msgstr "現在 AI 編集を利用できません。"
 
-#: includes/rest/class-kayzart-rest-ai.php:120
 #: includes/rest/class-kayzart-rest-ai.php:121
+#: includes/rest/class-kayzart-rest-ai.php:122
 msgid "The AI edit history could not be created."
 msgstr "AI 編集履歴を作成できませんでした。"
 
-#: includes/rest/class-kayzart-rest-ai.php:209
+#: includes/rest/class-kayzart-rest-ai.php:210
 msgid "AI edit job not found."
 msgstr "AI 編集ジョブが見つかりません。"
 
-#: includes/rest/class-kayzart-rest-ai.php:236
+#: includes/rest/class-kayzart-rest-ai.php:237
 msgid "A JSON request body is required."
 msgstr "JSON 形式のリクエストボディが必要です。"
 
-#: includes/rest/class-kayzart-rest-ai.php:240
+#: includes/rest/class-kayzart-rest-ai.php:241
 msgid "requestId is invalid."
 msgstr "requestId が不正です。"
 
-#: includes/rest/class-kayzart-rest-ai.php:248
+#: includes/rest/class-kayzart-rest-ai.php:249
 msgid "post_id is invalid."
 msgstr "post_id が不正です。"
 
-#: includes/rest/class-kayzart-rest-ai.php:252
+#: includes/rest/class-kayzart-rest-ai.php:253
 msgid "editorMode is invalid."
 msgstr "editorMode が不正です。"
 
-#: includes/rest/class-kayzart-rest-ai.php:256
+#: includes/rest/class-kayzart-rest-ai.php:257
 msgid "prompt is empty or too large."
 msgstr "prompt が空、または大きすぎます。"
 
-#: includes/rest/class-kayzart-rest-ai.php:266
+#: includes/rest/class-kayzart-rest-ai.php:267
 msgid "A code field is invalid or too large."
 msgstr "コードのいずれかの項目が不正、または大きすぎます。"
 
-#: includes/rest/class-kayzart-rest-ai.php:276
+#: includes/rest/class-kayzart-rest-ai.php:277
 msgid "selectedContexts is invalid or too large."
 msgstr "selectedContexts が不正、または大きすぎます。"
 
-#: includes/rest/class-kayzart-rest-ai.php:280
+#: includes/rest/class-kayzart-rest-ai.php:281
 msgid "A selected context is invalid or too large."
 msgstr "選択されたコンテキストのいずれかが不正、または大きすぎます。"
 
-#: includes/rest/class-kayzart-rest-ai.php:286
+#: includes/rest/class-kayzart-rest-ai.php:287
 msgid "selectedContext is invalid."
 msgstr "selectedContext が不正です。"
 
@@ -526,102 +527,102 @@ msgstr "selectedContext が不正です。"
 msgid "The AI edit restore history could not be saved."
 msgstr "AI 編集の復元履歴を保存できませんでした。"
 
-#: includes/class-kayzart-admin.php:1118
-#: includes/class-kayzart-admin.php:1119
-#: includes/class-kayzart-admin.php:1883
+#: includes/class-kayzart-admin.php:1120
+#: includes/class-kayzart-admin.php:1121
+#: includes/class-kayzart-admin.php:1969
 msgid "Add new"
 msgstr "新規作成"
 
-#: includes/class-kayzart-admin.php:1851
+#: includes/class-kayzart-admin.php:1937
 msgid "AI editing is unavailable until every requirement below is met."
 msgstr "以下の要件をすべて満たすまで AI 編集は利用できません。"
 
-#: includes/class-kayzart-admin.php:1828
+#: includes/class-kayzart-admin.php:1914
 msgid "Action Scheduler"
 msgstr "Action Scheduler"
 
-#: includes/class-kayzart-admin.php:1829
+#: includes/class-kayzart-admin.php:1915
 msgid "Required to run AI edits in the background."
 msgstr "AI 編集をバックグラウンドで実行するために必要です。"
 
-#: includes/class-kayzart-admin.php:1832
+#: includes/class-kayzart-admin.php:1918
 msgid "PHP mbstring extension"
 msgstr "PHP mbstring 拡張"
 
-#: includes/class-kayzart-admin.php:1833
+#: includes/class-kayzart-admin.php:1919
 msgid "Ask your host to enable the mbstring extension."
 msgstr "mbstring 拡張の有効化をホスティング事業者に依頼してください。"
 
-#: includes/class-kayzart-admin.php:1836
+#: includes/class-kayzart-admin.php:1922
 msgid "PHP DOM extension"
 msgstr "PHP DOM 拡張"
 
-#: includes/class-kayzart-admin.php:1837
+#: includes/class-kayzart-admin.php:1923
 msgid "Ask your host to enable the DOM and libxml extensions."
 msgstr "DOM および libxml 拡張の有効化をホスティング事業者に依頼してください。"
 
-#: includes/class-kayzart-admin.php:1840
+#: includes/class-kayzart-admin.php:1926
 msgid "AI editing enabled for this site"
 msgstr "このサイトで AI 編集が有効"
 
-#: includes/class-kayzart-admin.php:1841
+#: includes/class-kayzart-admin.php:1927
 msgid "AI editing was disabled by a site filter."
 msgstr "AI 編集はサイト側のフィルターで無効化されています。"
 
-#: includes/class-kayzart-admin.php:1861
+#: includes/class-kayzart-admin.php:1947
 msgid "Available"
 msgstr "利用可能"
 
-#: includes/class-kayzart-admin.php:1861
+#: includes/class-kayzart-admin.php:1947
 msgid "Unavailable"
 msgstr "利用不可"
 
-#: includes/class-kayzart-admin.php:1888
+#: includes/class-kayzart-admin.php:1974
 msgid "You do not have permission to create Kayzart pages."
 msgstr "Kayzart ページを作成する権限がありません。"
 
-#: includes/class-kayzart-admin.php:1926
+#: includes/class-kayzart-admin.php:2012
 #: assets/dist/main.js:2688
 #: assets/dist/main.js:2706
 msgid "Title"
 msgstr "タイトル"
 
-#: includes/class-kayzart-admin.php:1928
+#: includes/class-kayzart-admin.php:2014
 msgid "Optional. You can rename the page later."
 msgstr "任意です。あとから変更できます。"
 
-#: includes/class-kayzart-admin.php:1956
+#: includes/class-kayzart-admin.php:2042
 msgid "Create as"
 msgstr "作成先"
 
-#: includes/class-kayzart-admin.php:2041
+#: includes/class-kayzart-admin.php:2127
 msgid "This page cannot be opened in Kayzart."
 msgstr "このページは Kayzart で開けません。"
 
-#: includes/class-kayzart-admin.php:2052
+#: includes/class-kayzart-admin.php:2138
 msgid "Open editor"
 msgstr "エディタを開く"
 
-#: includes/class-kayzart-admin.php:1976
-#: includes/class-kayzart-admin.php:2104
+#: includes/class-kayzart-admin.php:2062
+#: includes/class-kayzart-admin.php:2190
 msgid "Mode"
 msgstr "モード"
 
-#: includes/class-kayzart-admin.php:1979
-#: includes/class-kayzart-admin.php:2099
+#: includes/class-kayzart-admin.php:2065
+#: includes/class-kayzart-admin.php:2185
 #: assets/dist/main.js:54
 msgid "Normal HTML/CSS"
 msgstr "通常の HTML/CSS"
 
-#: includes/class-kayzart-admin.php:384
+#: includes/class-kayzart-admin.php:386
 msgid "The initial AI instruction is too large."
 msgstr "最初の AI 指示が大きすぎます。"
 
-#: includes/class-kayzart-admin.php:1938
+#: includes/class-kayzart-admin.php:2024
 msgid "You do not have permission to use AI editing."
 msgstr "AI 編集を使用する権限がありません。"
 
-#: includes/class-kayzart-admin.php:1940
+#: includes/class-kayzart-admin.php:2026
 msgid "AI editing must be configured before you can start with a request."
 msgstr "指示から開始するには、AI 編集を設定する必要があります。"
 
@@ -629,65 +630,65 @@ msgstr "指示から開始するには、AI 編集を設定する必要があり
 msgid "Invalid editor mode payload."
 msgstr "エディターモードのデータが不正です。"
 
-#: includes/class-kayzart-admin.php:1932
+#: includes/class-kayzart-admin.php:2018
 msgid "AI instruction"
 msgstr "AI への指示"
 
 #. translators: %s: CSS framework name.
-#: includes/class-kayzart-admin.php:2093
+#: includes/class-kayzart-admin.php:2179
 #, php-format
 msgid "%s (Recommended)"
 msgstr "%s (推奨)"
 
-#: includes/class-kayzart-admin.php:1979
-#: includes/class-kayzart-admin.php:2100
+#: includes/class-kayzart-admin.php:2065
+#: includes/class-kayzart-admin.php:2186
 msgid "Create the page with standard HTML and CSS."
 msgstr "標準的な HTML と CSS でページを作成します。"
 
-#: includes/class-kayzart-admin.php:1978
-#: includes/class-kayzart-admin.php:2096
+#: includes/class-kayzart-admin.php:2064
+#: includes/class-kayzart-admin.php:2182
 msgid "Create the page with Tailwind CSS utility classes. Recommended because AI can understand and edit the code more easily."
 msgstr "Tailwind CSS のユーティリティクラスでページを作成します。AI がコードを理解・編集しやすいため推奨です。"
 
-#: includes/class-kayzart-admin.php:1882
+#: includes/class-kayzart-admin.php:1968
 msgid "Create with Kayzart"
 msgstr "Kayzart で作成"
 
-#: includes/class-kayzart-admin.php:1884
+#: includes/class-kayzart-admin.php:1970
 msgid "Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design."
 msgstr "AI を使ってランディングページを作成できます。デフォルトでは、テーマのデザインに影響されない独立したページとして作成されます。"
 
-#: includes/class-kayzart-admin.php:1952
+#: includes/class-kayzart-admin.php:2038
 msgid "Page settings"
 msgstr "ページ設定"
 
-#: includes/class-kayzart-admin.php:1927
+#: includes/class-kayzart-admin.php:2013
 msgid "Landing page title"
 msgstr "ランディングページのタイトル"
 
-#: includes/class-kayzart-admin.php:1978
+#: includes/class-kayzart-admin.php:2064
 msgid "Recommended"
 msgstr "推奨"
 
-#: includes/class-kayzart-admin.php:1934
+#: includes/class-kayzart-admin.php:2020
 msgid "Example: Create a landing page for a new service with a hero section, features, pricing, and a contact form."
 msgstr "例：ヒーローセクション、特徴、料金表、お問い合わせフォームを含む新サービスのランディングページを作成してください。"
 
-#: includes/class-kayzart-admin.php:1985
+#: includes/class-kayzart-admin.php:2071
 msgid "Ready to create?"
 msgstr "作成の準備ができましたか ?"
 
-#: includes/class-kayzart-admin.php:1985
+#: includes/class-kayzart-admin.php:2071
 msgid "The editor will open after the page is created."
 msgstr "ページを作成するとエディターが開きます。"
 
-#: includes/class-kayzart-admin.php:1992
-#: includes/class-kayzart-admin.php:1993
-#: includes/class-kayzart-admin.php:1995
+#: includes/class-kayzart-admin.php:2078
+#: includes/class-kayzart-admin.php:2079
+#: includes/class-kayzart-admin.php:2081
 msgid "Creating…"
 msgstr "作成中…"
 
-#: includes/class-kayzart-admin.php:2114
+#: includes/class-kayzart-admin.php:2200
 msgid "You can change this later in the editor."
 msgstr "作成後もエディターで変更できます。"
 
@@ -697,11 +698,11 @@ msgstr "作成後もエディターで変更できます。"
 msgid "Could not finish after %d attempts. Try splitting the instruction into smaller steps."
 msgstr "%d 回試しましたが完了できませんでした。指示を分割して試してください。"
 
-#: includes/rest/class-kayzart-rest-ai.php:244
+#: includes/rest/class-kayzart-rest-ai.php:245
 msgid "initialRequestId is invalid."
 msgstr "initialRequestId が不正です。"
 
-#: includes/rest/class-kayzart-rest-ai.php:306
+#: includes/rest/class-kayzart-rest-ai.php:307
 msgid "The previous initial AI edit could not be started. Review the prompt and send it again."
 msgstr "前回の初回 AI 編集を開始できませんでした。指示内容を確認して、もう一度送信してください。"
 
@@ -1089,9 +1090,9 @@ msgstr "AI 編集には PHP の DOM 拡張が必要です。"
 msgid "Connect an AI provider"
 msgstr "AI プロバイダーを接続"
 
-#: includes/class-kayzart-admin.php:656
-#: includes/class-kayzart-admin.php:1674
-#: includes/class-kayzart-admin.php:1911
+#: includes/class-kayzart-admin.php:658
+#: includes/class-kayzart-admin.php:1741
+#: includes/class-kayzart-admin.php:1997
 #: assets/dist/main.js:1084
 msgid "Open Connectors"
 msgstr "接続設定を開く"
@@ -1367,7 +1368,7 @@ msgid "Import / Export"
 msgstr "インポート / エクスポート"
 
 #: assets/dist/main.js:2421
-#: assets/dist/main.js:6741
+#: assets/dist/main.js:6755
 msgid "Import full HTML"
 msgstr "HTML 全体をインポート"
 
@@ -1412,12 +1413,12 @@ msgid "Revert to draft"
 msgstr "下書きに戻す"
 
 #: assets/dist/main.js:2473
-#: assets/dist/main.js:7083
-#: assets/dist/main.js:7101
-#: assets/dist/main.js:8988
-#: assets/dist/main.js:9006
-#: assets/dist/main.js:9028
-#: assets/dist/main.js:9037
+#: assets/dist/main.js:7097
+#: assets/dist/main.js:7115
+#: assets/dist/main.js:9002
+#: assets/dist/main.js:9020
+#: assets/dist/main.js:9042
+#: assets/dist/main.js:9051
 msgid "Update failed."
 msgstr "更新に失敗しました。"
 
@@ -1440,15 +1441,15 @@ msgid "Slug"
 msgstr "スラッグ"
 
 #: assets/dist/main.js:2739
-#: assets/dist/main.js:6709
-#: assets/dist/main.js:6742
-#: assets/dist/main.js:6801
-#: assets/dist/main.js:6903
+#: assets/dist/main.js:6723
+#: assets/dist/main.js:6756
+#: assets/dist/main.js:6815
+#: assets/dist/main.js:6917
 msgid "Cancel"
 msgstr "キャンセル"
 
 #: assets/dist/main.js:2740
-#: assets/dist/main.js:8709
+#: assets/dist/main.js:8723
 msgid "Save"
 msgstr "保存"
 
@@ -1497,24 +1498,24 @@ msgstr "type: module"
 #: assets/dist/main.js:2976
 #: assets/dist/main.js:3013
 #: assets/dist/main.js:3017
-#: assets/dist/main.js:6809
+#: assets/dist/main.js:6823
 msgid "HTML"
 msgstr "HTML"
 
 #: assets/dist/main.js:2980
-#: assets/dist/main.js:3068
-#: assets/dist/main.js:6821
+#: assets/dist/main.js:3081
+#: assets/dist/main.js:6835
 msgid "CSS"
 msgstr "CSS"
 
 #: assets/dist/main.js:2984
 #: assets/dist/main.js:3021
-#: assets/dist/main.js:6815
+#: assets/dist/main.js:6829
 msgid "head"
 msgstr "head"
 
 #: assets/dist/main.js:2988
-#: assets/dist/main.js:3072
+#: assets/dist/main.js:3085
 msgid "JavaScript"
 msgstr "JavaScript"
 
@@ -1526,385 +1527,385 @@ msgstr "メディアを追加"
 #: assets/dist/main.js:2998
 #: assets/dist/main.js:3032
 #: assets/dist/main.js:3033
-#: assets/dist/main.js:7220
-#: assets/dist/main.js:7228
-#: assets/dist/main.js:9170
-#: assets/dist/main.js:9176
+#: assets/dist/main.js:7234
+#: assets/dist/main.js:7242
+#: assets/dist/main.js:9187
+#: assets/dist/main.js:9193
 msgid "Format HTML"
 msgstr "HTML を整形"
 
 #: assets/dist/main.js:3031
-#: assets/dist/main.js:3079
+#: assets/dist/main.js:3092
 msgid "Format"
 msgstr "整形"
 
 #: assets/dist/main.js:3037
 #: assets/dist/main.js:3038
-#: assets/dist/main.js:8821
+#: assets/dist/main.js:8835
 msgid "Wrap: Off"
 msgstr "折り返し: オフ"
 
-#: assets/dist/main.js:3046
-#: assets/dist/main.js:3083
+#: assets/dist/main.js:3059
+#: assets/dist/main.js:3096
 msgid "Reload preview to apply head and JavaScript changes."
 msgstr "head と JavaScript の変更を反映するには、プレビューを再読み込みしてください。"
 
-#: assets/dist/main.js:3048
+#: assets/dist/main.js:3061
 msgid "Enter code to add inside the head."
 msgstr "head 内に追加するコードを入力します。"
 
-#: assets/dist/main.js:3049
+#: assets/dist/main.js:3062
 msgid "Use this for external CSS, Google Fonts, OGP, structured data, and similar head markup."
 msgstr "外部 CSS、Google Fonts、OGP、構造化データなど、head に置くマークアップに使用します。"
 
-#: assets/dist/main.js:3050
+#: assets/dist/main.js:3063
 msgid "Write external JS here, or add it as <script src=\"\"> at the bottom of the HTML editor."
 msgstr "外部 JS はここに記述するか、HTML エディターの末尾に <script src=\"\"> として追加してください。"
 
-#: assets/dist/main.js:3051
+#: assets/dist/main.js:3064
 msgid "Note: <title>, <meta charset>, viewport, and <base> cannot be used."
 msgstr "注意: <title>、<meta charset>、viewport、<base> は使用できません。"
 
-#: assets/dist/main.js:3080
-#: assets/dist/main.js:3081
-#: assets/dist/main.js:7215
-#: assets/dist/main.js:7226
-#: assets/dist/main.js:9182
+#: assets/dist/main.js:3093
+#: assets/dist/main.js:3094
+#: assets/dist/main.js:7229
+#: assets/dist/main.js:7240
+#: assets/dist/main.js:9199
 msgid "Format CSS"
 msgstr "CSS を整形"
 
-#: assets/dist/main.js:6203
-#: assets/dist/main.js:6211
+#: assets/dist/main.js:6217
+#: assets/dist/main.js:6225
 msgid "Tailwind compile failed."
 msgstr "Tailwind のコンパイルに失敗しました。"
 
-#: assets/dist/main.js:6213
+#: assets/dist/main.js:6227
 #, js-format
 msgid "Tailwind error: %s"
 msgstr "Tailwind エラー: %s"
 
-#: assets/dist/main.js:6275
-#: assets/dist/main.js:6470
-#: assets/dist/main.js:6566
-#: assets/dist/main.js:6570
-#: assets/dist/main.js:8689
+#: assets/dist/main.js:6289
+#: assets/dist/main.js:6484
+#: assets/dist/main.js:6580
+#: assets/dist/main.js:6584
+#: assets/dist/main.js:8703
 msgid "Save failed."
 msgstr "保存に失敗しました。"
 
-#: assets/dist/main.js:6477
+#: assets/dist/main.js:6491
 msgid "Fix settings errors before saving."
 msgstr "保存する前に、設定のエラーを解消してください。"
 
-#: assets/dist/main.js:6502
-#: assets/dist/main.js:6533
-#: assets/dist/main.js:9084
+#: assets/dist/main.js:6516
+#: assets/dist/main.js:6547
+#: assets/dist/main.js:9101
 #, js-format
 msgid "Removed unsupported head tags: %s"
 msgstr "サポートされていない head タグを削除しました: %s"
 
-#: assets/dist/main.js:6549
+#: assets/dist/main.js:6563
 msgid "Saved."
 msgstr "保存しました。"
 
-#: assets/dist/main.js:6558
+#: assets/dist/main.js:6572
 #, js-format
 msgid "Save error: %s"
 msgstr "保存エラー: %s"
 
-#: assets/dist/main.js:6613
-#: assets/dist/main.js:8383
+#: assets/dist/main.js:6627
+#: assets/dist/main.js:8397
 msgid "Setup failed."
 msgstr "セットアップに失敗しました。"
 
-#: assets/dist/main.js:6626
+#: assets/dist/main.js:6640
 msgid "Choose editor mode"
 msgstr "エディターモードを選択"
 
-#: assets/dist/main.js:6626
+#: assets/dist/main.js:6640
 msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
 msgstr "TailwindCSS モードか通常モードかを選択します。この選択は後から変更できません。"
 
-#: assets/dist/main.js:6635
+#: assets/dist/main.js:6649
 msgid "Normal (HTML/CSS)"
 msgstr "通常 (HTML/CSS)"
 
-#: assets/dist/main.js:6635
+#: assets/dist/main.js:6649
 msgid "Edit HTML and CSS directly in the code editor."
 msgstr "コードエディターで HTML と CSS を直接編集します。"
 
-#: assets/dist/main.js:6644
+#: assets/dist/main.js:6658
 msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
 msgstr "Tailwind CSS v4 のユーティリティクラスを使います。CSS は自動でコンパイルされます。"
 
-#: assets/dist/main.js:6644
+#: assets/dist/main.js:6658
 msgid "Back"
 msgstr "戻る"
 
-#: assets/dist/main.js:6652
+#: assets/dist/main.js:6666
 msgid "Continue"
 msgstr "次へ"
 
-#: assets/dist/main.js:6658
+#: assets/dist/main.js:6672
 msgid "Setup unavailable."
 msgstr "セットアップを利用できません。"
 
-#: assets/dist/main.js:6659
+#: assets/dist/main.js:6673
 msgid "wp.apiFetch is unavailable."
 msgstr "wp.apiFetch を利用できません。"
 
-#: assets/dist/main.js:6695
+#: assets/dist/main.js:6709
 msgid "Switch to TailwindCSS?"
 msgstr "TailwindCSS に切り替えますか ?"
 
-#: assets/dist/main.js:6695
+#: assets/dist/main.js:6709
 msgid "Switch to Normal HTML/CSS?"
 msgstr "通常の HTML/CSS に切り替えますか ?"
 
-#: assets/dist/main.js:6696
+#: assets/dist/main.js:6710
 msgid "The CSS last used in the selected mode will be restored. CSS in the current mode is kept separately."
 msgstr "選択したモードで最後に使用した CSS に戻ります。現在のモードの CSS は別途保持されます。"
 
-#: assets/dist/main.js:6699
+#: assets/dist/main.js:6713
 msgid "TailwindCSS will be initialized from the current CSS. Tailwind Preflight may change the appearance of existing elements."
 msgstr "現在の CSS をもとに TailwindCSS を初期化します。Tailwind の Preflight により、既存要素の見た目が変わる場合があります。"
 
-#: assets/dist/main.js:6702
+#: assets/dist/main.js:6716
 msgid "The current Tailwind output will be converted to browser-ready CSS to preserve the current appearance. The Tailwind source is kept separately."
 msgstr "現在の見た目を保つため、Tailwind の出力をブラウザーがそのまま解釈できる CSS に変換します。Tailwind のソースは別途保持されます。"
 
-#: assets/dist/main.js:6706
+#: assets/dist/main.js:6720
 msgid "This change is not permanent until you save the page."
 msgstr "この変更は、ページを保存するまで確定しません。"
 
-#: assets/dist/main.js:6716
+#: assets/dist/main.js:6730
 msgid "Switch mode"
 msgstr "モードを切り替える"
 
-#: assets/dist/main.js:6748
-#: assets/dist/main.js:6775
+#: assets/dist/main.js:6762
+#: assets/dist/main.js:6789
 msgid "Paste a complete HTML document."
 msgstr "HTML ドキュメント全体を貼り付けてください。"
 
-#: assets/dist/main.js:6752
+#: assets/dist/main.js:6766
 msgid "Could not parse the content as a complete HTML document."
 msgstr "内容を HTML ドキュメント全体として解析できませんでした。"
 
-#: assets/dist/main.js:6775
+#: assets/dist/main.js:6789
 msgid "head, body, style, and script sections are split and imported automatically."
 msgstr "head・body・style・script の各部分は自動的に分割して取り込まれます。"
 
-#: assets/dist/main.js:6792
+#: assets/dist/main.js:6806
 msgid "Parse"
 msgstr "解析"
 
-#: assets/dist/main.js:6800
+#: assets/dist/main.js:6814
 msgid "Complete HTML detected"
 msgstr "HTML ドキュメント全体を検出しました"
 
-#: assets/dist/main.js:6810
+#: assets/dist/main.js:6824
 msgid "body content and body attributes"
 msgstr "body の内容と body 属性"
 
-#: assets/dist/main.js:6816
+#: assets/dist/main.js:6830
 msgid "head additions"
 msgstr "head への追加分"
 
-#: assets/dist/main.js:6822
+#: assets/dist/main.js:6836
 msgid "style tags"
 msgstr "style タグ"
 
-#: assets/dist/main.js:6827
+#: assets/dist/main.js:6841
 msgid "JS"
 msgstr "JS"
 
-#: assets/dist/main.js:6828
+#: assets/dist/main.js:6842
 msgid "inline script tags"
 msgstr "インライン script タグ"
 
-#: assets/dist/main.js:6841
+#: assets/dist/main.js:6855
 msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
 msgstr "貼り付けられたコードは HTML ドキュメント全体のようです。抽出した部分のうち、どれをエディターの内容と置き換えるか選択してください。"
 
-#: assets/dist/main.js:6844
+#: assets/dist/main.js:6858
 msgid "head HTML and JavaScript will not be imported because your account cannot edit them."
 msgstr "お使いのアカウントには編集権限がないため、head の HTML と JavaScript は取り込まれません。"
 
-#: assets/dist/main.js:6864
+#: assets/dist/main.js:6878
 msgid "Replace"
 msgstr "置き換える"
 
-#: assets/dist/main.js:6873
+#: assets/dist/main.js:6887
 msgid "Skip"
 msgstr "取り込まない"
 
-#: assets/dist/main.js:6890
+#: assets/dist/main.js:6904
 msgid "Paste as HTML"
 msgstr "HTML としてそのまま貼り付け"
 
-#: assets/dist/main.js:6898
+#: assets/dist/main.js:6912
 msgid "Split and import"
 msgstr "分割して取り込む"
 
-#: assets/dist/main.js:6902
+#: assets/dist/main.js:6916
 msgid "Include compiled Tailwind CSS?"
 msgstr "コンパイル済みの Tailwind CSS を含めますか ?"
 
-#: assets/dist/main.js:6913
+#: assets/dist/main.js:6927
 msgid "Include it if this HTML should keep the current Tailwind styling when opened by itself. Choose “No” to write the CSS editor content instead."
 msgstr "この HTML を単体で開いたときに現在の Tailwind のスタイルを保ちたい場合は、含めてください。「いいえ」を選ぶと、CSS エディターの内容が書き出されます。"
 
-#: assets/dist/main.js:6923
+#: assets/dist/main.js:6937
 msgid "No, use CSS editor content"
 msgstr "いいえ、CSS エディターの内容を使う"
 
-#: assets/dist/main.js:6931
+#: assets/dist/main.js:6945
 msgid "Yes, include compiled CSS"
 msgstr "はい、コンパイル済み CSS を含める"
 
-#: assets/dist/main.js:6935
+#: assets/dist/main.js:6949
 msgid "Theme template unavailable"
 msgstr "テーマテンプレートを利用できません"
 
-#: assets/dist/main.js:6936
+#: assets/dist/main.js:6950
 msgid "This theme does not output \"the_content\", so the preview cannot be rendered. Kayzart will switch the template mode to Standalone."
 msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。Kayzart はテンプレートモードをスタンドアロンに切り替えます。"
 
-#: assets/dist/main.js:6940
+#: assets/dist/main.js:6954
 msgid "OK"
 msgstr "OK"
 
-#: assets/dist/main.js:6941
+#: assets/dist/main.js:6955
 msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
 msgstr "テンプレートモードを切り替えても、プレビュー用のマーカーが見つかりません。現在のテンプレートは \"the_content\" を出力していません。"
 
-#: assets/dist/main.js:7063
-#: assets/dist/main.js:8973
-#: assets/dist/main.js:9015
+#: assets/dist/main.js:7077
+#: assets/dist/main.js:8987
+#: assets/dist/main.js:9029
 msgid "Settings unavailable."
 msgstr "設定を利用できません。"
 
-#: assets/dist/main.js:7218
-#: assets/dist/main.js:7223
-#: assets/dist/main.js:9188
+#: assets/dist/main.js:7232
+#: assets/dist/main.js:7237
+#: assets/dist/main.js:9205
 msgid "Format JavaScript"
 msgstr "JavaScript を整形"
 
-#: assets/dist/main.js:8692
+#: assets/dist/main.js:8706
 msgid "Wait for the CSS mode change to finish before saving."
 msgstr "CSS モードの切り替えが終わるまでお待ちください。"
 
-#: assets/dist/main.js:8717
+#: assets/dist/main.js:8731
 msgid "Toggle HTML word wrap"
 msgstr "HTML の折り返しを切り替え"
 
-#: assets/dist/main.js:8772
+#: assets/dist/main.js:8786
 msgid "Formatted HTML."
 msgstr "HTML を整形しました。"
 
-#: assets/dist/main.js:8773
+#: assets/dist/main.js:8787
 msgid "Could not format HTML."
 msgstr "HTML を整形できませんでした。"
 
-#: assets/dist/main.js:8781
+#: assets/dist/main.js:8795
 msgid "Formatted CSS."
 msgstr "CSS を整形しました。"
 
-#: assets/dist/main.js:8782
+#: assets/dist/main.js:8796
 msgid "Could not format CSS."
 msgstr "CSS を整形できませんでした。"
 
-#: assets/dist/main.js:8790
+#: assets/dist/main.js:8804
 msgid "Formatted JavaScript."
 msgstr "JavaScript を整形しました。"
 
-#: assets/dist/main.js:8791
+#: assets/dist/main.js:8805
 msgid "Could not format JavaScript."
 msgstr "JavaScript を整形できませんでした。"
 
-#: assets/dist/main.js:8821
+#: assets/dist/main.js:8835
 msgid "Wrap: On"
 msgstr "折り返し: オン"
 
-#: assets/dist/main.js:9055
+#: assets/dist/main.js:9072
 msgid "Loading editor..."
 msgstr "エディターを読み込んでいます…"
 
-#: assets/dist/main.js:9198
+#: assets/dist/main.js:9215
 msgid "You may have unsaved changes."
 msgstr "保存していない変更がある可能性があります。"
 
-#: assets/dist/main.js:9275
+#: assets/dist/main.js:9292
 msgid "Compiled Tailwind CSS is not available yet. The CSS editor content will be exported instead."
 msgstr "コンパイル済みの Tailwind CSS がまだありません。代わりに CSS エディターの内容を書き出します。"
 
-#: assets/dist/main.js:9302
+#: assets/dist/main.js:9319
 msgid "Could not copy full HTML to the clipboard."
 msgstr "HTML 全体をクリップボードにコピーできませんでした。"
 
-#: assets/dist/main.js:9310
+#: assets/dist/main.js:9327
 msgid "Full HTML copied."
 msgstr "HTML 全体をコピーしました。"
 
-#: assets/dist/main.js:9334
+#: assets/dist/main.js:9351
 msgid "HTML download started."
 msgstr "HTML のダウンロードを開始しました。"
 
-#: assets/dist/main.js:9344
+#: assets/dist/main.js:9361
 msgid "Could not find the selected element HTML."
 msgstr "選択した要素の HTML が見つかりませんでした。"
 
-#: assets/dist/main.js:9354
+#: assets/dist/main.js:9371
 msgid "Could not copy HTML to the clipboard."
 msgstr "HTML をクリップボードにコピーできませんでした。"
 
-#: assets/dist/main.js:9362
+#: assets/dist/main.js:9379
 msgid "Element HTML copied."
 msgstr "要素の HTML をコピーしました。"
 
-#: assets/dist/main.js:9374
+#: assets/dist/main.js:9391
 msgid "Could not find the selected element range."
 msgstr "選択した要素の範囲が見つかりませんでした。"
 
-#: assets/dist/main.js:9381
+#: assets/dist/main.js:9398
 msgid "Delete the selected element?"
 msgstr "選択した要素を削除しますか ?"
 
-#: assets/dist/main.js:9394
+#: assets/dist/main.js:9411
 msgid "Element deleted."
 msgstr "要素を削除しました。"
 
-#: assets/dist/main.js:9422
-#: assets/dist/main.js:9530
+#: assets/dist/main.js:9439
+#: assets/dist/main.js:9547
 msgid "Media library is unavailable."
 msgstr "メディアライブラリを利用できません。"
 
-#: assets/dist/main.js:9431
-#: assets/dist/main.js:9477
+#: assets/dist/main.js:9448
+#: assets/dist/main.js:9494
 msgid "Could not find the selected image source."
 msgstr "選択した画像のソースが見つかりませんでした。"
 
-#: assets/dist/main.js:9440
+#: assets/dist/main.js:9457
 msgid "Select replacement image."
 msgstr "差し替える画像を選択してください。"
 
-#: assets/dist/main.js:9468
-#: assets/dist/main.js:9577
+#: assets/dist/main.js:9485
+#: assets/dist/main.js:9594
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアに URL がないため、挿入されませんでした。"
 
-#: assets/dist/main.js:9485
+#: assets/dist/main.js:9502
 msgid "Image replaced."
 msgstr "画像を差し替えました。"
 
-#: assets/dist/main.js:9539
+#: assets/dist/main.js:9556
 msgid "Select media to insert into HTML."
 msgstr "HTML に挿入するメディアを選択してください。"
 
-#: assets/dist/main.js:9541
+#: assets/dist/main.js:9558
 msgid "Insert into HTML"
 msgstr "HTML に挿入"
 
-#: assets/dist/main.js:10086
+#: assets/dist/main.js:10103
 msgid "Tailwind compile failed. The CSS mode was not changed."
 msgstr "Tailwind のコンパイルに失敗したため、CSS モードは変更されませんでした。"
 
@@ -1939,16 +1940,16 @@ msgstr "生成された Tailwind CSS が最大サイズを超えています。"
 msgid "Tailwind candidates are not available."
 msgstr "Tailwind 候補を利用できません。"
 
-#: includes/class-kayzart-admin.php:1627
+#: includes/class-kayzart-admin.php:1694
 msgid "Existing posts start using Kayzart only when you choose Start editing with Kayzart, or create one with Add with Kayzart."
 msgstr "既存の投稿は「Kayzart で編集を開始」を選択したときにのみ Kayzart を使用します。新規作成する場合は「Kayzart で追加」を使用します。"
 
-#: includes/class-kayzart-admin.php:2039
-#: includes/class-kayzart-post-type.php:377
+#: includes/class-kayzart-admin.php:2125
+#: includes/class-kayzart-post-type.php:380
 msgid "Start editing with Kayzart"
 msgstr "Kayzart で編集を開始"
 
-#: includes/class-kayzart-admin.php:2075
+#: includes/class-kayzart-admin.php:2161
 msgid "Convert and edit with Kayzart"
 msgstr "Kayzart に変換して編集"
 
@@ -1974,7 +1975,7 @@ msgid "View page"
 msgstr "ページを表示"
 
 #. translators: %s: post title.
-#: includes/class-kayzart-admin.php:2063
+#: includes/class-kayzart-admin.php:2149
 #, php-format
 msgid "The content editing for \"%s\" will move to Kayzart. Its existing content is kept as the initial HTML. After conversion, edit the content in Kayzart; the WordPress editor will show a Kayzart management card instead of the content editor."
 msgstr "「%s」の本文編集を Kayzart に切り替えます。現在のコンテンツは初期 HTML として引き継がれます。変換後の本文は Kayzart で編集し、WordPress エディターでは本文エディターの代わりに Kayzart 管理カードが表示されます。"
@@ -1988,117 +1989,117 @@ msgstr "WordPress 内の AI でランディングページを作成。お持ち�
 msgid "Enter a valid OpenAI API key without spaces."
 msgstr "スペースを含まない有効な OpenAI API キーを入力してください。"
 
-#: includes/class-kayzart-admin.php:308
+#: includes/class-kayzart-admin.php:310
 msgid "AI editing must be configured before starting with AI."
 msgstr "AI で始めるには、先に AI 編集の設定が必要です。"
 
-#: includes/class-kayzart-admin.php:311
+#: includes/class-kayzart-admin.php:313
 msgid "Enter an AI instruction or choose Start blank."
 msgstr "AI への指示を入力するか、「空のページで始める」を選んでください。"
 
-#: includes/class-kayzart-admin.php:654
+#: includes/class-kayzart-admin.php:656
 msgid "Kayzart is continuing to use your saved OpenAI key. WordPress 7.0 can use a shared AI provider through Connectors, which will take precedence once configured."
 msgstr "Kayzart は保存済みの OpenAI キーを引き続き使用しています。WordPress 7.0 ではコネクターで AI プロバイダーを共有でき、設定するとそちらが優先されます。"
 
-#: includes/class-kayzart-admin.php:1265
+#: includes/class-kayzart-admin.php:1277
 msgid "OpenAI API key"
 msgstr "OpenAI API キー"
 
-#: includes/class-kayzart-admin.php:1290
+#: includes/class-kayzart-admin.php:1311
 msgid "Maximum instruction length"
 msgstr "指示の最大文字数"
 
-#: includes/class-kayzart-admin.php:1651
+#: includes/class-kayzart-admin.php:1718
 msgid "Configured outside WordPress"
 msgstr "WordPress の外部で設定済み"
 
-#: includes/class-kayzart-admin.php:1653
+#: includes/class-kayzart-admin.php:1720
 msgid "The KAYZART_OPENAI_API_KEY environment variable is in use."
 msgstr "環境変数 KAYZART_OPENAI_API_KEY を使用しています。"
 
-#: includes/class-kayzart-admin.php:1653
+#: includes/class-kayzart-admin.php:1720
 msgid "The KAYZART_OPENAI_API_KEY PHP constant is in use."
 msgstr "PHP 定数 KAYZART_OPENAI_API_KEY を使用しています。"
 
-#: includes/class-kayzart-admin.php:1690
+#: includes/class-kayzart-admin.php:1757
 msgid "Configured — enter a new key to replace it"
 msgstr "設定済み — 新しいキーを入力すると置き換わります"
 
-#: includes/class-kayzart-admin.php:1690
+#: includes/class-kayzart-admin.php:1757
 msgid "sk-…"
 msgstr "sk-…"
 
-#: includes/class-kayzart-admin.php:1692
+#: includes/class-kayzart-admin.php:1759
 msgid "Used for direct OpenAI access. The key is stored on this site and is never sent to the browser."
 msgstr "OpenAI へ直接接続する際に使用します。キーはこのサイト内に保存され、ブラウザーへ送信されることはありません。"
 
-#: includes/class-kayzart-admin.php:1698
+#: includes/class-kayzart-admin.php:1765
 msgid "Remove saved API key"
 msgstr "保存済みの API キーを削除"
 
-#: includes/class-kayzart-admin.php:1716
+#: includes/class-kayzart-admin.php:1783
 msgid "Direct OpenAI access uses this fixed model."
 msgstr "OpenAI への直接接続では、このモデルで固定されます。"
 
 #. translators: 1: minimum number of characters, 2: maximum number of characters.
-#: includes/class-kayzart-admin.php:1769
+#: includes/class-kayzart-admin.php:1855
 #, php-format
 msgid "Choose between %1$d and %2$d characters per AI instruction. The limit is counted in characters, so it is the same in every language. Longer instructions increase AI usage."
 msgstr "AI への指示 1 回あたりの上限を %1$d〜%2$d 文字の範囲で指定します。文字数で数えるため、言語による差はありません。指示が長いほど AI の使用量が増えます。"
 
 #. translators: %d: number of characters currently enforced.
-#: includes/class-kayzart-admin.php:1783
+#: includes/class-kayzart-admin.php:1869
 #, php-format
 msgid "A filter currently overrides this setting. The limit in use is %d characters."
 msgstr "現在、この設定はフィルターで上書きされています。実際に適用されている上限は %d 文字です。"
 
-#: includes/class-kayzart-admin.php:1822
+#: includes/class-kayzart-admin.php:1908
 msgid "AI connection configured"
 msgstr "AI 接続の設定"
 
-#: includes/class-kayzart-admin.php:1848
+#: includes/class-kayzart-admin.php:1934
 msgid "WordPress AI Client / Connectors"
 msgstr "WordPress AI Client / コネクター"
 
-#: includes/class-kayzart-admin.php:1848
+#: includes/class-kayzart-admin.php:1934
 msgid "Direct OpenAI connection"
 msgstr "OpenAI への直接接続"
 
-#: includes/class-kayzart-admin.php:1849
+#: includes/class-kayzart-admin.php:1935
 msgid "AI editing is ready. Active backend:"
 msgstr "AI 編集を利用できます。使用中のバックエンド:"
 
-#: includes/class-kayzart-admin.php:1871
+#: includes/class-kayzart-admin.php:1957
 msgid "Open WordPress Connectors"
 msgstr "WordPress コネクターを開く"
 
-#: includes/class-kayzart-admin.php:1904
+#: includes/class-kayzart-admin.php:1990
 #: assets/dist/main.js:1633
 msgid "Set up AI editing"
 msgstr "AI 編集を設定する"
 
-#: includes/class-kayzart-admin.php:1906
+#: includes/class-kayzart-admin.php:1992
 msgid "You can start blank and use the HTML/CSS/JS editor. Ask an administrator if you also need AI editing."
 msgstr "空のページから始めて HTML/CSS/JS エディターを使うことはできます。AI 編集も必要な場合は管理者にご相談ください。"
 
-#: includes/class-kayzart-admin.php:1908
+#: includes/class-kayzart-admin.php:1994
 msgid "You can continue with a blank page now, or configure AI before creating the page."
 msgstr "このまま空のページで進めることも、AI を設定してからページを作成することもできます。"
 
-#: includes/class-kayzart-admin.php:1914
+#: includes/class-kayzart-admin.php:2000
 msgid "Configure OpenAI in Kayzart"
 msgstr "Kayzart で OpenAI を設定"
 
-#: includes/class-kayzart-admin.php:1922
+#: includes/class-kayzart-admin.php:2008
 msgid "Page details"
 msgstr "ページの詳細"
 
-#: includes/class-kayzart-admin.php:1923
+#: includes/class-kayzart-admin.php:2009
 msgid "Name the page, then open the standard HTML/CSS/JS editor."
 msgstr "ページ名を入力して、通常の HTML/CSS/JS エディターを開きます。"
 
-#: includes/class-kayzart-admin.php:1944
-#: includes/class-kayzart-admin.php:2479
+#: includes/class-kayzart-admin.php:2030
+#: includes/class-kayzart-admin.php:2565
 msgid "characters"
 msgstr "文字"
 
@@ -2129,27 +2130,27 @@ msgstr "AI セットアップ"
 msgid "Kayzart — AI Landing Page Builder with Real HTML"
 msgstr "Kayzart — AI Landing Page Builder with Real HTML"
 
-#: includes/class-kayzart-admin.php:1922
+#: includes/class-kayzart-admin.php:2008
 msgid "Describe your landing page"
 msgstr "作成したいランディングページを入力"
 
-#: includes/class-kayzart-admin.php:1923
+#: includes/class-kayzart-admin.php:2009
 msgid "Tell Kayzart what you want to build. AI will create the first draft when the editor opens."
 msgstr "作成したい内容を Kayzart に伝えてください。エディターが開くと、AI が最初の案を作成します。"
 
-#: includes/class-kayzart-admin.php:1942
+#: includes/class-kayzart-admin.php:2028
 msgid "Required to generate with AI. It will be sent automatically when the editor opens."
 msgstr "AI で生成する場合は必須です。エディターが開くと自動的に送信されます。"
 
-#: includes/class-kayzart-admin.php:1992
+#: includes/class-kayzart-admin.php:2078
 msgid "Start with a blank page"
 msgstr "空白ページから始める"
 
-#: includes/class-kayzart-admin.php:1993
+#: includes/class-kayzart-admin.php:2079
 msgid "Generate with AI"
 msgstr "AI で生成"
 
-#: includes/class-kayzart-admin.php:1995
+#: includes/class-kayzart-admin.php:2081
 msgid "Create blank page"
 msgstr "空白ページを作成"
 
@@ -2177,43 +2178,43 @@ msgstr "AI 編集を確認してください"
 msgid "Editor tools"
 msgstr "エディターツール"
 
-#: assets/dist/main.js:8311
+#: assets/dist/main.js:8325
 msgid "Resize editor tools"
 msgstr "エディターツールの幅を変更"
 
-#: includes/class-kayzart-admin.php:1987
+#: includes/class-kayzart-admin.php:2073
 msgid "Clear the AI instruction to start with a blank page."
 msgstr "AI への指示を空にすると、空白ページから始められます。"
 
-#: includes/class-kayzart-admin.php:453
+#: includes/class-kayzart-admin.php:455
 msgid "This post is not a converted Kayzart post."
 msgstr "この投稿は Kayzart に変換された投稿ではありません。"
 
-#: includes/class-kayzart-admin.php:686
+#: includes/class-kayzart-admin.php:688
 msgid "Kayzart is now using a WordPress Connector, so the OpenAI API key saved in this site's database is no longer used. Removing it keeps an unused credential off your site."
 msgstr "Kayzart は WordPress コネクターを使用するようになったため、このサイトのデータベースに保存された OpenAI API キーは使われていません。削除しておくと、不要な認証情報をサイトに残さずに済みます。"
 
-#: includes/class-kayzart-admin.php:688
+#: includes/class-kayzart-admin.php:690
 msgid "Review the saved key"
 msgstr "保存済みのキーを確認"
 
-#: includes/class-kayzart-admin.php:1668
+#: includes/class-kayzart-admin.php:1735
 msgid "This key is not in use. Kayzart is running AI edits through a WordPress Connector, and removing the saved key keeps an unused credential off your site."
 msgstr "このキーは使用されていません。Kayzart は WordPress コネクター経由で AI 編集を実行しています。削除しておくと、不要な認証情報をサイトに残さずに済みます。"
 
-#: includes/class-kayzart-admin.php:1684
+#: includes/class-kayzart-admin.php:1751
 msgid "Saved OpenAI API key"
 msgstr "保存済みの OpenAI API キー"
 
-#: includes/class-kayzart-admin.php:1694
+#: includes/class-kayzart-admin.php:1761
 msgid "A configured Connector always takes precedence over this key."
 msgstr "コネクターが設定されている場合は、常にこのキーより優先されます。"
 
-#: includes/class-kayzart-admin.php:1824
+#: includes/class-kayzart-admin.php:1910
 msgid "Configure a WordPress Connector to give Kayzart an AI provider."
 msgstr "WordPress コネクターを設定して、Kayzart に AI プロバイダーを割り当ててください。"
 
-#: includes/class-kayzart-admin.php:1825
+#: includes/class-kayzart-admin.php:1911
 msgid "Enter an OpenAI API key below."
 msgstr "下の欄に OpenAI API キーを入力してください。"
 
@@ -2236,7 +2237,7 @@ msgstr "このページを WordPress エディターに戻しますか ? 現在�
 msgid "Add to AI context"
 msgstr "AI コンテキストに追加"
 
-#: includes/class-kayzart-admin.php:1723
+#: includes/class-kayzart-admin.php:1790
 msgid "Auto"
 msgstr "自動"
 
@@ -2262,42 +2263,42 @@ msgstr "7 日後に再通知"
 msgid "Do not show again"
 msgstr "今後表示しない"
 
-#: includes/class-kayzart-feedback.php:673
+#: includes/class-kayzart-feedback.php:709
 msgid "Thank you. Your feedback has been sent to Kayzart."
 msgstr "ありがとうございます。ご回答を Kayzart へ送信しました。"
 
 #: includes/class-kayzart-feedback.php:297
-#: includes/class-kayzart-feedback.php:1093
+#: includes/class-kayzart-feedback.php:1129
 msgid "Which best describes you?"
 msgstr "あなたに最も近いものはどれですか ?"
 
 #: includes/class-kayzart-feedback.php:309
-#: includes/class-kayzart-feedback.php:1094
+#: includes/class-kayzart-feedback.php:1130
 msgid "Where do you use Kayzart?"
 msgstr "Kayzart をどこで使っていますか ?"
 
 #: includes/class-kayzart-feedback.php:317
-#: includes/class-kayzart-feedback.php:1095
+#: includes/class-kayzart-feedback.php:1131
 msgid "What do you mainly want to create?"
 msgstr "主に何を作りたいですか ?"
 
 #: includes/class-kayzart-feedback.php:336
-#: includes/class-kayzart-feedback.php:1097
+#: includes/class-kayzart-feedback.php:1133
 msgid "What is your biggest challenge today?"
 msgstr "いま最も困っていることは何ですか ?"
 
 #: includes/class-kayzart-feedback.php:355
-#: includes/class-kayzart-feedback.php:1099
+#: includes/class-kayzart-feedback.php:1135
 msgid "Which Pro features would be most valuable?"
 msgstr "Pro のどの機能に価値を感じますか ?"
 
 #: includes/class-kayzart-feedback.php:376
-#: includes/class-kayzart-feedback.php:1114
+#: includes/class-kayzart-feedback.php:1150
 msgid "Which pricing model would you prefer?"
 msgstr "どの料金体系が望ましいですか ?"
 
 #: includes/class-kayzart-feedback.php:382
-#: includes/class-kayzart-feedback.php:1115
+#: includes/class-kayzart-feedback.php:1151
 msgid "Anything else you would like us to know?"
 msgstr "その他、お伝えいただきたいことがあればご記入ください"
 
@@ -2313,146 +2314,146 @@ msgstr "ご回答は、下のボタンを押したときにのみ Kayzart へ送
 msgid "Send feedback to Kayzart"
 msgstr "Kayzart に回答を送信"
 
-#: includes/class-kayzart-feedback.php:567
+#: includes/class-kayzart-feedback.php:603
 msgid "Kayzart Privacy Policy"
 msgstr "Kayzart プライバシーポリシー"
 
-#: includes/class-kayzart-feedback.php:567
+#: includes/class-kayzart-feedback.php:603
 msgid "Kayzart Terms"
 msgstr "Kayzart 利用規約"
 
-#: includes/class-kayzart-feedback.php:1074
+#: includes/class-kayzart-feedback.php:1110
 msgid "Privacy Policy"
 msgstr "プライバシーポリシー"
 
-#: includes/class-kayzart-feedback.php:1074
+#: includes/class-kayzart-feedback.php:1110
 msgid "Terms"
 msgstr "利用規約"
 
-#: includes/class-kayzart-feedback.php:1126
+#: includes/class-kayzart-feedback.php:1162
 msgid "I run my own website"
 msgstr "自分のサイトを運営している"
 
-#: includes/class-kayzart-feedback.php:1127
+#: includes/class-kayzart-feedback.php:1163
 msgid "In-house web or marketing team"
 msgstr "社内の Web / マーケティング担当"
 
-#: includes/class-kayzart-feedback.php:1128
+#: includes/class-kayzart-feedback.php:1164
 msgid "Freelancer"
 msgstr "フリーランス"
 
-#: includes/class-kayzart-feedback.php:1129
+#: includes/class-kayzart-feedback.php:1165
 msgid "Web agency"
 msgstr "制作会社・代理店"
 
-#: includes/class-kayzart-feedback.php:1130
+#: includes/class-kayzart-feedback.php:1166
 msgid "Developer"
 msgstr "開発者"
 
-#: includes/class-kayzart-feedback.php:1131
+#: includes/class-kayzart-feedback.php:1167
 msgid "Learning or evaluation"
 msgstr "学習・検証のため"
 
-#: includes/class-kayzart-feedback.php:1132
-#: includes/class-kayzart-feedback.php:1163
-#: includes/class-kayzart-feedback.php:1197
+#: includes/class-kayzart-feedback.php:1168
+#: includes/class-kayzart-feedback.php:1199
 #: includes/class-kayzart-feedback.php:1233
+#: includes/class-kayzart-feedback.php:1269
 msgid "Other"
 msgstr "その他"
 
-#: includes/class-kayzart-feedback.php:1143
+#: includes/class-kayzart-feedback.php:1179
 msgid "My own or my company's website"
 msgstr "自分または自社のサイト"
 
-#: includes/class-kayzart-feedback.php:1144
+#: includes/class-kayzart-feedback.php:1180
 msgid "Client websites"
 msgstr "クライアントのサイト"
 
-#: includes/class-kayzart-feedback.php:1145
+#: includes/class-kayzart-feedback.php:1181
 msgid "Test or development environments"
 msgstr "テスト・開発環境"
 
-#: includes/class-kayzart-feedback.php:1146
+#: includes/class-kayzart-feedback.php:1182
 msgid "I have not used it on a real project yet"
 msgstr "まだ実案件では使っていない"
 
-#: includes/class-kayzart-feedback.php:1157
+#: includes/class-kayzart-feedback.php:1193
 msgid "Product or service landing pages"
 msgstr "商品・サービスのランディングページ"
 
-#: includes/class-kayzart-feedback.php:1158
+#: includes/class-kayzart-feedback.php:1194
 msgid "Campaign pages"
 msgstr "キャンペーンページ"
 
-#: includes/class-kayzart-feedback.php:1159
+#: includes/class-kayzart-feedback.php:1195
 msgid "Corporate website pages"
 msgstr "コーポレートサイトのページ"
 
-#: includes/class-kayzart-feedback.php:1160
+#: includes/class-kayzart-feedback.php:1196
 msgid "Recruiting or event pages"
 msgstr "採用・イベントのページ"
 
-#: includes/class-kayzart-feedback.php:1161
+#: includes/class-kayzart-feedback.php:1197
 msgid "Bringing AI-generated HTML into WordPress"
 msgstr "AI が生成した HTML を WordPress に持ち込むこと"
 
-#: includes/class-kayzart-feedback.php:1162
+#: includes/class-kayzart-feedback.php:1198
 msgid "Migrating existing HTML templates"
 msgstr "既存の HTML テンプレートの移行"
 
-#: includes/class-kayzart-feedback.php:1189
+#: includes/class-kayzart-feedback.php:1225
 msgid "Creating the design"
 msgstr "デザインを作ること"
 
-#: includes/class-kayzart-feedback.php:1190
+#: includes/class-kayzart-feedback.php:1226
 msgid "Writing effective AI instructions"
 msgstr "AI への指示の書き方"
 
-#: includes/class-kayzart-feedback.php:1191
+#: includes/class-kayzart-feedback.php:1227
 msgid "Editing HTML or CSS"
 msgstr "HTML や CSS の編集"
 
-#: includes/class-kayzart-feedback.php:1192
+#: includes/class-kayzart-feedback.php:1228
 msgid "Responsive design"
 msgstr "レスポンシブ対応"
 
-#: includes/class-kayzart-feedback.php:1193
+#: includes/class-kayzart-feedback.php:1229
 msgid "Integrating pages with WordPress"
 msgstr "ページを WordPress に組み込むこと"
 
-#: includes/class-kayzart-feedback.php:1194
+#: includes/class-kayzart-feedback.php:1230
 msgid "Reusing pages or sections"
 msgstr "ページやセクションの使い回し"
 
-#: includes/class-kayzart-feedback.php:1195
+#: includes/class-kayzart-feedback.php:1231
 msgid "Improving pages after publication"
 msgstr "公開後のページ改善"
 
-#: includes/class-kayzart-feedback.php:1196
+#: includes/class-kayzart-feedback.php:1232
 msgid "Working with clients"
 msgstr "クライアントとのやり取り"
 
-#: includes/class-kayzart-feedback.php:1255
+#: includes/class-kayzart-feedback.php:1291
 msgid "Annual plan for one site"
 msgstr "1 サイト向けの年額プラン"
 
-#: includes/class-kayzart-feedback.php:1256
+#: includes/class-kayzart-feedback.php:1292
 msgid "Annual plan for multiple sites"
 msgstr "複数サイト向けの年額プラン"
 
-#: includes/class-kayzart-feedback.php:1257
+#: includes/class-kayzart-feedback.php:1293
 msgid "Monthly plan"
 msgstr "月額プラン"
 
-#: includes/class-kayzart-feedback.php:1258
+#: includes/class-kayzart-feedback.php:1294
 msgid "One-time purchase"
 msgstr "買い切り"
 
-#: includes/class-kayzart-feedback.php:1259
+#: includes/class-kayzart-feedback.php:1295
 msgid "Usage-based pricing"
 msgstr "従量課金"
 
-#: includes/class-kayzart-feedback.php:1260
+#: includes/class-kayzart-feedback.php:1296
 msgid "Not sure yet"
 msgstr "まだ決めかねている"
 
@@ -2464,16 +2465,16 @@ msgstr "要素の設定"
 msgid "More actions"
 msgstr "その他の操作"
 
-#: assets/dist/main.js:3113
+#: assets/dist/main.js:3126
 msgid "AI is editing..."
 msgstr "AI が編集しています…"
 
-#: assets/dist/main.js:8697
+#: assets/dist/main.js:8711
 msgid "Wait for the AI edit to finish before saving."
 msgstr "保存する前に、AI の編集が終わるまでお待ちください。"
 
-#: assets/dist/main.js:8970
-#: assets/dist/main.js:9012
+#: assets/dist/main.js:8984
+#: assets/dist/main.js:9026
 msgid "Wait for the AI edit to finish."
 msgstr "AI の編集が終わるまでお待ちください。"
 
@@ -2491,17 +2492,17 @@ msgid "Select any that apply; around three is ideal."
 msgstr "当てはまるものを選んでください。3 つ程度が目安です。"
 
 #: includes/class-kayzart-feedback.php:329
-#: includes/class-kayzart-feedback.php:1096
+#: includes/class-kayzart-feedback.php:1132
 msgid "How many landing pages do you build in a month?"
 msgstr "1 か月に作るランディングページは何本くらいですか ?"
 
 #: includes/class-kayzart-feedback.php:348
-#: includes/class-kayzart-feedback.php:1098
+#: includes/class-kayzart-feedback.php:1134
 msgid "How do you feel about providing your own AI API key?"
 msgstr "AI の API キーをご自身で用意することについて、どう感じますか ?"
 
 #: includes/class-kayzart-feedback.php:368
-#: includes/class-kayzart-feedback.php:1113
+#: includes/class-kayzart-feedback.php:1149
 msgid "Which single feature would actually decide a purchase for you?"
 msgstr "購入の決め手になる機能を 1 つ挙げるとしたら、どれですか ?"
 
@@ -2522,102 +2523,102 @@ msgid "The Kayzart feedback survey has closed. Thank you for your interest."
 msgstr "Kayzart のアンケートは終了しました。ご関心をお寄せいただきありがとうございました。"
 
 #. translators: %s: survey question title.
-#: includes/class-kayzart-feedback.php:665
+#: includes/class-kayzart-feedback.php:701
 #, php-format
 msgid "Please check your answer to \"%s\" and try again."
 msgstr "「%s」への回答をご確認のうえ、もう一度お試しください。"
 
-#: includes/class-kayzart-feedback.php:667
+#: includes/class-kayzart-feedback.php:703
 msgid "Nothing was answered yet, so there was nothing to send. Answer at least one question and try again."
 msgstr "まだ回答がないため、送信するものがありませんでした。1 問以上に回答してから、もう一度お試しください。"
 
-#: includes/class-kayzart-feedback.php:671
+#: includes/class-kayzart-feedback.php:707
 msgid "Your feedback could not be sent. Your answers have been kept, so you can try again."
 msgstr "回答を送信できませんでした。入力内容は保持しているので、もう一度お試しいただけます。"
 
 #. translators: %s: date the feedback was sent.
-#: includes/class-kayzart-feedback.php:689
+#: includes/class-kayzart-feedback.php:725
 #, php-format
 msgid "You sent feedback on %s. The form below shows what you sent, and you can change it and send it again."
 msgstr "%s に回答を送信しました。以下のフォームには送信内容が表示されています。修正して再送信することもできます。"
 
-#: includes/class-kayzart-feedback.php:691
+#: includes/class-kayzart-feedback.php:727
 msgid "The form below shows the feedback you already sent, and you can change it and send it again."
 msgstr "以下のフォームには、送信済みの回答が表示されています。修正して再送信することもできます。"
 
-#: includes/class-kayzart-feedback.php:1046
+#: includes/class-kayzart-feedback.php:1082
 msgid "Other — please describe"
 msgstr "その他 — 内容をご記入ください"
 
-#: includes/class-kayzart-feedback.php:1174
+#: includes/class-kayzart-feedback.php:1210
 msgid "None yet"
 msgstr "まだ作っていない"
 
-#: includes/class-kayzart-feedback.php:1175
+#: includes/class-kayzart-feedback.php:1211
 msgid "1 to 2"
 msgstr "1〜2 本"
 
-#: includes/class-kayzart-feedback.php:1176
+#: includes/class-kayzart-feedback.php:1212
 msgid "3 to 5"
 msgstr "3〜5 本"
 
-#: includes/class-kayzart-feedback.php:1177
+#: includes/class-kayzart-feedback.php:1213
 msgid "6 to 10"
 msgstr "6〜10 本"
 
-#: includes/class-kayzart-feedback.php:1178
+#: includes/class-kayzart-feedback.php:1214
 msgid "11 or more"
 msgstr "11 本以上"
 
-#: includes/class-kayzart-feedback.php:1208
+#: includes/class-kayzart-feedback.php:1244
 msgid "I set up my own API key without trouble"
 msgstr "問題なく自分で API キーを設定できた"
 
-#: includes/class-kayzart-feedback.php:1209
+#: includes/class-kayzart-feedback.php:1245
 msgid "It works, but it is a hassle"
 msgstr "使えるが、手間に感じる"
 
-#: includes/class-kayzart-feedback.php:1210
+#: includes/class-kayzart-feedback.php:1246
 msgid "The setup is too difficult, so I cannot use AI editing"
 msgstr "設定が難しく、AI 編集を使えていない"
 
-#: includes/class-kayzart-feedback.php:1211
+#: includes/class-kayzart-feedback.php:1247
 msgid "I have not tried AI editing yet"
 msgstr "AI 編集をまだ試していない"
 
-#: includes/class-kayzart-feedback.php:1222
+#: includes/class-kayzart-feedback.php:1258
 msgid "Templates built for specific industries and purposes"
 msgstr "業種・用途に特化したテンプレート"
 
-#: includes/class-kayzart-feedback.php:1223
+#: includes/class-kayzart-feedback.php:1259
 msgid "AI included, with no API key to set up"
 msgstr "API キーの設定が不要な、AI 込みの提供"
 
-#: includes/class-kayzart-feedback.php:1227
+#: includes/class-kayzart-feedback.php:1263
 msgid "Locking parts of a page so clients and AI cannot change them"
 msgstr "ページの一部をロックして、クライアントや AI が変更できないようにする"
 
-#: includes/class-kayzart-feedback.php:1228
+#: includes/class-kayzart-feedback.php:1264
 msgid "Traffic analytics with AI improvement suggestions"
 msgstr "アクセス解析と、AI による改善提案"
 
-#: includes/class-kayzart-feedback.php:1229
+#: includes/class-kayzart-feedback.php:1265
 msgid "Contact and conversion form integration"
 msgstr "問い合わせ・コンバージョンフォームの連携"
 
-#: includes/class-kayzart-feedback.php:1230
+#: includes/class-kayzart-feedback.php:1266
 msgid "AI that can pull in your WordPress content, such as posts, categories, and custom fields"
 msgstr "投稿・カテゴリー・カスタムフィールドなど、WordPress のコンテンツを AI が参照できる"
 
-#: includes/class-kayzart-feedback.php:1231
+#: includes/class-kayzart-feedback.php:1267
 msgid "Reusable sections and shared components"
 msgstr "再利用できるセクションと共有コンポーネント"
 
-#: includes/class-kayzart-feedback.php:1232
+#: includes/class-kayzart-feedback.php:1268
 msgid "A/B testing"
 msgstr "A/B テスト"
 
-#: includes/class-kayzart-feedback.php:1244
+#: includes/class-kayzart-feedback.php:1280
 msgid "None of these would make me pay"
 msgstr "この中に、購入の決め手になるものはない"
 
@@ -2625,27 +2626,27 @@ msgstr "この中に、購入の決め手になるものはない"
 msgid "Share how you use Kayzart and what you would like us to build next. The survey takes about three minutes."
 msgstr "Kayzart の使い方と、次に作ってほしいものをお聞かせください。所要時間は 3 分程度です。"
 
-#: includes/class-kayzart-feedback.php:1063
+#: includes/class-kayzart-feedback.php:1099
 msgid "One question is still unanswered."
 msgstr "未回答の質問が 1 問あります。"
 
 #. translators: %d: number of unanswered questions.
-#: includes/class-kayzart-feedback.php:1065
+#: includes/class-kayzart-feedback.php:1101
 #, php-format
 msgid "%d questions are still unanswered."
 msgstr "未回答の質問が %d 問あります。"
 
-#: includes/class-kayzart-feedback.php:1068
+#: includes/class-kayzart-feedback.php:1104
 msgid "Go back to them"
 msgstr "該当箇所へ戻る"
 
-#: includes/class-kayzart-admin.php:2184
-#: includes/class-kayzart-admin.php:2195
-#: includes/class-kayzart-admin.php:2209
+#: includes/class-kayzart-admin.php:2270
+#: includes/class-kayzart-admin.php:2281
+#: includes/class-kayzart-admin.php:2295
 msgid "Basic settings"
 msgstr "基本設定"
 
-#: includes/class-kayzart-feedback.php:566
+#: includes/class-kayzart-feedback.php:602
 msgid "Kayzart offers administrators an optional product feedback survey. Answers are sent to feedback.kayzart.com only when an administrator submits the form, together with the survey version, the Kayzart and WordPress version numbers, and the administrator interface language. Kayzart does not automatically include the site URL, administrator email address, page content, or plugin usage. The receiving web server may process IP addresses in security logs, and submitted answers are retained for two years."
 msgstr "Kayzart は、管理者向けに任意の製品アンケートを用意しています。回答は、管理者がフォームを送信したときにのみ feedback.kayzart.com へ送られ、あわせてアンケートのバージョン、Kayzart と WordPress のバージョン番号、管理画面の表示言語が送信されます。サイト URL、管理者のメールアドレス、ページの内容、プラグインの利用状況が自動で含まれることはありません。受信側の Web サーバーはセキュリティログとして IP アドレスを扱う場合があり、送信された回答は 2 年間保持されます。"
 
@@ -2653,18 +2654,32 @@ msgstr "Kayzart は、管理者向けに任意の製品アンケートを用意�
 msgid "This site manages AI providers through WordPress Connectors, so a direct OpenAI key cannot be saved here."
 msgstr "このサイトは WordPress コネクターで AI プロバイダーを管理しているため、ここに OpenAI キーを直接保存することはできません。"
 
-#: includes/class-kayzart-admin.php:1637
+#: includes/class-kayzart-admin.php:1704
 msgid "AI providers are configured in WordPress Connectors, which every plugin on this site shares."
 msgstr "AI プロバイダーは WordPress コネクターで設定します。設定内容はこのサイトのすべてのプラグインで共有されます。"
 
-#: includes/class-kayzart-admin.php:1638
+#: includes/class-kayzart-admin.php:1705
 msgid "Kayzart connects directly to OpenAI with the API key you save here."
 msgstr "Kayzart は、ここに保存した API キーで OpenAI へ直接接続します。"
 
-#: includes/class-kayzart-admin.php:1672
+#: includes/class-kayzart-admin.php:1739
 msgid "This key still runs your AI edits. WordPress can hold one provider for every plugin on this site instead — move the key to Connectors and remove it here. Once removed, it cannot be entered again."
 msgstr "現在も、このキーで AI 編集を実行しています。WordPress ではサイト全体で 1 つのプロバイダーを共有できます。キーをコネクターへ移してから、ここで削除してください。一度削除すると、再入力はできません。"
 
-#: includes/class-kayzart-feedback.php:1226
+#: includes/class-kayzart-feedback.php:1262
 msgid "A monthly cap on AI usage, with per-user budgets and a usage dashboard"
 msgstr "AI の使用量に月ごとの上限を設定し、ユーザー別の予算と使用状況ダッシュボードで管理できる"
+
+#: includes/class-kayzart-admin.php:1294
+msgid "Site-wide AI instructions"
+msgstr "全ページ共通の AI 指示"
+
+#: includes/class-kayzart-admin.php:1809
+msgid "Example: Use #1f2937 for body text and #f8fafc for section backgrounds. Keep the tone friendly and concise."
+msgstr "例: 本文の文字色は #1f2937、セクションの背景色は #f8fafc にしてください。文体は親しみやすく簡潔に。"
+
+#. translators: %d: maximum number of characters.
+#: includes/class-kayzart-admin.php:1815
+#, php-format
+msgid "Added to every AI request on this site, for new pages and edits alike, so you do not have to repeat it each time. Use it for things such as text and background colors, fonts, or tone of voice. When an individual instruction says otherwise, that instruction wins. Up to %d characters."
+msgstr "このサイトのすべての AI リクエストに、新規作成・編集を問わず自動で添えられるため、毎回書く必要はありません。文字色や背景色、フォント、文体などの指定に使えます。個別の指示と食い違う場合は、個別の指示が優先されます。最大 %d 文字。"

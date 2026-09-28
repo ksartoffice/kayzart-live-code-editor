@@ -47,6 +47,8 @@ class Ai_Job_Store {
 		'intent',
 		// Read from site state, which can change between a request and its retry.
 		'availableFonts',
+		// A site setting, which an administrator can edit between a request and its retry.
+		'siteInstructions',
 	);
 
 	const MAX_EVENTS               = 300;

@@ -49,6 +49,8 @@ class Admin {
 	const AI_MAX_PROMPT_CHARS_DEFAULT  = 8000;
 	const AI_MAX_PROMPT_CHARS_MIN      = 1000;
 	const AI_MAX_PROMPT_CHARS_MAX      = 50000;
+	const OPTION_AI_SITE_INSTRUCTIONS  = 'kayzart_ai_site_instructions';
+	const AI_SITE_INSTRUCTIONS_MAX     = 4000;
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const REMOVE_OPENAI_KEY_ACTION     = 'kayzart_remove_openai_key';
 	const REMOVE_OPENAI_KEY_NONCE      = 'kayzart_remove_openai_key';
@@ -1248,6 +1250,16 @@ class Admin {
 			)
 		);
 
+		register_setting(
+			self::SETTINGS_GROUP,
+			self::OPTION_AI_SITE_INSTRUCTIONS,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_ai_site_instructions' ),
+				'default'           => '',
+			)
+		);
+
 		add_settings_section(
 			'kayzart_ai',
 			__( 'AI editing', 'kayzart-live-code-editor' ),
@@ -1275,6 +1287,15 @@ class Admin {
 			array( __CLASS__, 'render_ai_default_model_field' ),
 			self::SETTINGS_SLUG,
 			'kayzart_ai'
+		);
+
+		add_settings_field(
+			self::OPTION_AI_SITE_INSTRUCTIONS,
+			__( 'Site-wide AI instructions', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_site_instructions_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai',
+			array( 'label_for' => self::OPTION_AI_SITE_INSTRUCTIONS )
 		);
 
 		add_settings_field(
@@ -1484,6 +1505,52 @@ class Admin {
 		$filtered = (int) apply_filters( 'kayzart_ai_max_prompt_chars', $value );
 
 		return $filtered > 0 ? $filtered : $value;
+	}
+
+	/**
+	 * Sanitize the site-wide instructions added to every AI request.
+	 *
+	 * Markup is kept on purpose. The text goes to the model, never to a page,
+	 * and an instruction such as "give every <h2> a bottom border" is exactly the
+	 * kind of thing this field is for; sanitize_textarea_field() would strip the
+	 * tag and leave the sentence meaningless. It is escaped wherever it is shown.
+	 *
+	 * An omitted field preserves the stored text, so saving the form without the
+	 * field on it cannot silently wipe what the administrator wrote.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string
+	 */
+	public static function sanitize_ai_site_instructions( $value ): string {
+		if ( null === $value ) {
+			$stored = get_option( self::OPTION_AI_SITE_INSTRUCTIONS, '' );
+			$value  = is_string( $stored ) ? $stored : '';
+		}
+		if ( ! is_string( $value ) ) {
+			return '';
+		}
+
+		$value = wp_check_invalid_utf8( $value, true );
+		$value = str_replace( array( "\r\n", "\r" ), "\n", $value );
+		// Keep tabs and newlines; other control characters only confuse the model.
+		$value = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value );
+		$value = trim( $value );
+
+		if ( mb_strlen( $value, 'UTF-8' ) > self::AI_SITE_INSTRUCTIONS_MAX ) {
+			$value = rtrim( mb_substr( $value, 0, self::AI_SITE_INSTRUCTIONS_MAX, 'UTF-8' ) );
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Get the site-wide instructions added to every AI request.
+	 *
+	 * @return string Empty when none are configured.
+	 */
+	public static function get_ai_site_instructions(): string {
+		$stored = get_option( self::OPTION_AI_SITE_INSTRUCTIONS, '' );
+		return self::sanitize_ai_site_instructions( is_string( $stored ) ? $stored : '' );
 	}
 
 	/**
@@ -1731,6 +1798,25 @@ class Admin {
 		} else {
 			echo '<p class="description">' . esc_html__( 'Auto follows the provider default and any newly added models automatically.', 'kayzart-live-code-editor' ) . '</p>';
 		}
+	}
+
+	/**
+	 * Render the site-wide AI instructions textarea.
+	 */
+	public static function render_ai_site_instructions_field(): void {
+		$value = self::get_ai_site_instructions();
+
+		echo '<textarea id="' . esc_attr( self::OPTION_AI_SITE_INSTRUCTIONS ) . '" class="large-text" rows="6" name="' . esc_attr( self::OPTION_AI_SITE_INSTRUCTIONS ) . '" maxlength="' . esc_attr( self::AI_SITE_INSTRUCTIONS_MAX ) . '" placeholder="' . esc_attr__( 'Example: Use #1f2937 for body text and #f8fafc for section backgrounds. Keep the tone friendly and concise.', 'kayzart-live-code-editor' ) . '">' . esc_textarea( $value ) . '</textarea>';
+		printf(
+			'<p class="description">%s</p>',
+			esc_html(
+				sprintf(
+				/* translators: %d: maximum number of characters. */
+					__( 'Added to every AI request on this site, for new pages and edits alike, so you do not have to repeat it each time. Use it for things such as text and background colors, fonts, or tone of voice. When an individual instruction says otherwise, that instruction wins. Up to %d characters.', 'kayzart-live-code-editor' ),
+					self::AI_SITE_INSTRUCTIONS_MAX
+				)
+			)
+		);
 	}
 
 	/**

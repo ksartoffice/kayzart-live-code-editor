@@ -71,6 +71,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	/** Restore global filters, actions, and user state. */
 	protected function tearDown(): void {
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
+		delete_option( Admin::OPTION_AI_SITE_INSTRUCTIONS );
 		delete_option( 'kayzart_openai_api_key' );
 		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
@@ -384,6 +385,38 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$job    = ( new Ai_Job_Store() )->get( $again->get_data()['jobId'] );
 		$stored = json_decode( $job['payload_json'], true );
 		$this->assertSame( 20, $stored['maxAgentTurns'] );
+	}
+
+	/** Site-wide instructions are captured once and survive a later settings change. */
+	public function test_create_captures_site_instructions_in_job_payload(): void {
+		update_option( Admin::OPTION_AI_SITE_INSTRUCTIONS, 'Use #1f2937 for body text.' );
+		$first = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-site-instructions' ) );
+
+		$this->assertSame( 202, $first->get_status() );
+		$job    = ( new Ai_Job_Store() )->get( $first->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
+		$this->assertSame( 'Use #1f2937 for body text.', $stored['siteInstructions'] );
+
+		update_option( Admin::OPTION_AI_SITE_INSTRUCTIONS, 'Use a dark background.' );
+		$again = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-site-instructions' ) );
+		$this->assertSame( 200, $again->get_status() );
+		$this->assertSame( $first->get_data()['jobId'], $again->get_data()['jobId'] );
+
+		$job    = ( new Ai_Job_Store() )->get( $again->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
+		$this->assertSame( 'Use #1f2937 for body text.', $stored['siteInstructions'] );
+	}
+
+	/** A client cannot supply its own site-wide instructions. */
+	public function test_create_ignores_client_supplied_site_instructions(): void {
+		$payload                     = $this->payload( 'rest-site-instructions-client' );
+		$payload['siteInstructions'] = 'Injected by the client.';
+		$response                    = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+
+		$this->assertSame( 202, $response->get_status() );
+		$job    = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
+		$stored = json_decode( $job['payload_json'], true );
+		$this->assertSame( '', $stored['siteInstructions'] );
 	}
 
 	/** DOM/libxml support is required before a job can be accepted. */

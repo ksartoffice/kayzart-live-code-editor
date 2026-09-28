@@ -32,6 +32,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_AI_DEFAULT_MODEL );
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		delete_option( Admin::OPTION_AI_MAX_PROMPT_CHARS );
+		delete_option( Admin::OPTION_AI_SITE_INSTRUCTIONS );
 		delete_option( 'kayzart_openai_api_key' );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
@@ -126,6 +127,43 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertSame( 12000, Admin::sanitize_ai_max_prompt_chars( '12000' ) );
 		$this->assertSame( 50000, Admin::sanitize_ai_max_prompt_chars( 50000 ) );
 		$this->assertSame( 50000, Admin::sanitize_ai_max_prompt_chars( 999999 ) );
+	}
+
+	public function test_sanitize_ai_site_instructions_normalizes_and_keeps_markup(): void {
+		$this->assertSame( '', Admin::sanitize_ai_site_instructions( array( 'not', 'text' ) ) );
+		$this->assertSame( '', Admin::sanitize_ai_site_instructions( "  \n " ) );
+		$this->assertSame(
+			"Give every <h2> a border.\n\tUse #333 for text.",
+			Admin::sanitize_ai_site_instructions( "  Give every <h2> a border.\r\n\tUse #333\x07 for text.  " )
+		);
+	}
+
+	public function test_sanitize_ai_site_instructions_truncates_by_characters(): void {
+		$long      = str_repeat( 'あ', Admin::AI_SITE_INSTRUCTIONS_MAX + 10 );
+		$sanitized = Admin::sanitize_ai_site_instructions( $long );
+
+		$this->assertSame( 4000, Admin::AI_SITE_INSTRUCTIONS_MAX );
+		$this->assertSame( Admin::AI_SITE_INSTRUCTIONS_MAX, mb_strlen( $sanitized, 'UTF-8' ) );
+	}
+
+	public function test_sanitize_ai_site_instructions_preserves_stored_value_when_field_is_omitted(): void {
+		update_option( Admin::OPTION_AI_SITE_INSTRUCTIONS, 'Keep the tone friendly.' );
+
+		$this->assertSame( 'Keep the tone friendly.', Admin::sanitize_ai_site_instructions( null ) );
+		$this->assertSame( '', Admin::sanitize_ai_site_instructions( '' ) );
+	}
+
+	public function test_render_ai_site_instructions_field_escapes_the_stored_text(): void {
+		update_option( Admin::OPTION_AI_SITE_INSTRUCTIONS, 'Give every <h2> a border.</textarea><script>' );
+
+		ob_start();
+		Admin::render_ai_site_instructions_field();
+		$output = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_SITE_INSTRUCTIONS . '"', $output );
+		$this->assertStringContainsString( 'maxlength="4000"', $output );
+		$this->assertStringContainsString( 'Give every &lt;h2&gt; a border.&lt;/textarea&gt;&lt;script&gt;', $output );
+		$this->assertStringNotContainsString( '<script>', $output );
 	}
 
 	public function test_get_ai_max_prompt_chars_reads_the_option_and_honors_the_filter(): void {

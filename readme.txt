@@ -142,6 +142,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 = 3.2.0 =
 * Change: Direct OpenAI editing (WordPress 5.9–6.9) now uses gpt-6-sol for higher-quality pages. It costs more per edit than gpt-5.6-luna.
 * Add: The `kayzart_ai_openai_model` filter lets developers choose the model used for direct OpenAI editing.
+* Fix: On WordPress 5.9–6.9, the Default AI model setting shows the OpenAI model before an API key is entered, instead of pointing to Connectors, which these versions do not have.
 
 = 3.1.1 =
 * Add: After you have saved Kayzart pages a few times over at least a week, administrators see a one-time invitation to review Kayzart on WordPress.org. It can be postponed once or turned off, and nothing is sent from your site.

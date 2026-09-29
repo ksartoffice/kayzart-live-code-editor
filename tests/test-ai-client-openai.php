@@ -22,6 +22,7 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		remove_all_filters( 'kayzart_ai_scheduler_present' );
 		remove_all_filters( 'kayzart_ai_mbstring_present' );
 		remove_all_filters( 'kayzart_ai_dom_present' );
+		remove_all_filters( 'kayzart_ai_openai_model' );
 		parent::tearDown();
 	}
 
@@ -82,7 +83,7 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 					'headers'  => array(),
 					'body'     => wp_json_encode(
 						array(
-							'model'  => 'gpt-5.6-luna-2026-08-01',
+							'model'  => 'gpt-6-sol-2026-09-01',
 							'output' => array(
 								$reasoning_item,
 								array(
@@ -135,7 +136,7 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		$this->assertSame( Ai_Client_OpenAI::ENDPOINT, $captured['url'] );
 		$this->assertSame( 'Bearer sk-test-secret', $captured['args']['headers']['Authorization'] );
 		$body = json_decode( $captured['args']['body'], true );
-		$this->assertSame( 'gpt-5.6-luna', $body['model'] );
+		$this->assertSame( 'gpt-6-sol', $body['model'] );
 		$this->assertArrayNotHasKey( 'store', $body );
 		$this->assertArrayNotHasKey( 'reasoning', $body );
 		$this->assertSame( 'function_call_output', $body['input'][2]['type'] );
@@ -332,5 +333,51 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		} catch ( Ai_Client_Exception $error ) {
 			$this->assertTrue( $error->is_retryable() );
 		}
+	}
+
+	/** Sites can swap the direct model; unusable filter values keep the default. */
+	public function test_model_filter_overrides_request_model(): void {
+		$this->assertSame( Ai_Client_OpenAI::MODEL, Ai_Client_OpenAI::model() );
+
+		add_filter( 'kayzart_ai_openai_model', '__return_empty_string' );
+		$this->assertSame( Ai_Client_OpenAI::MODEL, Ai_Client_OpenAI::model() );
+		remove_all_filters( 'kayzart_ai_openai_model' );
+
+		add_filter( 'kayzart_ai_openai_model', '__return_false' );
+		$this->assertSame( Ai_Client_OpenAI::MODEL, Ai_Client_OpenAI::model() );
+		remove_all_filters( 'kayzart_ai_openai_model' );
+
+		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
+		$captured = null;
+		add_filter(
+			'kayzart_ai_openai_model',
+			static function () {
+				return ' gpt-6-luna ';
+			}
+		);
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $args ) use ( &$captured ) {
+				unset( $preempt );
+				$captured = json_decode( $args['body'], true );
+				return array(
+					'headers'  => array(),
+					'body'     => '{"output":[]}',
+					'response' => array(
+						'code'    => 200,
+						'message' => 'OK',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			},
+			10,
+			2
+		);
+
+		$result = ( new Ai_Client_OpenAI() )->generate( array( Ai_Message::user( 'test' ) ), array() );
+
+		$this->assertSame( 'gpt-6-luna', $captured['model'] );
+		$this->assertSame( 'gpt-6-luna', $result['model'] );
 	}
 }

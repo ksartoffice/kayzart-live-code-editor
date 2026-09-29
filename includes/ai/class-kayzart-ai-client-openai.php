@@ -19,7 +19,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Provider adapter backed by the WordPress HTTP API. */
 class Ai_Client_OpenAI implements Ai_Client_Interface {
 	const ENDPOINT = 'https://api.openai.com/v1/responses';
-	const MODEL    = 'gpt-5.6-luna';
+	const MODEL    = 'gpt-6-sol';
+
+	/**
+	 * Resolve the model sent to the Responses API.
+	 *
+	 * @return string Model ID; the default when the filter returns an empty or non-string value.
+	 */
+	public static function model(): string {
+		/**
+		 * Filter the OpenAI model used for direct (non-Connector) AI editing.
+		 *
+		 * The model must support Responses API function tools and strict
+		 * JSON-schema output, which every AI edit relies on.
+		 *
+		 * @param string $model Model ID.
+		 */
+		$model = apply_filters( 'kayzart_ai_openai_model', self::MODEL );
+
+		return is_string( $model ) && '' !== trim( $model ) ? trim( $model ) : self::MODEL;
+	}
 
 	/** Whether a direct credential and the common AI runtime are available. */
 	public function is_available(): bool {
@@ -42,7 +61,7 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 		}
 
 		$payload = array(
-			'model' => self::MODEL,
+			'model' => self::model(),
 			'input' => $this->build_input( $messages ),
 		);
 		if ( ! empty( $options['systemInstruction'] ) ) {
@@ -257,7 +276,7 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 				'outputTokens'          => (int) ( $usage['output_tokens'] ?? 0 ),
 				'reasoningOutputTokens' => (int) ( $usage['output_tokens_details']['reasoning_tokens'] ?? 0 ),
 			),
-			'model'     => isset( $body['model'] ) ? (string) $body['model'] : self::MODEL,
+			'model'     => isset( $body['model'] ) ? (string) $body['model'] : self::model(),
 		);
 		if ( ! empty( $calls ) && ! empty( $output_items ) ) {
 			$result['providerData'] = array(

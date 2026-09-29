@@ -22,7 +22,7 @@ The AI is told which fonts your site can actually render — the families regist
 
 For safety, the AI edits markup and styles only — your JavaScript is read-only context it can read but never change, so AI editing can't inject or rewrite scripts on your page.
 
-On WordPress 7.0 and later, Kayzart uses the WordPress AI Client and your configured Connector. On WordPress 5.9 through 6.9, it connects directly to OpenAI with the API key you configure in Kayzart and uses gpt-5.6-luna. WordPress 7.0 sites configure the provider in Connectors rather than in Kayzart; a direct key saved before the upgrade keeps working and stays manageable until you remove it. There is no per-edit fee to Kayzart and no Kayzart server in the loop. AI editing is available by default to administrators and editors.
+On WordPress 7.0 and later, Kayzart uses the WordPress AI Client and your configured Connector. On WordPress 5.9 through 6.9, it connects directly to OpenAI with the API key you configure in Kayzart and uses gpt-6-sol. WordPress 7.0 sites configure the provider in Connectors rather than in Kayzart; a direct key saved before the upgrade keeps working and stays manageable until you remove it. There is no per-edit fee to Kayzart and no Kayzart server in the loop. AI editing is available by default to administrators and editors.
 
 **Or bring the code yourself**
 Write the page by hand, start from a template, drop in code from a designer, or paste what an AI tool gave you — then ask the built-in AI to refine it. The source doesn't matter — Kayzart is where that code becomes a page you can preview, keep editing, and ship in minutes, without a child theme and without fighting your theme's header, footer, and styles.
@@ -89,7 +89,7 @@ On WordPress 7.0 and later, configure a provider such as OpenAI, Anthropic, or G
 Access is controlled by a dedicated capability. Administrators and editors receive it on activation. Sites using standard WordPress capability-management tools can grant or remove it for other roles or individual users. Users without permission don't see the AI features at all. Site owners can also disable the feature entirely with a filter.
 
 = Which AI model does it use? =
-Connector-based editing follows the models exposed by the configured WordPress provider and can use Auto or a selected model. Direct OpenAI editing uses gpt-5.6-luna.
+Connector-based editing follows the models exposed by the configured WordPress provider and can use Auto or a selected model. Direct OpenAI editing uses gpt-6-sol; developers can switch it with the `kayzart_ai_openai_model` filter. A replacement model must support Responses API function calling and strict JSON-schema output.
 
 = Which fonts will the AI use? =
 Only fonts your site can really render. Kayzart passes the AI the font families registered on your site — those defined by your theme (theme.json) and any added through the WordPress Font Library — along with three system font stacks that need no download. That is why AI-styled pages keep their typography for visitors instead of falling back to the browser default. The AI cannot load remote fonts or external stylesheets. If you want a specific typeface, add it to the Font Library first and it becomes available to the AI.
@@ -286,7 +286,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 == External services ==
 Kayzart sends AI requests only after a site administrator configures an AI connection and a permitted user requests an AI operation. Requests can include the user's instruction, page title, HTML, custom head markup, CSS, read-only JavaScript context, selected element context, available font names, and recent Kayzart AI edit context.
 
-On WordPress 5.9–6.9, and as a fallback on newer versions, requests are sent directly to the OpenAI Responses API using the site's API key and gpt-5.6-luna. OpenAI terms: https://openai.com/policies/terms-of-use/ — privacy policy: https://openai.com/policies/privacy-policy/
+On WordPress 5.9–6.9, and as a fallback on newer versions, requests are sent directly to the OpenAI Responses API using the site's API key and gpt-6-sol (or the model set with the `kayzart_ai_openai_model` filter). OpenAI terms: https://openai.com/policies/terms-of-use/ — privacy policy: https://openai.com/policies/privacy-policy/
 
 On WordPress 7.0+, a configured WordPress Connector is preferred. Data handling and terms are determined by the provider selected in WordPress Connectors.
 

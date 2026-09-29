@@ -1779,7 +1779,7 @@ class Admin {
 		$status = Ai_Availability::get_status();
 		if ( Ai_Client_Factory::OPENAI === $status['backend'] ) {
 			echo '<input type="hidden" name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '" value="' . esc_attr( $model ) . '" />';
-			echo '<code>' . esc_html( Ai_Client_OpenAI::MODEL ) . '</code>';
+			echo '<code>' . esc_html( Ai_Client_OpenAI::model() ) . '</code>';
 			echo '<p class="description">' . esc_html__( 'Direct OpenAI access uses this fixed model.', 'kayzart-live-code-editor' ) . '</p>';
 			return;
 		}

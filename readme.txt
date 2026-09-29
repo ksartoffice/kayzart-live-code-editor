@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.1.1
+Stable tag: 3.2.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.2.0 =
+* Change: Direct OpenAI editing (WordPress 5.9–6.9) now uses gpt-6-sol for higher-quality pages. It costs more per edit than gpt-5.6-luna.
+* Add: The `kayzart_ai_openai_model` filter lets developers choose the model used for direct OpenAI editing.
+
 = 3.1.1 =
 * Add: After you have saved Kayzart pages a few times over at least a week, administrators see a one-time invitation to review Kayzart on WordPress.org. It can be postponed once or turned off, and nothing is sent from your site.
 * Add: Support and review links on the Plugins screen and in the footer of Kayzart's own screens.

@@ -1777,7 +1777,10 @@ class Admin {
 		$stored = get_option( self::OPTION_AI_DEFAULT_MODEL, '' );
 		$model  = is_string( $stored ) ? trim( $stored ) : '';
 		$status = Ai_Availability::get_status();
-		if ( Ai_Client_Factory::OPENAI === $status['backend'] ) {
+		// Without Connectors (before 7.0, or no AI Client) direct OpenAI is the only
+		// backend, so show its model even before a key is saved rather than
+		// pointing at a Connectors screen that does not exist.
+		if ( Ai_Client_Factory::OPENAI === $status['backend'] || ! Ai_OpenAI_Key::connectors_available() ) {
 			echo '<input type="hidden" name="' . esc_attr( self::OPTION_AI_DEFAULT_MODEL ) . '" value="' . esc_attr( $model ) . '" />';
 			echo '<code>' . esc_html( Ai_Client_OpenAI::model() ) . '</code>';
 			echo '<p class="description">' . esc_html__( 'Direct OpenAI access uses this fixed model.', 'kayzart-live-code-editor' ) . '</p>';

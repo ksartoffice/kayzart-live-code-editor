@@ -6,6 +6,7 @@
  */
 
 use KayzArt\Admin;
+use KayzArt\Ai_Client_OpenAI;
 use KayzArt\Ai_OpenAI_Key;
 use KayzArt\Ai_Setup;
 use KayzArt\Post_Type;
@@ -241,6 +242,30 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'name="' . Admin::OPTION_AI_DEFAULT_MODEL . '"', $output );
 		$this->assertStringContainsString( 'value="provider/model-a"', $output );
 		$this->assertStringContainsString( 'Direct OpenAI access uses this fixed model.', $output );
+	}
+
+	/** Without Connectors, the direct model is shown even before a key is saved. */
+	public function test_render_ai_default_model_field_shows_direct_model_without_key_when_connectors_are_unavailable(): void {
+		global $wp_version;
+
+		$original_wp_version = $wp_version;
+		delete_option( 'kayzart_openai_api_key' );
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+
+		try {
+			$wp_version = '6.9';
+			ob_start();
+			Admin::render_ai_default_model_field();
+			$output = (string) ob_get_clean();
+		} finally {
+			$wp_version = $original_wp_version;
+			remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		}
+
+		$this->assertStringContainsString( Ai_Client_OpenAI::MODEL, $output );
+		$this->assertStringContainsString( 'Direct OpenAI access uses this fixed model.', $output );
+		$this->assertStringNotContainsString( 'Connector', $output );
+		$this->assertStringNotContainsString( '<select', $output );
 	}
 
 	public function test_render_ai_max_turns_field_shows_the_configured_value_and_range(): void {

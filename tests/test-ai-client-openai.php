@@ -380,4 +380,43 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		$this->assertSame( 'gpt-6-luna', $captured['model'] );
 		$this->assertSame( 'gpt-6-luna', $result['model'] );
 	}
+
+	/** A response without a model records the requested one, resolving the filter once per turn. */
+	public function test_response_model_fallback_reuses_the_requested_model(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
+		$calls    = 0;
+		$captured = null;
+		add_filter(
+			'kayzart_ai_openai_model',
+			static function () use ( &$calls ) {
+				++$calls;
+				return 'rotating-model-' . $calls;
+			}
+		);
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $args ) use ( &$captured ) {
+				unset( $preempt );
+				$captured = json_decode( $args['body'], true );
+				return array(
+					'headers'  => array(),
+					'body'     => '{"output":[]}',
+					'response' => array(
+						'code'    => 200,
+						'message' => 'OK',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			},
+			10,
+			2
+		);
+
+		$result = ( new Ai_Client_OpenAI() )->generate( array( Ai_Message::user( 'test' ) ), array() );
+
+		$this->assertSame( 1, $calls );
+		$this->assertSame( 'rotating-model-1', $captured['model'] );
+		$this->assertSame( 'rotating-model-1', $result['model'] );
+	}
 }

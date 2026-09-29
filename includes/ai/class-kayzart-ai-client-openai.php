@@ -60,8 +60,10 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 			throw new Ai_Client_Exception( 'OpenAI API key is not configured.', false );
 		}
 
+		// Resolve once so the request and the recorded result name the same model.
+		$model   = self::model();
 		$payload = array(
-			'model' => self::model(),
+			'model' => $model,
 			'input' => $this->build_input( $messages ),
 		);
 		if ( ! empty( $options['systemInstruction'] ) ) {
@@ -107,7 +109,7 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 			throw new Ai_Client_Exception( 'OpenAI returned an invalid response.', true );
 		}
 
-		return $this->normalize_response( $body );
+		return $this->normalize_response( $body, $model );
 	}
 
 	/**
@@ -238,10 +240,11 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 	/**
 	 * Normalize Responses API output into the provider-neutral contract.
 	 *
-	 * @param array $body Decoded Responses API body.
+	 * @param array  $body Decoded Responses API body.
+	 * @param string $requested_model Model sent in the request, used when the body omits one.
 	 * @return array Normalized generation result.
 	 */
-	private function normalize_response( array $body ): array {
+	private function normalize_response( array $body, string $requested_model ): array {
 		$texts        = array();
 		$calls        = array();
 		$output_items = array();
@@ -276,7 +279,7 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 				'outputTokens'          => (int) ( $usage['output_tokens'] ?? 0 ),
 				'reasoningOutputTokens' => (int) ( $usage['output_tokens_details']['reasoning_tokens'] ?? 0 ),
 			),
-			'model'     => isset( $body['model'] ) ? (string) $body['model'] : self::model(),
+			'model'     => isset( $body['model'] ) ? (string) $body['model'] : $requested_model,
 		);
 		if ( ! empty( $calls ) && ! empty( $output_items ) ) {
 			$result['providerData'] = array(

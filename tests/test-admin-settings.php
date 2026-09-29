@@ -188,7 +188,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 	}
 
 	public function test_render_ai_default_model_field_discovers_models_once(): void {
-		$calls  = 0;
+		global $wp_version;
+
+		$original_wp_version = $wp_version;
+		$calls               = 0;
 		$filter = static function ( $models ) use ( &$calls ) {
 			++$calls;
 			return array_merge( $models, array(
@@ -199,14 +202,20 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 			) );
 		};
 		update_option( Admin::OPTION_AI_DEFAULT_MODEL, 'provider/model-a' );
+		delete_option( 'kayzart_openai_api_key' );
 		add_filter( 'kayzart_ai_available_models', $filter );
+		// The model dropdown only exists where Connectors can be used.
+		add_filter( 'kayzart_ai_sdk_present', '__return_true' );
 
 		try {
+			$wp_version = '7.0';
 			ob_start();
 			Admin::render_ai_default_model_field();
 			$output = ob_get_clean();
 		} finally {
+			$wp_version = $original_wp_version;
 			remove_filter( 'kayzart_ai_available_models', $filter );
+			remove_filter( 'kayzart_ai_sdk_present', '__return_true' );
 		}
 
 		$this->assertSame( 1, $calls );

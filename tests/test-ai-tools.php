@@ -1040,4 +1040,47 @@ class Test_Kayzart_Ai_Tools extends WP_UnitTestCase {
 			$result['snapshot']['css']
 		);
 	}
+
+	/** A whole-page write gets one combined report of every rule it breaks. */
+	public function test_validate_full_write_collects_every_violation(): void {
+		$before = $this->snapshot( '', '', '@import "tailwindcss";' . "\n" );
+		$after  = Ai_Tools::with_sources(
+			$before,
+			array(
+				'html' => '<main><button onclick="buy()">Buy</button><script>alert(1)</script></main>',
+				'head' => '<title>Shop</title>',
+				'css'  => 'main { color: red;',
+			)
+		);
+
+		$violations = Ai_Tools::validate_full_write( $before, $after, array( 'html', 'css' ) );
+		$joined     = implode( ' | ', $violations );
+
+		$this->assertStringContainsString( 'Target "head" is not editable in this mode.', $joined );
+		$this->assertStringContainsString( 'onclick', $joined );
+		$this->assertStringContainsString( 'script', $joined );
+		$this->assertStringContainsString( 'unbalanced brackets', $joined );
+		$this->assertStringContainsString( '@import "tailwindcss";', $joined );
+		$this->assertGreaterThanOrEqual( 5, count( $violations ) );
+	}
+
+	/** A clean whole-page write passes and recomputes the base hash. */
+	public function test_with_sources_and_clean_full_write(): void {
+		$before = $this->snapshot( '', '', '', 'console.log(1);' );
+		$after  = Ai_Tools::with_sources(
+			$before,
+			array(
+				'html' => '<main>Apples</main>',
+				'head' => '<title>Apples</title>',
+				'css'  => 'main { color: #1f2937; }',
+				'js'   => 'ignored();',
+			)
+		);
+
+		$this->assertSame( '<main>Apples</main>', $after['html'] );
+		$this->assertSame( '<title>Apples</title>', $after['customHead'] );
+		$this->assertSame( 'console.log(1);', $after['js'] );
+		$this->assertSame( Ai_Tools::compute_base_hash( '<main>Apples</main>', '<title>Apples</title>', 'main { color: #1f2937; }', 'console.log(1);' ), $after['baseHash'] );
+		$this->assertSame( array(), Ai_Tools::validate_full_write( $before, $after, array( 'html', 'head', 'css' ) ) );
+	}
 }

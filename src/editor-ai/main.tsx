@@ -164,6 +164,8 @@ function toolLabel(event: AiJobEvent) {
 function eventLabel(event: AiJobEvent) {
   if (event.event === 'progress') {
     if (event.phase === 'finalization') return __('Wrapping up the changes…', 'kayzart-live-code-editor');
+    if (event.phase === 'generate') return __('Writing the page…', 'kayzart-live-code-editor');
+    if (event.phase === 'repair') return __('Fixing a few details…', 'kayzart-live-code-editor');
     if (event.turn && event.maxTurns && event.turn > event.maxTurns - TURNS_LEFT_BEFORE_COUNTER) return sprintf(
       /* translators: 1: current attempt, 2: maximum attempts. */
       __('Still working… (%1$d/%2$d)', 'kayzart-live-code-editor'), event.turn, event.maxTurns,

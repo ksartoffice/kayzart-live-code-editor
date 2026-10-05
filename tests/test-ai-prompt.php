@@ -68,6 +68,55 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The generation workflow keeps the page rules but asks for one JSON
+	 * response, so nothing in it may talk about tools or finishing turns.
+	 */
+	public function test_generation_system_prompt_has_no_tool_rules(): void {
+		$prompt = Ai_Prompt::generation_system_prompt( 'tailwind' );
+
+		$this->assertStringContainsString( 'You are the Kayzart AI page generation engine.', $prompt );
+		$this->assertStringContainsString( 'Build one complete, publishable page', $prompt );
+		$this->assertStringContainsString( 'Plan the full section list before writing', $prompt );
+		$this->assertStringContainsString( 'Respond with one JSON object that matches the response schema', $prompt );
+		$this->assertStringContainsString( 'Write css first, then head when the schema has it, then html, then summary', $prompt );
+		$this->assertStringContainsString( 'Do not create or preserve <script> tags', $prompt );
+		$this->assertStringContainsString( 'Tailwind mode rules:', $prompt );
+		$this->assertStringContainsString( 'Do not write HTML comments.', $prompt );
+		foreach ( array( 'tool call', 'finish_edit', 'finish_without_edit', 'replace_string', 'read_document', '{"summary":"..."}' ) as $tool_phrase ) {
+			$this->assertStringNotContainsString( $tool_phrase, $prompt, $tool_phrase );
+		}
+		$this->assertStringNotContainsString( "\r", $prompt );
+		$this->assertSame( trim( $prompt ), $prompt );
+	}
+
+	/**
+	 * Both creation flows tell the model to use the tokens it defines rather
+	 * than repeating their values, which a real run did on every element.
+	 */
+	public function test_creation_prompts_ask_for_token_utilities(): void {
+		foreach ( array( Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE, 'tailwind' ), Ai_Prompt::generation_system_prompt( 'tailwind' ) ) as $prompt ) {
+			$this->assertStringContainsString( 'Never repeat its value as an arbitrary utility like `bg-[#f8fafc]`', $prompt );
+		}
+		$this->assertStringNotContainsString( 'arbitrary utility like', Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'tailwind' ) );
+	}
+
+	/**
+	 * Sources that fit whole are announced as exact, so the model does not
+	 * spend a turn reading back what it was already given.
+	 */
+	public function test_source_heading_says_whether_previews_are_complete(): void {
+		$payload = array(
+			'editorMode' => 'tailwind',
+			'prompt'     => 'A page',
+			'css'        => "@import \"tailwindcss\";\n",
+		);
+		$this->assertSame( 'Current sources, complete and exact (nothing below is truncated):', Ai_Prompt::debug_input_parts( $payload )['source_preview_heading'] );
+
+		$payload['html'] = str_repeat( 'a', Ai_Prompt::LEADING_CONTEXT_CHARS + 1 );
+		$this->assertSame( 'Leading source previews for initial orientation:', Ai_Prompt::debug_input_parts( $payload )['source_preview_heading'] );
+	}
+
+	/**
 	 * Why bundling is safe belongs beside the tool, where it is read at the
 	 * moment the tool is chosen. What stays here is the part no tool can see:
 	 * that a turn spent confirming edits already made is a turn wasted.

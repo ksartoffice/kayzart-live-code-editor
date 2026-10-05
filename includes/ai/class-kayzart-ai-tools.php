@@ -172,6 +172,77 @@ class Ai_Tools {
 	}
 
 	/**
+	 * Return a new snapshot with several targets replaced at once.
+	 *
+	 * @param array                $snapshot Snapshot array.
+	 * @param array<string,string> $sources  Replacement source keyed by target (html/head/css).
+	 * @return array New snapshot.
+	 */
+	public static function with_sources( array $snapshot, array $sources ): array {
+		foreach ( $sources as $target => $source ) {
+			if ( in_array( $target, array( 'html', 'head', 'css' ), true ) ) {
+				$snapshot = self::replace_snapshot_source( $snapshot, (string) $target, (string) $source );
+			}
+		}
+		return $snapshot;
+	}
+
+	/**
+	 * Check a whole-page write against every rule the edit tools enforce.
+	 *
+	 * The generation workflow writes all targets in one step, so it needs the
+	 * same guards as replace_string and replace_many. Unlike those, it reports
+	 * every violation instead of stopping at the first, because the list becomes
+	 * the brief for the repair loop that fixes them.
+	 *
+	 * @param array         $before           Snapshot before the write.
+	 * @param array         $after            Candidate snapshot after the write.
+	 * @param array<string> $editable_targets Editable target allow list.
+	 * @return array<int,string> Violation messages; empty when the write is acceptable.
+	 */
+	public static function validate_full_write( array $before, array $after, array $editable_targets ): array {
+		$violations = array();
+		foreach ( self::TARGETS as $target ) {
+			$key = self::target_to_key( $target );
+			if ( 'js' === $target || in_array( $target, $editable_targets, true ) ) {
+				continue;
+			}
+			if ( (string) ( $before[ $key ] ?? '' ) !== (string) ( $after[ $key ] ?? '' ) ) {
+				$violations[] = 'Target "' . $target . '" is not editable in this mode.';
+			}
+		}
+
+		$before_css = (string) ( $before['css'] ?? '' );
+		$after_css  = (string) ( $after['css'] ?? '' );
+		$checks     = array(
+			static function () use ( $before, $after ) {
+				Ai_Output_Policy::assert_safe_transition( $before, $after );
+			},
+			static function () use ( $before_css, $after_css ) {
+				Ai_Css_Syntax::assert_no_new_imbalance( $before_css, $after_css );
+			},
+			static function () use ( $before_css, $after_css ) {
+				Ai_Css_Imports::assert_tailwind_import_kept( $before_css, $after_css );
+			},
+		);
+		foreach ( $checks as $check ) {
+			try {
+				$check();
+			} catch ( Ai_Tool_Error $error ) {
+				$details = $error->get_details();
+				if ( isset( $details['violations'] ) && is_array( $details['violations'] ) ) {
+					foreach ( $details['violations'] as $violation ) {
+						$violations[] = (string) $violation;
+					}
+				} else {
+					$violations[] = $error->getMessage();
+				}
+			}
+		}
+		return $violations;
+	}
+
+	/**
 	 * Validate a target against the editable allow list.
 	 *
 	 * @param mixed         $value           Raw target value.

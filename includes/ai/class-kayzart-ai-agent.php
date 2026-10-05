@@ -37,6 +37,7 @@ class Ai_Agent {
 	const CREATE_REQUEST_TIMEOUT_SECONDS = 120.0;
 
 	const MAX_AGENT_TURNS             = 15;
+	const REPAIR_MAX_TURNS            = 4;
 	const FINALIZATION_TURNS          = 1;
 	const REPEATED_TOOL_FAILURE_LIMIT = 3;
 	const READ_BUDGET_PER_TURN        = 12000;
@@ -176,9 +177,13 @@ class Ai_Agent {
 	 * @return array
 	 */
 	public function create_state( array $payload ): array {
+		// Page creation has nothing to look up, so it starts with the one-shot
+		// generation workflow; the tool loop serves only as its repair and
+		// fallback path. Editing keeps the loop from the first turn.
+		$phase = Ai_Prompt::INTENT_CREATE === Ai_Prompt::resolve_intent( $payload ) ? 'generate' : 'agent';
 		return array(
 			'schemaVersion'        => 1,
-			'phase'                => 'agent',
+			'phase'                => $phase,
 			'turn'                 => 0,
 			'finalizationTurn'     => 0,
 			'messages'             => array( Ai_Message::user( Ai_Prompt::build_user_prompt( $payload ) ) ),
@@ -242,7 +247,14 @@ class Ai_Agent {
 		if ( 'finalization' === $phase ) {
 			return $this->advance_finalization( $payload, $state );
 		}
+		if ( 'generate' === $phase ) {
+			return $this->advance_generate( $payload, $state );
+		}
+		$is_repair       = ! empty( $state['repair'] );
 		$max_agent_turns = self::resolve_max_agent_turns( $payload );
+		if ( $is_repair ) {
+			$max_agent_turns = min( $max_agent_turns, self::REPAIR_MAX_TURNS );
+		}
 		if ( (int) $state['turn'] >= $max_agent_turns ) {
 			if ( empty( $state['appliedEditOperation'] ) ) {
 				throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns.', true, 'max_turns' );
@@ -270,17 +282,12 @@ class Ai_Agent {
 		$tools                 = Ai_Tool_Schema::build_tool_definitions( $editable_targets, $has_history_tool, $has_selection_context, $has_font_tool );
 		$snapshot              = $state['snapshot'];
 
-		$turn_options    = array(
-			'systemInstruction' => Ai_Prompt::system_prompt( $intent, isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : 'normal' ),
+		$turn_options = $this->provider_options(
+			$payload,
+			array(
+				'systemInstruction' => $this->agent_system_prompt( $payload, $state ),
+			)
 		);
-		$request_timeout = self::resolve_request_timeout( $payload );
-		if ( null !== $request_timeout ) {
-			$turn_options['requestTimeout'] = $request_timeout;
-		}
-		$model_preference = self::resolve_model_preference( $payload );
-		if ( count( $model_preference ) > 0 ) {
-			$turn_options['modelPreference'] = $model_preference;
-		}
 
 		$messages               = $state['messages'];
 		$applied_edit_operation = (bool) $state['appliedEditOperation'];
@@ -293,14 +300,16 @@ class Ai_Agent {
 
 		// The UI builds its own wording from these fields; `message` stays empty so
 		// no internal phrasing reaches the chat.
-		$this->emit_event(
-			array(
-				'event'    => 'progress',
-				'message'  => '',
-				'turn'     => $turn + 1,
-				'maxTurns' => $max_agent_turns,
-			)
+		$progress = array(
+			'event'    => 'progress',
+			'message'  => '',
+			'turn'     => $turn + 1,
+			'maxTurns' => $max_agent_turns,
 		);
+		if ( $is_repair ) {
+			$progress['phase'] = 'repair';
+		}
+		$this->emit_event( $progress );
 
 		$model_messages = $this->build_model_context( $messages );
 		$this->log_model_request_trace( 'agent', $turn + 1, $model_messages, $tools, $turn_options );
@@ -532,18 +541,13 @@ class Ai_Agent {
 		if ( $index >= self::FINALIZATION_TURNS ) {
 			throw new Ai_Agent_Error( 'Agent loop exceeded maximum turns before final summary.', true, 'max_turns' );
 		}
-		$options         = array(
-			'systemInstruction' => Ai_Prompt::system_prompt( Ai_Prompt::resolve_intent( $payload ), isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : 'normal' ),
-			'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
+		$options = $this->provider_options(
+			$payload,
+			array(
+				'systemInstruction' => $this->agent_system_prompt( $payload, $state ),
+				'jsonSchema'        => self::FINAL_SUMMARY_JSON_SCHEMA,
+			)
 		);
-		$request_timeout = self::resolve_request_timeout( $payload );
-		if ( null !== $request_timeout ) {
-			$options['requestTimeout'] = $request_timeout;
-		}
-		$model_preference = self::resolve_model_preference( $payload );
-		if ( count( $model_preference ) > 0 ) {
-			$options['modelPreference'] = $model_preference;
-		}
 		$this->emit_event(
 			array(
 				'event'   => 'progress',
@@ -571,6 +575,211 @@ class Ai_Agent {
 		return $this->completed_step( $payload, $state, $state['snapshot'], $summary, $usage, 'finalization', $index + 1, $provider_seconds, 0.0 );
 	}
 
+	/** Author the whole page in one structured provider call.
+	 *
+	 * Three outcomes leave this phase. A page that passes every guard the edit
+	 * tools apply completes the job. A page that fails one is kept as the working
+	 * snapshot and handed to a short tool loop under the editing rules, which
+	 * fixes the listed problems in place instead of paying for the whole page a
+	 * second time. A response that is not the requested JSON at all -- truncated
+	 * at the output limit, or from a provider that ignored the schema -- falls
+	 * back to the tool loop that authored pages before this workflow existed.
+	 *
+	 * @param array $payload Request payload.
+	 * @param array $state   Persisted agent state.
+	 * @return array
+	 * @throws Ai_Agent_Error When the completed page violates the server policy.
+	 */
+	private function advance_generate( array $payload, array $state ): array {
+		$editor_mode      = isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : 'normal';
+		$editable_targets = $this->editable_targets( $payload );
+		$options          = $this->provider_options(
+			$payload,
+			array(
+				'systemInstruction' => Ai_Prompt::generation_system_prompt( $editor_mode ),
+				'jsonSchema'        => self::generation_schema( $editable_targets ),
+			)
+		);
+		$this->emit_event(
+			array(
+				'event'   => 'progress',
+				'message' => '',
+				'phase'   => 'generate',
+			)
+		);
+
+		$model_messages = $this->build_model_context( $state['messages'] );
+		$this->log_model_request_trace( 'generate', 1, $model_messages, array(), $options );
+		$provider_started = microtime( true );
+		$result           = $this->client->generate( $model_messages, array(), $options );
+		$provider_seconds = microtime( true ) - $provider_started;
+		$this->log_model_response_trace( 'generate', 1, $result );
+		$this->log_input_token_breakdown( 'generate', 1, $model_messages, array(), $options, $result );
+		$usage          = self::add_usage( $state['usage'], isset( $result['usage'] ) ? $result['usage'] : array() );
+		$usage          = self::remember_model( $usage, $result );
+		$state['usage'] = $usage;
+		$state['phase'] = 'agent';
+
+		$checks_started = microtime( true );
+		$page           = $this->parse_generated_page( isset( $result['text'] ) ? (string) $result['text'] : '', $editable_targets );
+		if ( null === $page ) {
+			return $this->continued_step( $state, 'generate', 1, $provider_seconds, 0.0, array( 'workflowFallback' => 'invalid_response' ) );
+		}
+
+		$initial = $state['snapshot'];
+		$sources = $page['sources'];
+		// Dropping the import is the commonest way a whole-page write breaks a
+		// Tailwind page, and putting it back needs no judgement, so it is not
+		// worth a repair turn.
+		$initial_css = isset( $initial['css'] ) ? (string) $initial['css'] : '';
+		if ( Ai_Css_Imports::has_tailwind_import( $initial_css ) && ! Ai_Css_Imports::has_tailwind_import( $sources['css'] ) ) {
+			$sources['css'] = '@import "tailwindcss";' . "\n\n" . ltrim( $sources['css'] );
+		}
+		$candidate    = Ai_Tools::with_sources( $initial, $sources );
+		$violations   = Ai_Tools::validate_full_write( $initial, $candidate, $editable_targets );
+		$tool_seconds = microtime( true ) - $checks_started;
+		if ( 0 === count( $violations ) ) {
+			return $this->completed_step( $payload, $state, $candidate, $page['summary'], $usage, 'generate', 1, $provider_seconds, $tool_seconds );
+		}
+
+		$state['repair']               = true;
+		$state['generatedSummary']     = $page['summary'];
+		$state['snapshot']             = $candidate;
+		$state['appliedEditOperation'] = true;
+		$state['finishReady']          = false;
+		// One user message rather than two in a row: not every provider accepts
+		// consecutive user turns.
+		$state['messages'][0] = Ai_Message::user(
+			(string) $state['messages'][0]['text'] . "\n\n" . self::repair_brief( $violations )
+		);
+		return $this->continued_step( $state, 'generate', 1, $provider_seconds, $tool_seconds, array( 'workflowRepair' => count( $violations ) ) );
+	}
+
+	/** JSON schema for the generation workflow's single response.
+	 *
+	 * Fields are ordered as the model should write them: the CSS defines the
+	 * theme tokens the markup then uses, and the summary describes a page that
+	 * already exists. head appears only when the job may change it, so a user
+	 * without unfiltered_html is never offered a field whose content would be
+	 * rejected.
+	 *
+	 * @param array<string> $editable_targets Editable target allow list.
+	 * @return array
+	 */
+	public static function generation_schema( array $editable_targets ): array {
+		$properties = array( 'css' => array( 'type' => 'string' ) );
+		if ( in_array( 'head', $editable_targets, true ) ) {
+			$properties['head'] = array( 'type' => 'string' );
+		}
+		$properties['html']    = array( 'type' => 'string' );
+		$properties['summary'] = array( 'type' => 'string' );
+		return array(
+			'type'                 => 'object',
+			'properties'           => $properties,
+			'required'             => array_keys( $properties ),
+			'additionalProperties' => false,
+		);
+	}
+
+	/** Parse the generation response into sources and a summary.
+	 *
+	 * @param string        $text             Model text output.
+	 * @param array<string> $editable_targets Editable target allow list.
+	 * @return array{sources:array<string,string>,summary:string}|null Null when the response is unusable.
+	 */
+	private function parse_generated_page( string $text, array $editable_targets ): ?array {
+		$parsed = $this->parse_json_object_from_text( $text );
+		if ( null === $parsed ) {
+			return null;
+		}
+		$fields = array_keys( self::generation_schema( $editable_targets )['properties'] );
+		foreach ( $fields as $field ) {
+			if ( ! isset( $parsed[ $field ] ) || ! is_string( $parsed[ $field ] ) ) {
+				return null;
+			}
+		}
+		$summary = trim( $parsed['summary'] );
+		if ( '' === trim( $parsed['html'] ) || '' === $summary ) {
+			return null;
+		}
+		$sources = array();
+		foreach ( $fields as $field ) {
+			if ( 'summary' !== $field ) {
+				$sources[ $field ] = $parsed[ $field ];
+			}
+		}
+		return array(
+			'sources' => $sources,
+			'summary' => mb_substr( $summary, 0, 1000 ),
+		);
+	}
+
+	/** Describe a generated page's violations to the repair loop.
+	 *
+	 * @param array<int,string> $violations Violation messages.
+	 * @return string
+	 */
+	private static function repair_brief( array $violations ): string {
+		$lines = array(
+			'Repair request:',
+			'The page for this brief has already been written into the editable targets. The source previews above show them as they were before it, so search or read the current sources instead of relying on the previews.',
+			'The page failed these server checks:',
+		);
+		foreach ( array_slice( $violations, 0, 10 ) as $violation ) {
+			$lines[] = '- ' . $violation;
+		}
+		$lines[] = 'Fix only these problems with the edit tools, keeping everything else as it is, and call finish_edit in the same response as your last fix.';
+		return implode( "\n", $lines );
+	}
+
+	/** System prompt for a tool-loop turn.
+	 *
+	 * A repair works on a page that already exists, which is the editing task,
+	 * not the authoring one: the creation rules would tell the model to write
+	 * the whole page again.
+	 *
+	 * @param array $payload Request payload.
+	 * @param array $state   Persisted agent state.
+	 * @return string
+	 */
+	private function agent_system_prompt( array $payload, array $state ): string {
+		$intent = empty( $state['repair'] ) ? Ai_Prompt::resolve_intent( $payload ) : Ai_Prompt::INTENT_EDIT;
+		return Ai_Prompt::system_prompt( $intent, isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : 'normal' );
+	}
+
+	/** Add the per-job provider options to a call's options.
+	 *
+	 * @param array $payload Request payload.
+	 * @param array $options Call-specific options.
+	 * @return array
+	 */
+	private function provider_options( array $payload, array $options ): array {
+		$request_timeout = self::resolve_request_timeout( $payload );
+		if ( null !== $request_timeout ) {
+			$options['requestTimeout'] = $request_timeout;
+		}
+		$model_preference = self::resolve_model_preference( $payload );
+		if ( count( $model_preference ) > 0 ) {
+			$options['modelPreference'] = $model_preference;
+		}
+		return $options;
+	}
+
+	/** Resolve the editable targets for a job payload.
+	 *
+	 * @param array $payload Request payload.
+	 * @return array<string>
+	 */
+	private function editable_targets( array $payload ): array {
+		$policy = Ai_Tool_Schema::resolve_edit_policy(
+			isset( $payload['editorMode'] ) ? (string) $payload['editorMode'] : '',
+			isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '',
+			! empty( $payload['canEditHead'] ),
+			Ai_Prompt::resolve_intent( $payload )
+		);
+		return $policy['editableTargets'];
+	}
+
 	/** Validate a persisted checkpoint before using it.
 	 *
 	 * @param array $state Persisted agent state.
@@ -583,7 +792,7 @@ class Ai_Agent {
 				throw new Ai_Agent_Error( 'The persisted AI agent state is invalid.', false );
 			}
 		}
-		if ( 1 !== (int) $state['schemaVersion'] || ! in_array( $state['phase'], array( 'agent', 'finalization' ), true ) || ! is_array( $state['messages'] ) || ! is_array( $state['snapshot'] ) || ! is_array( $state['selectionRecords'] ) || ! is_array( $state['usage'] ) || ! is_array( $state['repeatedFailures'] ) ) {
+		if ( 1 !== (int) $state['schemaVersion'] || ! in_array( $state['phase'], array( 'generate', 'agent', 'finalization' ), true ) || ! is_array( $state['messages'] ) || ! is_array( $state['snapshot'] ) || ! is_array( $state['selectionRecords'] ) || ! is_array( $state['usage'] ) || ! is_array( $state['repeatedFailures'] ) ) {
 			throw new Ai_Agent_Error( 'The persisted AI agent state is invalid.', false );
 		}
 	}
@@ -604,6 +813,20 @@ class Ai_Agent {
 	 */
 	private function completed_step( array $payload, array $state, array $snapshot, string $summary, array $usage, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
 		$initial_snapshot = $this->initial_snapshot( $payload );
+		if ( ! empty( $state['repair'] ) ) {
+			// The repair loop started from a page that already broke these rules,
+			// and the per-call CSS guards only reject new damage, so a repair that
+			// never touched the problem would pass them. Judge the whole result.
+			$violations = Ai_Tools::validate_full_write( $initial_snapshot, $snapshot, $this->editable_targets( $payload ) );
+			if ( count( $violations ) > 0 ) {
+				throw new Ai_Agent_Error( 'The generated page still fails the server checks after repair: ' . esc_html( implode( ' ', array_slice( $violations, 0, 3 ) ) ), false );
+			}
+			if ( isset( $state['generatedSummary'] ) && '' !== (string) $state['generatedSummary'] ) {
+				// The repair's own summary describes a few fixes; the person asked
+				// for a page, so tell them about the page.
+				$summary = (string) $state['generatedSummary'];
+			}
+		}
 		if ( empty( $payload['canEditHead'] ) && ( isset( $snapshot['customHead'] ) ? (string) $snapshot['customHead'] : '' ) !== $initial_snapshot['customHead'] ) {
 			throw new Ai_Agent_Error( 'The completed AI edit modifies the custom head without permission.', false );
 		}
@@ -631,10 +854,11 @@ class Ai_Agent {
 	 * @param int    $turn             Current turn.
 	 * @param float  $provider_seconds Provider duration.
 	 * @param float  $tool_seconds     Tool duration.
+	 * @param array  $extra_metrics    Content-free values added to the step metrics.
 	 * @return array
 	 */
-	private function continued_step( array $state, string $phase, int $turn, float $provider_seconds, float $tool_seconds ): array {
-		$metrics = $this->step_metrics( $phase, $turn, $provider_seconds, $tool_seconds, $state['usage'] );
+	private function continued_step( array $state, string $phase, int $turn, float $provider_seconds, float $tool_seconds, array $extra_metrics = array() ): array {
+		$metrics = array_merge( $this->step_metrics( $phase, $turn, $provider_seconds, $tool_seconds, $state['usage'] ), $extra_metrics );
 		$this->observe_step( $metrics );
 		return array(
 			'status'  => 'continue',

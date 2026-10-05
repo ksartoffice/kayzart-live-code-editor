@@ -10,6 +10,7 @@ use KayzArt\Ai_Agent_Error;
 use KayzArt\Ai_Agent_Canceled;
 use KayzArt\Ai_Client_Fake;
 use KayzArt\Ai_Message;
+use KayzArt\Ai_Prompt;
 
 require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 
@@ -35,6 +36,39 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 			'js'          => '',
 			'jsMode'      => 'classic',
 		);
+	}
+
+	/** A page-creation payload over blank sources.
+	 *
+	 * @param string $editor_mode Editor mode.
+	 * @param string $css         Initial CSS.
+	 * @return array
+	 */
+	private function create_payload( string $editor_mode = 'normal', string $css = '' ): array {
+		$payload               = $this->payload( '' );
+		$payload['intent']     = 'create';
+		$payload['editorMode'] = $editor_mode;
+		$payload['prompt']     = 'A page for an apple farm';
+		$payload['css']        = $css;
+		return $payload;
+	}
+
+	/** Encode a generation-workflow response.
+	 *
+	 * @param array $overrides Fields to replace or, with a null value, remove.
+	 * @return string
+	 */
+	private function generated_page( array $overrides = array() ): string {
+		$page = array_merge(
+			array(
+				'css'     => 'main { color: #1f2937; }',
+				'head'    => '<title>Apple farm</title>',
+				'html'    => '<main><h1>Apples</h1></main>',
+				'summary' => 'Built an apple farm page.',
+			),
+			$overrides
+		);
+		return (string) wp_json_encode( array_filter( $page, 'is_string' ) );
 	}
 
 	/** Invoke a private agent diagnostic helper.
@@ -129,12 +163,8 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$creating['intent'] = 'create';
 
 		$client = new Ai_Client_Fake();
-		$client->queue_final_text( '{"summary":"not edited"}' );
-		try {
-			( new Ai_Agent( $client ) )->run( $creating );
-		} catch ( Ai_Agent_Error $error ) {
-			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
-		}
+		$client->queue_final_text( $this->generated_page() );
+		( new Ai_Agent( $client ) )->run( $creating );
 		$this->assertSame( Ai_Agent::CREATE_REQUEST_TIMEOUT_SECONDS, $client->calls()[0]['options']['requestTimeout'] );
 
 		$editor = new Ai_Client_Fake();
@@ -230,6 +260,9 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$creation           = $this->payload( '' );
 		$creation['intent'] = 'create';
 		$create_fake        = new Ai_Client_Fake();
+		// An unusable generation response sends creation to the tool loop, which
+		// is where its tool exposure can be observed.
+		$create_fake->queue_final_text( 'not json' );
 		$create_fake->queue_final_text( '{"summary":"not edited"}' );
 		try {
 			( new Ai_Agent(
@@ -243,9 +276,210 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		} catch ( Ai_Agent_Error $error ) {
 			$this->assertStringContainsString( 'No edit operations', $error->getMessage() );
 		}
-		$creation_names = array_column( $create_fake->calls()[0]['tools'], 'name' );
+		$this->assertSame( array(), $create_fake->calls()[0]['tools'] );
+		$creation_names = array_column( $create_fake->calls()[1]['tools'], 'name' );
 		$this->assertNotContains( 'list_ai_edits', $creation_names );
 		$this->assertNotContains( 'list_available_fonts', $creation_names );
+	}
+
+	/** Page creation writes every target from one structured call without tools. */
+	public function test_create_generates_the_page_in_one_call(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_result(
+			array(
+				'text'  => $this->generated_page(),
+				'usage' => array(
+					'inputTokens'  => 3000,
+					'outputTokens' => 900,
+				),
+			)
+		);
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->create_payload() );
+
+		$this->assertCount( 1, $fake->calls() );
+		$options = $fake->calls()[0]['options'];
+		$this->assertSame( array(), $fake->calls()[0]['tools'] );
+		$this->assertSame( Ai_Prompt::generation_system_prompt( 'normal' ), $options['systemInstruction'] );
+		$this->assertSame( array( 'css', 'head', 'html', 'summary' ), array_keys( $options['jsonSchema']['properties'] ) );
+		$this->assertSame( array( 'css', 'head', 'html', 'summary' ), $options['jsonSchema']['required'] );
+		$this->assertSame( '<main><h1>Apples</h1></main>', $result['snapshot']['html'] );
+		$this->assertSame( '<title>Apple farm</title>', $result['snapshot']['customHead'] );
+		$this->assertSame( 'main { color: #1f2937; }', $result['snapshot']['css'] );
+		$this->assertSame( 'Built an apple farm page.', $result['summary'] );
+		$this->assertSame( 3000, $result['usage']['inputTokens'] );
+	}
+
+	/** A user who cannot persist head edits is never offered a head field. */
+	public function test_create_schema_omits_head_without_permission(): void {
+		$payload                = $this->create_payload();
+		$payload['canEditHead'] = false;
+		$fake                   = new Ai_Client_Fake();
+		$fake->queue_final_text( $this->generated_page( array( 'head' => null ) ) );
+
+		$result = ( new Ai_Agent( $fake ) )->run( $payload );
+
+		$this->assertSame( array( 'css', 'html', 'summary' ), array_keys( $fake->calls()[0]['options']['jsonSchema']['properties'] ) );
+		$this->assertSame( '', $result['snapshot']['customHead'] );
+		$this->assertSame( '<main><h1>Apples</h1></main>', $result['snapshot']['html'] );
+	}
+
+	/** A dropped Tailwind import is restored without spending a repair turn. */
+	public function test_create_restores_a_dropped_tailwind_import(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_final_text( $this->generated_page( array( 'css' => "@theme {\n  --color-ink: #111311;\n}\n" ) ) );
+
+		$result = ( new Ai_Agent( $fake ) )->run( $this->create_payload( 'tailwind', "@import \"tailwindcss\";\n\n@theme {\n  /* ... */\n}\n" ) );
+
+		$this->assertCount( 1, $fake->calls() );
+		$this->assertStringStartsWith( "@import \"tailwindcss\";\n\n@theme {", $result['snapshot']['css'] );
+	}
+
+	/** An unsafe page is fixed in place by the editing loop, not regenerated. */
+	public function test_create_repairs_an_unsafe_page_with_the_edit_loop(): void {
+		$events = array();
+		$fake   = new Ai_Client_Fake();
+		$fake->queue_final_text( $this->generated_page( array( 'html' => '<main><button onclick="buy()">Buy</button></main>' ) ) );
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'r1', '<button onclick="buy()">Buy</button>', '<a href="#order">Buy</a>' ),
+				$this->finish_call( 'f1', 'Removed the inline handler.' ),
+			)
+		);
+		$agent = new Ai_Agent(
+			$fake,
+			array(
+				'emit' => static function ( array $event ) use ( &$events ) {
+					$events[] = $event;
+				},
+			)
+		);
+
+		$result = $agent->run( $this->create_payload() );
+
+		$this->assertCount( 2, $fake->calls() );
+		$repair = $fake->calls()[1];
+		$this->assertNotEmpty( $repair['tools'] );
+		$this->assertSame( Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT, 'normal' ), $repair['options']['systemInstruction'] );
+		$this->assertCount( 1, $repair['messages'] );
+		$this->assertStringContainsString( 'Repair request:', $repair['messages'][0]['text'] );
+		$this->assertStringContainsString( 'onclick', $repair['messages'][0]['text'] );
+		$this->assertSame( '<main><a href="#order">Buy</a></main>', $result['snapshot']['html'] );
+		// The person asked for a page, so the page's summary wins over the fix's.
+		$this->assertSame( 'Built an apple farm page.', $result['summary'] );
+		$phases = array_column( array_filter( $events, static fn( $event ) => 'progress' === $event['event'] ), 'phase' );
+		$this->assertSame( array( 'generate', 'repair' ), $phases );
+	}
+
+	/** A repair that never fixes the reported problem cannot complete the job. */
+	public function test_create_repair_must_fix_every_violation(): void {
+		$fake = new Ai_Client_Fake();
+		$fake->queue_final_text( $this->generated_page( array( 'css' => 'main { color: red;' ) ) );
+		$fake->queue_tool_calls(
+			array(
+				$this->replace_call( 'r1', '<h1>Apples</h1>', '<h1>Fresh apples</h1>' ),
+				$this->finish_call( 'f1', 'Adjusted the heading.' ),
+			)
+		);
+
+		try {
+			( new Ai_Agent( $fake ) )->run( $this->create_payload() );
+			$this->fail( 'Expected the unrepaired page to be rejected.' );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'still fails the server checks after repair', $error->getMessage() );
+			$this->assertFalse( $error->is_retryable() );
+		}
+	}
+
+	/** The repair loop runs under its own small turn cap. */
+	public function test_create_repair_uses_its_own_turn_cap(): void {
+		$payload                  = $this->create_payload();
+		$payload['maxAgentTurns'] = 15;
+		$agent                    = new Ai_Agent( new Ai_Client_Fake() );
+		$state                    = $agent->create_state( $payload );
+		$state['phase']           = 'agent';
+		$state['repair']          = true;
+		$state['turn']            = Ai_Agent::REPAIR_MAX_TURNS;
+
+		try {
+			$agent->advance( $payload, $state );
+			$this->fail( 'Expected the repair turn cap to stop the loop.' );
+		} catch ( Ai_Agent_Error $error ) {
+			$this->assertStringContainsString( 'maximum turns', $error->getMessage() );
+		}
+	}
+
+	/** Unusable generation responses fall back to the creation tool loop. */
+	public function test_create_falls_back_to_the_tool_loop_on_an_unusable_response(): void {
+		foreach (
+			array(
+				'not json'      => 'Here is your page!',
+				'missing html'  => $this->generated_page( array( 'html' => null ) ),
+				'empty summary' => $this->generated_page( array( 'summary' => ' ' ) ),
+			) as $label => $response
+		) {
+			$fake = new Ai_Client_Fake();
+			$fake->queue_final_text( $response );
+			$agent = new Ai_Agent( $fake );
+			$step  = $agent->advance( $this->create_payload(), $agent->create_state( $this->create_payload() ) );
+
+			$this->assertSame( 'continue', $step['status'], $label );
+			$this->assertSame( 'agent', $step['state']['phase'], $label );
+			$this->assertTrue( empty( $step['state']['repair'] ), $label );
+			$this->assertSame( 'invalid_response', $step['metrics']['workflowFallback'], $label );
+			$this->assertSame( '', $step['state']['snapshot']['html'], $label );
+		}
+
+		$fake = new Ai_Client_Fake();
+		$fake->queue_final_text( 'Here is your page!' );
+		$fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'w1',
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => '<main>Apples</main>',
+					)
+				),
+				$this->finish_call( 'f1', 'Built the page.' ),
+			)
+		);
+		$result = ( new Ai_Agent( $fake ) )->run( $this->create_payload() );
+		$this->assertSame( Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE, 'normal' ), $fake->calls()[1]['options']['systemInstruction'] );
+		$this->assertSame( '<main>Apples</main>', $result['snapshot']['html'] );
+		$this->assertSame( 'Built the page.', $result['summary'] );
+	}
+
+	/** A creation job checkpointed in the tool loop before this release still advances. */
+	public function test_create_state_already_in_the_tool_loop_still_advances(): void {
+		$payload        = $this->create_payload();
+		$agent_fake     = new Ai_Client_Fake();
+		$agent          = new Ai_Agent( $agent_fake );
+		$state          = $agent->create_state( $payload );
+		$state['phase'] = 'agent';
+		unset( $state['repair'], $state['generatedSummary'] );
+		$agent_fake->queue_tool_calls(
+			array(
+				Ai_Message::tool_call(
+					'w1',
+					'replace_string',
+					array(
+						'target' => 'html',
+						'from'   => '',
+						'to'     => '<main>Apples</main>',
+					)
+				),
+				$this->finish_call( 'f1', 'Built the page.' ),
+			)
+		);
+
+		$step = $agent->advance( $payload, $state );
+
+		$this->assertSame( 'completed', $step['status'] );
+		$this->assertSame( '<main>Apples</main>', $step['result']['snapshot']['html'] );
+		$this->assertNotEmpty( $agent_fake->calls()[0]['tools'] );
 	}
 
 	/** Missing font handlers return the defensive tool error. */

@@ -608,7 +608,7 @@ class Ai_Agent {
 			// cut one shop page before its product list, and the model filled
 			// the gap with invented specifications.
 			$share = intdiv( max( 0, $budget ), count( $urls ) - $index );
-			$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+			$host  = (string) wp_parse_url( $url, PHP_URL_HOST );
 			$this->emit_event(
 				array(
 					'event'        => 'tool_start',

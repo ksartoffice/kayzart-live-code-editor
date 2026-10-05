@@ -72,6 +72,7 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 	protected function tearDown(): void {
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		delete_option( Admin::OPTION_AI_SITE_INSTRUCTIONS );
+		delete_option( Admin::OPTION_AI_REFERENCE_FETCH );
 		delete_option( 'kayzart_openai_api_key' );
 		remove_filter( 'kayzart_ai_sdk_present', '__return_false' );
 		remove_filter( 'kayzart_ai_provider_configured', '__return_false' );
@@ -417,6 +418,22 @@ class Test_Kayzart_Rest_Ai extends WP_UnitTestCase {
 		$job    = ( new Ai_Job_Store() )->get( $response->get_data()['jobId'] );
 		$stored = json_decode( $job['payload_json'], true );
 		$this->assertSame( '', $stored['siteInstructions'] );
+	}
+
+	/** The linked-page setting is fixed into the job when it is created, never taken from the client. */
+	public function test_create_captures_the_reference_fetch_setting(): void {
+		$enabled = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $this->payload( 'rest-reference-on' ) );
+		$stored  = json_decode( ( new Ai_Job_Store() )->get( $enabled->get_data()['jobId'] )['payload_json'], true );
+		$this->assertTrue( $stored['referenceFetch'] );
+		// Release the post lock the first job holds.
+		( new Ai_Job_Store() )->mark_canceled( $enabled->get_data()['jobId'] );
+
+		update_option( Admin::OPTION_AI_REFERENCE_FETCH, '0' );
+		$payload                   = $this->payload( 'rest-reference-off' );
+		$payload['referenceFetch'] = true;
+		$disabled                  = $this->dispatch_json( 'POST', '/kayzart/v1/ai/jobs', $payload );
+		$stored                    = json_decode( ( new Ai_Job_Store() )->get( $disabled->get_data()['jobId'] )['payload_json'], true );
+		$this->assertFalse( $stored['referenceFetch'] );
 	}
 
 	/** DOM/libxml support is required before a job can be accepted. */

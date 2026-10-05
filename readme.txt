@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.2.0
+Stable tag: 3.3.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.3.0 =
+* Add: Include a URL in an AI instruction, such as "use this site as a reference" or "add this article to the page", and Kayzart reads that page first, so the AI works from what the page actually says. Up to three pages per instruction; administrators can turn this off with the new Linked pages setting in Kayzart > Settings.
+* Improve: Optimize AI page creation.
+
 = 3.2.0 =
 * Change: Direct OpenAI editing (WordPress 5.9–6.9) now uses gpt-6-sol for higher-quality pages. It costs more per edit than gpt-5.6-luna.
 * Add: The `kayzart_ai_openai_model` filter lets developers choose the model used for direct OpenAI editing.
@@ -294,6 +298,8 @@ Kayzart sends AI requests only after a site administrator configures an AI conne
 On WordPress 5.9–6.9, and as a fallback on newer versions, requests are sent directly to the OpenAI Responses API using the site's API key and gpt-6-sol (or the model set with the `kayzart_ai_openai_model` filter). OpenAI terms: https://openai.com/policies/terms-of-use/ — privacy policy: https://openai.com/policies/privacy-policy/
 
 On WordPress 7.0+, a configured WordPress Connector is preferred. Data handling and terms are determined by the provider selected in WordPress Connectors.
+
+When an AI instruction contains URLs, Kayzart fetches the first three of those pages from the site's server before calling the AI provider, so the AI can use what they actually say. Only URLs the user typed into that instruction are requested, each once; no links on the fetched pages are followed, and addresses on private or local networks are refused. The text, title, description and image addresses extracted from each page are sent to the AI provider as part of the request. Administrators can turn this off with the "Linked pages" setting under Kayzart > Settings > AI editing.
 
 Kayzart also offers administrators an optional product feedback survey. Every question in it is optional. No request is made merely by installing, activating, updating, or viewing the plugin or survey. When an administrator explicitly submits the form, the selected answers, optional free-text comments, survey version, plugin version, WordPress version, and administrator interface locale are sent to https://feedback.kayzart.com/ and retained for two years. An administrator can review what they sent and send a correction, which replaces the earlier answer. The survey does not send the site URL, administrator name or email address, page content, installed plugin list, or a persistent installation identifier. The receiving server may process IP addresses in short-lived security and abuse-prevention logs. The survey stops being offered after 31 August 2027, or earlier if the service reports that it has closed.
 

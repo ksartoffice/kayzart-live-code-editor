@@ -1128,6 +1128,88 @@ describe('AiEditorPanel', () => {
     await act(async () => root.unmount());
   });
 
+  it('names the page generation and repair phases', async () => {
+    const pendingTimelineItem = { ...timelineItem, executionStatus: 'pending' as const, applicationStatus: 'not_applied' as const };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+    };
+    let created = false;
+    let repairing = false;
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const statusBody = (events: unknown[]) => ({
+      ok: true, jobId: 'job-1', requestId: 'request-1', status: 'running', events,
+      snapshot: null, error: null, usage: null, cancelRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      startedAt: timelineItem.createdAt, finishedAt: null, pollIntervalMs: 1, timeoutMs: 600000,
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: created ? [pendingTimelineItem] : [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') { created = true; return json({ ok: true, jobId: 'job-1', requestId: 'request-1', status: 'pending', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: pendingTimelineItem }, 202); }
+      if (url.includes('/jobs/job-1') && !url.includes('/cancel')) {
+        return json(statusBody(repairing
+          ? [{ event: 'progress', requestId: 'request-1', message: '', phase: 'repair', turn: 4, maxTurns: 4 }]
+          : [{ event: 'progress', requestId: 'request-1', message: '', phase: 'generate' }]));
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Describe'));
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set; setter?.call(textarea, 'A page for an apple farm'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
+
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toBe('Writing the page…'));
+    // A repair runs under a small turn cap, so its counter would read as a
+    // warning on every turn; the phase label replaces it.
+    repairing = true;
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toBe('Fixing a few details…'));
+    await act(async () => root.unmount());
+  });
+
+  it('names the linked page being read and one that could not be read', async () => {
+    const pendingTimelineItem = { ...timelineItem, executionStatus: 'pending' as const, applicationStatus: 'not_applied' as const };
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+    };
+    let created = false;
+    let failed = false;
+    const json = (value: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }));
+    const statusBody = (events: unknown[]) => ({
+      ok: true, jobId: 'job-1', requestId: 'request-1', status: 'running', events,
+      snapshot: null, error: null, usage: null, cancelRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      startedAt: timelineItem.createdAt, finishedAt: null, pollIntervalMs: 1, timeoutMs: 600000,
+    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input); const method = init?.method || 'GET';
+      if (url.includes('/timeline') && method === 'GET') return json({ ok: true, items: created ? [pendingTimelineItem] : [], hasMore: false, nextCursor: null });
+      if (url === '/jobs' && method === 'POST') { created = true; return json({ ok: true, jobId: 'job-1', requestId: 'request-1', status: 'pending', statusUrl: '/jobs/job-1', cancelUrl: '/jobs/job-1/cancel', pollIntervalMs: 1, timeoutMs: 600000, timelineItem: pendingTimelineItem }, 202); }
+      if (url.includes('/jobs/job-1') && !url.includes('/cancel')) {
+        const start = { event: 'tool_start', requestId: 'request-1', toolName: 'fetch_reference', target: 'ovdgolf.com' };
+        return json(statusBody(failed ? [start, { event: 'tool_end', requestId: 'request-1', toolName: 'fetch_reference', target: 'ovdgolf.com', ok: false }] : [start]));
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Describe'));
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
+    await act(async () => { const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set; setter?.call(textarea, 'Refer to https://ovdgolf.com/'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    await act(async () => (Array.from(container.querySelectorAll<HTMLButtonElement>('.kayzart-ai-composer-footer button')).at(-1) as HTMLButtonElement).click());
+
+    // A host name keeps its case, unlike the upper-cased HTML/CSS targets.
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toBe('Reading ovdgolf.com…'));
+    failed = true;
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-status')?.textContent).toBe('Could not read ovdgolf.com.'));
+    await act(async () => root.unmount());
+  });
+
   it('reports an initial timeline loading failure instead of leaving an empty panel', async () => {
     (window as any).KAYZART_EXTENSION_API = {
       registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),

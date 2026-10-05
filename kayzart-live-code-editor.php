@@ -54,6 +54,7 @@ require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-css-imports.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-tools.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-tool-schema.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-fonts.php';
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-references.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-prompt.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-message.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-client-exception.php';

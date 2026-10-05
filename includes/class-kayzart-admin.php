@@ -51,6 +51,7 @@ class Admin {
 	const AI_MAX_PROMPT_CHARS_MAX      = 50000;
 	const OPTION_AI_SITE_INSTRUCTIONS  = 'kayzart_ai_site_instructions';
 	const AI_SITE_INSTRUCTIONS_MAX     = 4000;
+	const OPTION_AI_REFERENCE_FETCH    = 'kayzart_ai_reference_fetch';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const REMOVE_OPENAI_KEY_ACTION     = 'kayzart_remove_openai_key';
 	const REMOVE_OPENAI_KEY_NONCE      = 'kayzart_remove_openai_key';
@@ -1260,6 +1261,16 @@ class Admin {
 			)
 		);
 
+		register_setting(
+			self::SETTINGS_GROUP,
+			self::OPTION_AI_REFERENCE_FETCH,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( __CLASS__, 'sanitize_ai_reference_fetch' ),
+				'default'           => '1',
+			)
+		);
+
 		add_settings_section(
 			'kayzart_ai',
 			__( 'AI editing', 'kayzart-live-code-editor' ),
@@ -1296,6 +1307,14 @@ class Admin {
 			self::SETTINGS_SLUG,
 			'kayzart_ai',
 			array( 'label_for' => self::OPTION_AI_SITE_INSTRUCTIONS )
+		);
+
+		add_settings_field(
+			self::OPTION_AI_REFERENCE_FETCH,
+			__( 'Linked pages', 'kayzart-live-code-editor' ),
+			array( __CLASS__, 'render_ai_reference_fetch_field' ),
+			self::SETTINGS_SLUG,
+			'kayzart_ai'
 		);
 
 		add_settings_field(
@@ -1551,6 +1570,39 @@ class Admin {
 	public static function get_ai_site_instructions(): string {
 		$stored = get_option( self::OPTION_AI_SITE_INSTRUCTIONS, '' );
 		return self::sanitize_ai_site_instructions( is_string( $stored ) ? $stored : '' );
+	}
+
+	/**
+	 * Sanitize the linked-page reading switch.
+	 *
+	 * The form sends a hidden "0" before the checkbox, so a missing value means
+	 * the field was not on the submitted form at all, and the stored choice is
+	 * kept rather than read as "off".
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string '1' when enabled, '0' when disabled.
+	 */
+	public static function sanitize_ai_reference_fetch( $value ): string {
+		if ( null === $value ) {
+			$value = get_option( self::OPTION_AI_REFERENCE_FETCH, '1' );
+		}
+		return in_array( $value, array( true, 1, '1', 'on', 'yes' ), true ) ? '1' : '0';
+	}
+
+	/**
+	 * Whether AI requests fetch the pages their instruction links to.
+	 *
+	 * @return bool
+	 */
+	public static function get_ai_reference_fetch_enabled(): bool {
+		$enabled = '1' === self::sanitize_ai_reference_fetch( get_option( self::OPTION_AI_REFERENCE_FETCH, '1' ) );
+
+		/**
+		 * Filter whether AI requests fetch the URLs written in the instruction.
+		 *
+		 * @param bool $enabled Whether linked pages are fetched.
+		 */
+		return (bool) apply_filters( 'kayzart_ai_reference_fetch_enabled', $enabled );
 	}
 
 	/**
@@ -1817,6 +1869,26 @@ class Admin {
 				/* translators: %d: maximum number of characters. */
 					__( 'Added to every AI request on this site, for new pages and edits alike, so you do not have to repeat it each time. Use it for things such as text and background colors, fonts, or tone of voice. When an individual instruction says otherwise, that instruction wins. Up to %d characters.', 'kayzart-live-code-editor' ),
 					self::AI_SITE_INSTRUCTIONS_MAX
+				)
+			)
+		);
+	}
+
+	/**
+	 * Render the linked-page reading checkbox.
+	 */
+	public static function render_ai_reference_fetch_field(): void {
+		$name = self::OPTION_AI_REFERENCE_FETCH;
+		echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0" />';
+		echo '<label for="' . esc_attr( $name ) . '"><input type="checkbox" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" value="1"' . checked( self::get_ai_reference_fetch_enabled(), true, false ) . ' /> ';
+		echo esc_html__( 'Read the pages linked in an AI instruction', 'kayzart-live-code-editor' ) . '</label>';
+		printf(
+			'<p class="description">%s</p>',
+			esc_html(
+				sprintf(
+				/* translators: %d: maximum number of linked pages read per request. */
+					__( 'When an instruction contains URLs, such as "use this site as a reference", the first %d pages are fetched and their text is sent to your AI provider with the request. Turned off, the AI cannot see what a linked page says.', 'kayzart-live-code-editor' ),
+					Ai_References::MAX_URLS
 				)
 			)
 		);

@@ -177,10 +177,14 @@ class Ai_Agent {
 	 * @return array
 	 */
 	public function create_state( array $payload ): array {
-		// Page creation has nothing to look up, so it starts with the one-shot
-		// generation workflow; the tool loop serves only as its repair and
-		// fallback path. Editing keeps the loop from the first turn.
-		$phase = Ai_Prompt::INTENT_CREATE === Ai_Prompt::resolve_intent( $payload ) ? 'generate' : 'agent';
+		// URLs in the instruction are fetched first, in a step of their own with
+		// no model call. Page creation then has nothing to look up, so it runs
+		// the one-shot generation workflow; the tool loop serves only as its
+		// repair and fallback path. Editing keeps the loop from the first turn.
+		$phase = self::work_phase( $payload );
+		if ( count( self::reference_urls( $payload ) ) > 0 ) {
+			$phase = 'prefetch';
+		}
 		return array(
 			'schemaVersion'        => 1,
 			'phase'                => $phase,
@@ -239,11 +243,15 @@ class Ai_Agent {
 	 */
 	public function advance( array $payload, array $state ): array {
 		$this->validate_state( $state );
-		$this->debug_input_parts          = Ai_Prompt::debug_input_parts( $payload );
+		$references                       = isset( $state['references'] ) && is_array( $state['references'] ) ? $state['references'] : array();
+		$this->debug_input_parts          = Ai_Prompt::debug_input_parts( $payload, $references );
 		$this->debug_edit_footprint_stats = $this->build_debug_edit_footprint_stats( $payload );
 		$this->ensure_not_canceled();
 
 		$phase = (string) $state['phase'];
+		if ( 'prefetch' === $phase ) {
+			return $this->advance_prefetch( $payload, $state );
+		}
 		if ( 'finalization' === $phase ) {
 			return $this->advance_finalization( $payload, $state );
 		}
@@ -575,6 +583,91 @@ class Ai_Agent {
 		return $this->completed_step( $payload, $state, $state['snapshot'], $summary, $usage, 'finalization', $index + 1, $provider_seconds, 0.0 );
 	}
 
+	/** Fetch the pages the instruction links to, without calling the model.
+	 *
+	 * Each URL is reported to the UI like a tool call so the person can see which
+	 * pages were read and which were not. The fetched pages are written into the
+	 * first user message, where every later call of the job sees them once.
+	 *
+	 * @param array $payload Request payload.
+	 * @param array $state   Persisted agent state.
+	 * @return array
+	 * @throws Ai_Agent_Canceled When the job is canceled between fetches.
+	 */
+	private function advance_prefetch( array $payload, array $state ): array {
+		$started    = microtime( true );
+		$references = array();
+		$budget     = Ai_References::MAX_TOTAL_CHARS;
+		$failures   = 0;
+		foreach ( self::reference_urls( $payload ) as $url ) {
+			$this->ensure_not_canceled();
+			$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+			$this->emit_event(
+				array(
+					'event'        => 'tool_start',
+					'toolName'     => 'fetch_reference',
+					'target'       => $host,
+					'inputSummary' => $this->preview( $url, 180 ),
+				)
+			);
+			$reference = Ai_References::fetch( $url, min( Ai_References::MAX_CHARS_PER_URL, $budget ) );
+			$budget   -= mb_strlen( $reference['text'] );
+			$ok        = 'ok' === $reference['status'];
+			if ( ! $ok ) {
+				++$failures;
+			}
+			$this->emit_event(
+				array(
+					'event'         => 'tool_end',
+					'toolName'      => 'fetch_reference',
+					'target'        => $host,
+					'ok'            => $ok,
+					'outputSummary' => $this->preview( $ok ? $reference['title'] : $reference['error'], 220 ),
+				)
+			);
+			$references[] = $reference;
+		}
+
+		$state['references']  = $references;
+		$state['messages'][0] = Ai_Message::user( Ai_Prompt::build_user_prompt( $payload, $references ) );
+		$state['phase']       = self::work_phase( $payload );
+		return $this->continued_step(
+			$state,
+			'prefetch',
+			1,
+			0.0,
+			microtime( true ) - $started,
+			array(
+				'referenceCount'    => count( $references ),
+				'referenceFailures' => $failures,
+			)
+		);
+	}
+
+	/** The URLs a job fetches before its first model call.
+	 *
+	 * The switch is read from the payload, where it was fixed when the job was
+	 * created, so an administrator changing the setting mid-job changes nothing.
+	 *
+	 * @param array $payload Request payload.
+	 * @return array<int,string>
+	 */
+	private static function reference_urls( array $payload ): array {
+		if ( empty( $payload['referenceFetch'] ) ) {
+			return array();
+		}
+		return Ai_References::extract_urls( isset( $payload['prompt'] ) ? (string) $payload['prompt'] : '' );
+	}
+
+	/** The phase that does the job's work once any references are in.
+	 *
+	 * @param array $payload Request payload.
+	 * @return string
+	 */
+	private static function work_phase( array $payload ): string {
+		return Ai_Prompt::INTENT_CREATE === Ai_Prompt::resolve_intent( $payload ) ? 'generate' : 'agent';
+	}
+
 	/** Author the whole page in one structured provider call.
 	 *
 	 * Three outcomes leave this phase. A page that passes every guard the edit
@@ -792,7 +885,7 @@ class Ai_Agent {
 				throw new Ai_Agent_Error( 'The persisted AI agent state is invalid.', false );
 			}
 		}
-		if ( 1 !== (int) $state['schemaVersion'] || ! in_array( $state['phase'], array( 'generate', 'agent', 'finalization' ), true ) || ! is_array( $state['messages'] ) || ! is_array( $state['snapshot'] ) || ! is_array( $state['selectionRecords'] ) || ! is_array( $state['usage'] ) || ! is_array( $state['repeatedFailures'] ) ) {
+		if ( 1 !== (int) $state['schemaVersion'] || ! in_array( $state['phase'], array( 'prefetch', 'generate', 'agent', 'finalization' ), true ) || ! is_array( $state['messages'] ) || ! is_array( $state['snapshot'] ) || ! is_array( $state['selectionRecords'] ) || ! is_array( $state['usage'] ) || ! is_array( $state['repeatedFailures'] ) ) {
 			throw new Ai_Agent_Error( 'The persisted AI agent state is invalid.', false );
 		}
 	}

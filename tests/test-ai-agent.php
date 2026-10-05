@@ -482,6 +482,112 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertNotEmpty( $agent_fake->calls()[0]['tools'] );
 	}
 
+	/** Answer HTTP requests by URL, counting them.
+	 *
+	 * @param array<string,string|int> $pages Body per URL, or an HTTP status code for a failure.
+	 * @param int                      $seen  Number of requests made, passed by reference.
+	 * @return void
+	 */
+	private function mock_pages( array $pages, int &$seen ): void {
+		add_filter(
+			'pre_http_request',
+			static function ( $pre, $args, $url ) use ( $pages, &$seen ) {
+				unset( $pre, $args );
+				++$seen;
+				$page = isset( $pages[ $url ] ) ? $pages[ $url ] : 404;
+				return array(
+					'headers'  => array( 'content-type' => 'text/html; charset=UTF-8' ),
+					'body'     => is_string( $page ) ? $page : '',
+					'response' => array(
+						'code'    => is_string( $page ) ? 200 : (int) $page,
+						'message' => '',
+					),
+					'cookies'  => array(),
+					'filename' => null,
+				);
+			},
+			10,
+			3
+		);
+	}
+
+	/** Linked pages are fetched before the one generation call and shown to it. */
+	public function test_prefetch_feeds_linked_pages_to_generation(): void {
+		$seen = 0;
+		$this->mock_pages( array( 'https://ovdgolf.com/user_data/miura-top' => '<title>Miura</title><main><h1>TC-102</h1></main>' ), $seen );
+		$payload                   = $this->create_payload();
+		$payload['prompt']         = '以下のサイトを参考にしてください https://ovdgolf.com/user_data/miura-top と https://ovdgolf.com/missing';
+		$payload['referenceFetch'] = true;
+		$events                    = array();
+		$fake                      = new Ai_Client_Fake();
+		$fake->queue_final_text( $this->generated_page() );
+		$agent = new Ai_Agent(
+			$fake,
+			array(
+				'emit' => static function ( array $event ) use ( &$events ) {
+					$events[] = $event;
+				},
+			)
+		);
+
+		$state = $agent->create_state( $payload );
+		$this->assertSame( 'prefetch', $state['phase'] );
+		$step = $agent->advance( $payload, $state );
+		$this->assertSame( 'generate', $step['state']['phase'] );
+		$this->assertSame( 2, $step['metrics']['referenceCount'] );
+		$this->assertSame( 1, $step['metrics']['referenceFailures'] );
+		$this->assertCount( 0, $fake->calls() );
+		$result = $agent->advance( $payload, $step['state'] );
+		remove_all_filters( 'pre_http_request' );
+
+		$this->assertSame( 'completed', $result['status'] );
+		$this->assertSame( 2, $seen );
+		$prompt = $fake->calls()[0]['messages'][0]['text'];
+		$this->assertStringContainsString( '<<<reference url="https://ovdgolf.com/user_data/miura-top" status="ok">>>', $prompt );
+		$this->assertStringContainsString( "Text:\n# TC-102", $prompt );
+		$this->assertStringContainsString( '<<<reference url="https://ovdgolf.com/missing" status="error">>>', $prompt );
+		$tool_events = array_values( array_filter( $events, static fn( $event ) => 'fetch_reference' === ( $event['toolName'] ?? '' ) ) );
+		$this->assertSame( array( 'tool_start', 'tool_end', 'tool_start', 'tool_end' ), array_column( $tool_events, 'event' ) );
+		$this->assertSame( 'ovdgolf.com', $tool_events[0]['target'] );
+		$this->assertTrue( $tool_events[1]['ok'] );
+		$this->assertFalse( $tool_events[3]['ok'] );
+	}
+
+	/** An edit with a link reads the page, then runs the editing loop. */
+	public function test_prefetch_precedes_the_editing_loop(): void {
+		$seen = 0;
+		$this->mock_pages( array( 'https://ovdgolf.com/blog/649/' => '<main><h1>スポンサー協賛のお知らせ</h1></main>' ), $seen );
+		$payload                   = $this->payload();
+		$payload['prompt']         = '下の記事をどこかに入れて https://ovdgolf.com/blog/649/';
+		$payload['referenceFetch'] = true;
+		$fake                      = new Ai_Client_Fake();
+		$fake->queue_tool_calls( array( $this->replace_call( 'e1', 'Hello', 'スポンサー協賛のお知らせ' ), $this->finish_call( 'f1', 'Added the article.' ) ) );
+
+		$result = ( new Ai_Agent( $fake ) )->run( $payload );
+		remove_all_filters( 'pre_http_request' );
+
+		$this->assertSame( 1, $seen );
+		$this->assertNotEmpty( $fake->calls()[0]['tools'] );
+		$this->assertStringContainsString( '# スポンサー協賛のお知らせ', $fake->calls()[0]['messages'][0]['text'] );
+		$this->assertSame( '<main>スポンサー協賛のお知らせ</main>', $result['snapshot']['html'] );
+	}
+
+	/** With the setting off, or for jobs created before it existed, nothing is fetched. */
+	public function test_prefetch_is_skipped_when_disabled(): void {
+		$seen = 0;
+		$this->mock_pages( array(), $seen );
+		foreach ( array( false, null ) as $setting ) {
+			$payload           = $this->create_payload();
+			$payload['prompt'] = 'Refer to https://example.com/';
+			if ( null !== $setting ) {
+				$payload['referenceFetch'] = $setting;
+			}
+			$this->assertSame( 'generate', ( new Ai_Agent( new Ai_Client_Fake() ) )->create_state( $payload )['phase'] );
+		}
+		remove_all_filters( 'pre_http_request' );
+		$this->assertSame( 0, $seen );
+	}
+
 	/** Missing font handlers return the defensive tool error. */
 	public function test_font_tool_without_handler_returns_error(): void {
 		$agent  = new Ai_Agent( new Ai_Client_Fake() );

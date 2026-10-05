@@ -56,6 +56,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'intent'            => 'create',
 				'availableFonts'    => array( 'registered' => array() ),
 				'siteInstructions'  => 'Use a light background.',
+				'referenceFetch'    => true,
 			)
 		);
 		$first          = $this->store->create( 10, 20, 'request-server-settings', $stored_payload );
@@ -69,6 +70,7 @@ class Test_Kayzart_Ai_Job_Store extends WP_UnitTestCase {
 				'intent'            => 'edit',
 				'availableFonts'    => array( 'registered' => array( array( 'name' => 'Installed Later' ) ) ),
 				'siteInstructions'  => 'Use a dark background.',
+				'referenceFetch'    => false,
 			)
 		);
 		$again          = $this->store->create( 10, 20, 'request-server-settings', $retry_payload );

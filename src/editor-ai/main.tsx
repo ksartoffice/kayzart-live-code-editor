@@ -156,6 +156,12 @@ function toolLabel(event: AiJobEvent) {
     case 'list_ai_edits':
     case 'get_ai_edit':
       return __('Looking up past edits…', 'kayzart-live-code-editor');
+    case 'fetch_reference':
+      /* The target here is a host name, which must not be upper-cased. */
+      return event.target ? sprintf(
+        /* translators: %s: host name of a page linked in the instruction, such as example.com. */
+        __('Reading %s…', 'kayzart-live-code-editor'), event.target,
+      ) : __('Reading the linked page…', 'kayzart-live-code-editor');
     default:
       return __('Working…', 'kayzart-live-code-editor');
   }
@@ -173,7 +179,12 @@ function eventLabel(event: AiJobEvent) {
     return __('Thinking…', 'kayzart-live-code-editor');
   }
   if (event.event === 'tool_start') return toolLabel(event);
-  /* A successful tool needs no line of its own; only a retry is worth showing. */
+  /* A successful tool needs no line of its own; only a retry is worth showing.
+     A page that could not be read is not retried, so it is named instead. */
+  if (event.event === 'tool_end' && event.ok === false && event.toolName === 'fetch_reference') return sprintf(
+    /* translators: %s: host name of a page linked in the instruction, such as example.com. */
+    __('Could not read %s.', 'kayzart-live-code-editor'), event.target || '',
+  );
   if (event.event === 'tool_end') return event.ok === false ? __('Retrying the edit…', 'kayzart-live-code-editor') : '';
   if (event.event === 'final') return __('Changes are ready.', 'kayzart-live-code-editor');
   return event.message || '';

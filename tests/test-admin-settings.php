@@ -34,6 +34,8 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		delete_option( Admin::OPTION_AI_MAX_TURNS );
 		delete_option( Admin::OPTION_AI_MAX_PROMPT_CHARS );
 		delete_option( Admin::OPTION_AI_SITE_INSTRUCTIONS );
+		delete_option( Admin::OPTION_AI_REFERENCE_FETCH );
+		remove_all_filters( 'kayzart_ai_reference_fetch_enabled' );
 		delete_option( 'kayzart_openai_api_key' );
 		delete_option( 'kayzart_delete_on_uninstall' );
 		parent::tearDown();
@@ -165,6 +167,37 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'maxlength="4000"', $output );
 		$this->assertStringContainsString( 'Give every &lt;h2&gt; a border.&lt;/textarea&gt;&lt;script&gt;', $output );
 		$this->assertStringNotContainsString( '<script>', $output );
+	}
+
+	public function test_reference_fetch_defaults_on_and_honors_the_option_and_filter(): void {
+		$this->assertTrue( Admin::get_ai_reference_fetch_enabled() );
+
+		update_option( Admin::OPTION_AI_REFERENCE_FETCH, '0' );
+		$this->assertFalse( Admin::get_ai_reference_fetch_enabled() );
+
+		add_filter( 'kayzart_ai_reference_fetch_enabled', '__return_true' );
+		$this->assertTrue( Admin::get_ai_reference_fetch_enabled() );
+	}
+
+	public function test_sanitize_ai_reference_fetch_reads_the_checkbox_and_keeps_an_omitted_field(): void {
+		$this->assertSame( '1', Admin::sanitize_ai_reference_fetch( '1' ) );
+		$this->assertSame( '0', Admin::sanitize_ai_reference_fetch( '0' ) );
+		$this->assertSame( '0', Admin::sanitize_ai_reference_fetch( 'anything' ) );
+
+		update_option( Admin::OPTION_AI_REFERENCE_FETCH, '0' );
+		$this->assertSame( '0', Admin::sanitize_ai_reference_fetch( null ) );
+	}
+
+	public function test_render_ai_reference_fetch_field_posts_an_explicit_off_value(): void {
+		update_option( Admin::OPTION_AI_REFERENCE_FETCH, '0' );
+
+		ob_start();
+		Admin::render_ai_reference_fetch_field();
+		$output = (string) ob_get_clean();
+
+		// The hidden "0" comes first, so an unticked box still submits a value.
+		$this->assertMatchesRegularExpression( '/type="hidden" name="' . Admin::OPTION_AI_REFERENCE_FETCH . '" value="0".*type="checkbox"[^>]*value="1"/s', $output );
+		$this->assertStringNotContainsString( 'checked', $output );
 	}
 
 	public function test_get_ai_max_prompt_chars_reads_the_option_and_honors_the_filter(): void {

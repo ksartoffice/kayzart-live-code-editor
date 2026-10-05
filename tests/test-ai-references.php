@@ -187,6 +187,37 @@ class Test_Kayzart_Ai_References extends WP_UnitTestCase {
 		$this->assertCount( 1, $this->requests );
 	}
 
+	/** Oversized metadata cannot carry a page past its budget. */
+	public function test_fetch_bounds_every_field_by_the_budget(): void {
+		$images = '';
+		for ( $i = 0; $i < 12; $i++ ) {
+			$images .= '<img src="/img/' . $i . '.jpg" alt="' . str_repeat( 'a', 500 ) . '">';
+		}
+		$images .= '<img src="/' . str_repeat( 'x', 3000 ) . '.jpg" alt="long url">';
+		$this->mock_http(
+			'<html><head><title>' . str_repeat( 'T', 5000 ) . '</title><meta name="description" content="' . str_repeat( 'D', 5000 ) . '"></head>'
+			. '<body><main><p>Hello</p>' . $images . '</main></body></html>'
+		);
+
+		$reference = Ai_References::fetch( 'https://example.com/', 1500 );
+
+		$this->assertSame( 'ok', $reference['status'] );
+		$this->assertSame( Ai_References::MAX_TITLE_CHARS, mb_strlen( $reference['title'] ) );
+		$this->assertSame( Ai_References::MAX_DESCRIPTION_CHARS, mb_strlen( $reference['description'] ) );
+		$this->assertSame( 'Hello', $reference['text'] );
+		$this->assertNotEmpty( $reference['images'] );
+		foreach ( $reference['images'] as $image ) {
+			$this->assertLessThanOrEqual( Ai_References::MAX_IMAGE_ALT_CHARS, mb_strlen( $image['alt'] ) );
+			$this->assertLessThanOrEqual( Ai_References::MAX_IMAGE_URL_CHARS, mb_strlen( $image['url'] ) );
+		}
+		$this->assertLessThanOrEqual( 1500, Ai_References::size( $reference ) );
+
+		// With room for the title and description only, the page is not read.
+		$tight = Ai_References::fetch( 'https://example.com/', Ai_References::MAX_TITLE_CHARS + Ai_References::MAX_DESCRIPTION_CHARS );
+		$this->assertSame( 'error', $tight['status'] );
+		$this->assertSame( 0, Ai_References::size( $tight ) );
+	}
+
 	/** Failures come back as error references the model can be told about. */
 	public function test_fetch_reports_failures(): void {
 		$this->mock_http( 'Not found', 'text/html', 404 );
@@ -200,9 +231,14 @@ class Test_Kayzart_Ai_References extends WP_UnitTestCase {
 		$this->assertSame( 'The URL is not a web page (application/pdf).', $pdf['error'] );
 		remove_all_filters( 'pre_http_request' );
 
-		$this->mock_http( '<html><body><div id="app"></div><script src="/app.js"></script></body></html>' ); // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- Fixture HTML for a fetched page.
+		// A page rendered in the browser still serves its title and description,
+		// which must not pass for having read the content.
+		$this->mock_http( '<html><head><title>Sponsor news</title><meta name="description" content="Our latest news."></head><body><div id="app"></div><script src="/app.js"></script></body></html>' ); // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- Fixture HTML for a fetched page.
 		$empty = Ai_References::fetch( 'https://example.com/spa' );
+		$this->assertSame( 'error', $empty['status'] );
 		$this->assertStringContainsString( 'no readable text', $empty['error'] );
+		$this->assertSame( '', $empty['title'] );
+		$this->assertSame( 0, Ai_References::size( $empty ) );
 		remove_all_filters( 'pre_http_request' );
 
 		add_filter(

@@ -28,11 +28,29 @@ class Ai_References {
 	/** Default number of URLs fetched per request. */
 	const MAX_URLS = 3;
 
-	/** Text kept across all pages of one request, shared among them. */
+	/**
+	 * Characters kept across all pages of one request, shared among them.
+	 *
+	 * Everything a page contributes to the prompt counts -- title, description,
+	 * text and image entries -- so no field of a fetched page can grow the
+	 * request past this, however the page is written.
+	 */
 	const MAX_TOTAL_CHARS = 12000;
 
 	/** Image URLs listed per page. */
 	const MAX_IMAGES = 10;
+
+	/** Characters kept from a page title. */
+	const MAX_TITLE_CHARS = 200;
+
+	/** Characters kept from a page description. */
+	const MAX_DESCRIPTION_CHARS = 500;
+
+	/** Longest image URL listed; longer ones are skipped rather than cut, since a cut URL is broken. */
+	const MAX_IMAGE_URL_CHARS = 500;
+
+	/** Characters kept from an image's alt text. */
+	const MAX_IMAGE_ALT_CHARS = 120;
 
 	/** Seconds allowed for one fetch. */
 	const FETCH_TIMEOUT_SECONDS = 10;
@@ -94,8 +112,12 @@ class Ai_References {
 	 * Failures are returned rather than thrown: an unreadable page is still
 	 * something the model must be told about, so it does not guess the content.
 	 *
+	 * The budget covers everything the page contributes, in order of value:
+	 * title and description first, then the text, then as many image entries as
+	 * still fit. Self::size() measures the result the same way.
+	 *
 	 * @param string $url       URL typed by the user.
-	 * @param int    $max_chars Text budget for this page.
+	 * @param int    $max_chars Character budget for this page.
 	 * @return array{url:string,status:string,title:string,description:string,text:string,images:array,truncated:bool,error:string}
 	 */
 	public static function fetch( string $url, int $max_chars = self::MAX_TOTAL_CHARS ): array {
@@ -145,22 +167,69 @@ class Ai_References {
 		} else {
 			$extracted = self::extract( $body, self::final_url( $response, $url ) );
 		}
-		if ( '' === $extracted['text'] && '' === $extracted['title'] ) {
+		// A title alone is what a page rendered by JavaScript in the browser
+		// serves, and it says nothing about the content the person pointed at.
+		// Reporting it as read would let the model fill the page in from the
+		// title, so only body text counts.
+		if ( '' === $extracted['text'] ) {
 			$reference['error'] = 'The page has no readable text. It may be built by JavaScript in the browser.';
 			return $reference;
 		}
 
-		$reference['status']      = 'ok';
 		$reference['title']       = $extracted['title'];
 		$reference['description'] = $extracted['description'];
-		$reference['images']      = $extracted['images'];
-		if ( mb_strlen( $extracted['text'] ) > $max_chars ) {
-			$reference['text']      = rtrim( mb_substr( $extracted['text'], 0, $max_chars ) );
+		$remaining                = $max_chars - mb_strlen( $reference['title'] ) - mb_strlen( $reference['description'] );
+		if ( $remaining <= 0 ) {
+			$reference['title']       = '';
+			$reference['description'] = '';
+			$reference['error']       = 'Not read: the reference text limit for this request was already reached.';
+			return $reference;
+		}
+		if ( mb_strlen( $extracted['text'] ) > $remaining ) {
+			$reference['text']      = rtrim( mb_substr( $extracted['text'], 0, $remaining ) );
 			$reference['truncated'] = true;
 		} else {
 			$reference['text'] = $extracted['text'];
 		}
+		$remaining -= mb_strlen( $reference['text'] );
+		foreach ( $extracted['images'] as $image ) {
+			$length = self::image_size( $image );
+			if ( $length > $remaining ) {
+				break;
+			}
+			$reference['images'][] = $image;
+			$remaining            -= $length;
+		}
+		$reference['status'] = 'ok';
 		return $reference;
+	}
+
+	/**
+	 * Count the characters a reference contributes to the prompt.
+	 *
+	 * @param array $reference Reference from self::fetch().
+	 * @return int
+	 */
+	public static function size( array $reference ): int {
+		$size = 0;
+		foreach ( array( 'title', 'description', 'text' ) as $key ) {
+			$size += isset( $reference[ $key ] ) ? mb_strlen( (string) $reference[ $key ] ) : 0;
+		}
+		$images = isset( $reference['images'] ) && is_array( $reference['images'] ) ? $reference['images'] : array();
+		foreach ( $images as $image ) {
+			$size += self::image_size( is_array( $image ) ? $image : array() );
+		}
+		return $size;
+	}
+
+	/**
+	 * Count the characters one image entry contributes.
+	 *
+	 * @param array $image Image entry with url and alt.
+	 * @return int
+	 */
+	private static function image_size( array $image ): int {
+		return mb_strlen( isset( $image['url'] ) ? (string) $image['url'] : '' ) + mb_strlen( isset( $image['alt'] ) ? (string) $image['alt'] : '' );
 	}
 
 	/**
@@ -205,12 +274,13 @@ class Ai_References {
 
 		$titles = $document->getElementsByTagName( 'title' );
 		if ( $titles->length > 0 ) {
-			$result['title'] = self::squash( (string) $titles->item( 0 )->textContent );
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- DOMNode uses textContent.
+			$result['title'] = self::clip( self::squash( (string) $titles->item( 0 )->textContent ), self::MAX_TITLE_CHARS );
 		}
 		foreach ( $document->getElementsByTagName( 'meta' ) as $meta ) {
 			$name = strtolower( $meta->getAttribute( 'name' ) . $meta->getAttribute( 'property' ) );
 			if ( in_array( $name, array( 'description', 'og:description' ), true ) && '' === $result['description'] ) {
-				$result['description'] = self::squash( $meta->getAttribute( 'content' ) );
+				$result['description'] = self::clip( self::squash( $meta->getAttribute( 'content' ) ), self::MAX_DESCRIPTION_CHARS );
 			}
 		}
 
@@ -329,13 +399,13 @@ class Ai_References {
 			// SVGs on a page are almost always icons -- phone, mail, arrows -- and
 			// would fill the short list before any photograph.
 			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
-			if ( ! preg_match( '~^https?://~i', $url ) || isset( $seen[ $url ] ) || preg_match( '/\.svg$/i', $path ) ) {
+			if ( ! preg_match( '~^https?://~i', $url ) || isset( $seen[ $url ] ) || preg_match( '/\.svg$/i', $path ) || mb_strlen( $url ) > self::MAX_IMAGE_URL_CHARS ) {
 				continue;
 			}
 			$seen[ $url ] = true;
 			$images[]     = array(
 				'url' => $url,
-				'alt' => self::squash( $image->getAttribute( 'alt' ) ),
+				'alt' => self::clip( self::squash( $image->getAttribute( 'alt' ) ), self::MAX_IMAGE_ALT_CHARS ),
 			);
 			if ( count( $images ) >= self::MAX_IMAGES ) {
 				break;
@@ -428,6 +498,17 @@ class Ai_References {
 			break;
 		}
 		return $url;
+	}
+
+	/**
+	 * Cut text to a character limit.
+	 *
+	 * @param string $text  Text.
+	 * @param int    $limit Maximum characters.
+	 * @return string
+	 */
+	private static function clip( string $text, int $limit ): string {
+		return mb_strlen( $text ) > $limit ? rtrim( mb_substr( $text, 0, $limit ) ) : $text;
 	}
 
 	/**

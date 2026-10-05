@@ -618,7 +618,7 @@ class Ai_Agent {
 				)
 			);
 			$reference = Ai_References::fetch( $url, $share );
-			$budget   -= mb_strlen( $reference['text'] );
+			$budget   -= Ai_References::size( $reference );
 			$ok        = 'ok' === $reference['status'];
 			if ( ! $ok ) {
 				++$failures;

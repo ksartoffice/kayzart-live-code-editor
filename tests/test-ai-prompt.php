@@ -162,10 +162,15 @@ class Test_Kayzart_Ai_Prompt extends WP_UnitTestCase {
 		$this->assertStringContainsString( $block, Ai_Prompt::build_user_prompt( $payload, $references ) );
 	}
 
-	/** Every prompt says that URLs cannot be opened, so none is described from memory. */
-	public function test_every_prompt_forbids_guessing_url_content(): void {
+	/**
+	 * Every prompt says that URLs cannot be opened and that facts nobody gave
+	 * must not be made up. A real shop page came back with recommended swing
+	 * speeds and rule-conformity badges that no source contained.
+	 */
+	public function test_every_prompt_forbids_guessing_facts(): void {
 		foreach ( array( Ai_Prompt::system_prompt( Ai_Prompt::INTENT_EDIT ), Ai_Prompt::system_prompt( Ai_Prompt::INTENT_CREATE ), Ai_Prompt::generation_system_prompt() ) as $prompt ) {
 			$this->assertStringContainsString( 'You cannot open URLs.', $prompt );
+			$this->assertStringContainsString( 'Never invent specifications, measurements, prices, ratings, certifications, rule conformity, guarantees or promises', $prompt );
 		}
 	}
 

@@ -28,10 +28,7 @@ class Ai_References {
 	/** Default number of URLs fetched per request. */
 	const MAX_URLS = 3;
 
-	/** Text kept from one page. */
-	const MAX_CHARS_PER_URL = 6000;
-
-	/** Text kept across all pages of one request. */
+	/** Text kept across all pages of one request, shared among them. */
 	const MAX_TOTAL_CHARS = 12000;
 
 	/** Image URLs listed per page. */
@@ -101,7 +98,7 @@ class Ai_References {
 	 * @param int    $max_chars Text budget for this page.
 	 * @return array{url:string,status:string,title:string,description:string,text:string,images:array,truncated:bool,error:string}
 	 */
-	public static function fetch( string $url, int $max_chars = self::MAX_CHARS_PER_URL ): array {
+	public static function fetch( string $url, int $max_chars = self::MAX_TOTAL_CHARS ): array {
 		$reference = self::empty_reference( $url );
 		if ( $max_chars <= 0 ) {
 			$reference['error'] = 'Not read: the reference text limit for this request was already reached.';

@@ -599,8 +599,15 @@ class Ai_Agent {
 		$references = array();
 		$budget     = Ai_References::MAX_TOTAL_CHARS;
 		$failures   = 0;
-		foreach ( self::reference_urls( $payload ) as $url ) {
+		$urls       = self::reference_urls( $payload );
+		foreach ( $urls as $index => $url ) {
 			$this->ensure_not_canceled();
+			// The request's text budget is shared among the pages still to be
+			// read, so a single link gets all of it and a page that failed or
+			// came back short leaves its share to the next. A fixed per-page cap
+			// cut one shop page before its product list, and the model filled
+			// the gap with invented specifications.
+			$share = intdiv( max( 0, $budget ), count( $urls ) - $index );
 			$host = (string) wp_parse_url( $url, PHP_URL_HOST );
 			$this->emit_event(
 				array(
@@ -610,7 +617,7 @@ class Ai_Agent {
 					'inputSummary' => $this->preview( $url, 180 ),
 				)
 			);
-			$reference = Ai_References::fetch( $url, min( Ai_References::MAX_CHARS_PER_URL, $budget ) );
+			$reference = Ai_References::fetch( $url, $share );
 			$budget   -= mb_strlen( $reference['text'] );
 			$ok        = 'ok' === $reference['status'];
 			if ( ! $ok ) {

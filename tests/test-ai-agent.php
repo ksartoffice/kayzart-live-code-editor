@@ -11,6 +11,7 @@ use KayzArt\Ai_Agent_Canceled;
 use KayzArt\Ai_Client_Fake;
 use KayzArt\Ai_Message;
 use KayzArt\Ai_Prompt;
+use KayzArt\Ai_References;
 
 require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 
@@ -551,6 +552,43 @@ class Test_Kayzart_Ai_Agent extends WP_UnitTestCase {
 		$this->assertSame( 'ovdgolf.com', $tool_events[0]['target'] );
 		$this->assertTrue( $tool_events[1]['ok'] );
 		$this->assertFalse( $tool_events[3]['ok'] );
+	}
+
+	/** The request's text budget is shared among the links still to be read. */
+	public function test_prefetch_shares_the_text_budget_among_links(): void {
+		$long  = '<main><p>' . str_repeat( 'あ', 9000 ) . '</p></main>';
+		$seen  = 0;
+		$agent = new Ai_Agent( new Ai_Client_Fake() );
+		$this->mock_pages(
+			array(
+				'https://a.example/' => $long,
+				'https://c.example/' => $long,
+			),
+			$seen
+		);
+
+		// One link gets the whole budget, so a long page is not cut at a fixed share.
+		$single                   = $this->create_payload();
+		$single['prompt']         = 'Refer to https://a.example/';
+		$single['referenceFetch'] = true;
+		$step                     = $agent->advance( $single, $agent->create_state( $single ) );
+		$this->assertSame( 9000, mb_strlen( $step['state']['references'][0]['text'] ) );
+		$this->assertFalse( $step['state']['references'][0]['truncated'] );
+
+		// A link that fails leaves its share to the ones after it.
+		$three                   = $this->create_payload();
+		$three['prompt']         = 'Refer to https://a.example/ https://b.example/ https://c.example/';
+		$three['referenceFetch'] = true;
+		$step                    = $agent->advance( $three, $agent->create_state( $three ) );
+		remove_all_filters( 'pre_http_request' );
+		$lengths = array_map(
+			static function ( $reference ) {
+				return mb_strlen( $reference['text'] );
+			},
+			$step['state']['references']
+		);
+		$this->assertSame( array( 4000, 0, 8000 ), $lengths );
+		$this->assertLessThanOrEqual( Ai_References::MAX_TOTAL_CHARS, array_sum( $lengths ) );
 	}
 
 	/** An edit with a link reads the page, then runs the editing loop. */

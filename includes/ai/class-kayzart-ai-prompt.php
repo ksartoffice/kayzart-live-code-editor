@@ -325,6 +325,7 @@ PROMPT;
 - Match the human-readable language of the HTML to the existing document content, not to the language of the user's instruction. If the document already contains copy in a given language (for example English), keep writing in that language even when the instruction is written in a different language.
 - Only switch the output language when the user explicitly asks to translate or to write in a specific language.
 - If the document is empty or has no existing copy to infer a language from, use the same language as the user's instruction.
+- State as fact only what the user's instruction, a reference block or the existing page says. Never invent specifications, measurements, prices, ratings, certifications, rule conformity, guarantees or promises: a plausible figure on a published page misleads its readers. When none is given, write about the subject in general terms or leave the detail out.
 - You cannot open URLs. What a linked page says is known only from a reference block in the user message. Never describe, quote or imitate the content of a URL that has no readable reference block; build from the brief alone and say in your summary that the page could not be read.
 PROMPT;
 

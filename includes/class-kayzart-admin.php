@@ -2082,10 +2082,10 @@ class Admin {
 			echo '<p>' . esc_html__( 'AI drafts the design and text, and you can refine them in a conversation. Connect an AI service before your first request.', 'kayzart-live-code-editor' ) . '</p>';
 			echo '<p>' . esc_html__( 'Kayzart is free. AI usage fees are paid to the service you connect.', 'kayzart-live-code-editor' ) . '</p>';
 			echo '<p id="kayzart-ai-unavailable-reason">' . esc_html( $ai_data['unavailableMessage'] ) . '</p>';
-			if ( $ai_data['canSetUp'] ) {
-				Ai_Onboarding::render_guide( $ai_data['setupGuide'] );
-			}
 			if ( $can_use_ai ) {
+				echo '<div id="kayzart-ai-setup-guide"' . ( $ai_data['canSetUp'] ? '' : ' hidden' ) . '>';
+				Ai_Onboarding::render_guide( $ai_data['setupGuide'] );
+				echo '</div>';
 				echo '<div id="kayzart-ai-return" hidden><p>' . esc_html__( 'After saving the connection settings, return to this screen.', 'kayzart-live-code-editor' ) . '</p></div>';
 				echo '<button id="kayzart-ai-recheck" type="button" class="button">' . esc_html__( 'Check settings again', 'kayzart-live-code-editor' ) . '</button>';
 			}
@@ -2166,8 +2166,8 @@ class Admin {
 		echo '<div class="kayzart-create-actions">';
 		if ( $can_use_ai ) {
 			echo '<button id="kayzart-create-blank" class="button button-large" type="submit" name="start_mode" value="blank" data-loading-label="' . esc_attr__( 'Creating…', 'kayzart-live-code-editor' ) . '">' . esc_html__( 'Start with a blank page', 'kayzart-live-code-editor' ) . '</button>';
-			if ( ! $ai_is_available && $ai_data['canSetUp'] ) {
-				echo '<a id="kayzart-ai-open-settings" class="button button-primary button-large" href="' . esc_url( $ai_data['setupUrl'] ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Set up AI connection to continue', 'kayzart-live-code-editor' ) . ' <span>' . esc_html__( '(opens in a new tab)', 'kayzart-live-code-editor' ) . '</span></a>';
+			if ( ! $ai_is_available ) {
+				echo '<a id="kayzart-ai-open-settings" class="button button-primary button-large" href="' . esc_url( $ai_data['setupUrl'] ) . '" target="_blank" rel="noopener noreferrer"' . ( $ai_data['canSetUp'] ? '' : ' hidden' ) . '>' . esc_html__( 'Set up AI connection to continue', 'kayzart-live-code-editor' ) . ' <span>' . esc_html__( '(opens in a new tab)', 'kayzart-live-code-editor' ) . '</span></a>';
 			}
 			echo '<button id="kayzart-generate-ai" class="button button-primary button-large" type="submit" name="start_mode" value="ai" data-loading-label="' . esc_attr__( 'Creating…', 'kayzart-live-code-editor' ) . '" disabled="disabled"' . ( $ai_is_available ? '' : ' hidden' ) . '>' . esc_html__( 'Generate a page with AI', 'kayzart-live-code-editor' ) . '</button>';
 		} else {
@@ -2642,6 +2642,7 @@ class Admin {
 				array(
 					'maxPromptChars' => self::get_ai_max_prompt_chars(),
 					'charsLabel'     => __( 'characters', 'kayzart-live-code-editor' ),
+					'newTabLabel'    => __( '(opens in a new tab)', 'kayzart-live-code-editor' ),
 					'ai'             => Ai_Onboarding::get_data(),
 					'restNonce'      => wp_create_nonce( 'wp_rest' ),
 					'checkingLabel'  => __( 'Checking settings…', 'kayzart-live-code-editor' ),

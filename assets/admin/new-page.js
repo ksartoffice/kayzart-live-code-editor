@@ -42,6 +42,7 @@
     var ai = config.ai || { available: true };
     var setupCard = form.querySelector('#kayzart-ai-setup-card');
     var setupLink = form.querySelector('#kayzart-ai-open-settings');
+    var setupGuide = form.querySelector('#kayzart-ai-setup-guide');
     var returnNotice = form.querySelector('#kayzart-ai-return');
     var recheck = form.querySelector('#kayzart-ai-recheck');
     var result = form.querySelector('#kayzart-ai-check-result');
@@ -51,6 +52,35 @@
     var charsLabel = config.charsLabel || 'characters';
     var promptIsValid = true;
     var promptChars = 0;
+
+    function updateSetupGuide(guide) {
+      if (!setupGuide || !guide) return;
+      var previousDetails = setupGuide.querySelector('details');
+      var details = document.createElement('details');
+      details.className = 'kayzart-ai-connection-guide';
+      details.open = Boolean(previousDetails && previousDetails.open);
+      var summary = document.createElement('summary');
+      summary.textContent = guide.summary;
+      details.appendChild(summary);
+      var steps = document.createElement('ol');
+      guide.steps.forEach(function (step) {
+        var item = document.createElement('li');
+        item.textContent = step;
+        steps.appendChild(item);
+      });
+      details.appendChild(steps);
+      guide.links.forEach(function (link) {
+        var paragraph = document.createElement('p');
+        var anchor = document.createElement('a');
+        anchor.href = link.url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.textContent = link.label + ' ' + config.newTabLabel;
+        paragraph.appendChild(anchor);
+        details.appendChild(paragraph);
+      });
+      setupGuide.replaceChildren(details);
+    }
 
     function updatePromptCount() {
       if (!prompt || !counter) {
@@ -104,6 +134,10 @@
           if (setupLink) {
             setupLink.hidden = ai.available || !ai.canSetUp;
             if (ai.setupUrl) setupLink.href = ai.setupUrl;
+          }
+          if (setupGuide) {
+            setupGuide.hidden = ai.available || !ai.canSetUp;
+            if (!setupGuide.hidden) updateSetupGuide(ai.setupGuide);
           }
           if (reason) reason.textContent = ai.unavailableMessage || '';
           if (ai.available) {

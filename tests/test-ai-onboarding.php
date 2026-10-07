@@ -83,6 +83,24 @@ class Test_Kayzart_Ai_Onboarding extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'environment requirements', $data['unavailableMessage'] );
 	}
 
+	/** Verify rechecking can reveal setup controls without rerendering the form. */
+	public function test_new_page_retains_hidden_setup_controls_when_environment_is_unavailable(): void {
+		add_filter( 'kayzart_ai_sdk_present', '__return_false' );
+		remove_all_filters( 'kayzart_ai_mbstring_present' );
+		add_filter( 'kayzart_ai_mbstring_present', '__return_false' );
+		$this->assertFalse( Ai_Onboarding::get_data()['canSetUp'] );
+		ob_start();
+		Admin::render_new_page();
+		$html     = (string) ob_get_clean();
+		$document = new DOMDocument();
+		@$document->loadHTML( $html );
+		$xpath = new DOMXPath( $document );
+		$this->assertSame( 1, $xpath->query( '//a[@id="kayzart-ai-open-settings" and @hidden and @target="_blank" and @rel="noopener noreferrer"]' )->length );
+		$this->assertSame( 1, $xpath->query( '//div[@id="kayzart-ai-setup-guide" and @hidden]/details/summary' )->length );
+		$this->assertSame( 1, $xpath->query( '//button[@id="kayzart-ai-recheck"]' )->length );
+		$this->assertSame( 1, $xpath->query( '//textarea[@id="kayzart-initial-ai-prompt" and not(@disabled)]' )->length );
+	}
+
 	public function test_rest_check_requires_login_nonce_ai_permission_and_post_permission(): void {
 		$post_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		$request = new WP_REST_Request( 'GET', '/kayzart/v1/ai/availability' );

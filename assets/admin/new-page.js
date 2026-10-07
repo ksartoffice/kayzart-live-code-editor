@@ -39,6 +39,14 @@
     var blankHint = form.querySelector('#kayzart-create-blank-hint');
     var submitButtons = form.querySelectorAll('button[type="submit"]');
     var config = window.KAYZART_NEW_PAGE || {};
+    var ai = config.ai || { available: true };
+    var setupCard = form.querySelector('#kayzart-ai-setup-card');
+    var setupLink = form.querySelector('#kayzart-ai-open-settings');
+    var returnNotice = form.querySelector('#kayzart-ai-return');
+    var recheck = form.querySelector('#kayzart-ai-recheck');
+    var result = form.querySelector('#kayzart-ai-check-result');
+    var reason = form.querySelector('#kayzart-ai-unavailable-reason');
+    var checking = false;
     var maxChars = Number(config.maxPromptChars) || 8000;
     var charsLabel = config.charsLabel || 'characters';
     var promptIsValid = true;
@@ -56,7 +64,7 @@
       prompt.setAttribute('aria-invalid', promptIsValid ? 'false' : 'true');
 
       if (generateButton && !form.classList.contains('is-submitting')) {
-        generateButton.disabled = !promptIsValid;
+        generateButton.disabled = !ai.available || !promptIsValid || checking;
       }
       if (blankButton && !form.classList.contains('is-submitting')) {
         blankButton.disabled = promptChars > 0;
@@ -64,6 +72,54 @@
       if (blankHint) {
         blankHint.hidden = promptChars === 0;
       }
+    }
+
+    if (setupLink) {
+      setupLink.addEventListener('click', function () {
+        if (returnNotice) returnNotice.hidden = false;
+      });
+    }
+
+    if (recheck) {
+      recheck.addEventListener('click', async function () {
+        if (checking || form.classList.contains('is-submitting')) return;
+        checking = true;
+        recheck.disabled = true;
+        recheck.setAttribute('aria-busy', 'true');
+        if (result) result.textContent = config.checkingLabel;
+        updatePromptCount();
+        try {
+          var response = await fetch(ai.availabilityUrl, {
+            method: 'GET', credentials: 'same-origin', cache: 'no-store',
+            headers: { 'X-WP-Nonce': config.restNonce }
+          });
+          var data = await response.json();
+          if (!response.ok || data.ok !== true || typeof data.ai?.available !== 'boolean') throw new Error('availability');
+          ai = data.ai;
+          maxChars = Number(ai.maxPromptChars) || maxChars;
+          var refreshedNonce = response.headers.get('X-WP-Nonce');
+          if (refreshedNonce) config.restNonce = refreshedNonce;
+          if (setupCard) setupCard.hidden = ai.available;
+          if (generateButton) generateButton.hidden = !ai.available;
+          if (setupLink) {
+            setupLink.hidden = ai.available || !ai.canSetUp;
+            if (ai.setupUrl) setupLink.href = ai.setupUrl;
+          }
+          if (reason) reason.textContent = ai.unavailableMessage || '';
+          if (ai.available) {
+            var description = form.querySelector('#kayzart-initial-ai-prompt-description');
+            if (description) description.textContent = config.readyLabel;
+          }
+          if (result) result.textContent = ai.available ? config.readyLabel : (ai.unavailableMessage || config.notReadyLabel);
+        } catch (error) {
+          if (result) result.textContent = config.checkError;
+        } finally {
+          checking = false;
+          recheck.disabled = false;
+          recheck.removeAttribute('aria-busy');
+          updatePromptCount();
+        }
+      });
     }
 
     function resizePrompt() {
@@ -98,7 +154,8 @@
       var startMode = submitter && submitter.value === 'ai' ? 'ai' : 'blank';
 
       if (
-        (startMode === 'ai' && !promptIsValid) ||
+        (startMode === 'ai' && (!ai.available || !promptIsValid)) ||
+        checking ||
         (startMode === 'blank' && prompt && promptChars > 0) ||
         form.classList.contains('is-submitting')
       ) {

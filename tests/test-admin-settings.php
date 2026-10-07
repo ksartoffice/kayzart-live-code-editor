@@ -665,7 +665,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'maxPromptChars', $inline );
 	}
 
-	public function test_render_new_page_shows_the_ai_instruction_only_when_ai_is_available(): void {
+	public function test_render_new_page_keeps_the_ai_instruction_visible_before_setup(): void {
 		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		get_role( 'administrator' )->add_cap( Ai_Setup::CAPABILITY );
 		wp_set_current_user( $admin_id );
@@ -687,10 +687,10 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		ob_start();
 		Admin::render_new_page();
 		$unavailable_output = (string) ob_get_clean();
-		$this->assertStringNotContainsString( 'id="kayzart-initial-ai-prompt"', $unavailable_output );
-		$this->assertStringNotContainsString( 'id="kayzart-generate-ai"', $unavailable_output );
+		$this->assertStringContainsString( 'id="kayzart-initial-ai-prompt"', $unavailable_output );
+		$this->assertStringContainsString( 'id="kayzart-ai-open-settings"', $unavailable_output );
 		$this->assertStringContainsString( 'id="kayzart-create-blank"', $unavailable_output );
-		$this->assertStringContainsString( __( 'Create blank page', 'kayzart-live-code-editor' ), $unavailable_output );
+		$this->assertStringContainsString( __( 'Start with a blank page', 'kayzart-live-code-editor' ), $unavailable_output );
 
 		remove_filter( 'kayzart_ai_scheduler_present', '__return_true' );
 		remove_filter( 'kayzart_ai_mbstring_present', '__return_true' );
@@ -1014,18 +1014,18 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'mbstringPresent'     => true,
 				'domPresent'          => true,
 				'canEdit'             => true,
+				'canManageConnectors' => true,
+				'canManageSettings'   => true,
+				'maxPromptChars'      => Admin::AI_MAX_PROMPT_CHARS_DEFAULT,
 				'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
 				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
 				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'settingsUrl'         => Admin::get_settings_url(),
-				'canManageConnectors' => true,
-				'canManageSettings'   => true,
-				'maxPromptChars'      => Admin::AI_MAX_PROMPT_CHARS_DEFAULT,
 				'initialRequest'      => null,
 			),
-			$payload['ai'] ?? null
+			array_diff_key( $payload['ai'] ?? array(), array_flip( array( 'canSetUp', 'unavailableMessage', 'setupMode', 'setupUrl', 'setupLabel', 'setupGuide', 'availabilityUrl' ) ) )
 		);
 	}
 

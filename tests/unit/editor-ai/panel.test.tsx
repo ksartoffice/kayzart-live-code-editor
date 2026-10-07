@@ -121,6 +121,66 @@ describe('AiEditorPanel', () => {
   });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; });
 
+  it.each(['direct', 'connectors'])('preserves unsaved code and instructions through %s setup, failure, and retry', async (setupMode) => {
+    const ai = (window as any).KAYZART.ai;
+    Object.assign(ai, { available: false, providerConfigured: false, canSetUp: true, availabilityUrl: '/availability',
+      setupMode, setupUrl: setupMode === 'direct' ? '/settings#kayzart-ai-connection' : '/connectors', setupLabel: 'Connect AI',
+      setupGuide: { summary: 'Setup steps', steps: ['Save and return'], links: [] } });
+    const unsaved = { ...beforeSnapshot, html: '<main>Unsaved HTML</main>', css: 'main { color: red }', js: 'console.log(1)' };
+    const reloadPreview = vi.fn(); const replaceEditorSnapshot = vi.fn(); const registerToolbarAction = vi.fn(() => vi.fn());
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction,
+      getEditorSnapshot: vi.fn(() => unsaved), reloadPreview, replaceEditorSnapshot,
+      getSelectedContext: vi.fn(() => ({ lcId: 'cafe-hours', tagName: 'section' })), openSettingsTab: vi.fn(),
+    };
+    let attempts = 0;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      if (String(input).includes('/timeline')) return new Response(JSON.stringify({ ok: true, items: [], hasMore: false, nextCursor: null }));
+      if (String(input).includes('/availability')) {
+        attempts++;
+        if (attempts === 1) throw new TypeError('offline');
+        return new Response(JSON.stringify({ ok: true, ai: { ...ai, available: true, providerConfigured: true, canSetUp: false, maxPromptChars: 30 } }));
+      }
+      throw new Error('Unexpected request');
+    });
+    const { AiEditorPanel, initAiEditorIntegration } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await act(async () => {
+      initAiEditorIntegration();
+      window.dispatchEvent(new CustomEvent('kayzart-preview-overlay-action', { detail: { actionId: 'kayzart-ai-edit-context' } }));
+    });
+    expect(container.querySelector('.kayzart-ai-contexts')?.textContent).toContain('section');
+    const textarea = container.querySelector('textarea')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    await act(async () => { setter?.call(textarea, 'Add opening hours'); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    const link = container.querySelector<HTMLAnchorElement>('a[target="_blank"]')!;
+    expect(link.getAttribute('href')).toBe(ai.setupUrl);
+    expect(link.rel).toBe('noopener noreferrer');
+    await act(async () => { link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); window.dispatchEvent(new Event('focus')); });
+    expect(attempts).toBe(0);
+    const check = () => Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Check settings again')!;
+    await act(async () => { check().click(); check().click(); });
+    expect(attempts).toBe(1);
+    expect(container.textContent).toContain('Your input is preserved');
+    expect(textarea.value).toBe('Add opening hours');
+    await act(async () => check().click());
+    expect(textarea.value).toBe('Add opening hours');
+    expect(container.querySelector('.kayzart-ai-contexts')?.textContent).toContain('section');
+    expect(replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(reloadPreview).toHaveBeenCalledTimes(1);
+    expect(unsaved).toMatchObject({ html: '<main>Unsaved HTML</main>', css: 'main { color: red }', js: 'console.log(1)' });
+    expect((window as any).KAYZART.ai.jobsUrl).toBe('/jobs');
+    expect(registerToolbarAction).toHaveBeenLastCalledWith(expect.objectContaining({ label: 'AI Edit' }));
+    expect(registerToolbarAction.mock.results[0].value).toHaveBeenCalledTimes(1);
+    const send = container.querySelector<HTMLButtonElement>('.kayzart-ai-composer-footer button:last-child')!;
+    expect(send.disabled).toBe(false);
+    await act(async () => { setter?.call(textarea, 'x'.repeat(31)); textarea.dispatchEvent(new Event('input', { bubbles: true })); });
+    expect(send.disabled).toBe(true);
+    expect(fetchMock.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
+    await act(async () => root.unmount());
+  });
+
   it('persists the prompt timeline, hides summary, and applies the completed snapshot', async () => {
     const replaceEditorSnapshot = vi.fn(() => true); const setEditorLock = vi.fn();
     (window as any).KAYZART_EXTENSION_API = {

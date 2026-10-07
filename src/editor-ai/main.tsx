@@ -6,7 +6,7 @@ import type {
 } from './contract';
 import { normalizeSnapshot } from './contract';
 import {
-  AiApiError, cancelJob, createJob, getJob, getTimeline, getTimelineSnapshot,
+  AiApiError, cancelJob, createJob, getAvailability, getJob, getTimeline, getTimelineSnapshot,
   restoreTimeline, updateTimelineApplication,
 } from './api';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotContent, sameSnapshotIdentity, sleep } from './polling';
@@ -239,26 +239,41 @@ function RestoreIcon() {
   return <svg className="kayzart-ai-system-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M4 12h11a5 5 0 0 1 0 10h-3" /></svg>;
 }
 
-function AvailabilityNotice({ ai }: { ai: AiAvailability }) {
+function AvailabilityNotice({ ai, checking, opened, onOpen, onCheck }: {
+  ai: AiAvailability; checking: boolean; opened: boolean; onOpen: () => void; onCheck: () => void;
+}) {
   if (ai.available) return null;
-  let title: string = __('AI editing is unavailable', 'kayzart-live-code-editor');
-  let message: string = __('Ask the site administrator to check the AI configuration.', 'kayzart-live-code-editor');
-  if (!ai.featureEnabled) message = __('AI editing has been disabled by site policy.', 'kayzart-live-code-editor');
-  else if (!ai.schedulerPresent) message = __('The background job scheduler could not be loaded.', 'kayzart-live-code-editor');
-  else if (!ai.mbstringPresent) message = __('The PHP mbstring extension is required for AI editing.', 'kayzart-live-code-editor');
-  else if (!ai.domPresent) message = __('The PHP DOM extension is required for AI editing.', 'kayzart-live-code-editor');
-  else if (!ai.providerConfigured) {
-    title = __('Connect an AI provider', 'kayzart-live-code-editor');
-    message = ai.canManageSettings ? __('Configure a WordPress Connector or add an OpenAI API key before sending an edit.', 'kayzart-live-code-editor') : __('Ask an administrator to configure AI editing.', 'kayzart-live-code-editor');
+  const canSetUp = ai.canSetUp === true && Boolean(ai.setupUrl);
+  let message = ai.unavailableMessage || '';
+  if (!message && !canSetUp) {
+    if (!ai.featureEnabled) message = __('AI editing has been disabled by site policy.', 'kayzart-live-code-editor');
+    else if (!ai.schedulerPresent) message = __('The background job scheduler could not be loaded.', 'kayzart-live-code-editor');
+    else if (!ai.mbstringPresent) message = __('The PHP mbstring extension is required for AI editing.', 'kayzart-live-code-editor');
+    else if (!ai.domPresent) message = __('The PHP DOM extension is required for AI editing.', 'kayzart-live-code-editor');
+    else message = __('Ask an administrator to configure AI editing.', 'kayzart-live-code-editor');
   }
-  return <div className="kayzart-ai-notice" role="status"><strong>{title}</strong><p>{message}</p>
-	{!ai.providerConfigured && ai.canManageConnectors && ai.connectorsUrl ? <a href={ai.connectorsUrl}>{__('Open Connectors', 'kayzart-live-code-editor')}</a> : null}
-	{!ai.providerConfigured && ai.canManageSettings && ai.settingsUrl ? <a href={ai.settingsUrl}>{__('Open Kayzart AI settings', 'kayzart-live-code-editor')}</a> : null}
+  return <div className="kayzart-ai-notice">
+    <strong>{__('You can also ask AI to edit this page', 'kayzart-live-code-editor')}</strong>
+    <p>{__('For example: Make the heading clearer, or add a section with opening hours.', 'kayzart-live-code-editor')}</p>
+    <p>{__('Kayzart is free. AI usage fees are paid to the service you connect.', 'kayzart-live-code-editor')}</p>
+    {message ? <p>{message}</p> : null}
+    {canSetUp && ai.setupGuide ? <details className="kayzart-ai-connection-guide">
+      <summary>{ai.setupGuide.summary}</summary>
+      <ol>{ai.setupGuide.steps.map((step, index) => <li key={index}>{step}</li>)}</ol>
+      {ai.setupGuide.links.map((link) => <p key={link.url}><a href={link.url} target="_blank" rel="noopener noreferrer">{link.label} {__('(opens in a new tab)', 'kayzart-live-code-editor')}</a></p>)}
+    </details> : null}
+    {canSetUp ? <p><a className="kayzart-btn kayzart-btn-primary" href={ai.setupUrl} target="_blank" rel="noopener noreferrer" onClick={onOpen}>{ai.setupLabel} {__('(opens in a new tab)', 'kayzart-live-code-editor')}</a></p> : null}
+    {opened ? <p>{__('After saving the connection settings, return to this screen.', 'kayzart-live-code-editor')}</p> : null}
+    {ai.canEdit && ai.availabilityUrl ? <button type="button" disabled={checking} aria-busy={checking} onClick={onCheck}>{__('Check settings again', 'kayzart-live-code-editor')}</button> : null}
   </div>;
 }
 
 export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
-  const ai = config();
+  const [ai, setAi] = useState(config);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const checkingAvailabilityRef = useRef(false);
+  const [settingsOpened, setSettingsOpened] = useState(false);
+  const [availabilityResult, setAvailabilityResult] = useState('');
   const postId = Number(window.KAYZART.post_id || 0);
   const nonce = window.KAYZART.restNonce || '';
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
@@ -322,6 +337,36 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     const snapshot = host()?.getEditorSnapshot?.();
     return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
   });
+
+  const checkAvailability = async () => {
+    if (!ai?.availabilityUrl || checkingAvailabilityRef.current || running) return;
+    checkingAvailabilityRef.current = true;
+    setCheckingAvailability(true);
+    setAvailabilityResult(__('Checking settings…', 'kayzart-live-code-editor'));
+    try {
+      const current = await getAvailability(ai.availabilityUrl, window.KAYZART.restNonce || '', postId);
+      if (!mountedRef.current) return;
+      // Keep job URLs and the live initial-request marker from the existing configuration.
+      const next = { ...config(), ...current } as AiAvailability;
+      // Rechecking settings must never launch a deferred initial generation.
+      if (!ai.available) {
+        initialRequestAttemptedRef.current = true;
+        setInitialRequestReconciled(true);
+      }
+      window.KAYZART.ai = next;
+      setAi(next);
+      setAvailabilityResult(current.available
+        ? __('AI editing is available. You can now send your request.', 'kayzart-live-code-editor')
+        : current.unavailableMessage || __('AI editing is still unavailable. Save the connection settings and check again.', 'kayzart-live-code-editor'));
+      registerToolbar();
+      host()?.reloadPreview?.();
+    } catch {
+      if (mountedRef.current) setAvailabilityResult(__('Could not check settings. Your input is preserved. Please try again.', 'kayzart-live-code-editor'));
+    } finally {
+      checkingAvailabilityRef.current = false;
+      if (mountedRef.current) setCheckingAvailability(false);
+    }
+  };
 
   const setPrompt = (value: string) => { promptValueRef.current = value; draftState.prompt = value; setPromptState(value); };
   const restorePromptIfEmpty = (value: string) => {
@@ -550,7 +595,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   // Counted in code points so the number matches PHP's mb_strlen(), which is what the server enforces.
   const promptChars = useMemo(() => [...prompt.trim()].length, [prompt]);
   const maxPromptChars = positiveInteger(Number(ai?.maxPromptChars), DEFAULT_MAX_PROMPT_CHARS);
-  const canSend = Boolean(ai?.available && initialTimelineSettled && !running && !pendingConflict && prompt.trim() && promptChars <= maxPromptChars);
+  const canSend = Boolean(ai?.available && !checkingAvailability && initialTimelineSettled && !running && !pendingConflict && prompt.trim() && promptChars <= maxPromptChars);
   const loadOlder = async () => {
     if (!ai || !cursor || !chatRef.current) return;
     const element = chatRef.current; const previousHeight = element.scrollHeight; setLoading(true);
@@ -722,7 +767,8 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   };
 
   return <div className="kayzart-ai-panel" hidden={!active}>
-    {ai ? <AvailabilityNotice ai={ai} /> : null}
+    {availabilityResult ? <p className="kayzart-ai-availability-result" role="status" aria-live="polite">{availabilityResult}</p> : null}
+    {ai ? <AvailabilityNotice ai={ai} checking={checkingAvailability || running} opened={settingsOpened} onOpen={() => setSettingsOpened(true)} onCheck={() => void checkAvailability()} /> : null}
     {error ? <div className="kayzart-ai-error" role="alert">{error}</div> : null}
     {pendingConflict ? <div className="kayzart-ai-conflict" role="alert">
       <strong>{__('The editor changed while the AI edit was running.', 'kayzart-live-code-editor')}</strong>
@@ -759,7 +805,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     </div>
     <div className="kayzart-ai-composer">
       {contexts.length ? <div className="kayzart-ai-contexts">{contexts.map((context) => <span key={context.lcId}>{contextLabel(context)}<button type="button" onClick={() => setContexts(contexts.filter((item) => item.lcId !== context.lcId))} aria-label={__('Remove context', 'kayzart-live-code-editor')}>×</button></span>)}</div> : null}
-      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.available || !initialRequestReconciled} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
+      <textarea ref={promptRef} value={prompt} rows={4} disabled={!ai?.canEdit || !initialRequestReconciled} onChange={(event) => setPrompt(event.currentTarget.value)} placeholder={__('Example: Make the hero clearer and improve the primary button.', 'kayzart-live-code-editor')} />
       <div className="kayzart-ai-composer-footer"><small className={promptChars > maxPromptChars ? 'is-error' : ''}>{sprintf(
         /* translators: 1: current instruction length, 2: maximum instruction length. */
         __('%1$d/%2$d characters', 'kayzart-live-code-editor'), promptChars, maxPromptChars,
@@ -771,12 +817,17 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   </div>;
 }
 
+let unregisterToolbar: (() => void) | undefined;
+
 function registerToolbar() {
 	const ai = config();
   const action = { id: TOOLBAR_ACTION_ID, label: ai?.available ? __('AI Edit', 'kayzart-live-code-editor') : __('AI Setup', 'kayzart-live-code-editor'), tooltip: ai?.available ? __('Edit with AI', 'kayzart-live-code-editor') : __('Set up AI editing', 'kayzart-live-code-editor'), order: 10, placement: 'before-settings' as const,
     icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 10 8.5l1.5-6.1a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.5 1.5l6.1 1.5a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.5 1.5l-1.5 6.1a.5.5 0 0 1-1 0z"/></svg>', onClick: () => openAi(false) };
   const register = host()?.registerToolbarAction;
-  if (typeof register === 'function') register(action);
+  if (typeof register === 'function') {
+    unregisterToolbar?.();
+    unregisterToolbar = register(action);
+  }
 }
 function installContextEntrypoints() {
   window.addEventListener(PREVIEW_ACTION_EVENT, (raw) => { const event = raw as CustomEvent<{ actionId?: string }>; if (event.detail?.actionId === PREVIEW_ACTION_ID) openAi(true); });

@@ -22,6 +22,21 @@ class Rest_Ai {
 		Ai_Immediate_Dispatcher::register_route();
 		register_rest_route(
 			'kayzart/v1',
+			'/ai/availability',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'availability' ),
+				'permission_callback' => array( __CLASS__, 'availability_permission' ),
+				'args'                => array(
+					'post_id' => array(
+						'type'    => 'integer',
+						'minimum' => 1,
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'kayzart/v1',
 			'/ai/jobs',
 			array(
 				'methods'             => 'POST',
@@ -47,6 +62,38 @@ class Rest_Ai {
 				'permission_callback' => array( __CLASS__, 'job_permission' ),
 			)
 		);
+	}
+
+	/** Return availability without starting or authenticating an AI request. */
+	public static function availability(): \WP_REST_Response {
+		$response = new \WP_REST_Response(
+			array(
+				'ok' => true,
+				'ai' => Ai_Onboarding::get_data(),
+			)
+		);
+		$response->header( 'Cache-Control', 'no-store' );
+		return $response;
+	}
+
+	/**
+	 * Authorize a read-only check for a new page or an existing editor.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 */
+	public static function availability_permission( \WP_REST_Request $request ) {
+		$auth = self::authenticate_request( $request );
+		if ( true !== $auth ) {
+			return $auth;
+		}
+		if ( ! current_user_can( Ai_Setup::CAPABILITY ) ) {
+			return false;
+		}
+		$post_id = absint( $request->get_param( 'post_id' ) );
+		if ( $post_id > 0 ) {
+			return Post_Type::is_editor_enabled_post( $post_id ) && current_user_can( 'edit_post', $post_id );
+		}
+		return ! empty( Admin::get_creatable_post_types() );
 	}
 
 	/** Create or idempotently retrieve a job.

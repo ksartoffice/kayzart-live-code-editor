@@ -16,6 +16,17 @@ export type ChangeStat = { added: number; removed: number };
 
 export type AiAvailability = {
   available: boolean;
+  availabilityUrl?: string;
+  setupMode?: 'direct' | 'connectors';
+  setupUrl?: string;
+  setupLabel?: string;
+  canSetUp?: boolean;
+  unavailableMessage?: string;
+  setupGuide?: {
+    summary: string;
+    steps: string[];
+    links: { label: string; url: string }[];
+  };
 	setupState?: 'ready' | 'setup_required' | 'system_unavailable';
 	backend?: 'wordpress_ai_client' | 'openai_direct' | 'none';
   featureEnabled: boolean;
@@ -42,6 +53,10 @@ export type AiAvailability = {
     prompt: string;
   } | null;
 };
+
+export type AiConnectionState = Omit<AiAvailability,
+  'jobsUrl' | 'jobsBaseUrl' | 'timelineUrl' | 'timelineBaseUrl' |
+  'connectorsUrl' | 'settingsUrl' | 'initialRequest'>;
 
 export type AiJobStatus =
   | 'pending'

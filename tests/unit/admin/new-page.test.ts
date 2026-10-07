@@ -3,9 +3,13 @@ import { readFileSync } from 'node:fs';
 
 const newPageScript = readFileSync('assets/admin/new-page.js', 'utf8');
 
-const renderForm = (maxPromptChars = 8000) => {
+const renderForm = (maxPromptChars = 8000, needsSetup = false, systemUnavailable = false) => {
   document.body.innerHTML = [
     '<form class="kayzart-create-form">',
+    `<div id="kayzart-ai-setup-card"><div id="kayzart-ai-setup-guide"${systemUnavailable ? ' hidden' : ''}><details class="kayzart-ai-connection-guide"><summary>Initial guide</summary><ol><li>Initial step</li></ol></details></div><div id="kayzart-ai-return" hidden></div><p id="kayzart-ai-unavailable-reason"></p><button id="kayzart-ai-recheck" type="button">Check settings again</button></div>`,
+    '<p id="kayzart-ai-check-result" role="status"></p>',
+    `<a id="kayzart-ai-open-settings" href="/settings" target="_blank" rel="noopener noreferrer"${systemUnavailable ? ' hidden' : ''}>Set up</a>`,
+    '<input name="post_type" value="page"><input name="mode" value="normal">',
     '<input id="kayzart-create-title" value="Salon launch" />',
     '<textarea id="kayzart-initial-ai-prompt"></textarea>',
     '<p id="kayzart-initial-ai-prompt-count"></p>',
@@ -21,6 +25,9 @@ const renderForm = (maxPromptChars = 8000) => {
   (window as any).KAYZART_NEW_PAGE = {
     maxPromptChars,
     charsLabel: 'characters',
+    ai: { available: !needsSetup && !systemUnavailable, canSetUp: needsSetup && !systemUnavailable, availabilityUrl: '/availability' },
+    newTabLabel: '(opens in a new tab)',
+    restNonce: 'nonce', checkingLabel: 'Checking settings', readyLabel: 'Available', notReadyLabel: 'Not configured', checkError: 'Retry; input preserved',
   };
   window.eval(newPageScript);
 };
@@ -163,4 +170,97 @@ describe('new page form', () => {
     expect(form.querySelector<HTMLInputElement>('input[type="hidden"][name="start_mode"]')?.value).toBe('blank');
     expect(form.classList.contains('is-submitting')).toBe(true);
   });
+  it('opens setup without submitting and enables generation only after a manual recheck', async () => {
+    renderForm(5, true);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: true, ai: { available: true, maxPromptChars: 5 } })));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const generate = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
+    const link = document.querySelector<HTMLAnchorElement>('#kayzart-ai-open-settings')!;
+    prompt.value = 'hello'; prompt.dispatchEvent(new Event('input'));
+    expect(generate.disabled).toBe(true);
+    link.dispatchEvent(new MouseEvent('click', { cancelable: true }));
+    expect(document.querySelector<HTMLElement>('#kayzart-ai-return')!.hidden).toBe(false);
+    window.dispatchEvent(new Event('focus'));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(document.querySelector('.is-submitting')).toBeNull();
+    document.querySelector<HTMLButtonElement>('#kayzart-ai-recheck')!.click();
+    await vi.waitFor(() => expect(generate.disabled).toBe(false));
+    expect(prompt.value).toBe('hello');
+    expect(document.querySelector<HTMLInputElement>('#kayzart-create-title')!.value).toBe('Salon launch');
+    expect(document.querySelector<HTMLInputElement>('[name="post_type"]')!.value).toBe('page');
+    expect(document.querySelector<HTMLInputElement>('[name="mode"]')!.value).toBe('normal');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'GET', headers: { 'X-WP-Nonce': 'nonce' } });
+    prompt.value = 'too long'; prompt.dispatchEvent(new Event('input'));
+    expect(generate.disabled).toBe(true);
+    expect(document.querySelector('.is-submitting')).toBeNull();
+  });
+
+  it('restores setup guidance after environment requirements are fixed without losing input or starting generation', async () => {
+    renderForm(8000, true, true);
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, ai: {
+        available: false, canSetUp: true, availabilityUrl: '/availability', setupUrl: '/connectors',
+        setupGuide: { summary: 'Connect an AI service', steps: ['Choose a service', 'Save its settings'], links: [{ label: 'Documentation', url: 'https://example.test/docs' }] },
+      } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, ai: { available: true, maxPromptChars: 8000 } })));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const link = document.querySelector<HTMLAnchorElement>('#kayzart-ai-open-settings')!;
+    const guide = document.querySelector<HTMLElement>('#kayzart-ai-setup-guide')!;
+    const generate = document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!;
+    const check = document.querySelector<HTMLButtonElement>('#kayzart-ai-recheck')!;
+    prompt.value = 'A cafe page with opening hours'; prompt.dispatchEvent(new Event('input'));
+    expect(link.hidden).toBe(true);
+    expect(guide.hidden).toBe(true);
+    check.click();
+    await vi.waitFor(() => expect(guide.hidden).toBe(false));
+    expect(link.hidden).toBe(false);
+    expect(link.getAttribute('href')).toBe('/connectors');
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toBe('noopener noreferrer');
+    expect(guide.querySelector('summary')!.textContent).toBe('Connect an AI service');
+    expect(Array.from(guide.querySelectorAll('li'), (item) => item.textContent)).toEqual(['Choose a service', 'Save its settings']);
+    expect(guide.querySelector('a')!.textContent).toBe('Documentation (opens in a new tab)');
+    expect(guide.querySelector('a')!.target).toBe('_blank');
+    expect(guide.querySelector('a')!.rel).toBe('noopener noreferrer');
+    expect(generate.hidden).toBe(true);
+    expect(generate.disabled).toBe(true);
+    link.dispatchEvent(new MouseEvent('click', { cancelable: true }));
+    expect(document.querySelector<HTMLElement>('#kayzart-ai-return')!.hidden).toBe(false);
+    window.dispatchEvent(new Event('focus'));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    check.click();
+    await vi.waitFor(() => expect(generate.disabled).toBe(false));
+    expect(generate.hidden).toBe(false);
+    expect(guide.hidden).toBe(true);
+    expect(link.hidden).toBe(true);
+    expect(prompt.value).toBe('A cafe page with opening hours');
+    expect(document.querySelector<HTMLInputElement>('#kayzart-create-title')!.value).toBe('Salon launch');
+    expect(document.querySelector<HTMLInputElement>('[name="post_type"]')!.value).toBe('page');
+    expect(document.querySelector<HTMLInputElement>('[name="mode"]')!.value).toBe('normal');
+    expect(document.querySelector('.is-submitting')).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [, request] of fetchMock.mock.calls) expect(request!.method).toBe('GET');
+  });
+
+  it('preserves input through a failed check and an unconfigured response, then allows retry', async () => {
+    renderForm(5, true);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, ai: { available: false, availabilityUrl: '/availability', canSetUp: true } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, ai: { available: true, maxPromptChars: 5 } })));
+    const prompt = document.querySelector<HTMLTextAreaElement>('#kayzart-initial-ai-prompt')!;
+    const check = document.querySelector<HTMLButtonElement>('#kayzart-ai-recheck')!;
+    prompt.value = 'hello'; prompt.dispatchEvent(new Event('input'));
+    check.click(); check.click();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(document.querySelector('#kayzart-ai-check-result')!.textContent).toContain('Retry'));
+    expect(prompt.value).toBe('hello');
+    check.click();
+    await vi.waitFor(() => expect(document.querySelector('#kayzart-ai-check-result')!.textContent).toBe('Not configured'));
+    expect(document.querySelector<HTMLElement>('#kayzart-ai-setup-card')!.hidden).toBe(false);
+    check.click();
+    await vi.waitFor(() => expect(document.querySelector<HTMLButtonElement>('#kayzart-generate-ai')!.disabled).toBe(false));
+    expect(prompt.value).toBe('hello');
+  });
+
 });

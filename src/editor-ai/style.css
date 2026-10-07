@@ -27,6 +27,12 @@
 }
 .kayzart-ai-notice p { margin: 6px 0; color: var(--ai-muted); }
 .kayzart-ai-notice a { color: var(--ai-accent); }
+.kayzart-ai-notice { max-height: 55%; overflow: auto; flex-shrink: 0; }
+.kayzart-ai-notice summary { cursor: pointer; font-weight: 600; }
+.kayzart-ai-notice li { margin-bottom: 6px; }
+.kayzart-ai-notice button { padding: 6px 10px; cursor: pointer; }
+.kayzart-ai-notice button:disabled { cursor: wait; opacity: .6; }
+.kayzart-ai-availability-result { margin: 0; padding: 6px 11px; font-size: 12px; color: var(--ai-muted); }
 .kayzart-ai-error { color: var(--ai-danger); border-color: #6b2a30; background: #3a1b20; }
 .kayzart-ai-conflict { color: var(--ai-text); border-color: #85622c; background: #2d2416; }
 .kayzart-ai-conflict p { margin: 6px 0 10px; color: var(--ai-muted); }

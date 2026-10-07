@@ -579,3 +579,28 @@
     transition-duration: 0.01ms !important;
   }
 }
+.kayzart-create-page [hidden] {
+  display: none !important;
+}
+
+.kayzart-ai-connection-guide {
+  margin: 16px 0;
+  line-height: 1.7;
+}
+
+.kayzart-ai-connection-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.kayzart-ai-connection-guide li {
+  margin-bottom: 8px;
+}
+
+.kayzart-ai-check-result:empty {
+  display: none;
+}
+
+.kayzart-ai-check-result {
+  padding: 0 26px;
+}

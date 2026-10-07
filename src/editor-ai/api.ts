@@ -1,4 +1,5 @@
 import type {
+  AiConnectionState,
   AiCreateJobResponse,
   AiEditRequest,
   AiJobStatusResponse,
@@ -25,6 +26,8 @@ async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Prom
   headers.set('X-WP-Nonce', nonce);
   if (init.body) headers.set('Content-Type', 'application/json');
   const response = await fetch(url, { ...init, credentials: 'same-origin', headers });
+  const refreshedNonce = response.headers.get('X-WP-Nonce');
+  if (refreshedNonce && window.KAYZART) window.KAYZART.restNonce = refreshedNonce;
   const text = await response.text();
   let data: Record<string, unknown> = {};
   try {
@@ -37,6 +40,14 @@ async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Prom
     throw new AiApiError(message, response.status, typeof data.code === 'string' ? data.code : '');
   }
   return data as T;
+}
+
+export async function getAvailability(url: string, nonce: string, postId: number) {
+  const target = new URL(url, window.location.origin);
+  target.searchParams.set('post_id', String(postId));
+  const response = await fetchJson<{ ok: boolean; ai: AiConnectionState }>(target.toString(), nonce, { method: 'GET', cache: 'no-store' });
+  if (response.ok !== true || typeof response.ai?.available !== 'boolean') throw new AiApiError('Invalid availability response');
+  return response.ai;
 }
 
 export function createJob(url: string, nonce: string, payload: AiEditRequest, signal?: AbortSignal) {

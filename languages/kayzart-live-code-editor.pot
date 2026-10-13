@@ -440,6 +440,14 @@ msgstr ""
 msgid "Advanced AI settings"
 msgstr ""
 
+#: includes/class-kayzart-admin.php
+msgid "Show settings"
+msgstr ""
+
+#: includes/class-kayzart-admin.php
+msgid "Hide settings"
+msgstr ""
+
 #: includes/class-kayzart-admin.php:1787
 msgid "Configured outside WordPress"
 msgstr ""

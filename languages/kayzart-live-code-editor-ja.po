@@ -2796,6 +2796,14 @@ msgstr "Kayzartは無料ですが、AIの利用料は接続先のサービスに
 msgid "Advanced AI settings"
 msgstr "AIの詳細設定"
 
+#: includes/class-kayzart-admin.php
+msgid "Show settings"
+msgstr "設定を表示"
+
+#: includes/class-kayzart-admin.php
+msgid "Hide settings"
+msgstr "設定を閉じる"
+
 #: includes/class-kayzart-admin.php:1837
 msgid "Save connection settings"
 msgstr "接続設定を保存する"

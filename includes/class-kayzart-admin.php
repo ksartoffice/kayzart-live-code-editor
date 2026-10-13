@@ -1771,7 +1771,9 @@ class Admin {
 
 	/** Render advanced fields without disabling or removing their form inputs. */
 	public static function render_ai_advanced_section(): void {
-		echo '<details class="kayzart-ai-advanced"><summary>' . esc_html__( 'Advanced AI settings', 'kayzart-live-code-editor' ) . '</summary><table class="form-table" role="presentation">';
+		echo '<details class="kayzart-ai-advanced"><summary><span class="kayzart-ai-advanced__title">' . esc_html__( 'Advanced AI settings', 'kayzart-live-code-editor' ) . '</span>';
+		echo '<span class="kayzart-ai-advanced__action" aria-hidden="true"><span class="kayzart-ai-advanced__show">' . esc_html__( 'Show settings', 'kayzart-live-code-editor' ) . '</span>';
+		echo '<span class="kayzart-ai-advanced__hide">' . esc_html__( 'Hide settings', 'kayzart-live-code-editor' ) . '</span><span class="kayzart-ai-advanced__arrow"></span></span></summary><table class="form-table" role="presentation">';
 		do_settings_fields( self::SETTINGS_SLUG, 'kayzart_ai_advanced_fields' );
 		echo '</table></details>';
 	}
@@ -2423,13 +2425,23 @@ class Admin {
 		echo '</nav>';
 	}
 	/**
-	 * Enqueue admin assets for the KayzArt editor.
+	 * Enqueue assets for Kayzart admin screens.
 	 *
 	 * @param string $hook_suffix Current admin page hook.
 	 */
 	public static function enqueue_assets( string $hook_suffix ): void {
 		if ( 'toplevel_page_' . self::NEW_SLUG === $hook_suffix ) {
 			self::enqueue_new_page_assets();
+			return;
+		}
+
+		if ( get_plugin_page_hookname( self::SETTINGS_SLUG, self::NEW_SLUG ) === $hook_suffix ) {
+			wp_enqueue_style(
+				'kayzart-settings',
+				KAYZART_URL . 'assets/admin/settings.css',
+				array(),
+				self::resolve_asset_version( KAYZART_PATH . 'assets/admin/settings.css' )
+			);
 			return;
 		}
 

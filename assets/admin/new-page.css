@@ -447,6 +447,10 @@
   font-size: 12px;
 }
 
+.kayzart-create-actions .button span {
+  color: inherit;
+}
+
 .kayzart-create-form__footer .button.button-primary {
   min-height: 40px;
   margin: 0;

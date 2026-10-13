@@ -651,6 +651,23 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		$this->assertLessThan( $normal_position, $tailwind_position );
 	}
 
+	/** Settings styles load on the submenu hook registered by WordPress. */
+	public function test_enqueue_assets_loads_settings_styles_on_the_registered_settings_screen(): void {
+		global $admin_page_hooks;
+		$original_hooks = $admin_page_hooks;
+		$admin_page_hooks[ Admin::NEW_SLUG ] = 'kayzart';
+		try {
+			$settings_hook = get_plugin_page_hookname( Admin::SETTINGS_SLUG, Admin::NEW_SLUG );
+			Admin::enqueue_assets( $settings_hook );
+			$this->assertTrue( wp_style_is( 'kayzart-settings', 'enqueued' ) );
+			$this->assertFalse( wp_script_is( 'kayzart-admin', 'enqueued' ) );
+			$this->assertFalse( wp_script_is( 'kayzart-new-page', 'enqueued' ) );
+		} finally {
+			$admin_page_hooks = $original_hooks;
+			wp_dequeue_style( 'kayzart-settings' );
+		}
+	}
+
 	public function test_enqueue_assets_loads_only_new_page_assets_on_new_screen(): void {
 		Admin::enqueue_assets( 'toplevel_page_' . Admin::NEW_SLUG );
 
@@ -1623,7 +1640,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 
 		$this->assertStringContainsString( 'Configure a WordPress Connector', $output );
-		$this->assertStringContainsString( 'options-connectors.php', $output );
+		$this->assertSame( 1, substr_count( $output, 'options-connectors.php' ), 'The AI section should offer one Connector settings link.' );
 	}
 
 	/** Without the SDK the advice stays on the direct key. */

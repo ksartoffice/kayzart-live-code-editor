@@ -1284,4 +1284,52 @@ describe('AiEditorPanel', () => {
     expect(container.textContent).toContain('Describe the landing page change you want.');
     await act(async () => root.unmount());
   });
+
+  it('keeps the panel mounted when a PHP notice corrupts the timeline response', async () => {
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock: vi.fn(),
+    };
+    const body = JSON.stringify({ ok: true, items: [], hasMore: false, nextCursor: null });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.resolve(new Response(`<br />
+<b>Deprecated</b>: Example in x.php on line 1<br />
+${body}`, { status: 200 })));
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(container.querySelector('.kayzart-ai-error')?.textContent).toContain('Invalid REST response'));
+    expect(container.querySelector('textarea')).not.toBeNull();
+    await act(async () => root.unmount());
+  });
+
+  it('keeps polling a job after a malformed status response', async () => {
+    const setEditorLock = vi.fn();
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => beforeSnapshot), getEditorMode: vi.fn(() => 'normal'), setEditorLock,
+    };
+    sessionStorage.setItem('kayzart.ai.activeJob.7', JSON.stringify({
+      version: 1, postId: 7, jobId: 'job-1', requestId: 'request-1', statusUrl: 'http://localhost:3000/jobs/job-1', cancelUrl: 'http://localhost:3000/jobs/job-1/cancel',
+      pollIntervalMs: 1, timeoutMs: 600000, startedAt: Date.now(), prompt: 'Improve the hero', contexts: [], inputSnapshot: beforeSnapshot,
+    }));
+    let polls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      if (String(input).includes('/timeline')) return Promise.resolve(new Response(JSON.stringify({ ok: true, items: [], hasMore: false, nextCursor: null })));
+      polls += 1;
+      if (polls === 1) return Promise.resolve(new Response('null', { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({
+        ok: true, jobId: 'job-1', requestId: 'request-1', status: 'running', events: [], snapshot: null, error: null, usage: null,
+        cancelRequested: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), startedAt: null, finishedAt: null, pollIntervalMs: 1, timeoutMs: 600000,
+      })));
+    });
+
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+    await vi.waitFor(() => expect(polls).toBeGreaterThan(2));
+    expect(setEditorLock).not.toHaveBeenCalledWith(false);
+    expect(sessionStorage.getItem('kayzart.ai.activeJob.7')).not.toBeNull();
+    await act(async () => root.unmount());
+  });
 });

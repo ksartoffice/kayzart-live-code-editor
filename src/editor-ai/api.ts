@@ -22,12 +22,16 @@ export class AiApiError extends Error {
 }
 
 const INVALID_NONCE_CODE = 'rest_cookie_invalid_nonce';
+const INVALID_RESPONSE_CODE = 'kayzart_invalid_response';
 
 type WpApiFetchGlobal = { wp?: { apiFetch?: { nonceEndpoint?: string } } };
 
 function send(url: string, nonce: string, init: RequestInit) {
   const headers = new Headers(init.headers || {});
   headers.set('X-WP-Nonce', nonce);
+  // WordPress turns display_errors off only for requests that ask for JSON, so
+  // without this a PHP notice from any plugin can corrupt a GET response.
+  headers.set('Accept', 'application/json');
   if (init.body) headers.set('Content-Type', 'application/json');
   return fetch(url, { ...init, credentials: 'same-origin', headers });
 }
@@ -73,16 +77,19 @@ async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Prom
   const refreshedNonce = response.headers.get('X-WP-Nonce');
   if (refreshedNonce && window.KAYZART) window.KAYZART.restNonce = refreshedNonce;
   const text = await response.text();
-  let data: Record<string, unknown> = {};
+  let data: Record<string, unknown> | null = null;
   try {
-    data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+    const parsed: unknown = text ? JSON.parse(text) : null;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = parsed as Record<string, unknown>;
   } catch {
-    data = {};
+    data = null;
   }
   if (!response.ok) {
-    const message = typeof data.message === 'string' ? data.message : `REST request failed (${response.status})`;
-    throw new AiApiError(message, response.status, typeof data.code === 'string' ? data.code : '');
+    const message = typeof data?.message === 'string' ? data.message : `REST request failed (${response.status})`;
+    throw new AiApiError(message, response.status, typeof data?.code === 'string' ? data.code : '');
   }
+  // Status 0 keeps a malformed reply retryable while polling, like a dropped connection.
+  if (!data) throw new AiApiError(`Invalid REST response (${response.status})`, 0, INVALID_RESPONSE_CODE);
   return data as T;
 }
 
@@ -110,11 +117,13 @@ export function cancelJob(url: string, nonce: string, signal?: AbortSignal) {
   return fetchJson<AiJobStatusResponse>(url, nonce, { method: 'POST', body: '{}', signal });
 }
 
-export function getTimeline(url: string, nonce: string, postId: number, before?: number) {
+export async function getTimeline(url: string, nonce: string, postId: number, before?: number) {
   const target = new URL(url, window.location.origin);
   target.searchParams.set('post_id', String(postId));
   if (before) target.searchParams.set('before', String(before));
-  return fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
+  const response = await fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
+  if (!Array.isArray(response.items)) throw new AiApiError('Invalid timeline response', 0, INVALID_RESPONSE_CODE);
+  return response;
 }
 
 export function getTimelineSnapshot(baseUrl: string, nonce: string, id: number, target: 'before' | 'after') {

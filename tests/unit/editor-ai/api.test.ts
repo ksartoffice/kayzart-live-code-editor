@@ -36,6 +36,33 @@ describe('AI REST client', () => {
     await expect(getJob('/jobs/id', 'nonce')).rejects.toThrow('REST request failed (503)');
   });
 
+  it('asks for JSON so WordPress keeps PHP notices out of the response', async () => {
+    const fetchMock = vi.spyOn(window, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    await getJob('/jobs/id', 'nonce');
+    expect(new Headers((fetchMock.mock.calls[0][1] as RequestInit).headers).get('Accept')).toBe('application/json');
+  });
+
+  it('uses the status fallback when an error body is JSON null', async () => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(new Response('null', { status: 503 }));
+    await expect(getJob('/jobs/id', 'nonce')).rejects.toMatchObject({ message: 'REST request failed (503)', status: 503 });
+  });
+
+  it.each([
+    ['JSON null', 'null'],
+    ['an HTML page', '<html><body>Please wait</body></html>'],
+    ['JSON after a PHP notice', '<br /><b>Notice</b>: x<br />{"ok":true}'],
+    ['a JSON array', '[]'],
+    ['an empty body', ''],
+  ])('rejects a successful response carrying %s as retryable', async (_label, body) => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(new Response(body, { status: 200 }));
+    await expect(getJob('/jobs/id', 'nonce')).rejects.toMatchObject({ status: 0, code: 'kayzart_invalid_response' });
+  });
+
+  it('rejects a timeline response without items', async () => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    await expect(getTimeline('/timeline', 'nonce', 7)).rejects.toMatchObject({ status: 0, code: 'kayzart_invalid_response' });
+  });
+
   it('uses stable timeline cursors and posts restore targets', async () => {
     const fetchMock = vi.spyOn(window, 'fetch').mockImplementation(() => Promise.resolve(
       new Response(JSON.stringify({ ok: true, items: [], hasMore: false, nextCursor: null, snapshot: {} }), { status: 200 })

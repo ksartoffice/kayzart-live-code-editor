@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.3.0
+Stable tag: 3.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.4.0 =
+* Add: Enter a page description or editing instruction before connecting AI, open connection settings in a separate tab, and check availability again without losing your input or unsaved code. Generation starts only when you choose to generate or send.
+* Improve: Add step-by-step AI connection guides, a save button next to the API key field, and collapsible advanced AI settings. Use WordPress Connectors when available, with direct OpenAI setup for older or unsupported environments.
+
 = 3.3.0 =
 * Add: Include a URL in an AI instruction, such as "use this site as a reference" or "add this article to the page", and Kayzart reads that page first, so the AI works from what the page actually says. Up to three pages per instruction; administrators can turn this off with the new Linked pages setting in Kayzart > Settings.
 * Improve: Optimize AI page creation.

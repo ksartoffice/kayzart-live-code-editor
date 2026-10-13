@@ -1,3 +1,18 @@
+.kayzart-ai-connection-guide > summary {
+  color: #135e96;
+  cursor: pointer;
+}
+
+.kayzart-ai-connection-guide > summary:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kayzart-ai-connection-guide > summary:focus-visible {
+  outline: 2px solid #2271b1;
+  outline-offset: 2px;
+}
+
 .kayzart-ai-advanced {
   max-width: 60em;
   margin: 20px 0;

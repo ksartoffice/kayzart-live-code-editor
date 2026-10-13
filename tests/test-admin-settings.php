@@ -1623,7 +1623,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 		}
 
 		$this->assertStringContainsString( 'Configure a WordPress Connector', $output );
-		$this->assertStringContainsString( 'options-connectors.php', $output );
+		$this->assertSame( 1, substr_count( $output, 'options-connectors.php' ), 'The AI section should offer one Connector settings link.' );
 	}
 
 	/** Without the SDK the advice stays on the direct key. */

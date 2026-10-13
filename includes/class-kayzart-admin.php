@@ -2043,9 +2043,6 @@ class Admin {
 		}
 		echo '</tbody>';
 		echo '</table>';
-		if ( $connector_supported && current_user_can( 'manage_options' ) ) {
-			echo '<p><a class="button" target="_blank" rel="noopener noreferrer" href="' . esc_url( admin_url( 'options-connectors.php' ) ) . '">' . esc_html__( 'Open WordPress Connectors', 'kayzart-live-code-editor' ) . '</a></p>';
-		}
 	}
 	/**
 	 * Render the create screen.

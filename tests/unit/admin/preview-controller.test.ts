@@ -299,6 +299,7 @@ describe('preview shortcode handling', () => {
       'fetch',
       vi.fn(() =>
         Promise.resolve({
+          ok: true,
           text: () => Promise.resolve('<!doctype html><html><head></head><body></body></html>'),
         })
       )
@@ -339,6 +340,74 @@ describe('preview shortcode handling', () => {
     vi.unstubAllGlobals();
   });
 
+  const createReloadController = (iframe: HTMLIFrameElement, customHead: { getValue: () => string }) =>
+    createPreviewController({
+      iframe,
+      postId: 1,
+      targetOrigin: 'https://example.com',
+      htmlModel: createModel('<div>hello</div>') as any,
+      customHeadModel: customHead as any,
+      cssModel: createModel('') as any,
+      jsModel: createModel('') as any,
+      htmlEditor: { revealRangeInCenter: () => {}, focus: () => {} } as any,
+      cssEditor: { revealRangeInCenter: () => {} } as any,
+      focusHtmlEditor: () => {},
+      getPreviewCss: () => '',
+      getCustomHead: () => customHead.getValue(),
+      getLiveHighlightEnabled: () => true,
+      getJsEnabled: () => false,
+      getJsMode: () => 'classic',
+      getResolvedTemplateMode: () => 'standalone',
+    });
+
+  it('does not reuse an HTTP error page as the base for blob reloads', async () => {
+    const objectUrls = mockObjectUrls();
+    const contentWindow = { postMessage: vi.fn() } as unknown as Window;
+    const iframe = createIframe(contentWindow);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, text: () => Promise.resolve('<html><body>503 Service Unavailable</body></html>') })
+      .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('<!doctype html><html><head></head><body>preview</body></html>') });
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = createReloadController(iframe, createModel('<meta name="draft">'));
+
+    controller.handleIframeLoad();
+    await flushAsync();
+    controller.requestReloadPreview();
+    await flushAsync();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe('https://example.com/preview');
+    const html = await objectUrls.getLastBlob()?.text();
+    expect(html).toContain('<body>preview</body>');
+    expect(html).not.toContain('503');
+    expect(iframe.setSrc).toHaveBeenCalledWith('blob:preview');
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps sending the custom head through render while no blob reload happened', async () => {
+    const objectUrls = mockObjectUrls();
+    const postMessage = vi.fn();
+    const contentWindow = { postMessage } as unknown as Window;
+    const iframe = createIframe(contentWindow);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    const customHead = createMutableModel('<meta name="draft">');
+    const controller = createReloadController(iframe, customHead);
+
+    controller.handleIframeLoad();
+    controller.handleMessage({ origin: 'https://example.com', source: contentWindow, data: { type: 'KAYZART_READY' } } as MessageEvent);
+    await flushAsync();
+    controller.requestReloadPreview();
+    await flushAsync();
+    postMessage.mockClear();
+    controller.sendRender();
+
+    expect(objectUrls.createObjectURL).not.toHaveBeenCalled();
+    expect(iframe.setSrc).not.toHaveBeenCalled();
+    const render = postMessage.mock.calls.map((entry) => entry[0]).find((message) => message?.type === 'KAYZART_RENDER');
+    expect(render).toMatchObject({ customHead: '<meta name="draft">' });
+    vi.unstubAllGlobals();
+  });
+
   it('runs current JavaScript after requestReloadPreview finishes rendering', async () => {
     mockObjectUrls();
     const postMessage = vi.fn();
@@ -349,6 +418,7 @@ describe('preview shortcode handling', () => {
       'fetch',
       vi.fn(() =>
         Promise.resolve({
+          ok: true,
           text: () => Promise.resolve('<!doctype html><html><head></head><body></body></html>'),
         })
       )

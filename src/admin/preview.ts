@@ -247,6 +247,7 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
   let editorCollapsed = false;
   let basePreviewHtml: string | null = null;
   let basePreviewFetch: Promise<string> | null = null;
+  let basePreviewUrl: string | null = null;
   let embeddedCustomHead: string | null = null;
   let renderedCustomHead = typeof deps.getCustomHead === 'function' ? deps.getCustomHead() : '';
   let expectingSrcdocLoad = false;
@@ -295,10 +296,30 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
     return result;
   };
 
+  // Only a successful response may become the base for blob reloads; an error
+  // page kept here would replace the preview on every later reload.
+  const fetchBasePreview = (url: string): Promise<string> => {
+    const request: Promise<string> = fetch(url, { credentials: 'same-origin' })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Preview request failed (${r.status})`);
+        return r.text();
+      })
+      .then((html) => {
+        if (basePreviewFetch === request) basePreviewHtml = html;
+        return html;
+      })
+      .catch(() => {
+        if (basePreviewFetch === request) basePreviewFetch = null;
+        return '';
+      });
+    basePreviewFetch = request;
+    return request;
+  };
+
   const reloadWithCustomHead = (customHead: string): void => {
-    embeddedCustomHead = customHead;
     const doReload = (html: string) => {
       if (!html) return;
+      embeddedCustomHead = customHead;
       if (currentBlobUrl) {
         URL.revokeObjectURL(currentBlobUrl);
       }
@@ -312,6 +333,9 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
       doReload(basePreviewHtml);
     } else if (basePreviewFetch) {
       basePreviewFetch.then(doReload);
+    } else if (basePreviewUrl) {
+      // The earlier fetch failed; try again so a temporary error recovers.
+      fetchBasePreview(basePreviewUrl).then(doReload);
     }
   };
 
@@ -609,11 +633,8 @@ export function createPreviewController(deps: PreviewControllerDeps): PreviewCon
         URL.revokeObjectURL(currentBlobUrl);
         currentBlobUrl = null;
       }
-      const fetchUrl = deps.iframe.src;
-      basePreviewFetch = fetch(fetchUrl, { credentials: 'same-origin' })
-        .then((r) => r.text())
-        .then((html) => { basePreviewHtml = html; return html; })
-        .catch(() => { basePreviewFetch = null; return ''; });
+      basePreviewUrl = deps.iframe.src;
+      fetchBasePreview(basePreviewUrl);
     }
     sendInit();
   };

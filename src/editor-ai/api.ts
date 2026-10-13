@@ -21,24 +21,75 @@ export class AiApiError extends Error {
   }
 }
 
-async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Promise<T> {
+const INVALID_NONCE_CODE = 'rest_cookie_invalid_nonce';
+const INVALID_RESPONSE_CODE = 'kayzart_invalid_response';
+
+type WpApiFetchGlobal = { wp?: { apiFetch?: { nonceEndpoint?: string } } };
+
+function send(url: string, nonce: string, init: RequestInit) {
   const headers = new Headers(init.headers || {});
   headers.set('X-WP-Nonce', nonce);
+  // WordPress turns display_errors off only for requests that ask for JSON, so
+  // without this a PHP notice from any plugin can corrupt a GET response.
+  headers.set('Accept', 'application/json');
   if (init.body) headers.set('Content-Type', 'application/json');
-  const response = await fetch(url, { ...init, credentials: 'same-origin', headers });
+  return fetch(url, { ...init, credentials: 'same-origin', headers });
+}
+
+async function isInvalidNonceResponse(response: Response) {
+  if (response.status !== 403) return false;
+  try {
+    const data = await response.clone().json() as { code?: unknown } | null;
+    return data?.code === INVALID_NONCE_CODE;
+  } catch {
+    return false;
+  }
+}
+
+/* The nonce goes stale after a new login or once it ages out, while the editor
+   stays open. WordPress answers that before any route callback runs, so the
+   request can be repeated safely with a nonce from the endpoint core's
+   wp.apiFetch uses for the same recovery. */
+async function fetchFreshNonce(signal?: AbortSignal | null) {
+  const endpoint = (window as Window & WpApiFetchGlobal).wp?.apiFetch?.nonceEndpoint;
+  if (!endpoint) return '';
+  try {
+    const response = await fetch(endpoint, { credentials: 'same-origin', signal: signal || undefined });
+    const nonce = response.ok ? (await response.text()).trim() : '';
+    return /^[A-Za-z0-9]+$/.test(nonce) && nonce !== '0' ? nonce : '';
+  } catch (caught) {
+    if (caught instanceof DOMException && caught.name === 'AbortError') throw caught;
+    return '';
+  }
+}
+
+async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Promise<T> {
+  // Callers may hold the nonce from an earlier render; prefer the latest one.
+  const sentNonce = window.KAYZART?.restNonce || nonce;
+  let response = await send(url, sentNonce, init);
+  if (await isInvalidNonceResponse(response)) {
+    const freshNonce = await fetchFreshNonce(init.signal);
+    if (freshNonce && freshNonce !== sentNonce) {
+      if (window.KAYZART) window.KAYZART.restNonce = freshNonce;
+      response = await send(url, freshNonce, init);
+    }
+  }
   const refreshedNonce = response.headers.get('X-WP-Nonce');
   if (refreshedNonce && window.KAYZART) window.KAYZART.restNonce = refreshedNonce;
   const text = await response.text();
-  let data: Record<string, unknown> = {};
+  let data: Record<string, unknown> | null = null;
   try {
-    data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+    const parsed: unknown = text ? JSON.parse(text) : null;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = parsed as Record<string, unknown>;
   } catch {
-    data = {};
+    data = null;
   }
   if (!response.ok) {
-    const message = typeof data.message === 'string' ? data.message : `REST request failed (${response.status})`;
-    throw new AiApiError(message, response.status, typeof data.code === 'string' ? data.code : '');
+    const message = typeof data?.message === 'string' ? data.message : `REST request failed (${response.status})`;
+    throw new AiApiError(message, response.status, typeof data?.code === 'string' ? data.code : '');
   }
+  // Status 0 keeps a malformed reply retryable while polling, like a dropped connection.
+  if (!data) throw new AiApiError(`Invalid REST response (${response.status})`, 0, INVALID_RESPONSE_CODE);
   return data as T;
 }
 
@@ -66,11 +117,13 @@ export function cancelJob(url: string, nonce: string, signal?: AbortSignal) {
   return fetchJson<AiJobStatusResponse>(url, nonce, { method: 'POST', body: '{}', signal });
 }
 
-export function getTimeline(url: string, nonce: string, postId: number, before?: number) {
+export async function getTimeline(url: string, nonce: string, postId: number, before?: number) {
   const target = new URL(url, window.location.origin);
   target.searchParams.set('post_id', String(postId));
   if (before) target.searchParams.set('before', String(before));
-  return fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
+  const response = await fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
+  if (!Array.isArray(response.items)) throw new AiApiError('Invalid timeline response', 0, INVALID_RESPONSE_CODE);
+  return response;
 }
 
 export function getTimelineSnapshot(baseUrl: string, nonce: string, id: number, target: 'before' | 'after') {

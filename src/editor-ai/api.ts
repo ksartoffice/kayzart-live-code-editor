@@ -21,11 +21,55 @@ export class AiApiError extends Error {
   }
 }
 
-async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Promise<T> {
+const INVALID_NONCE_CODE = 'rest_cookie_invalid_nonce';
+
+type WpApiFetchGlobal = { wp?: { apiFetch?: { nonceEndpoint?: string } } };
+
+function send(url: string, nonce: string, init: RequestInit) {
   const headers = new Headers(init.headers || {});
   headers.set('X-WP-Nonce', nonce);
   if (init.body) headers.set('Content-Type', 'application/json');
-  const response = await fetch(url, { ...init, credentials: 'same-origin', headers });
+  return fetch(url, { ...init, credentials: 'same-origin', headers });
+}
+
+async function isInvalidNonceResponse(response: Response) {
+  if (response.status !== 403) return false;
+  try {
+    const data = await response.clone().json() as { code?: unknown } | null;
+    return data?.code === INVALID_NONCE_CODE;
+  } catch {
+    return false;
+  }
+}
+
+/* The nonce goes stale after a new login or once it ages out, while the editor
+   stays open. WordPress answers that before any route callback runs, so the
+   request can be repeated safely with a nonce from the endpoint core's
+   wp.apiFetch uses for the same recovery. */
+async function fetchFreshNonce(signal?: AbortSignal | null) {
+  const endpoint = (window as Window & WpApiFetchGlobal).wp?.apiFetch?.nonceEndpoint;
+  if (!endpoint) return '';
+  try {
+    const response = await fetch(endpoint, { credentials: 'same-origin', signal: signal || undefined });
+    const nonce = response.ok ? (await response.text()).trim() : '';
+    return /^[A-Za-z0-9]+$/.test(nonce) && nonce !== '0' ? nonce : '';
+  } catch (caught) {
+    if (caught instanceof DOMException && caught.name === 'AbortError') throw caught;
+    return '';
+  }
+}
+
+async function fetchJson<T>(url: string, nonce: string, init: RequestInit): Promise<T> {
+  // Callers may hold the nonce from an earlier render; prefer the latest one.
+  const sentNonce = window.KAYZART?.restNonce || nonce;
+  let response = await send(url, sentNonce, init);
+  if (await isInvalidNonceResponse(response)) {
+    const freshNonce = await fetchFreshNonce(init.signal);
+    if (freshNonce && freshNonce !== sentNonce) {
+      if (window.KAYZART) window.KAYZART.restNonce = freshNonce;
+      response = await send(url, freshNonce, init);
+    }
+  }
   const refreshedNonce = response.headers.get('X-WP-Nonce');
   if (refreshedNonce && window.KAYZART) window.KAYZART.restNonce = refreshedNonce;
   const text = await response.text();

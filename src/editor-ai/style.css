@@ -27,6 +27,9 @@
 }
 .kayzart-ai-notice p { margin: 6px 0; color: var(--ai-muted); }
 .kayzart-ai-notice a { color: var(--ai-accent); }
+.kayzart-ai-notice a.kayzart-btn-primary { color: #fff; font-weight: 600; background: #2563eb; border-color: #2563eb; }
+.kayzart-ai-notice a.kayzart-btn-primary:hover,
+.kayzart-ai-notice a.kayzart-btn-primary:active { background: #1d4ed8; border-color: #1d4ed8; }
 .kayzart-ai-notice { max-height: 55%; overflow: auto; flex-shrink: 0; }
 .kayzart-ai-notice summary { cursor: pointer; font-weight: 600; }
 .kayzart-ai-notice li { margin-bottom: 6px; }

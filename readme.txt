@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.4.1
+Stable tag: 3.4.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -125,7 +125,7 @@ Theme mode renders your Kayzart content inside the active theme's template, so t
 HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, and other Kayzart settings are stored in post meta.
 
 = Does Kayzart send usage data to its own servers? =
-No usage data is sent automatically. Kayzart includes an optional administrator survey under Kayzart > Settings > Feedback. Every question in it is optional, and answers are sent to Kayzart only when an administrator presses Send feedback to Kayzart. The survey does not include the site URL, administrator email address, page content, or an installation identifier. AI editing also does not pass through a Kayzart server; it continues to use the AI connection configured by the site.
+No usage data is sent automatically. Kayzart includes an optional administrator survey under Kayzart > Settings > Feedback, and an optional one-question survey when you individually deactivate it from the regular Plugins screen. Answers are sent only when you explicitly choose to send them. Both can be skipped and neither includes the site URL, administrator email address, API key, page content, usage history, or a persistent installation identifier. AI editing also does not pass through a Kayzart server; it continues to use the AI connection configured by the site.
 
 == Screenshots ==
 1. Describe the page you want on the create screen, then pick TailwindCSS or Normal HTML/CSS mode.
@@ -139,6 +139,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.4.2 =
+* Add: An optional one-question survey before individual deactivation on the Plugins screen. Send a reason or comment, skip it, or cancel. Nothing is sent without an explicit submission, and delivery failure never prevents deactivation.
+
 = 3.4.1 =
 * Fix: AI editing no longer fails with "Cookie check failed" after you log in again or keep the editor open for a long time. Kayzart now renews the security token and retries, as saving already did.
 * Fix: After a temporary server error, the preview no longer keeps showing the error page when you save or reload it. The next reload fetches the preview again.
@@ -313,6 +316,8 @@ When an AI instruction contains URLs, Kayzart fetches the first three of those p
 Kayzart also offers administrators an optional product feedback survey. Every question in it is optional. No request is made merely by installing, activating, updating, or viewing the plugin or survey. When an administrator explicitly submits the form, the selected answers, optional free-text comments, survey version, plugin version, WordPress version, and administrator interface locale are sent to https://feedback.kayzart.com/ and retained for two years. An administrator can review what they sent and send a correction, which replaces the earlier answer. The survey does not send the site URL, administrator name or email address, page content, installed plugin list, or a persistent installation identifier. The receiving server may process IP addresses in short-lived security and abuse-prevention logs. The survey stops being offered after 31 August 2027, or earlier if the service reports that it has closed.
 
 Kayzart privacy policy: https://kayzart.com/en/privacy/ — terms: https://kayzart.com/en/terms-of-use/
+
+The independent deactivation survey sends a selected reason and/or optional comment (up to 1,000 characters), a random answer UUID, survey version, Kayzart and WordPress versions, and admin language to https://feedback.kayzart.com/v1/deactivation-responses only when you choose Send answer and deactivate. Answers are retained for two years. It does not send API keys, site URLs, email addresses, page content, usage history, or persistent installation identifiers. Please do not include private information in comments. The receiving server may retain IP addresses in security logs. Showing, cancelling, or skipping the survey sends nothing. It is not shown for bulk, CLI, or network-admin deactivations. Delivery failure does not prevent deactivation. This survey is separate from the product survey campaign and its end date.
 
 == Credits ==
 This plugin bundles third-party libraries:

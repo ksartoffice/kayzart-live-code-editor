@@ -21,3 +21,28 @@ takes place.
 Temporary content is created as fixed pages through the shared helpers and
 deleted in `finally`, with deletion responses checked. The settings save test
 changes only this disposable installation's settings.
+
+# Deactivation feedback fixture
+
+Use a disposable local WordPress installation and its own database. Copy
+`deactivation-feedback.php` into `wp-content/mu-plugins/` and define
+`KAYZART_DEACTIVATION_E2E` as `true` in `wp-config.php`. Use an administrator
+whose interface language is English, and set `WP_BASE_URL`, `WP_ADMIN_USER`,
+and `WP_ADMIN_PASS` to this installation.
+
+```powershell
+$env:KAYZART_DEACTIVATION_E2E = '1'
+npx playwright test tests/e2e/deactivation-feedback.spec.ts
+```
+
+The spec requires localhost or 127.0.0.1 and checks for the fixture marker.
+The fixture blocks external WordPress requests and simulates feedback delivery
+locally; no answers are sent to the real API. Cookie `kayzart_delivery_mode`
+selects successful, closed, or malformed responses. Test-only options record
+delivery count and payload. The spec exercises actual plugin deactivation and
+always reactivates it in `afterEach`, including after failed assertions. It
+creates no posts or pages. Discard the installation and database afterwards.
+
+For package verification, install the release ZIP into this installation and
+run the same spec rather than sharing the development vendor directory while
+packaging is in progress.

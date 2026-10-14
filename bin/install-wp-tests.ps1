@@ -114,7 +114,7 @@ function Get-TestsArchiveUrls {
 	)
 
 	$urls = @()
-	if ($Version -eq "latest" -or $Version -eq "nightly" -or $Version -eq "trunk") {
+	if ($Version -eq "nightly" -or $Version -eq "trunk") {
 		$urls += "https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip"
 		return $urls
 	}
@@ -123,7 +123,6 @@ function Get-TestsArchiveUrls {
 	if ($Version -match '^\d+\.\d+$') {
 		$urls += "https://github.com/WordPress/wordpress-develop/archive/refs/tags/$Version.0.zip"
 	}
-	$urls += "https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip"
 
 	return $urls
 }
@@ -303,7 +302,16 @@ if (-not (Test-Path $wpTestsDir)) {
 	New-Item -ItemType Directory -Path $wpTestsDir | Out-Null
 }
 
-Install-TestSuite -Version $WpVersion -TestsDir $wpTestsDir -TempDir $tmpDir
+# Match the release installed from latest.zip instead of mixing it with trunk.
+$testsVersion = $WpVersion
+if ($WpVersion -eq 'latest') {
+	$coreVersionMatch = Select-String -LiteralPath (Join-Path $wpCoreDir 'wp-includes/version.php') -Pattern "^\`$wp_version\s*=\s*'([^']*)'" | Select-Object -First 1
+	if (-not $coreVersionMatch -or $coreVersionMatch.Matches[0].Groups[1].Value -notmatch '^\d+\.\d+(\.\d+)?$') {
+		throw 'Could not resolve the installed latest WordPress release version.'
+	}
+	$testsVersion = $coreVersionMatch.Matches[0].Groups[1].Value
+}
+Install-TestSuite -Version $testsVersion -TestsDir $wpTestsDir -TempDir $tmpDir
 
 $wpTestsConfig = Join-Path $wpTestsDir "wp-tests-config.php"
 if (-not (Test-Path $wpTestsConfig)) {

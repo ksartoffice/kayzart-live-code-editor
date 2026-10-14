@@ -147,6 +147,16 @@ install_wp() {
 }
 
 install_test_suite() {
+  local tests_version="$WP_VERSION"
+  # latest.tar.gz is a release, not trunk. Development tests can depend on
+  # interfaces that do not exist in that release and fail before our tests run.
+  if [ "$WP_VERSION" = "latest" ]; then
+    tests_version=$(sed -n "s/^\$wp_version = '\([^']*\)';.*/\1/p" "$WP_CORE_DIR/wp-includes/version.php")
+    if ! [[ "$tests_version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+      echo "Could not resolve the installed latest WordPress release version."
+      exit 1
+    fi
+  fi
   local tests_marker="$WP_TESTS_DIR/includes/class-basic-object.php"
   local tests_config="$WP_TESTS_DIR/wp-tests-config.php"
   if [ -f "$tests_marker" ] && [ -f "$tests_config" ]; then
@@ -160,14 +170,13 @@ install_test_suite() {
   local extract_dir="$TMPDIR/wordpress-develop-tests"
 
   local urls=()
-  if [ "$WP_VERSION" = "latest" ] || [ "$WP_VERSION" = "nightly" ] || [ "$WP_VERSION" = "trunk" ]; then
+  if [ "$tests_version" = "nightly" ] || [ "$tests_version" = "trunk" ]; then
     urls+=("https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip")
   else
-    urls+=("https://github.com/WordPress/wordpress-develop/archive/refs/tags/$WP_VERSION.zip")
-    if [[ "$WP_VERSION" =~ ^[0-9]+\.[0-9]+$ ]]; then
-      urls+=("https://github.com/WordPress/wordpress-develop/archive/refs/tags/$WP_VERSION.0.zip")
+    urls+=("https://github.com/WordPress/wordpress-develop/archive/refs/tags/$tests_version.zip")
+    if [[ "$tests_version" =~ ^[0-9]+\.[0-9]+$ ]]; then
+      urls+=("https://github.com/WordPress/wordpress-develop/archive/refs/tags/$tests_version.0.zip")
     fi
-    urls+=("https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip")
   fi
 
   local downloaded=false

@@ -131,13 +131,14 @@ export type AiTimelineItem = {
   sourceActivityId: number | null;
   sourcePrompt: string | null;
   restoreTarget: 'before' | 'after' | null;
+  /** What the built-in AI or the external agent says it changed, written for the person who asked. */
+  summary?: string | null;
   detailsAvailable: boolean;
   /** False when the state before the edit cannot be restored, such as a page an agent created. */
   beforeAvailable?: boolean;
   /** Agent that made an agent_edit over MCP, such as an application password name. */
   agentClient?: string | null;
   agentAction?: 'create' | 'update' | null;
-  agentSummary?: string | null;
   canPoll: boolean;
   revisionAvailable: boolean;
   author: { id: number; name: string };

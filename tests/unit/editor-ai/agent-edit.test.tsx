@@ -13,11 +13,11 @@ const agentItem = {
   model: null, inputTokens: null, outputTokens: null, beforeHash: 'before', afterHash: 'after',
   beforeJsMode: 'classic' as const, afterJsMode: 'classic' as const, revisionId: 101, sourceActivityId: null, sourcePrompt: null,
   restoreTarget: null, detailsAvailable: true, beforeAvailable: true, agentClient: 'Claude Code', agentAction: 'update' as const,
-  agentSummary: 'Fixed the pricing heading and removed the dead nav link.', canPoll: false, revisionAvailable: true,
+  summary: 'Fixed the pricing heading and removed the dead nav link.', canPoll: false, revisionAvailable: true,
   author: { id: 1, name: 'Editor' }, createdAt: '2026-10-19T00:00:00Z', updatedAt: '2026-10-19T00:00:00Z',
 };
 const createdItem = {
-  ...agentItem, id: 29, activityId: 'activity-29', revisionId: 100, agentAction: 'create' as const, agentSummary: null,
+  ...agentItem, id: 29, activityId: 'activity-29', revisionId: 100, agentAction: 'create' as const, summary: null,
   beforeAvailable: false, beforeHash: 'empty', afterHash: 'before',
 };
 

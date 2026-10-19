@@ -476,7 +476,7 @@ class Ai_Timeline_Store {
 		return false === $result ? 0 : (int) $result;
 	}
 
-	/** Public REST representation without durable internal summary. */
+	/** Public REST representation of one activity. */
 	public function to_response( array $row ): array {
 		$user               = get_userdata( (int) $row['user_id'] );
 		$source             = ! empty( $row['source_activity_id'] ) ? $this->get( (int) $row['source_activity_id'] ) : null;
@@ -533,8 +533,8 @@ class Ai_Timeline_Store {
 			'beforeAvailable'   => $before_available,
 			'agentClient'       => isset( $row['agent_client'] ) && '' !== (string) $row['agent_client'] ? Agent_Pages::display_label( (string) $row['agent_client'] ) : null,
 			'agentAction'       => isset( $row['agent_action'] ) && '' !== (string) $row['agent_action'] ? (string) $row['agent_action'] : null,
-			// The agent writes its summary for the person, unlike the built-in engine's internal one.
-			'agentSummary'      => $is_agent_edit && '' !== (string) $row['summary'] ? (string) $row['summary'] : null,
+			// Written by the built-in engine or the external agent for the person who asked.
+			'summary'           => isset( $row['summary'] ) && '' !== (string) $row['summary'] ? (string) $row['summary'] : null,
 			'canPoll'           => ! empty( $row['job_uuid'] ) && ( get_current_user_id() === (int) $row['user_id'] || current_user_can( 'manage_options' ) ),
 			'revisionAvailable' => $revision_available,
 			'author'            => array(

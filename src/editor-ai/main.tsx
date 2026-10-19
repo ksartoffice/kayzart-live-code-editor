@@ -733,6 +733,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       </div>
       <div className={`kayzart-ai-result is-${executionStatus || 'unknown'}`}>
         <div className="kayzart-ai-result-heading"><AiIcon /><strong>{statusLabel(item, executionStatus)}</strong></div>
+        {executionStatus === 'completed' && item.summary ? <p className="kayzart-ai-result-summary">{item.summary}</p> : null}
         {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => {
           const stat = item.changeStats?.[value];
           return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;
@@ -778,7 +779,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         ? __('%s created this page', 'kayzart-live-code-editor')
         /* translators: %s: name of the external AI agent, such as Claude Code. */
         : __('%s edited this page', 'kayzart-live-code-editor'), client)}</strong></div>
-      {item.agentSummary ? <p className="kayzart-ai-agent-summary">{item.agentSummary}</p> : null}
+      {item.summary ? <p className="kayzart-ai-result-summary">{item.summary}</p> : null}
       {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => {
         const stat = item.changeStats?.[value];
         return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;

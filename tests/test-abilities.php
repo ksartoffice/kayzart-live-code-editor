@@ -691,11 +691,11 @@ class Test_Abilities extends WP_UnitTestCase {
 
 		$this->assertSame( array( 'agent_edit', 'agent_edit' ), array_column( $items, 'type' ), 'Agent saves replace the plain save rows.' );
 		$this->assertSame( 'create', $items[0]['agentAction'] );
-		$this->assertSame( 'Created the first draft.', $items[0]['agentSummary'] );
+		$this->assertSame( 'Created the first draft.', $items[0]['summary'] );
 		$this->assertFalse( $items[0]['beforeAvailable'], 'A created page has no earlier state to restore.' );
 		$this->assertTrue( $items[0]['detailsAvailable'] );
 		$this->assertSame( 'update', $items[1]['agentAction'] );
-		$this->assertSame( 'Renamed the heading.', $items[1]['agentSummary'] );
+		$this->assertSame( 'Renamed the heading.', $items[1]['summary'] );
 		$this->assertSame( 'MCP', $items[1]['agentClient'] );
 		$this->assertSame( array( 'html' ), $items[1]['changedTargets'] );
 		$this->assertSame( 1, $items[1]['changeStats']['html']['added'] );

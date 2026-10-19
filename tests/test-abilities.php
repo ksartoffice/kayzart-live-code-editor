@@ -1483,6 +1483,66 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertFalse( Save_Lock::confirm( 321 ) );
 	}
 
+	public function test_saves_still_work_when_the_database_refuses_the_lock(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Broken lock table',
+				'html'  => '<p>Before</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		$break   = static function ( $query ) {
+			return false !== strpos( $query, 'kayzart_save_lock_' ) ? 'INSERT INTO kayzart_missing_table VALUES ( 1 )' : $query;
+		};
+		add_filter( 'query', $break );
+		$suppressed = $wpdb->suppress_errors( true );
+		$log        = ini_set( 'error_log', wp_tempnam( 'kayzart-lock' ) ); // phpcs:ignore WordPress.PHP.IniSet.Risky
+		try {
+			$response = $this->editor_save( $post_id, '<p>Saved anyway</p>', null );
+		} finally {
+			remove_filter( 'query', $break );
+			$wpdb->suppress_errors( $suppressed );
+			ini_set( 'error_log', (string) $log ); // phpcs:ignore WordPress.PHP.IniSet.Risky
+		}
+
+		$this->assertSame( 200, $response->get_status(), 'A broken lock never blocks saving.' );
+		$this->assertSame( '<p>Saved anyway</p>', get_post( $post_id )->post_content );
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_' . $post_id ) ) );
+	}
+
+	public function test_the_lock_can_be_turned_off(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Lock off',
+				'html'  => '<p>Before</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => 'kayzart_save_lock_' . $post_id,
+				'option_value' => time() . ':someone',
+				'autoload'     => 'no',
+			)
+		);
+		add_filter( 'kayzart_save_lock_enabled', '__return_false' );
+		try {
+			$response = $this->editor_save( $post_id, '<p>Unlocked</p>', null );
+		} finally {
+			remove_filter( 'kayzart_save_lock_enabled', '__return_false' );
+		}
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '<p>Unlocked</p>', get_post( $post_id )->post_content );
+		$this->assertSame( time() . ':someone', $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_' . $post_id ) ), 'The row of another request is left alone.' );
+		$wpdb->delete( $wpdb->options, array( 'option_name' => 'kayzart_save_lock_' . $post_id ) );
+	}
+
 	private function admin(): int {
 		return (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 	}

@@ -24,6 +24,10 @@ type SaveCopyControllerDeps = {
   restUrl: string;
   postId: number;
   canEditJs: boolean;
+  /** Version of the saved sources the editor loaded, used to detect changes made elsewhere. */
+  initialSnapshotVersion?: string;
+  /** Asks whether to overwrite changes made outside the editor. Defaults to window.confirm. */
+  confirmOverwrite?: (message: string) => boolean;
   getHtmlModel: () => EditorModel | undefined;
   getCustomHeadModel: () => EditorModel | undefined;
   getCssModel: () => EditorModel | undefined;
@@ -215,6 +219,8 @@ function replaceModelContent(model: EditorModel, nextText: string) {
 
 export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
+  let snapshotVersion = deps.initialSnapshotVersion;
+  const confirmOverwrite = deps.confirmOverwrite ?? ((message: string) => window.confirm(message));
   let hasUnsavedChanges = false;
   let lastSaved: {
     html: string;
@@ -393,7 +399,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         }
       }
 
-      const result = await saveKayzArt({
+      const saveParams = {
         apiFetch: deps.apiFetch,
         restUrl: deps.restUrl,
         postId: deps.postId,
@@ -407,9 +413,34 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),
         settingsUpdates,
-      });
+        baseVersion: snapshotVersion,
+      };
+      let result = await saveKayzArt(saveParams);
+
+      // Someone else (an AI agent, another tab) saved the page after this
+      // editor loaded it. Saving now would silently replace their work.
+      if (!result.ok && result.conflict) {
+        const overwrite = confirmOverwrite(
+          __(
+            'This page was changed outside this editor after you opened it, for example by an AI agent. Replace those changes with what is in the editor? Choose Cancel to keep them. Their changes stay in the AI Edit history and revisions either way.',
+            'kayzart-live-code-editor'
+          )
+        );
+        if (!overwrite) {
+          const keptMessage = __(
+            'Not saved. Reload the editor to load the latest version of this page.',
+            'kayzart-live-code-editor'
+          );
+          deps.createSnackbar('error', keptMessage, deps.noticeIds.save, deps.noticeErrorMs);
+          return { ok: false, error: keptMessage };
+        }
+        result = await saveKayzArt({ ...saveParams, force: true });
+      }
 
       if (result.ok) {
+        if (result.version) {
+          snapshotVersion = result.version;
+        }
         if (deps.canEditJs && typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
           replaceModelContent(customHeadModel, result.customHead);
         }

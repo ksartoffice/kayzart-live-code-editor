@@ -323,4 +323,51 @@ describe('save copy controller', () => {
       5000
     );
   });
+  it('sends the loaded version and keeps the version returned by each save', async () => {
+    let html = '<p>one</p>';
+    const htmlModel = {
+      getValue: () => html,
+      setUnsavedChangeLines: vi.fn(),
+      setUnsavedDeletionLines: vi.fn(),
+    };
+    vi.mocked(saveKayzArt)
+      .mockResolvedValueOnce({ ok: true, version: 'v2' })
+      .mockResolvedValueOnce({ ok: true, version: 'v3' });
+    const { controller } = createController({ initialSnapshotVersion: 'v1', getHtmlModel: () => htmlModel });
+
+    await controller.handleSave();
+    html = '<p>two</p>';
+    await controller.handleSave();
+
+    expect(vi.mocked(saveKayzArt).mock.calls[0][0]).toMatchObject({ baseVersion: 'v1' });
+    expect(vi.mocked(saveKayzArt).mock.calls[1][0]).toMatchObject({ baseVersion: 'v2' });
+  });
+
+  it('keeps changes made outside the editor when the person declines to overwrite them', async () => {
+    vi.mocked(saveKayzArt).mockResolvedValue({ ok: false, conflict: true, error: 'changed' });
+    const confirmOverwrite = vi.fn(() => false);
+    const onSaveSuccess = vi.fn();
+    const { controller, createSnackbar } = createController({ initialSnapshotVersion: 'v1', confirmOverwrite, onSaveSuccess });
+
+    const result = await controller.handleSave();
+
+    expect(result.ok).toBe(false);
+    expect(confirmOverwrite).toHaveBeenCalledTimes(1);
+    expect(saveKayzArt).toHaveBeenCalledTimes(1);
+    expect(onSaveSuccess).not.toHaveBeenCalled();
+    expect(createSnackbar).toHaveBeenLastCalledWith('error', expect.stringContaining('Reload the editor'), 'save', 5000);
+  });
+
+  it('overwrites changes made outside the editor only after the person confirms', async () => {
+    vi.mocked(saveKayzArt)
+      .mockResolvedValueOnce({ ok: false, conflict: true, error: 'changed' })
+      .mockResolvedValueOnce({ ok: true, version: 'v9' });
+    const confirmOverwrite = vi.fn(() => true);
+    const { controller } = createController({ initialSnapshotVersion: 'v1', confirmOverwrite });
+
+    const result = await controller.handleSave();
+
+    expect(result.ok).toBe(true);
+    expect(vi.mocked(saveKayzArt).mock.calls[1][0]).toMatchObject({ baseVersion: 'v1', force: true });
+  });
 });

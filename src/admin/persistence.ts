@@ -167,7 +167,13 @@ type SaveParams = {
   js: string;
   jsMode: JsMode;
   settingsUpdates?: Record<string, unknown>;
+  /** Version the editor last loaded or saved; the server refuses the save if the page changed since. */
+  baseVersion?: string;
+  /** Overwrite changes made outside the editor after a conflict. */
+  force?: boolean;
 };
+
+export const PAGE_CHANGED_CODE = 'kayzart_page_changed';
 
 export async function saveKayzArt(
   params: SaveParams
@@ -179,6 +185,8 @@ export async function saveKayzArt(
   settings?: SettingsData;
   editorMode?: EditorCssMode;
   cssByMode?: CssByMode;
+  version?: string;
+  conflict?: boolean;
 }> {
   try {
     const payload: Record<string, unknown> = {
@@ -199,6 +207,12 @@ export async function saveKayzArt(
     }
     if (params.settingsUpdates && Object.keys(params.settingsUpdates).length > 0) {
       payload.settingsUpdates = params.settingsUpdates;
+    }
+    if (params.baseVersion) {
+      payload.baseVersion = params.baseVersion;
+    }
+    if (params.force) {
+      payload.force = true;
     }
     const res = await params.apiFetch<SaveResponse>({
       url: params.restUrl,
@@ -222,6 +236,7 @@ export async function saveKayzArt(
         settings,
         editorMode: res.editorMode,
         cssByMode: res.cssByMode,
+        version: typeof res.version === 'string' ? res.version : undefined,
       };
     }
     if (typeof res?.error === 'string' && res.error.trim()) {
@@ -229,8 +244,12 @@ export async function saveKayzArt(
     }
     return { ok: false };
   } catch (error: unknown) {
+    const conflict = Boolean(
+      error && typeof error === 'object' && (error as Record<string, unknown>).code === PAGE_CHANGED_CODE
+    );
     return {
       ok: false,
+      conflict,
       error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
     };
   }

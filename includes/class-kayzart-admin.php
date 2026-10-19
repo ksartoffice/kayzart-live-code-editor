@@ -2604,6 +2604,7 @@ class Admin {
 			),
 			'tailwindEnabled'              => 'tailwind' === $editor_mode,
 			'setupRequired'                => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
+			'snapshotVersion'              => Rest_Save::current_version( $post_id ),
 			'restNonce'                    => wp_create_nonce( 'wp_rest' ),
 			'revisionsSupported'           => Snapshot::is_supported(),
 			'wpVersion'                    => (string) $GLOBALS['wp_version'],

@@ -20,6 +20,7 @@ type SetupWizardConfig = {
 
 export type SetupWizardResult = {
   tailwindEnabled: boolean;
+  snapshotVersion?: string;
 };
 
 type SetupWizardProps = {
@@ -63,7 +64,10 @@ function SetupWizard({
         throw new Error(response?.error || __('Setup failed.', 'kayzart-live-code-editor'));
       }
 
-      onComplete({ tailwindEnabled: Boolean(response.tailwindEnabled) });
+      onComplete({
+        tailwindEnabled: Boolean(response.tailwindEnabled),
+        snapshotVersion: typeof response.snapshotVersion === 'string' ? response.snapshotVersion : undefined,
+      });
     } catch (error: unknown) {
       if (error instanceof Error) {
         setError(error.message);

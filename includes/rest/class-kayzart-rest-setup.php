@@ -62,6 +62,8 @@ class Rest_Setup {
 			array(
 				'ok'              => true,
 				'tailwindEnabled' => $tailwind_enabled,
+				// Setup rewrites the CSS buffers, so the editor's version moves too.
+				'snapshotVersion' => Rest_Save::current_version( $post_id ),
 			),
 			200
 		);

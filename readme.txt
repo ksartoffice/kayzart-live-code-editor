@@ -152,6 +152,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 * Add: Pages saved by an agent are checked for unknown Tailwind classes, images without alt text, broken in-page links, and missing media files, and the agent is told what to fix.
 * Add: Agent changes appear in the AI Edit history with the agent's name and summary, and can be restored like built-in AI edits.
 * Improve: The AI Edit history now shows the built-in AI's summary of each change, written in the language of your instruction.
+* Improve: If a page was changed outside the editor after you opened it, for example by an AI agent or in another tab, saving asks before replacing those changes instead of overwriting them silently.
 
 = 3.4.2 =
 * Add: An optional one-question survey before individual deactivation on the Plugins screen. Send a reason or comment, skip it, or cancel. Nothing is sent without an explicit submission, and delivery failure never prevents deactivation.

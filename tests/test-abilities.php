@@ -986,6 +986,104 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( $own, $listed );
 	}
 
+	public function test_editor_save_is_refused_after_an_agent_changed_the_page(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Shared',
+				'html'  => '<p>First</p>',
+			)
+		);
+		$page = $created['page'];
+		// The editor opens the page and remembers this version.
+		$editor_version = \KayzArt\Rest_Save::current_version( $page['id'] );
+
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Agent</p>',
+			)
+		);
+
+		$stale = $this->editor_save( $page['id'], '<p>Editor</p>', $editor_version );
+		$this->assertSame( 409, $stale->get_status() );
+		$this->assertSame( 'kayzart_page_changed', $stale->get_data()['code'] );
+		$this->assertSame( '<p>Agent</p>', get_post( $page['id'] )->post_content, 'The agent edit survives.' );
+
+		$forced = $this->editor_save( $page['id'], '<p>Editor</p>', $editor_version, true );
+		$this->assertSame( 200, $forced->get_status() );
+		$this->assertSame( '<p>Editor</p>', get_post( $page['id'] )->post_content );
+		$this->assertSame( \KayzArt\Rest_Save::current_version( $page['id'] ), $forced->get_data()['version'] );
+
+		$next = $this->editor_save( $page['id'], '<p>Editor again</p>', $forced->get_data()['version'] );
+		$this->assertSame( 200, $next->get_status(), 'The version from the last save is current.' );
+	}
+
+	public function test_editor_save_without_a_version_is_not_checked(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Legacy client',
+				'html'  => '<p>First</p>',
+			)
+		);
+
+		$response = $this->editor_save( $created['page']['id'], '<p>Second</p>', null );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( '<p>Second</p>', get_post( $created['page']['id'] )->post_content );
+	}
+
+	public function test_setup_returns_the_new_version(): void {
+		wp_set_current_user( $this->admin() );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'draft',
+			)
+		);
+		Post_Type::enable_for_post( $post_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+
+		$request = new WP_REST_Request( 'POST', '/kayzart/v1/setup' );
+		$request->set_param( 'post_id', $post_id );
+		$request->set_param( 'mode', 'tailwind' );
+		$response = \KayzArt\Rest_Setup::setup_mode( $request );
+
+		$this->assertSame( \KayzArt\Rest_Save::current_version( $post_id ), $response->get_data()['snapshotVersion'] );
+	}
+
+	public function test_save_lock_release_leaves_a_successor_lock_alone(): void {
+		global $wpdb;
+		$this->assertTrue( Save_Lock::acquire( 654 ) );
+		// The lock was treated as stale and another request took it over.
+		$wpdb->update(
+			$wpdb->options,
+			array( 'option_value' => time() . ':successor' ),
+			array( 'option_name' => 'kayzart_save_lock_654' )
+		);
+
+		Save_Lock::release( 654 );
+
+		$this->assertSame( time() . ':successor', $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_654' ) ) );
+		$wpdb->delete( $wpdb->options, array( 'option_name' => 'kayzart_save_lock_654' ) );
+	}
+
+	private function editor_save( int $post_id, string $html, ?string $base_version, bool $force = false ): WP_REST_Response {
+		$request = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$request->set_param( 'post_id', $post_id );
+		$request->set_param( 'html', $html );
+		$request->set_param( 'css', '' );
+		if ( null !== $base_version ) {
+			$request->set_param( 'baseVersion', $base_version );
+		}
+		if ( $force ) {
+			$request->set_param( 'force', true );
+		}
+		return \KayzArt\Rest_Save::save( $request );
+	}
+
 	private function admin(): int {
 		return (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 	}

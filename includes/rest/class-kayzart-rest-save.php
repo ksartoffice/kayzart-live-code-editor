@@ -36,10 +36,41 @@ class Rest_Save {
 			);
 		}
 		try {
+			// The editor sends the version it last loaded or saved. Checking it
+			// only after the lock is held also catches a save that waited while
+			// an agent wrote the page. Clients that send no version (older
+			// callers, add-ons) save as before; force overwrites deliberately.
+			$base_version = $request->get_param( 'baseVersion' );
+			if (
+				is_string( $base_version ) && '' !== $base_version
+				&& ! rest_sanitize_boolean( $request->get_param( 'force' ) )
+				&& Post_Type::is_editor_enabled_post( $post_id )
+				&& ! hash_equals( self::current_version( $post_id ), $base_version )
+			) {
+				return new \WP_REST_Response(
+					array(
+						'ok'      => false,
+						'code'    => 'kayzart_page_changed',
+						'error'   => __( 'This page was changed outside this editor after you opened it, for example by an AI agent.', 'kayzart-live-code-editor' ),
+						'version' => self::current_version( $post_id ),
+					),
+					409
+				);
+			}
 			return self::save_unlocked( $request );
 		} finally {
 			Save_Lock::release( $post_id );
 		}
+	}
+
+	/**
+	 * Version of the page's saved sources, as the editor tracks it.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function current_version( int $post_id ): string {
+		return Snapshot::hash( Snapshot::for_post( $post_id ) );
 	}
 
 	/**
@@ -344,6 +375,7 @@ class Rest_Save {
 		return new \WP_REST_Response(
 			array(
 				'ok'                    => true,
+				'version'               => self::current_version( $post_id ),
 				'customHead'            => $custom_head_result['html'],
 				'customHeadRemovedTags' => $custom_head_result['removed'],
 				'settings'              => Rest_Settings::build_settings_payload( $post_id ),

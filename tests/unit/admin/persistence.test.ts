@@ -88,6 +88,45 @@ describe('saveKayzArt', () => {
       })
     );
   });
+  it('sends the base version and force flag and returns the saved version', async () => {
+    const params = createSaveParams({
+      apiFetch: vi.fn().mockResolvedValue({ ok: true, version: 'v2' }),
+      baseVersion: 'v1',
+      force: true,
+    });
+
+    const result = await saveKayzArt(params);
+
+    expect(params.apiFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ baseVersion: 'v1', force: true }) })
+    );
+    expect(result).toMatchObject({ ok: true, version: 'v2' });
+  });
+
+  it('reports a conflict when the page changed outside the editor', async () => {
+    const params = createSaveParams({
+      apiFetch: vi.fn().mockRejectedValue({ ok: false, code: 'kayzart_page_changed', error: 'Changed elsewhere.' }),
+      baseVersion: 'v1',
+    });
+
+    const result = await saveKayzArt(params);
+
+    expect(result).toMatchObject({ ok: false, conflict: true, error: 'Changed elsewhere.' });
+  });
+
+  it('does not report a conflict for other save errors', async () => {
+    const params = createSaveParams({
+      apiFetch: vi.fn().mockRejectedValue({ ok: false, error: 'Busy.' }),
+    });
+
+    const result = await saveKayzArt(params);
+
+    expect(result).toMatchObject({ ok: false, conflict: false, error: 'Busy.' });
+    expect(params.apiFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.not.objectContaining({ baseVersion: expect.anything() }) })
+    );
+  });
+
 });
 
 describe('compileTailwindSnapshot', () => {

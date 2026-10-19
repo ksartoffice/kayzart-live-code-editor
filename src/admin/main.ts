@@ -265,6 +265,7 @@ async function main() {
   }
 
   let setupTailwindEnabled: boolean | undefined;
+  let snapshotVersion = cfg.snapshotVersion;
   if (cfg.setupRequired) {
     try {
       const setupResult = await runSetupWizard({
@@ -276,6 +277,7 @@ async function main() {
         initialTailwindEnabled: Boolean(cfg.tailwindEnabled),
       });
       setupTailwindEnabled = setupResult.tailwindEnabled;
+      snapshotVersion = setupResult.snapshotVersion ?? snapshotVersion;
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[Kayzart] Setup failed', error);
@@ -576,6 +578,7 @@ async function main() {
     restUrl: cfg.restUrl,
     postId,
     canEditJs,
+    initialSnapshotVersion: snapshotVersion,
     getHtmlModel: () => htmlModel,
     getCustomHeadModel: () => customHeadModel,
     getCssModel: () => cssModel,

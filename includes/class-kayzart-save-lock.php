@@ -30,6 +30,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * The lock is re-entrant within a request, so an agent update can hold it
  * while calling the editor save handler that takes it too.
+ *
+ * The row stores "<timestamp>:<owner token>". A request releases only the
+ * row carrying its own token, so a save that outlived STALE_SECONDS and had
+ * its lock taken over cannot unlock the request that replaced it.
  */
 final class Save_Lock {
 
@@ -40,9 +44,9 @@ final class Save_Lock {
 	const WAIT_SECONDS = 10;
 
 	/**
-	 * Locks held by this request, as post ID => nesting depth.
+	 * Locks held by this request, as post ID => nesting depth and row value.
 	 *
-	 * @var array<int,int>
+	 * @var array<int,array{depth:int,value:string}>
 	 */
 	private static $held = array();
 
@@ -54,7 +58,7 @@ final class Save_Lock {
 	 */
 	public static function acquire( int $post_id ): bool {
 		if ( isset( self::$held[ $post_id ] ) ) {
-			++self::$held[ $post_id ];
+			++self::$held[ $post_id ]['depth'];
 			return true;
 		}
 
@@ -67,19 +71,24 @@ final class Save_Lock {
 		 */
 		$deadline = microtime( true ) + max( 0, (int) apply_filters( 'kayzart_save_lock_wait', self::WAIT_SECONDS ) );
 		do {
-			$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'no' )", $name, (string) time() ) );
+			$value    = time() . ':' . wp_generate_password( 20, false, false );
+			$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'no' )", $name, $value ) );
 			if ( $inserted ) {
-				self::$held[ $post_id ] = 1;
+				self::$held[ $post_id ] = array(
+					'depth' => 1,
+					'value' => $value,
+				);
 				return true;
 			}
-			$since = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+			$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+			$since   = (int) strtok( $current, ':' );
 			if ( $since > 0 && $since < time() - self::STALE_SECONDS ) {
-				// Delete only the stale value, so a lock another request just took survives.
+				// Delete only the stale row, so a lock another request just took survives.
 				$wpdb->delete(
 					$wpdb->options,
 					array(
 						'option_name'  => $name,
-						'option_value' => (string) $since,
+						'option_value' => $current,
 					)
 				);
 				continue;
@@ -102,14 +111,21 @@ final class Save_Lock {
 		if ( ! isset( self::$held[ $post_id ] ) ) {
 			return;
 		}
-		--self::$held[ $post_id ];
-		if ( self::$held[ $post_id ] > 0 ) {
+		--self::$held[ $post_id ]['depth'];
+		if ( self::$held[ $post_id ]['depth'] > 0 ) {
 			return;
 		}
+		$value = self::$held[ $post_id ]['value'];
 		unset( self::$held[ $post_id ] );
 
 		global $wpdb;
-		$wpdb->delete( $wpdb->options, array( 'option_name' => self::option_name( $post_id ) ) );
+		$wpdb->delete(
+			$wpdb->options,
+			array(
+				'option_name'  => self::option_name( $post_id ),
+				'option_value' => $value,
+			)
+		);
 	}
 
 	/**

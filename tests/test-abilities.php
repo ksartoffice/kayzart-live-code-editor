@@ -1198,6 +1198,112 @@ class Test_Abilities extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_list_media_hides_files_attached_to_posts_the_caller_cannot_read(): void {
+		$admin = $this->admin();
+		wp_set_current_user( $admin );
+		$draft = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_author' => $admin,
+			)
+		);
+		$published = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'publish',
+				'post_author' => $admin,
+			)
+		);
+		$secret     = self::factory()->attachment->create_object(
+			array(
+				'file'           => 'secret-launch.jpg',
+				'post_mime_type' => 'image/jpeg',
+				'post_parent'    => $draft,
+				'post_author'    => $admin,
+			)
+		);
+		$public     = self::factory()->attachment->create_object(
+			array(
+				'file'           => 'public-photo.jpg',
+				'post_mime_type' => 'image/jpeg',
+				'post_parent'    => $published,
+				'post_author'    => $admin,
+			)
+		);
+		$unattached = self::factory()->attachment->create_object(
+			array(
+				'file'           => 'library-photo.jpg',
+				'post_mime_type' => 'image/jpeg',
+				'post_author'    => $admin,
+			)
+		);
+
+		$all = Agent_Pages::list_media( array() );
+		$this->assertSame( 3, $all['total'], 'Administrators see every file.' );
+
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		get_userdata( $author )->add_cap( \KayzArt\Ai_Setup::CAPABILITY );
+		wp_set_current_user( $author );
+		$own = self::factory()->attachment->create_object(
+			array(
+				'file'           => 'author-photo.jpg',
+				'post_mime_type' => 'image/jpeg',
+				'post_author'    => $author,
+			)
+		);
+
+		$first  = Agent_Pages::list_media( array( 'perPage' => 2 ) );
+		$second = Agent_Pages::list_media(
+			array(
+				'perPage' => 2,
+				'page'    => 2,
+			)
+		);
+		$ids    = array_merge( array_column( $first['media'], 'id' ), array_column( $second['media'], 'id' ) );
+		sort( $ids );
+		$expected = array( $public, $unattached, $own );
+		sort( $expected );
+
+		$this->assertSame( 3, $first['total'] );
+		$this->assertSame( 2, $first['totalPages'] );
+		$this->assertSame( $expected, $ids );
+		$this->assertNotContains( $secret, $ids, 'A file attached to someone else\'s draft stays hidden.' );
+	}
+
+	public function test_setup_waits_for_the_page_lock(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'draft',
+			)
+		);
+		Post_Type::enable_for_post( $post_id );
+		update_post_meta( $post_id, '_kayzart_setup_required', '1' );
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => 'kayzart_save_lock_' . $post_id,
+				'option_value' => time() . ':agent',
+				'autoload'     => 'no',
+			)
+		);
+		add_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		try {
+			$request = new WP_REST_Request( 'POST', '/kayzart/v1/setup' );
+			$request->set_param( 'post_id', $post_id );
+			$request->set_param( 'mode', 'tailwind' );
+			$this->assertSame( 409, \KayzArt\Rest_Setup::setup_mode( $request )->get_status() );
+			$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_setup_required', true ), 'Setup did not run while the page was locked.' );
+
+			$wpdb->delete( $wpdb->options, array( 'option_name' => 'kayzart_save_lock_' . $post_id ) );
+			$this->assertSame( 200, \KayzArt\Rest_Setup::setup_mode( $request )->get_status() );
+			$this->assertSame( '1', get_post_meta( $post_id, '_kayzart_tailwind', true ) );
+		} finally {
+			remove_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		}
+	}
+
 	private function admin(): int {
 		return (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 	}

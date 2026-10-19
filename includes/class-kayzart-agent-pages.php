@@ -239,8 +239,6 @@ class Agent_Pages {
 			'post_type'              => 'attachment',
 			'post_status'            => 'inherit',
 			'post_mime_type'         => $type,
-			'posts_per_page'         => $per_page,
-			'paged'                  => $page,
 			'orderby'                => 'date',
 			'order'                  => 'DESC',
 			'update_post_term_cache' => false,
@@ -249,9 +247,50 @@ class Agent_Pages {
 			$args['s'] = sanitize_text_field( (string) $input['search'] );
 		}
 
-		$query = new \WP_Query( $args );
+		// Return only attachments the caller may read, as /wp/v2/media does: a
+		// file attached to someone else's draft or private post stays hidden.
+		// Users who can read every post skip the per-attachment check.
+		if ( self::can_read_all_attachments() ) {
+			$query       = new \WP_Query(
+				array_merge(
+					$args,
+					array(
+						'posts_per_page' => $per_page,
+						'paged'          => $page,
+					)
+				)
+			);
+			$attachments = $query->posts;
+			$total       = (int) $query->found_posts;
+		} else {
+			$ids = array_map(
+				'intval',
+				( new \WP_Query(
+					array_merge(
+						$args,
+						array(
+							'posts_per_page' => -1,
+							'fields'         => 'ids',
+							'no_found_rows'  => true,
+						)
+					)
+				) )->posts
+			);
+			_prime_post_caches( $ids, false, false );
+			$readable    = array_values(
+				array_filter(
+					$ids,
+					static function ( int $id ): bool {
+						return self::can_read_attachment( $id );
+					}
+				)
+			);
+			$total       = count( $readable );
+			$attachments = array_map( 'get_post', array_slice( $readable, ( $page - 1 ) * $per_page, $per_page ) );
+		}
+
 		$items = array();
-		foreach ( $query->posts as $attachment ) {
+		foreach ( $attachments as $attachment ) {
 			if ( ! $attachment instanceof \WP_Post ) {
 				continue;
 			}
@@ -286,9 +325,49 @@ class Agent_Pages {
 		return array(
 			'media'      => $items,
 			'page'       => $page,
-			'totalPages' => (int) $query->max_num_pages,
-			'total'      => (int) $query->found_posts,
+			'totalPages' => (int) ceil( $total / $per_page ),
+			'total'      => $total,
 		);
+	}
+
+	/**
+	 * Whether the current user may see an attachment, mirroring
+	 * WP_REST_Posts_Controller::check_read_permission(): a file attached to a
+	 * post is as readable as that post, and an unattached file is treated as
+	 * published.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	private static function can_read_attachment( int $attachment_id ): bool {
+		if ( current_user_can( 'read_post', $attachment_id ) ) {
+			return true;
+		}
+		$attachment = get_post( $attachment_id );
+		if ( ! $attachment instanceof \WP_Post || 'inherit' !== $attachment->post_status ) {
+			return false;
+		}
+		$parent = $attachment->post_parent > 0 ? get_post( $attachment->post_parent ) : null;
+		if ( ! $parent instanceof \WP_Post ) {
+			return true;
+		}
+		$status = get_post_status_object( $parent->post_status );
+		return ( $status && $status->public ) || current_user_can( 'read_post', $parent->ID );
+	}
+
+	/**
+	 * Whether the current user can read every attachment, including files
+	 * attached to other people's drafts and private posts and pages.
+	 *
+	 * @return bool
+	 */
+	private static function can_read_all_attachments(): bool {
+		foreach ( array( 'edit_others_posts', 'edit_others_pages', 'read_private_posts', 'read_private_pages' ) as $capability ) {
+			if ( ! current_user_can( $capability ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**

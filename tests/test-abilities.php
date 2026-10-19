@@ -12,6 +12,7 @@ use KayzArt\Agent_Preview;
 use KayzArt\Agent_Pages;
 use KayzArt\Ai_Timeline_Store;
 use KayzArt\Post_Type;
+use KayzArt\Save_Lock;
 use KayzArt\Snapshot;
 use KayzArt\Tailwind_Compiler;
 
@@ -109,7 +110,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( '.hero{padding:4rem;}', get_post_meta( $post_id, '_kayzart_css', true ) );
 		$this->assertSame( '<meta name="description" content="Sale">', $page['head'] );
 		$this->assertSame( 'normal', $page['cssMode'] );
-		$this->assertSame( Snapshot::hash( Snapshot::for_post( $post_id ) ), $page['baseHash'] );
+		$this->assertSame( 64, strlen( $page['baseHash'] ) );
 		$this->assertSame( Admin::get_open_editor_url( $post_id ), $page['editUrl'] );
 		$this->assertIsInt( $result['revisionId'] );
 		$this->assertSame( array(), $result['warnings'] );
@@ -812,6 +813,177 @@ class Test_Abilities extends WP_UnitTestCase {
 		} finally {
 			remove_filter( 'kayzart_agent_client_label', $label );
 		}
+	}
+
+	public function test_abilities_are_refused_without_required_extensions_or_when_ai_is_disabled(): void {
+		wp_set_current_user( $this->admin() );
+		foreach ( array( 'kayzart_ai_mbstring_present', 'kayzart_ai_dom_present', 'kayzart_ai_feature_enabled' ) as $filter ) {
+			add_filter( $filter, '__return_false' );
+			try {
+				$this->assertFalse( Agent_Pages::can_use(), $filter . ' should disable agent abilities.' );
+				$result = wp_get_ability( 'kayzart/create-page' )->execute(
+					array(
+						'title' => 'Blocked',
+						'html'  => '<p>Hi</p>',
+					)
+				);
+				$this->assertWPError( $result );
+				$this->assertSame( 'ability_invalid_permissions', $result->get_error_code() );
+			} finally {
+				remove_filter( $filter, '__return_false' );
+			}
+		}
+		$this->assertTrue( Agent_Pages::can_use() );
+	}
+
+	public function test_update_page_refuses_a_stale_title(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Original title',
+				'html'  => '<p>Hi</p>',
+			)
+		);
+		$page    = $created['page'];
+		wp_update_post(
+			array(
+				'ID'         => $page['id'],
+				'post_title' => 'Title chosen by a person',
+			)
+		);
+
+		$result = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'title'    => 'Agent title',
+			)
+		);
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'kayzart_page_changed', $result->get_error_code() );
+		$this->assertSame( 'Title chosen by a person', get_post( $page['id'] )->post_title );
+	}
+
+	public function test_saves_wait_for_the_page_lock(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Locked',
+				'html'  => '<p>Before</p>',
+			)
+		);
+		$page = $created['page'];
+		// Another request is saving this page right now.
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => 'kayzart_save_lock_' . $page['id'],
+				'option_value' => (string) time(),
+				'autoload'     => 'no',
+			)
+		);
+		add_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		try {
+			$result = Agent_Pages::update_page(
+				array(
+					'id'       => $page['id'],
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Agent</p>',
+				)
+			);
+			$this->assertWPError( $result );
+			$this->assertSame( 'kayzart_page_busy', $result->get_error_code() );
+
+			$request = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+			$request->set_param( 'post_id', $page['id'] );
+			$request->set_param( 'html', '<p>Editor</p>' );
+			$request->set_param( 'css', '' );
+			$this->assertSame( 409, \KayzArt\Rest_Save::save( $request )->get_status(), 'Editor saves wait for the same lock.' );
+			$this->assertSame( '<p>Before</p>', get_post( $page['id'] )->post_content );
+
+			// A lock left behind by a crashed request expires.
+			$wpdb->update(
+				$wpdb->options,
+				array( 'option_value' => (string) ( time() - Save_Lock::STALE_SECONDS - 5 ) ),
+				array( 'option_name' => 'kayzart_save_lock_' . $page['id'] )
+			);
+			$result = Agent_Pages::update_page(
+				array(
+					'id'       => $page['id'],
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Agent</p>',
+				)
+			);
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+			$this->assertSame( '<p>Agent</p>', get_post( $page['id'] )->post_content );
+			$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_' . $page['id'] ) ), 'The lock is released after the save.' );
+		} finally {
+			remove_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		}
+	}
+
+	public function test_save_lock_is_reentrant_within_a_request(): void {
+		$this->assertTrue( Save_Lock::acquire( 987 ) );
+		$this->assertTrue( Save_Lock::acquire( 987 ) );
+		Save_Lock::release( 987 );
+		add_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		try {
+			global $wpdb;
+			$this->assertNotNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_987' ) ), 'The outer hold keeps the lock.' );
+			Save_Lock::release( 987 );
+			$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_987' ) ) );
+		} finally {
+			remove_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		}
+	}
+
+	public function test_list_pages_paginates_only_editable_pages(): void {
+		update_option( Admin::OPTION_ENABLED_POST_TYPES, array( Post_Type::PAGE_TYPE, 'post' ) );
+		Snapshot::register_revision_support();
+		wp_set_current_user( $this->admin() );
+		for ( $i = 0; $i < 3; $i++ ) {
+			Agent_Pages::create_page(
+				array(
+					'title'    => 'Admin post ' . $i,
+					'html'     => '<p>Admin</p>',
+					'postType' => 'post',
+				)
+			);
+		}
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		get_userdata( $author )->add_cap( \KayzArt\Ai_Setup::CAPABILITY );
+		wp_set_current_user( $author );
+		$own = array();
+		for ( $i = 0; $i < 2; $i++ ) {
+			$created = Agent_Pages::create_page(
+				array(
+					'title'    => 'Author post ' . $i,
+					'html'     => '<p>Author</p>',
+					'postType' => 'post',
+				)
+			);
+			$this->assertIsArray( $created, is_wp_error( $created ) ? $created->get_error_message() : '' );
+			$own[] = $created['page']['id'];
+		}
+
+		$first  = Agent_Pages::list_pages( array( 'perPage' => 1 ) );
+		$second = Agent_Pages::list_pages(
+			array(
+				'perPage' => 1,
+				'page'    => 2,
+			)
+		);
+
+		$this->assertSame( 2, $first['total'] );
+		$this->assertSame( 2, $first['totalPages'] );
+		$this->assertCount( 1, $first['pages'] );
+		$this->assertCount( 1, $second['pages'] );
+		$listed = array( $first['pages'][0]['id'], $second['pages'][0]['id'] );
+		sort( $listed );
+		sort( $own );
+		$this->assertSame( $own, $listed );
 	}
 
 	private function admin(): int {

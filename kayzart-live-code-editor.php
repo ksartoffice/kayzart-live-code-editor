@@ -48,6 +48,7 @@ require_once KAYZART_PATH . 'includes/class-kayzart-tailwind-compiler.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-html-document.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-custom-head.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-snapshot.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-save-lock.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-tool-error.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-output-policy.php';
 require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-css-syntax.php';

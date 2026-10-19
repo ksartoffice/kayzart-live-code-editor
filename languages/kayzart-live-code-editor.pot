@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-19T04:34:59+02:00\n"
+"POT-Creation-Date: 2026-10-19T04:50:23+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -68,7 +68,7 @@ msgstr ""
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:273
 #: includes/rest/class-kayzart-rest-revisions.php:88
-#: includes/rest/class-kayzart-rest-save.php:62
+#: includes/rest/class-kayzart-rest-save.php:86
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr ""
@@ -349,7 +349,7 @@ msgid "This post type is not enabled for Kayzart."
 msgstr ""
 
 #: includes/class-kayzart-admin.php:820
-#: includes/class-kayzart-agent-pages.php:354
+#: includes/class-kayzart-agent-pages.php:375
 msgid "Untitled landing page"
 msgstr ""
 
@@ -909,50 +909,56 @@ msgstr ""
 msgid "(and %d more)"
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:281
-#: includes/class-kayzart-agent-pages.php:295
-#: includes/class-kayzart-agent-pages.php:388
+#: includes/class-kayzart-agent-pages.php:302
+#: includes/class-kayzart-agent-pages.php:316
+#: includes/class-kayzart-agent-pages.php:409
+#: includes/class-kayzart-agent-pages.php:435
 msgid "Kayzart page not found."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:321
+#: includes/class-kayzart-agent-pages.php:342
 msgid "You cannot create Kayzart pages of this type."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:395
+#: includes/class-kayzart-agent-pages.php:415
+#: includes/rest/class-kayzart-rest-save.php:33
+msgid "Another save of this page is in progress. Try again in a moment."
+msgstr ""
+
+#: includes/class-kayzart-agent-pages.php:441
 msgid "The page changed after you read it. Call kayzart/get-page again and reapply your change to the current sources."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:409
+#: includes/class-kayzart-agent-pages.php:455
 msgid "Provide html, css, head, edits or title to update."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:412
+#: includes/class-kayzart-agent-pages.php:458
 msgid "Too many edits in one update."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:467
-#: includes/class-kayzart-agent-pages.php:517
+#: includes/class-kayzart-agent-pages.php:528
+#: includes/class-kayzart-agent-pages.php:578
 msgid "A source exceeds the maximum size."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:484
+#: includes/class-kayzart-agent-pages.php:545
 msgid "Each edit must be an object."
 msgstr ""
 
 #. translators: 1: edit index starting at 0, 2: error message.
-#: includes/class-kayzart-agent-pages.php:507
+#: includes/class-kayzart-agent-pages.php:568
 #, php-format
 msgid "Edit %1$d failed: %2$s"
 msgstr ""
 
 #. translators: %s: list of violations.
-#: includes/class-kayzart-agent-pages.php:563
+#: includes/class-kayzart-agent-pages.php:624
 #, php-format
 msgid "The page was not saved: %s"
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:604
+#: includes/class-kayzart-agent-pages.php:665
 #: assets/dist/main.js:6409
 #: assets/dist/main.js:6604
 #: assets/dist/main.js:6700
@@ -961,35 +967,35 @@ msgstr ""
 msgid "Save failed."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:689
+#: includes/class-kayzart-agent-pages.php:750
 msgid "Local agent"
 msgstr ""
 
 #. translators: %s: agent name set with KAYZART_AGENT_NAME, such as Claude Code.
-#: includes/class-kayzart-agent-pages.php:692
+#: includes/class-kayzart-agent-pages.php:753
 #, php-format
 msgid "%s (local)"
 msgstr ""
 
 #. translators: %s: comma-separated tag names.
-#: includes/class-kayzart-agent-pages.php:719
+#: includes/class-kayzart-agent-pages.php:780
 #, php-format
 msgid "These tags were removed from head: %s"
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:724
+#: includes/class-kayzart-agent-pages.php:785
 msgid "WordPress changed the html while saving, for example by removing markup your account cannot save. The page field shows what was stored."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:762
+#: includes/class-kayzart-agent-pages.php:823
 msgid "JavaScript is read-only for agents."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:765
+#: includes/class-kayzart-agent-pages.php:826
 msgid "Your account cannot edit the custom head."
 msgstr ""
 
-#: includes/class-kayzart-agent-pages.php:767
+#: includes/class-kayzart-agent-pages.php:828
 msgid "Unknown target. Use html, css or head."
 msgstr ""
 
@@ -1563,8 +1569,8 @@ msgid "Invalid preview token."
 msgstr ""
 
 #: includes/class-kayzart-preview.php:202
-#: includes/rest/class-kayzart-rest-save.php:51
-#: includes/rest/class-kayzart-rest-save.php:421
+#: includes/rest/class-kayzart-rest-save.php:75
+#: includes/rest/class-kayzart-rest-save.php:445
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr ""
@@ -1784,20 +1790,20 @@ msgstr ""
 msgid "Unknown user"
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:78
+#: includes/rest/class-kayzart-rest-save.php:102
 msgid "Invalid jsMode value."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:90
+#: includes/rest/class-kayzart-rest-save.php:114
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:137
+#: includes/rest/class-kayzart-rest-save.php:161
 msgid "Invalid editor mode payload."
 msgstr ""
 
-#: includes/rest/class-kayzart-rest-save.php:308
+#: includes/rest/class-kayzart-rest-save.php:332
 msgid "The saved page did not match the requested snapshot."
 msgstr ""
 

@@ -19,12 +19,36 @@ class Rest_Save {
 	private const JS_MODE_VALUES = array( 'classic', 'module' );
 
 	/**
-	 * Save KayzArt post content and metadata.
+	 * Save KayzArt post content and metadata, one save per page at a time.
 	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @return \WP_REST_Response
 	 */
 	public static function save( \WP_REST_Request $request ): \WP_REST_Response {
+		$post_id = absint( $request->get_param( 'post_id' ) );
+		if ( ! Save_Lock::acquire( $post_id ) ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'    => false,
+					'error' => __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ),
+				),
+				409
+			);
+		}
+		try {
+			return self::save_unlocked( $request );
+		} finally {
+			Save_Lock::release( $post_id );
+		}
+	}
+
+	/**
+	 * Save KayzArt post content and metadata.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 * @return \WP_REST_Response
+	 */
+	private static function save_unlocked( \WP_REST_Request $request ): \WP_REST_Response {
 
 		$post_id          = absint( $request->get_param( 'post_id' ) );
 		$html             = (string) $request->get_param( 'html' );

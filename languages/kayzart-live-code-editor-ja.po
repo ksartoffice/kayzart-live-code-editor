@@ -59,7 +59,7 @@ msgstr "無題"
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:273
 #: includes/rest/class-kayzart-rest-revisions.php:88
-#: includes/rest/class-kayzart-rest-save.php:62
+#: includes/rest/class-kayzart-rest-save.php:86
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr "権限がありません。"
@@ -87,7 +87,7 @@ msgid "This post type is not enabled for Kayzart."
 msgstr "この投稿タイプでは Kayzart が有効化されていません。"
 
 #: includes/class-kayzart-admin.php:820
-#: includes/class-kayzart-agent-pages.php:354
+#: includes/class-kayzart-agent-pages.php:375
 msgid "Untitled landing page"
 msgstr "無題のランディングページ"
 
@@ -249,8 +249,8 @@ msgid "Invalid preview token."
 msgstr "プレビュートークンが無効です。"
 
 #: includes/class-kayzart-preview.php:202
-#: includes/rest/class-kayzart-rest-save.php:51
-#: includes/rest/class-kayzart-rest-save.php:421
+#: includes/rest/class-kayzart-rest-save.php:75
+#: includes/rest/class-kayzart-rest-save.php:445
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr "投稿タイプが無効です。"
@@ -260,11 +260,11 @@ msgstr "投稿タイプが無効です。"
 msgid "Post not found."
 msgstr "投稿が見つかりません。"
 
-#: includes/rest/class-kayzart-rest-save.php:78
+#: includes/rest/class-kayzart-rest-save.php:102
 msgid "Invalid jsMode value."
 msgstr "JavaScript モードの値が不正です。"
 
-#: includes/rest/class-kayzart-rest-save.php:90
+#: includes/rest/class-kayzart-rest-save.php:114
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr "ペイロードが不正です。"
@@ -351,7 +351,7 @@ msgstr "リビジョンが見つかりません。"
 msgid "Unknown user"
 msgstr "不明なユーザー"
 
-#: includes/rest/class-kayzart-rest-save.php:308
+#: includes/rest/class-kayzart-rest-save.php:332
 msgid "The saved page did not match the requested snapshot."
 msgstr "保存されたページが要求されたスナップショットと一致しませんでした。"
 
@@ -627,7 +627,7 @@ msgstr "AI 編集を使用する権限がありません。"
 msgid "AI editing must be configured before you can start with a request."
 msgstr "指示から開始するには、AI 編集を設定する必要があります。"
 
-#: includes/rest/class-kayzart-rest-save.php:137
+#: includes/rest/class-kayzart-rest-save.php:161
 msgid "Invalid editor mode payload."
 msgstr "エディターモードのデータが不正です。"
 
@@ -1571,7 +1571,7 @@ msgstr "Tailwind のコンパイルに失敗しました。"
 msgid "Tailwind error: %s"
 msgstr "Tailwind エラー: %s"
 
-#: includes/class-kayzart-agent-pages.php:604
+#: includes/class-kayzart-agent-pages.php:665
 #: assets/dist/main.js:6409
 #: assets/dist/main.js:6604
 #: assets/dist/main.js:6700
@@ -2938,12 +2938,12 @@ msgid "Only when you choose “Send answer and deactivate”, your answer, a ran
 msgstr "「回答を送信して無効化」を選んだ場合のみ、回答、ランダムな回答ID、アンケート版、Kayzart・WordPressのバージョン、管理画面の言語をfeedback.kayzart.comに送信し、2年間保管します。サイトURL、メールアドレス、APIキー、ページ内容、利用履歴は含みません。コメントには秘密情報を入力しないでください。受信サーバーのセキュリティログにはIPアドレスが残る場合があります。送信に失敗しても無効化は続行します。"
 
 #. translators: %s: agent name set with KAYZART_AGENT_NAME, such as Claude Code.
-#: includes/class-kayzart-agent-pages.php:692
+#: includes/class-kayzart-agent-pages.php:753
 #, php-format
 msgid "%s (local)"
 msgstr "%s（ローカル）"
 
-#: includes/class-kayzart-agent-pages.php:689
+#: includes/class-kayzart-agent-pages.php:750
 msgid "Local agent"
 msgstr "ローカルのエージェント"
 
@@ -3009,68 +3009,69 @@ msgstr "次のメディアファイルはこのサイトの uploads フォルダ
 msgid "(and %d more)"
 msgstr "（ほか %d 件）"
 
-#: includes/class-kayzart-agent-pages.php:281
-#: includes/class-kayzart-agent-pages.php:295
-#: includes/class-kayzart-agent-pages.php:388
+#: includes/class-kayzart-agent-pages.php:302
+#: includes/class-kayzart-agent-pages.php:316
+#: includes/class-kayzart-agent-pages.php:409
+#: includes/class-kayzart-agent-pages.php:435
 msgid "Kayzart page not found."
 msgstr "Kayzart ページが見つかりません。"
 
-#: includes/class-kayzart-agent-pages.php:321
+#: includes/class-kayzart-agent-pages.php:342
 msgid "You cannot create Kayzart pages of this type."
 msgstr "この種類の Kayzart ページを作成する権限がありません。"
 
-#: includes/class-kayzart-agent-pages.php:395
+#: includes/class-kayzart-agent-pages.php:441
 msgid "The page changed after you read it. Call kayzart/get-page again and reapply your change to the current sources."
 msgstr "読み込んだ後にページが変更されました。kayzart/get-page をもう一度呼び出し、現在のソースに変更を適用し直してください。"
 
-#: includes/class-kayzart-agent-pages.php:409
+#: includes/class-kayzart-agent-pages.php:455
 msgid "Provide html, css, head, edits or title to update."
 msgstr "更新する html、css、head、edits、title のいずれかを指定してください。"
 
-#: includes/class-kayzart-agent-pages.php:412
+#: includes/class-kayzart-agent-pages.php:458
 msgid "Too many edits in one update."
 msgstr "1 回の更新に含まれる edits が多すぎます。"
 
-#: includes/class-kayzart-agent-pages.php:467
-#: includes/class-kayzart-agent-pages.php:517
+#: includes/class-kayzart-agent-pages.php:528
+#: includes/class-kayzart-agent-pages.php:578
 msgid "A source exceeds the maximum size."
 msgstr "ソースが最大サイズを超えています。"
 
-#: includes/class-kayzart-agent-pages.php:484
+#: includes/class-kayzart-agent-pages.php:545
 msgid "Each edit must be an object."
 msgstr "edits の各要素はオブジェクトである必要があります。"
 
 #. translators: 1: edit index starting at 0, 2: error message.
-#: includes/class-kayzart-agent-pages.php:507
+#: includes/class-kayzart-agent-pages.php:568
 #, php-format
 msgid "Edit %1$d failed: %2$s"
 msgstr "edit %1$d が失敗しました: %2$s"
 
 #. translators: %s: list of violations.
-#: includes/class-kayzart-agent-pages.php:563
+#: includes/class-kayzart-agent-pages.php:624
 #, php-format
 msgid "The page was not saved: %s"
 msgstr "ページは保存されませんでした: %s"
 
 #. translators: %s: comma-separated tag names.
-#: includes/class-kayzart-agent-pages.php:719
+#: includes/class-kayzart-agent-pages.php:780
 #, php-format
 msgid "These tags were removed from head: %s"
 msgstr "head から次のタグが削除されました: %s"
 
-#: includes/class-kayzart-agent-pages.php:724
+#: includes/class-kayzart-agent-pages.php:785
 msgid "WordPress changed the html while saving, for example by removing markup your account cannot save. The page field shows what was stored."
 msgstr "保存時に WordPress が html を変更しました（このアカウントでは保存できないマークアップの削除など）。保存された内容は page フィールドで確認できます。"
 
-#: includes/class-kayzart-agent-pages.php:762
+#: includes/class-kayzart-agent-pages.php:823
 msgid "JavaScript is read-only for agents."
 msgstr "エージェントは JavaScript を編集できません。"
 
-#: includes/class-kayzart-agent-pages.php:765
+#: includes/class-kayzart-agent-pages.php:826
 msgid "Your account cannot edit the custom head."
 msgstr "このアカウントではカスタム head を編集できません。"
 
-#: includes/class-kayzart-agent-pages.php:767
+#: includes/class-kayzart-agent-pages.php:828
 msgid "Unknown target. Use html, css or head."
 msgstr "不明な target です。html、css、head のいずれかを指定してください。"
 
@@ -3101,3 +3102,8 @@ msgstr "外部エージェント（MCP）・%1$s として · %2$s"
 #: assets/dist/main.js:1716
 msgid "The revisions for these changes are no longer available."
 msgstr "この変更のリビジョンは利用できなくなりました。"
+
+#: includes/class-kayzart-agent-pages.php:415
+#: includes/rest/class-kayzart-rest-save.php:33
+msgid "Another save of this page is in progress. Try again in a moment."
+msgstr "このページの別の保存が進行中です。少し待ってからもう一度お試しください。"

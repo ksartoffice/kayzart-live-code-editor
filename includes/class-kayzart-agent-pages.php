@@ -50,12 +50,20 @@ class Agent_Pages {
 	 * Whether the current user may use agent page operations at all.
 	 *
 	 * AI editing is opt-in per role and per user through Ai_Setup::CAPABILITY,
-	 * and an agent writing pages is AI editing, so the same switch governs it.
+	 * and an agent writing pages is AI editing, so the same switch governs it,
+	 * as does the filter that turns AI editing off site-wide. The hashing and
+	 * edit tools need mbstring and the safety policy and page checks need DOM,
+	 * so without them nothing is offered rather than failing halfway through
+	 * a write. Agents need no AI provider or job scheduler.
 	 *
 	 * @return bool
 	 */
 	public static function can_use(): bool {
-		return is_user_logged_in() && current_user_can( Ai_Setup::CAPABILITY );
+		return is_user_logged_in()
+			&& current_user_can( Ai_Setup::CAPABILITY )
+			&& Ai_Availability::is_feature_enabled()
+			&& Ai_Availability::is_mbstring_present()
+			&& Ai_Availability::is_dom_present();
 	}
 
 	/**
@@ -166,14 +174,17 @@ class Agent_Pages {
 			$statuses = array( (string) $input['status'] );
 		}
 
+		// Permissions are per post (own drafts, others' pages, private pages),
+		// so they are applied to every match before paginating. Kayzart pages
+		// are few enough that the ID list stays small.
 		$args = array(
 			'post_type'              => Post_Type::get_enabled_post_types(),
 			'post_status'            => $statuses,
-			'posts_per_page'         => $per_page,
-			'paged'                  => $page,
+			'posts_per_page'         => -1,
+			'fields'                 => 'ids',
 			'orderby'                => 'modified',
 			'order'                  => 'DESC',
-			'no_found_rows'          => false,
+			'no_found_rows'          => true,
 			'update_post_term_cache' => false,
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Kayzart pages are identified by this flag.
 			'meta_query'             => array(
@@ -187,10 +198,20 @@ class Agent_Pages {
 			$args['s'] = sanitize_text_field( (string) $input['search'] );
 		}
 
-		$query = new \WP_Query( $args );
-		$pages = array();
-		foreach ( $query->posts as $post ) {
-			if ( $post instanceof \WP_Post && current_user_can( 'edit_post', $post->ID ) ) {
+		$ids = array_map( 'intval', ( new \WP_Query( $args ) )->posts );
+		_prime_post_caches( $ids, false, true );
+		$editable = array_values(
+			array_filter(
+				$ids,
+				static function ( int $id ): bool {
+					return current_user_can( 'edit_post', $id );
+				}
+			)
+		);
+		$pages    = array();
+		foreach ( array_slice( $editable, ( $page - 1 ) * $per_page, $per_page ) as $id ) {
+			$post = get_post( $id );
+			if ( $post instanceof \WP_Post ) {
 				$pages[] = self::summary( $post );
 			}
 		}
@@ -198,8 +219,8 @@ class Agent_Pages {
 		return array(
 			'pages'      => $pages,
 			'page'       => $page,
-			'totalPages' => (int) $query->max_num_pages,
-			'total'      => (int) $query->found_posts,
+			'totalPages' => (int) ceil( count( $editable ) / $per_page ),
+			'total'      => count( $editable ),
 		);
 	}
 
@@ -303,7 +324,7 @@ class Agent_Pages {
 				'css'             => $snapshot['css'],
 				'head'            => $snapshot['customHead'],
 				'js'              => $snapshot['js'],
-				'baseHash'        => Snapshot::hash( $snapshot ),
+				'baseHash'        => self::version_hash( $post, $snapshot ),
 				'editableTargets' => self::editable_targets(),
 			)
 		);
@@ -388,8 +409,33 @@ class Agent_Pages {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
 
+		// Hold the page's save lock from the baseHash check through the write,
+		// so no other save can land in between and be overwritten.
+		if ( ! Save_Lock::acquire( $post_id ) ) {
+			return self::error( 'kayzart_page_busy', __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ), 409 );
+		}
+		try {
+			return self::update_page_locked( $post_id, $input );
+		} finally {
+			Save_Lock::release( $post_id );
+		}
+	}
+
+	/**
+	 * Update a page while holding its save lock.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param array $input   Ability input.
+	 * @return array|\WP_Error
+	 */
+	private static function update_page_locked( int $post_id, array $input ) {
+		clean_post_cache( $post_id );
+		$post = get_post( $post_id );
+		if ( ! $post instanceof \WP_Post || ! self::is_agent_page( $post_id ) ) {
+			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
+		}
 		$before = Snapshot::for_post( $post_id );
-		if ( ! hash_equals( Snapshot::hash( $before ), (string) ( $input['baseHash'] ?? '' ) ) ) {
+		if ( ! hash_equals( self::version_hash( $post, $before ), (string) ( $input['baseHash'] ?? '' ) ) ) {
 			return self::error(
 				'kayzart_page_changed',
 				__( 'The page changed after you read it. Call kayzart/get-page again and reapply your change to the current sources.', 'kayzart-live-code-editor' ),
@@ -433,6 +479,20 @@ class Agent_Pages {
 		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update' );
 
 		return self::write_result( $post_id, $saved, $after );
+	}
+
+	/**
+	 * Version token an update must present.
+	 *
+	 * Covers the editor sources and modes plus the title, the fields an update
+	 * can change, so a person's newer title is not silently overwritten either.
+	 *
+	 * @param \WP_Post $post     Post.
+	 * @param array    $snapshot Snapshot::for_post() of the post.
+	 * @return string
+	 */
+	private static function version_hash( \WP_Post $post, array $snapshot ): string {
+		return hash( 'sha256', Snapshot::hash( $snapshot ) . '|' . (string) $post->post_title );
 	}
 
 	/**

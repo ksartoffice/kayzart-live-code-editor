@@ -189,6 +189,10 @@ export async function saveKayzArt(
   cssByMode?: CssByMode;
   version?: string;
   conflict?: boolean;
+  /** Version the server had when it refused the save, to retry against after the person confirms. */
+  conflictVersion?: string;
+  /** Saved settings when the server refused the save. */
+  conflictSettings?: Record<string, unknown>;
 }> {
   try {
     const payload: Record<string, unknown> = {
@@ -249,12 +253,16 @@ export async function saveKayzArt(
     }
     return { ok: false };
   } catch (error: unknown) {
-    const conflict = Boolean(
-      error && typeof error === 'object' && (error as Record<string, unknown>).code === PAGE_CHANGED_CODE
-    );
+    const body = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+    const conflict = body.code === PAGE_CHANGED_CODE;
     return {
       ok: false,
       conflict,
+      conflictVersion: conflict && typeof body.version === 'string' ? body.version : undefined,
+      conflictSettings:
+        conflict && body.settings && typeof body.settings === 'object'
+          ? (body.settings as Record<string, unknown>)
+          : undefined,
       error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
     };
   }

@@ -1075,6 +1075,19 @@ class Test_Abilities extends WP_UnitTestCase {
 		$stale = $this->editor_save( $page['id'], '<p>Editor</p>', $editor_version );
 		$this->assertSame( 409, $stale->get_status() );
 		$this->assertSame( 'kayzart_page_changed', $stale->get_data()['code'] );
+		$this->assertSame( \KayzArt\Rest_Save::current_version( $page['id'] ), $stale->get_data()['version'] );
+		$this->assertSame( 'Shared', $stale->get_data()['settings']['title'] );
+
+		$retried = $this->editor_save( $page['id'], '<p>Editor (retried)</p>', $stale->get_data()['version'] );
+		$this->assertSame( 200, $retried->get_status(), 'A confirmed retry against the reported version succeeds without force.' );
+		$editor_version = $stale->get_data()['version'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => Agent_Pages::get_page( $page['id'] )['baseHash'],
+				'html'     => '<p>Agent</p>',
+			)
+		);
 		$this->assertSame( '<p>Agent</p>', get_post( $page['id'] )->post_content, 'The agent edit survives.' );
 
 		$forced = $this->editor_save( $page['id'], '<p>Editor</p>', $editor_version, true );
@@ -1148,6 +1161,41 @@ class Test_Abilities extends WP_UnitTestCase {
 			$request->set_param( 'force', true );
 		}
 		return \KayzArt\Rest_Save::save( $request );
+	}
+
+	public function test_settings_writes_wait_for_the_page_lock(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Settings lock',
+				'html'  => '<p>Hi</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => 'kayzart_save_lock_' . $post_id,
+				'option_value' => time() . ':agent',
+				'autoload'     => 'no',
+			)
+		);
+		add_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		try {
+			$request = new WP_REST_Request( 'POST', '/kayzart/v1/settings' );
+			$request->set_param( 'post_id', $post_id );
+			$request->set_param( 'updates', array( 'title' => 'Renamed by a person' ) );
+			$this->assertSame( 409, \KayzArt\Rest_Settings::update_settings( $request )->get_status() );
+			$this->assertSame( 'Settings lock', get_post( $post_id )->post_title );
+
+			$wpdb->delete( $wpdb->options, array( 'option_name' => 'kayzart_save_lock_' . $post_id ) );
+			$this->assertSame( 200, \KayzArt\Rest_Settings::update_settings( $request )->get_status() );
+			$this->assertSame( 'Renamed by a person', get_post( $post_id )->post_title );
+			$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", 'kayzart_save_lock_' . $post_id ) ) );
+		} finally {
+			remove_filter( 'kayzart_save_lock_wait', '__return_zero' );
+		}
 	}
 
 	private function admin(): int {

@@ -79,6 +79,33 @@ class Rest_Settings {
 	 * @return \WP_REST_Response
 	 */
 	public static function update_settings( \WP_REST_Request $request ): \WP_REST_Response {
+		// Title and slug changes from the editor toolbar are written here at
+		// once. Taking the page's save lock keeps them from landing between an
+		// agent update's version check and its write.
+		$post_id = absint( $request->get_param( 'post_id' ) );
+		if ( ! Save_Lock::acquire( $post_id ) ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'    => false,
+					'error' => __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ),
+				),
+				409
+			);
+		}
+		try {
+			return self::update_settings_unlocked( $request );
+		} finally {
+			Save_Lock::release( $post_id );
+		}
+	}
+
+	/**
+	 * Update KayzArt settings while holding the page's save lock.
+	 *
+	 * @param \WP_REST_Request $request REST request.
+	 * @return \WP_REST_Response
+	 */
+	private static function update_settings_unlocked( \WP_REST_Request $request ): \WP_REST_Response {
 
 		$post_id = absint( $request->get_param( 'post_id' ) );
 		$updates = $request->get_param( 'updates' );

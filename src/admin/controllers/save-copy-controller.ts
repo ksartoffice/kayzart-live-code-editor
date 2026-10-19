@@ -219,6 +219,24 @@ function replaceModelContent(model: EditorModel, nextText: string) {
   );
 }
 
+/** How many times a save is retried after the person confirms overwriting outside changes. */
+const MAX_CONFLICT_RETRIES = 3;
+
+/** Replace the known saved values of pending settings with the ones the server reported. */
+function rebaseSettings(
+  base: Record<string, unknown> | undefined,
+  current: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!base || !current) {
+    return base;
+  }
+  const next: Record<string, unknown> = {};
+  Object.keys(base).forEach((key) => {
+    next[key] = Object.prototype.hasOwnProperty.call(current, key) ? current[key] : base[key];
+  });
+  return next;
+}
+
 export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
   let snapshotVersion = deps.initialSnapshotVersion;
@@ -419,11 +437,20 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         settingsBase,
         baseVersion: snapshotVersion,
       };
-      let result = await saveKayzArt(saveParams);
+      let attempt = saveParams;
+      let result = await saveKayzArt(attempt);
 
       // Someone else (an AI agent, another tab) saved the page after this
-      // editor loaded it. Saving now would silently replace their work.
-      if (!result.ok && result.conflict) {
+      // editor loaded it. Saving now would silently replace their work. A
+      // confirmed overwrite is retried against the version the conflict
+      // reported, not forced, so a further change made while the dialog was
+      // open is caught and asked about again.
+      let conflicts = 0;
+      while (!result.ok && result.conflict) {
+        conflicts += 1;
+        if (!result.conflictVersion || conflicts > MAX_CONFLICT_RETRIES) {
+          break;
+        }
         const overwrite = confirmOverwrite(
           __(
             'This page was changed outside this editor after you opened it, for example by an AI agent. Replace those changes with what is in the editor? Choose Cancel to keep them. Their changes stay in the AI Edit history and revisions either way.',
@@ -438,7 +465,12 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
           deps.createSnackbar('error', keptMessage, deps.noticeIds.save, deps.noticeErrorMs);
           return { ok: false, error: keptMessage };
         }
-        result = await saveKayzArt({ ...saveParams, force: true });
+        attempt = {
+          ...attempt,
+          baseVersion: result.conflictVersion,
+          settingsBase: rebaseSettings(attempt.settingsBase, result.conflictSettings),
+        };
+        result = await saveKayzArt(attempt);
       }
 
       if (result.ok) {

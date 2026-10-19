@@ -52,10 +52,11 @@ class Rest_Save {
 			) {
 				return new \WP_REST_Response(
 					array(
-						'ok'      => false,
-						'code'    => 'kayzart_page_changed',
-						'error'   => __( 'This page was changed outside this editor after you opened it, for example by an AI agent.', 'kayzart-live-code-editor' ),
-						'version' => self::current_version( $post_id ),
+						'ok'       => false,
+						'code'     => 'kayzart_page_changed',
+						'error'    => __( 'This page was changed outside this editor after you opened it, for example by an AI agent.', 'kayzart-live-code-editor' ),
+						'version'  => self::current_version( $post_id ),
+						'settings' => Rest_Settings::build_settings_payload( $post_id ),
 					),
 					409
 				);

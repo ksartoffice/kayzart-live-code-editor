@@ -344,7 +344,7 @@ describe('save copy controller', () => {
   });
 
   it('keeps changes made outside the editor when the person declines to overwrite them', async () => {
-    vi.mocked(saveKayzArt).mockResolvedValue({ ok: false, conflict: true, error: 'changed' });
+    vi.mocked(saveKayzArt).mockResolvedValue({ ok: false, conflict: true, conflictVersion: 'v5', error: 'changed' });
     const confirmOverwrite = vi.fn(() => false);
     const onSaveSuccess = vi.fn();
     const { controller, createSnackbar } = createController({ initialSnapshotVersion: 'v1', confirmOverwrite, onSaveSuccess });
@@ -358,9 +358,9 @@ describe('save copy controller', () => {
     expect(createSnackbar).toHaveBeenLastCalledWith('error', expect.stringContaining('Reload the editor'), 'save', 5000);
   });
 
-  it('overwrites changes made outside the editor only after the person confirms', async () => {
+  it('retries a confirmed overwrite against the version the conflict reported, never forced', async () => {
     vi.mocked(saveKayzArt)
-      .mockResolvedValueOnce({ ok: false, conflict: true, error: 'changed' })
+      .mockResolvedValueOnce({ ok: false, conflict: true, conflictVersion: 'v5', error: 'changed' })
       .mockResolvedValueOnce({ ok: true, version: 'v9' });
     const confirmOverwrite = vi.fn(() => true);
     const { controller } = createController({ initialSnapshotVersion: 'v1', confirmOverwrite });
@@ -368,7 +368,51 @@ describe('save copy controller', () => {
     const result = await controller.handleSave();
 
     expect(result.ok).toBe(true);
-    expect(vi.mocked(saveKayzArt).mock.calls[1][0]).toMatchObject({ baseVersion: 'v1', force: true });
+    const retry = vi.mocked(saveKayzArt).mock.calls[1][0];
+    expect(retry).toMatchObject({ baseVersion: 'v5' });
+    expect(retry).not.toHaveProperty('force');
+  });
+
+  it('asks again when the page changed once more while the dialog was open', async () => {
+    vi.mocked(saveKayzArt)
+      .mockResolvedValueOnce({ ok: false, conflict: true, conflictVersion: 'v5', error: 'changed' })
+      .mockResolvedValueOnce({ ok: false, conflict: true, conflictVersion: 'v6', error: 'changed again' })
+      .mockResolvedValueOnce({ ok: true, version: 'v7' });
+    const confirmOverwrite = vi.fn(() => true);
+    const { controller } = createController({ initialSnapshotVersion: 'v1', confirmOverwrite });
+
+    const result = await controller.handleSave();
+
+    expect(result.ok).toBe(true);
+    expect(confirmOverwrite).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(saveKayzArt).mock.calls[2][0]).toMatchObject({ baseVersion: 'v6' });
+  });
+
+  it('rebases pending settings on the values the conflict reported', async () => {
+    vi.mocked(saveKayzArt)
+      .mockResolvedValueOnce({
+        ok: false, conflict: true, conflictVersion: 'v5', error: 'changed',
+        conflictSettings: { templateMode: 'theme', title: 'Other' },
+      })
+      .mockResolvedValueOnce({ ok: true, version: 'v6' });
+    const { controller } = createController({
+      initialSnapshotVersion: 'v1',
+      confirmOverwrite: () => true,
+      getPendingSettingsState: () => ({
+        pendingSettingsUpdates: { templateMode: 'standalone' },
+        pendingSettingsBase: { templateMode: 'default' },
+        hasUnsavedSettings: true,
+        hasSettingsValidationErrors: false,
+      }),
+    });
+
+    await controller.handleSave();
+
+    expect(vi.mocked(saveKayzArt).mock.calls[1][0]).toMatchObject({
+      baseVersion: 'v5',
+      settingsUpdates: { templateMode: 'standalone' },
+      settingsBase: { templateMode: 'theme' },
+    });
   });
 
   it('sends the saved value of each pending setting with the save', async () => {

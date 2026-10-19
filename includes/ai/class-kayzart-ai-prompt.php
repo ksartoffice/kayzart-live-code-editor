@@ -119,6 +119,43 @@ class Ai_Prompt {
 	}
 
 	/**
+	 * Authoring rules handed to an external agent connected over MCP.
+	 *
+	 * The agent brings its own model, tools and planning, so the engine identity,
+	 * tool-use and finishing rules do not apply. What it must share with the
+	 * built-in engine is the shape of a Kayzart page, the editor mode rules and
+	 * the security rules, so those come from the same builders and cannot drift.
+	 * The server enforces the same policy on every write regardless.
+	 *
+	 * @param string $editor_mode normal or tailwind.
+	 * @return string
+	 */
+	public static function agent_guidelines( string $editor_mode = 'normal' ): string {
+		$page_rules = <<<'PROMPT'
+Kayzart page rules:
+- A page has separate sources: html (a body fragment), css, and optional head (custom additions inside the document <head>, such as <title> and <meta>). JavaScript is read-only for agents.
+- Never write <!doctype>, <html>, <head>, or <body> tags in html or head.
+- Do not add stylesheet or script links in html. CSS is loaded from the css source.
+- Build one complete page that covers the whole brief, with substantial, specific copy. Never leave placeholder stubs such as "Lorem ipsum" or an empty section.
+- Do not write HTML comments. They reach the published page.
+- Use only the font CSS values listed in fonts. Write a listed cssValue exactly, never its display name.
+- Use an image, video or audio URL only when it was given to you or kayzart/list-media returned it, and write it exactly. Never invent one. Give every image an alt attribute (alt="" when decorative).
+- Ensure the result is responsive on both mobile and desktop screens.
+- Pages are saved as drafts. A person reviews and publishes them in WordPress.
+- Read a page with kayzart/get-page before updating it, and pass its baseHash. Prefer edits (exact from/to replacements) for small changes; send full sources only to rewrite a target.
+- After saving, read warnings in the result and fix what applies. If you can open a browser, call kayzart/get-preview-link and check the page at a mobile and a desktop width before you report back.
+PROMPT;
+
+		return self::assemble(
+			array(
+				$page_rules,
+				self::editor_mode_rules( self::INTENT_CREATE, $editor_mode ),
+				self::security_rules(),
+			)
+		);
+	}
+
+	/**
 	 * Join prompt sections into one normalized prompt.
 	 *
 	 * @param array<int,string> $parts Prompt sections; empty ones are skipped.

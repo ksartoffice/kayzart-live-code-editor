@@ -85,6 +85,10 @@ require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-revisions.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-rest.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-checks.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-preview.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-pages.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-abilities.php';
 
 if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 	/**
@@ -133,6 +137,10 @@ add_action(
 
 		// Frontend rendering (public view).
 		\KayzArt\Frontend::init();
+
+		// Abilities for external AI agents (MCP via the MCP Adapter plugin).
+		\KayzArt\Agent_Preview::init();
+		\KayzArt\Abilities::init();
 	}
 );
 

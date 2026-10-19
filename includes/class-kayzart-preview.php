@@ -155,7 +155,7 @@ class Preview {
 	 * @param \WP_Query $query Query to update.
 	 * @param \WP_Post  $post  Preview post.
 	 */
-	private static function mark_query_as_singular_preview( \WP_Query $query, \WP_Post $post ): void {
+	public static function mark_query_as_singular_preview( \WP_Query $query, \WP_Post $post ): void {
 		$query->is_home              = false;
 		$query->is_archive           = false;
 		$query->is_post_type_archive = false;

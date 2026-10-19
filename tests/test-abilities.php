@@ -69,6 +69,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 'tailwind', $result['cssMode'] );
 		$this->assertStringContainsString( 'Tailwind mode rules', $result['rules'] );
 		$this->assertStringContainsString( 'Do not create or preserve <script> tags', $result['rules'] );
+		$this->assertStringContainsString( 'build interaction without it', $result['rules'] );
 		$this->assertNotEmpty( $result['fonts']['system'] );
 		$this->assertSame( array( 'html', 'css', 'head' ), $result['editableTargets'] );
 	}

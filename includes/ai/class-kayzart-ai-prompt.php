@@ -138,6 +138,7 @@ Kayzart page rules:
 - Do not add stylesheet or script links in html. CSS is loaded from the css source.
 - Build one complete page that covers the whole brief, with substantial, specific copy. Never leave placeholder stubs such as "Lorem ipsum" or an empty section.
 - Do not write HTML comments. They reach the published page.
+- You cannot add JavaScript, so build interaction without it: <details> and <summary> for accordions and FAQs, the popover attribute with a popovertarget button for menus and dialogs, :target for tabs and in-page switching, and CSS scroll-behavior, transitions and animations for motion.
 - Use only the font CSS values listed in fonts. Write a listed cssValue exactly, never its display name.
 - Use an image, video or audio URL only when it was given to you or kayzart/list-media returned it, and write it exactly. Never invent one. Give every image an alt attribute (alt="" when decorative).
 - Ensure the result is responsive on both mobile and desktop screens.

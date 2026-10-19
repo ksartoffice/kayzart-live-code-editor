@@ -137,6 +137,49 @@ class Ai_Timeline_Store {
 		return $this->get_by_revision( $revision_id );
 	}
 
+	/**
+	 * Record a write made by an external agent over MCP.
+	 *
+	 * The agent saves through the editor's save handler, which has already
+	 * logged a plain save for the same revision. That row is taken over, so the
+	 * revision keeps one activity and the person sees who made the change.
+	 * Snapshots are not retained here: the revisions before and after the
+	 * change serve the diff and restore actions for as long as they exist.
+	 */
+	public function record_agent_edit( int $post_id, int $user_id, ?int $revision_id, array $before, array $after, string $summary, string $client, string $action ) {
+		global $wpdb;
+		$before   = self::snapshot_from_payload( $before );
+		$after    = self::snapshot_from_payload( $after );
+		$table    = Ai_Setup::get_timeline_table_name();
+		$now      = self::now();
+		$data     = array(
+			'activity_type'      => 'agent_edit',
+			'execution_status'   => 'completed',
+			'application_status' => 'applied',
+			'changed_targets'    => wp_json_encode( self::changed_targets( $before, $after ) ),
+			'before_hash'        => self::editor_hash( $before ),
+			'after_hash'         => self::editor_hash( $after ),
+			'summary'            => self::truncate( $summary, 512 ),
+			'agent_client'       => self::truncate( $client, 128 ),
+			'agent_action'       => 'create' === $action ? 'create' : 'update',
+			'updated_at'         => $now,
+		);
+		$existing = $revision_id ? $this->get_by_revision( $revision_id ) : null;
+		if ( $existing ) {
+			$updated = $wpdb->update( $table, $data, array( 'id' => (int) $existing['id'] ) );
+			return false === $updated ? false : $this->get( (int) $existing['id'] );
+		}
+		$data['activity_uuid'] = wp_generate_uuid4();
+		$data['post_id']       = $post_id;
+		$data['user_id']       = $user_id;
+		$data['created_at']    = $now;
+		if ( $revision_id ) {
+			$data['revision_id'] = $revision_id;
+		}
+		$inserted = $wpdb->insert( $table, $data );
+		return false === $inserted ? false : $this->get( (int) $wpdb->insert_id );
+	}
+
 	/** Record an explicit restoration of a retained edit snapshot. */
 	public function record_restore( array $source, int $user_id, string $target ) {
 		global $wpdb;
@@ -168,18 +211,19 @@ class Ai_Timeline_Store {
 		if ( ! in_array( $status, array( 'applied', 'reverted' ), true ) ) {
 			return false;
 		}
+		$row = $this->get( $id );
+		if ( ! is_array( $row ) || ! in_array( (string) $row['activity_type'], array( 'ai_edit', 'agent_edit' ), true ) ) {
+			return false;
+		}
 		$result = $wpdb->update(
 			Ai_Setup::get_timeline_table_name(),
 			array(
 				'application_status' => $status,
 				'updated_at'         => self::now(),
 			),
-			array(
-				'id'            => $id,
-				'activity_type' => 'ai_edit',
-			),
+			array( 'id' => $id ),
 			array( '%s', '%s' ),
-			array( '%d', '%s' )
+			array( '%d' )
 		);
 		return false !== $result;
 	}
@@ -222,6 +266,10 @@ class Ai_Timeline_Store {
 
 	/** Return a retained before/after snapshot, or null after job cleanup. */
 	public function get_snapshot( array $activity, string $target ) {
+		if ( 'agent_edit' === ( $activity['activity_type'] ?? '' ) ) {
+			$snapshots = $this->agent_snapshots( $activity );
+			return 'after' === $target ? $snapshots['after'] : $snapshots['before'];
+		}
 		$job = ! empty( $activity['job_uuid'] ) ? ( new Ai_Job_Store() )->get( (string) $activity['job_uuid'] ) : null;
 		if ( ! $job ) {
 			return null;
@@ -243,10 +291,10 @@ class Ai_Timeline_Store {
 		global $wpdb;
 		$timeline = Ai_Setup::get_timeline_table_name();
 		$jobs     = Ai_Setup::get_jobs_table_name();
-		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type = 'ai_edit' AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT %d", $post_id, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.id, t.post_id, t.activity_type, t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, t.revision_id, t.before_hash, t.after_hash, t.agent_client, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type IN ('ai_edit', 'agent_edit') AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT %d", $post_id, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$context  = array_map(
 			static function ( array $row ): array {
-				return array(
+				$item = array(
 					'versionId'         => (string) $row['activity_uuid'],
 					'prompt'            => self::truncate( (string) $row['prompt'], 1024 ),
 					'summary'           => self::truncate( (string) $row['summary'], 512 ),
@@ -255,12 +303,24 @@ class Ai_Timeline_Store {
 					'createdAt'         => mysql_to_rfc3339( (string) $row['created_at'] ),
 					'detailsAvailable'  => ! empty( $row['retained_job_uuid'] ),
 				);
+				if ( 'agent_edit' === $row['activity_type'] ) {
+					// Made outside the editor by an external agent; the history tools cannot read it.
+					$item['source']      = 'external_agent';
+					$item['agentClient'] = Agent_Pages::display_label( (string) $row['agent_client'] );
+				}
+				return $item;
 			},
 			$rows
 		);
 		if ( count( $rows ) > 0 && count( $current_snapshot ) > 0 ) {
-			$before = json_decode( isset( $rows[0]['retained_payload_json'] ) ? (string) $rows[0]['retained_payload_json'] : '', true );
-			$after  = json_decode( isset( $rows[0]['retained_snapshot_json'] ) ? (string) $rows[0]['retained_snapshot_json'] : '', true );
+			if ( 'agent_edit' === $rows[0]['activity_type'] ) {
+				$snapshots = $this->agent_snapshots( $rows[0] );
+				$before    = $snapshots['before'];
+				$after     = $snapshots['after'];
+			} else {
+				$before = json_decode( isset( $rows[0]['retained_payload_json'] ) ? (string) $rows[0]['retained_payload_json'] : '', true );
+				$after  = json_decode( isset( $rows[0]['retained_snapshot_json'] ) ? (string) $rows[0]['retained_snapshot_json'] : '', true );
+			}
 			if ( is_array( $before ) && is_array( $after ) ) {
 				$footprint = self::build_edit_footprint( self::snapshot_from_payload( $before ), self::snapshot_from_payload( $after ), self::snapshot_from_payload( $current_snapshot ) );
 				if ( count( $footprint ) > 0 ) {
@@ -422,10 +482,28 @@ class Ai_Timeline_Store {
 		$source             = ! empty( $row['source_activity_id'] ) ? $this->get( (int) $row['source_activity_id'] ) : null;
 		$revision_id        = ! empty( $row['revision_id'] ) ? (int) $row['revision_id'] : 0;
 		$revision_available = $revision_id > 0 && (bool) wp_get_post_revision( $revision_id );
-		$change_stats       = $this->change_stats_from_retained_job( $row );
-		$duration_seconds   = $this->duration_from_retained_job( $row );
-		$timeout_ms         = $this->timeout_from_retained_job( $row );
-		$snapshot_modes     = $this->snapshot_modes_from_retained_job( $row );
+		$is_agent_edit      = 'agent_edit' === (string) $row['activity_type'];
+		$agent_snapshots    = $is_agent_edit ? $this->agent_snapshots( $row ) : null;
+		$change_stats       = $is_agent_edit
+			? ( is_array( $agent_snapshots['after'] ) ? self::change_stats_between( is_array( $agent_snapshots['before'] ) ? $agent_snapshots['before'] : self::snapshot_from_payload( array() ), $agent_snapshots['after'] ) : null )
+			: $this->change_stats_from_retained_job( $row );
+		$duration_seconds   = $is_agent_edit ? null : $this->duration_from_retained_job( $row );
+		$timeout_ms         = $is_agent_edit ? null : $this->timeout_from_retained_job( $row );
+		$snapshot_modes     = $is_agent_edit
+			? array(
+				'before' => is_array( $agent_snapshots['before'] ) ? $agent_snapshots['before']['jsMode'] : null,
+				'after'  => is_array( $agent_snapshots['after'] ) ? $agent_snapshots['after']['jsMode'] : null,
+			)
+			: $this->snapshot_modes_from_retained_job( $row );
+		if ( $is_agent_edit ) {
+			$details_available = is_array( $agent_snapshots['after'] );
+			$before_available  = is_array( $agent_snapshots['before'] );
+		} else {
+			$details_available = array_key_exists( 'retained_job_uuid', $row )
+				? ! empty( $row['retained_job_uuid'] )
+				: ( ! empty( $row['job_uuid'] ) && (bool) ( new Ai_Job_Store() )->get( (string) $row['job_uuid'] ) );
+			$before_available  = $details_available;
+		}
 		return array(
 			'id'                => (int) $row['id'],
 			'activityId'        => (string) $row['activity_uuid'],
@@ -451,9 +529,12 @@ class Ai_Timeline_Store {
 			'sourceActivityId'  => $source ? (int) $source['id'] : null,
 			'sourcePrompt'      => $source && $source['prompt'] ? (string) $source['prompt'] : null,
 			'restoreTarget'     => $row['restore_target'] ? (string) $row['restore_target'] : null,
-			'detailsAvailable'  => array_key_exists( 'retained_job_uuid', $row )
-				? ! empty( $row['retained_job_uuid'] )
-				: ( ! empty( $row['job_uuid'] ) && (bool) ( new Ai_Job_Store() )->get( (string) $row['job_uuid'] ) ),
+			'detailsAvailable'  => $details_available,
+			'beforeAvailable'   => $before_available,
+			'agentClient'       => isset( $row['agent_client'] ) && '' !== (string) $row['agent_client'] ? Agent_Pages::display_label( (string) $row['agent_client'] ) : null,
+			'agentAction'       => isset( $row['agent_action'] ) && '' !== (string) $row['agent_action'] ? (string) $row['agent_action'] : null,
+			// The agent writes its summary for the person, unlike the built-in engine's internal one.
+			'agentSummary'      => $is_agent_edit && '' !== (string) $row['summary'] ? (string) $row['summary'] : null,
 			'canPoll'           => ! empty( $row['job_uuid'] ) && ( get_current_user_id() === (int) $row['user_id'] || current_user_can( 'manage_options' ) ),
 			'revisionAvailable' => $revision_available,
 			'author'            => array(
@@ -506,7 +587,63 @@ class Ai_Timeline_Store {
 		if ( ! is_array( $payload ) || ! is_array( $after ) ) {
 			return null;
 		}
-		$before  = self::snapshot_from_payload( $payload );
+		return self::change_stats_between( self::snapshot_from_payload( $payload ), $after );
+	}
+
+	/**
+	 * Before/after snapshots of an agent edit, read from WordPress revisions.
+	 *
+	 * After is the revision the agent's save created. Before is the newest
+	 * earlier Kayzart revision, which every editor and agent save creates. Each
+	 * is returned only when its hash matches the one recorded with the edit, so
+	 * a missing or deleted revision never restores the wrong state.
+	 *
+	 * @return array{before:array|null,after:array|null}
+	 */
+	private function agent_snapshots( array $row ): array {
+		$result      = array(
+			'before' => null,
+			'after'  => null,
+		);
+		$revision_id = ! empty( $row['revision_id'] ) ? (int) $row['revision_id'] : 0;
+		if ( $revision_id <= 0 ) {
+			return $result;
+		}
+		$after = Snapshot::for_revision( $revision_id );
+		if ( is_array( $after ) ) {
+			$after = self::snapshot_from_payload( $after );
+			if ( hash_equals( (string) $row['after_hash'], $after['baseHash'] ) ) {
+				$result['after'] = $after;
+			}
+		}
+		$revisions = wp_get_post_revisions(
+			(int) $row['post_id'],
+			array(
+				'orderby' => array(
+					'date' => 'DESC',
+					'ID'   => 'DESC',
+				),
+			)
+		);
+		foreach ( $revisions as $revision ) {
+			if ( (int) $revision->ID >= $revision_id ) {
+				continue;
+			}
+			$before = Snapshot::for_revision( (int) $revision->ID );
+			if ( ! is_array( $before ) ) {
+				continue;
+			}
+			$before = self::snapshot_from_payload( $before );
+			if ( hash_equals( (string) $row['before_hash'], $before['baseHash'] ) ) {
+				$result['before'] = $before;
+			}
+			break;
+		}
+		return $result;
+	}
+
+	/** Display-only line counts between two snapshots. */
+	private static function change_stats_between( array $before, array $after ): array {
 		$stats   = array();
 		$targets = array(
 			'html' => 'html',

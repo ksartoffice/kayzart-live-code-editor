@@ -90,6 +90,11 @@ class Abilities {
 				'description' => 'Custom additions inside <head>, such as <title> and <meta>. Requires the unfiltered_html capability.',
 			),
 		);
+		$summary = array(
+			'type'        => 'string',
+			'maxLength'   => 500,
+			'description' => 'One sentence describing what you changed, written for the person who owns the page and in their language. Shown in the editor AI history next to this change.',
+		);
 
 		return array(
 			'kayzart/get-guidelines'   => array(
@@ -304,6 +309,7 @@ class Abilities {
 							'type'        => 'string',
 							'description' => 'Post type to create. Defaults to page. Must be one of postTypes from kayzart/get-guidelines.',
 						),
+						'summary'  => $summary,
 					),
 					'required'             => array( 'title', 'html' ),
 					'additionalProperties' => false,
@@ -334,6 +340,7 @@ class Abilities {
 						'html'     => $sources['html'],
 						'css'      => $sources['css'],
 						'head'     => $sources['head'],
+						'summary'  => $summary,
 						'edits'    => array(
 							'type'     => 'array',
 							'maxItems' => Agent_Pages::MAX_EDITS,

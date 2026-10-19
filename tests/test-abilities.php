@@ -10,6 +10,7 @@ use KayzArt\Admin;
 use KayzArt\Agent_Checks;
 use KayzArt\Agent_Preview;
 use KayzArt\Agent_Pages;
+use KayzArt\Ai_Timeline_Store;
 use KayzArt\Post_Type;
 use KayzArt\Snapshot;
 use KayzArt\Tailwind_Compiler;
@@ -658,6 +659,158 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 'md\\:flex', Agent_Checks::css_escape( 'md:flex' ) );
 		$this->assertSame( '\\!font-bold', Agent_Checks::css_escape( '!font-bold' ) );
 		$this->assertSame( '\\31 0', Agent_Checks::css_escape( '10' ) );
+	}
+
+	public function test_agent_writes_are_recorded_as_agent_edits(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title'   => 'History',
+				'html'    => '<h1>Old heading</h1>',
+				'summary' => 'Created the first draft.',
+			)
+		);
+		$page    = $created['page'];
+		$updated = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'summary'  => 'Renamed the heading.',
+				'edits'    => array(
+					array(
+						'target' => 'html',
+						'from'   => 'Old heading',
+						'to'     => 'New heading',
+					),
+				),
+			)
+		);
+		$this->assertIsArray( $updated );
+
+		$items = ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'];
+
+		$this->assertSame( array( 'agent_edit', 'agent_edit' ), array_column( $items, 'type' ), 'Agent saves replace the plain save rows.' );
+		$this->assertSame( 'create', $items[0]['agentAction'] );
+		$this->assertSame( 'Created the first draft.', $items[0]['agentSummary'] );
+		$this->assertFalse( $items[0]['beforeAvailable'], 'A created page has no earlier state to restore.' );
+		$this->assertTrue( $items[0]['detailsAvailable'] );
+		$this->assertSame( 'update', $items[1]['agentAction'] );
+		$this->assertSame( 'Renamed the heading.', $items[1]['agentSummary'] );
+		$this->assertSame( 'MCP', $items[1]['agentClient'] );
+		$this->assertSame( array( 'html' ), $items[1]['changedTargets'] );
+		$this->assertSame( 1, $items[1]['changeStats']['html']['added'] );
+		$this->assertTrue( $items[1]['beforeAvailable'] );
+		$this->assertSame( $updated['revisionId'], $items[1]['revisionId'] );
+	}
+
+	public function test_agent_edit_snapshots_come_from_revisions_and_can_be_restored(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Restore',
+				'html'  => '<p>First</p>',
+			)
+		);
+		$page    = $created['page'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Second</p>',
+			)
+		);
+		$store    = new Ai_Timeline_Store();
+		$activity = $store->get( $store->list_for_post( $page['id'] )['items'][1]['id'] );
+
+		$this->assertSame( '<p>First</p>', $store->get_snapshot( $activity, 'before' )['html'] );
+		$this->assertSame( '<p>Second</p>', $store->get_snapshot( $activity, 'after' )['html'] );
+		$this->assertTrue( $store->update_application( (int) $activity['id'], 'reverted' ) );
+		$this->assertSame( 'reverted', $store->get( (int) $activity['id'] )['application_status'] );
+	}
+
+	public function test_built_in_ai_sees_the_latest_agent_edit(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Context',
+				'html'  => '<h1>Hello</h1><p>Body</p>',
+			)
+		);
+		$page    = $created['page'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'summary'  => 'Made the heading friendlier.',
+				'edits'    => array(
+					array(
+						'target' => 'html',
+						'from'   => 'Hello',
+						'to'     => 'Welcome aboard',
+					),
+				),
+			)
+		);
+		$current = Snapshot::for_post( $page['id'] );
+
+		$context = ( new Ai_Timeline_Store() )->recent_context( $page['id'], $current, 1 );
+
+		$this->assertCount( 1, $context );
+		$this->assertSame( 'external_agent', $context[0]['source'] );
+		$this->assertSame( 'Made the heading friendlier.', $context[0]['summary'] );
+		$this->assertFalse( $context[0]['detailsAvailable'] );
+		$this->assertStringContainsString( 'Welcome aboard', wp_json_encode( $context[0]['editFootprint'] ) );
+	}
+
+	public function test_title_only_update_is_not_recorded(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Title',
+				'html'  => '<p>Hi</p>',
+			)
+		);
+		$page    = $created['page'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'title'    => 'Renamed',
+			)
+		);
+
+		$this->assertCount( 1, ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'] );
+	}
+
+	public function test_local_agent_names_are_shown_in_the_viewer_language(): void {
+		$this->assertSame( 'Claude Code (local)', Agent_Pages::display_label( 'local: Claude Code ' ) );
+		$this->assertSame( 'Claude (local)', Agent_Pages::display_label( 'local:<b>Claude</b>' ) );
+		$this->assertSame( 'Local agent', Agent_Pages::display_label( 'local:' ) );
+		$this->assertSame( 'Local agent', Agent_Pages::display_label( 'local:<script>alert(1)</script>' ) );
+		$this->assertSame( 'Claude Code', Agent_Pages::display_label( 'Claude Code' ), 'Application password names are shown as they are.' );
+
+		$japanese = static function ( $translation, $text ) {
+			return '%s (local)' === $text ? '%s（ローカル）' : $translation;
+		};
+		add_filter( 'gettext', $japanese, 10, 2 );
+		try {
+			$this->assertSame( 'Claude Code（ローカル）', Agent_Pages::display_label( 'local:Claude Code' ) );
+		} finally {
+			remove_filter( 'gettext', $japanese, 10 );
+		}
+	}
+
+	public function test_client_label_can_be_filtered(): void {
+		$this->assertSame( 'MCP', Agent_Pages::client_label() );
+		$label = static function () {
+			return 'Claude Code';
+		};
+		add_filter( 'kayzart_agent_client_label', $label );
+		try {
+			$this->assertSame( 'Claude Code', Agent_Pages::client_label() );
+		} finally {
+			remove_filter( 'kayzart_agent_client_label', $label );
+		}
 	}
 
 	private function admin(): int {

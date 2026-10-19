@@ -2928,3 +2928,13 @@ msgstr "送信せずに無効化"
 #: includes/class-kayzart-deactivation-feedback.php:101
 msgid "Only when you choose “Send answer and deactivate”, your answer, a random answer ID, survey version, Kayzart and WordPress versions, and admin language are sent to feedback.kayzart.com and retained for two years. No site URL, email, API key, page content, or usage history is included. Please do not include private information in your comment. The receiving server may retain IP addresses in security logs. Delivery failure will not prevent deactivation."
 msgstr "「回答を送信して無効化」を選んだ場合のみ、回答、ランダムな回答ID、アンケート版、Kayzart・WordPressのバージョン、管理画面の言語をfeedback.kayzart.comに送信し、2年間保管します。サイトURL、メールアドレス、APIキー、ページ内容、利用履歴は含みません。コメントには秘密情報を入力しないでください。受信サーバーのセキュリティログにはIPアドレスが残る場合があります。送信に失敗しても無効化は続行します。"
+
+#. translators: %s: agent name set with KAYZART_AGENT_NAME, such as Claude Code.
+#: includes/class-kayzart-agent-pages.php
+#, php-format
+msgid "%s (local)"
+msgstr "%s（ローカル）"
+
+#: includes/class-kayzart-agent-pages.php
+msgid "Local agent"
+msgstr "ローカルのエージェント"

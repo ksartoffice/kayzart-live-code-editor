@@ -371,6 +371,7 @@ class Agent_Pages {
 			wp_delete_post( $post_id, true );
 			return $saved;
 		}
+		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'create' );
 
 		return self::write_result( $post_id, $saved, $after );
 	}
@@ -429,6 +430,7 @@ class Agent_Pages {
 		if ( is_wp_error( $saved ) ) {
 			return $saved;
 		}
+		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update' );
 
 		return self::write_result( $post_id, $saved, $after );
 	}
@@ -603,6 +605,101 @@ class Agent_Pages {
 			return self::error( 'kayzart_save_failed', $message, $response->get_status() >= 400 ? $response->get_status() : 500 );
 		}
 		return $data;
+	}
+
+	/**
+	 * Show the write in the editor's AI history as an agent edit.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param array  $saved   Save response data.
+	 * @param array  $before  Snapshot before the write.
+	 * @param string $summary Agent-written description of the change.
+	 * @param string $action  create or update.
+	 */
+	private static function record_activity( int $post_id, array $saved, array $before, string $summary, string $action ): void {
+		$after = Snapshot::for_post( $post_id );
+		if ( Snapshot::hash( Snapshot::normalize( $before ) ) === Snapshot::hash( $after ) ) {
+			return;
+		}
+		( new Ai_Timeline_Store() )->record_agent_edit(
+			$post_id,
+			get_current_user_id(),
+			isset( $saved['revision']['id'] ) ? (int) $saved['revision']['id'] : null,
+			$before,
+			$after,
+			sanitize_textarea_field( $summary ),
+			self::client_label(),
+			$action
+		);
+	}
+
+	/** Prefix marking a stored agent name as a local STDIO connection. */
+	const LOCAL_CLIENT_PREFIX = 'local:';
+
+	/**
+	 * Identify the agent for the history record.
+	 *
+	 * Over HTTP it is the application password's name, which the person chose
+	 * when connecting the agent (for example "Claude Code").
+	 *
+	 * Over a local STDIO connection (WP-CLI) there is no such name, and the MCP
+	 * Adapter does not expose the client's self-reported name to abilities. The
+	 * person names the agent instead with the KAYZART_AGENT_NAME environment
+	 * variable in the MCP server configuration. The name is stored with a
+	 * prefix and turned into "Name (local)" by display_label() when shown, so
+	 * the wording follows the viewer's language rather than the language the
+	 * WP-CLI process ran in.
+	 *
+	 * @return string Stored identifier; pass it to display_label() to show it.
+	 */
+	public static function client_label(): string {
+		$label = '';
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			$label = self::LOCAL_CLIENT_PREFIX . self::sanitize_agent_name( (string) getenv( 'KAYZART_AGENT_NAME' ) );
+		} elseif ( function_exists( 'rest_get_authenticated_app_password' ) ) {
+			$uuid = rest_get_authenticated_app_password();
+			if ( $uuid ) {
+				$item  = \WP_Application_Passwords::get_user_application_password( get_current_user_id(), $uuid );
+				$label = is_array( $item ) && ! empty( $item['name'] ) ? (string) $item['name'] : '';
+			}
+		}
+		/**
+		 * Filters how an MCP write's agent is recorded in the editor's AI history.
+		 *
+		 * A value starting with "local:" is shown as "Name (local)".
+		 *
+		 * @param string $label Agent name. Empty when it cannot be determined.
+		 */
+		$label = (string) apply_filters( 'kayzart_agent_client_label', $label );
+		return '' !== $label ? $label : 'MCP';
+	}
+
+	/**
+	 * Turn a stored agent identifier into the label shown to the viewer.
+	 *
+	 * @param string $stored Value recorded by client_label().
+	 * @return string
+	 */
+	public static function display_label( string $stored ): string {
+		if ( 0 !== strpos( $stored, self::LOCAL_CLIENT_PREFIX ) ) {
+			return $stored;
+		}
+		$name = self::sanitize_agent_name( substr( $stored, strlen( self::LOCAL_CLIENT_PREFIX ) ) );
+		if ( '' === $name ) {
+			return __( 'Local agent', 'kayzart-live-code-editor' );
+		}
+		/* translators: %s: agent name set with KAYZART_AGENT_NAME, such as Claude Code. */
+		return sprintf( __( '%s (local)', 'kayzart-live-code-editor' ), $name );
+	}
+
+	/**
+	 * Clean an agent name supplied through the environment.
+	 *
+	 * @param string $name Raw name.
+	 * @return string
+	 */
+	private static function sanitize_agent_name( string $name ): string {
+		return mb_substr( trim( sanitize_text_field( $name ) ), 0, 64 );
 	}
 
 	/**

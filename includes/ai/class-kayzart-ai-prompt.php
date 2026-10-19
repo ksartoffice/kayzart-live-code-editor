@@ -143,6 +143,7 @@ Kayzart page rules:
 - Ensure the result is responsive on both mobile and desktop screens.
 - Pages are saved as drafts. A person reviews and publishes them in WordPress.
 - Read a page with kayzart/get-page before updating it, and pass its baseHash. Prefer edits (exact from/to replacements) for small changes; send full sources only to rewrite a target.
+- Pass summary with every create or update: one sentence, in the page owner's language, saying what you changed. It is shown in the editor's AI history.
 - After saving, read warnings in the result and fix what applies. If you can open a browser, call kayzart/get-preview-link and check the page at a mobile and a desktop width before you report back.
 PROMPT;
 

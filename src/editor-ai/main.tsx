@@ -235,6 +235,9 @@ function formatDuration(seconds: number) {
 function AiIcon() {
   return <svg className="kayzart-ai-result-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l1.7 6.3a2.1 2.1 0 0 0 1.5 1.5l6.3 1.7-6.3 1.7a2.1 2.1 0 0 0-1.5 1.5L12 21.5l-1.7-6.3a2.1 2.1 0 0 0-1.5-1.5L2.5 12l6.3-1.7a2.1 2.1 0 0 0 1.5-1.5L12 2.5z" /></svg>;
 }
+function AgentIcon() {
+  return <svg className="kayzart-ai-result-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13.5 6l-3 12" /></svg>;
+}
 function RestoreIcon() {
   return <svg className="kayzart-ai-system-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M4 12h11a5 5 0 0 1 0 10h-3" /></svg>;
 }
@@ -766,6 +769,31 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     </div>;
   };
 
+  const renderAgent = (item: AiTimelineItem) => {
+    const position = snapshotPosition(item, editorIdentity);
+    const client = item.agentClient || 'MCP';
+    return <div className="kayzart-ai-result is-completed is-agent" key={item.activityId}>
+      <div className="kayzart-ai-result-heading"><AgentIcon /><strong>{sprintf(item.agentAction === 'create'
+        /* translators: %s: name of the external AI agent, such as Claude Code. */
+        ? __('%s created this page', 'kayzart-live-code-editor')
+        /* translators: %s: name of the external AI agent, such as Claude Code. */
+        : __('%s edited this page', 'kayzart-live-code-editor'), client)}</strong></div>
+      {item.agentSummary ? <p className="kayzart-ai-agent-summary">{item.agentSummary}</p> : null}
+      {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => {
+        const stat = item.changeStats?.[value];
+        return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;
+      })}</div> : null}
+      <small className="kayzart-ai-agent-meta">{sprintf(
+        /* translators: 1: WordPress user the agent signed in as, 2: date and time. */
+        __('External agent (MCP) as %1$s · %2$s', 'kayzart-live-code-editor'), item.author.name, formatDate(item.createdAt),
+      )}</small>
+      {item.detailsAvailable ? <div className="kayzart-ai-result-actions">
+        {item.beforeAvailable !== false ? <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'before')}>{__('Restore before changes', 'kayzart-live-code-editor')}</button> : null}
+        <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'after')}>{__('Restore this result', 'kayzart-live-code-editor')}</button>
+      </div> : <p className="kayzart-ai-expired">{__('The revisions for these changes are no longer available.', 'kayzart-live-code-editor')}</p>}
+    </div>;
+  };
+
   return <div className="kayzart-ai-panel" hidden={!active}>
     {availabilityResult ? <p className="kayzart-ai-availability-result" role="status" aria-live="polite">{availabilityResult}</p> : null}
     {ai ? <AvailabilityNotice ai={ai} checking={checkingAvailability || running} opened={settingsOpened} onOpen={() => setSettingsOpened(true)} onCheck={() => void checkAvailability()} /> : null}
@@ -781,7 +809,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     <div className="kayzart-ai-chat" ref={chatRef} role="log" aria-live="polite">
       {hasMore ? <button className="kayzart-ai-load-more" type="button" disabled={loading} onClick={() => void loadOlder()}>{loading ? __('Loading…', 'kayzart-live-code-editor') : __('Load earlier history', 'kayzart-live-code-editor')}</button> : null}
       {!loading && !items.length && !optimistic ? <p className="kayzart-ai-empty">{__('Describe the landing page change you want.', 'kayzart-live-code-editor')}</p> : null}
-      {items.map((item) => item.type === 'ai_edit' ? renderAi(item) : item.type === 'save' ? <div className="kayzart-ai-save-divider" key={item.activityId}>
+      {items.map((item) => item.type === 'ai_edit' ? renderAi(item) : item.type === 'agent_edit' ? renderAgent(item) : item.type === 'save' ? <div className="kayzart-ai-save-divider" key={item.activityId}>
         <span>{__('Changes saved · ', 'kayzart-live-code-editor')}</span>{item.revisionAvailable ? <button type="button" onClick={() => host()?.openSettingsTab?.('history')}>{sprintf(
           /* translators: %d: revision ID. */
           __('Revision #%d', 'kayzart-live-code-editor'), item.revisionId || 0,

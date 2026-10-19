@@ -167,6 +167,8 @@ type SaveParams = {
   js: string;
   jsMode: JsMode;
   settingsUpdates?: Record<string, unknown>;
+  /** Saved values of the settings in settingsUpdates, compared on the server before writing them. */
+  settingsBase?: Record<string, unknown>;
   /** Version the editor last loaded or saved; the server refuses the save if the page changed since. */
   baseVersion?: string;
   /** Overwrite changes made outside the editor after a conflict. */
@@ -207,6 +209,9 @@ export async function saveKayzArt(
     }
     if (params.settingsUpdates && Object.keys(params.settingsUpdates).length > 0) {
       payload.settingsUpdates = params.settingsUpdates;
+      if (params.settingsBase && Object.keys(params.settingsBase).length > 0) {
+        payload.settingsBase = params.settingsBase;
+      }
     }
     if (params.baseVersion) {
       payload.baseVersion = params.baseVersion;

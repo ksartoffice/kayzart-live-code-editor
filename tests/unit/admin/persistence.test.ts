@@ -127,6 +127,29 @@ describe('saveKayzArt', () => {
     );
   });
 
+
+  it('sends settings base values only together with settings updates', async () => {
+    const withSettings = createSaveParams({
+      settingsUpdates: { templateMode: 'theme' },
+      settingsBase: { templateMode: 'standalone' },
+    });
+    const withoutSettings = createSaveParams({ settingsBase: { templateMode: 'standalone' } });
+
+    await saveKayzArt(withSettings);
+    await saveKayzArt(withoutSettings);
+
+    expect(withSettings.apiFetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settingsUpdates: { templateMode: 'theme' },
+          settingsBase: { templateMode: 'standalone' },
+        }),
+      })
+    );
+    expect(withoutSettings.apiFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.not.objectContaining({ settingsBase: expect.anything() }) })
+    );
+  });
 });
 
 describe('compileTailwindSnapshot', () => {

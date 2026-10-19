@@ -38,6 +38,8 @@ type SaveCopyControllerDeps = {
   getCssByMode: () => CssByMode;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
+    /** Saved value of each pending setting, sent so a newer change made elsewhere is not overwritten. */
+    pendingSettingsBase?: Record<string, unknown>;
     hasUnsavedSettings: boolean;
     hasSettingsValidationErrors: boolean;
   };
@@ -362,7 +364,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     if (!getUnsavedFlags().hasAny) {
       return { ok: true };
     }
-    const { pendingSettingsUpdates, hasUnsavedSettings, hasSettingsValidationErrors } =
+    const { pendingSettingsUpdates, pendingSettingsBase, hasUnsavedSettings, hasSettingsValidationErrors } =
       deps.getPendingSettingsState();
     if (hasSettingsValidationErrors) {
       const validationErrorMessage = __('Fix settings errors before saving.', 'kayzart-live-code-editor');
@@ -378,6 +380,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       return await saveInFlight;
     }
     const settingsUpdates = hasUnsavedSettings ? { ...pendingSettingsUpdates } : undefined;
+    const settingsBase = hasUnsavedSettings && pendingSettingsBase ? { ...pendingSettingsBase } : undefined;
     deps.onSaveStateChange?.(true);
     saveInFlight = (async () => {
       deps.createSnackbar('info', __('Saving...', 'kayzart-live-code-editor'), deps.noticeIds.save);
@@ -413,6 +416,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),
         settingsUpdates,
+        settingsBase,
         baseVersion: snapshotVersion,
       };
       let result = await saveKayzArt(saveParams);

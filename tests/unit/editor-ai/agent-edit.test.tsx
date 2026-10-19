@@ -66,4 +66,29 @@ describe('AiEditorPanel agent edits', () => {
     expect(fetchMock.mock.calls.some(([input, init]) => String(input).includes('/timeline/30/restore') && init?.method === 'POST')).toBe(true);
     await act(async () => root.unmount());
   });
+
+  it('shows a title-only agent edit with its previous title and no restore actions', async () => {
+    (window as any).KAYZART_EXTENSION_API = {
+      registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
+      getEditorSnapshot: vi.fn(() => afterSnapshot), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot: vi.fn(), setEditorLock: vi.fn(),
+    };
+    const renamed = {
+      ...agentItem, id: 31, activityId: 'activity-31', changedTargets: [], changeStats: null, revisionId: null,
+      detailsAvailable: false, beforeAvailable: false, summary: 'Renamed the page.',
+      titleChange: { before: 'Old title', after: 'New title' },
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
+      JSON.stringify({ ok: true, items: [renamed], hasMore: false, nextCursor: null }),
+      { headers: { 'Content-Type': 'application/json' } },
+    ));
+    const { AiEditorPanel } = await import('../../../src/editor-ai/main');
+    const container = document.createElement('div'); document.body.append(container); const root = createRoot(container);
+    await act(async () => root.render(<AiEditorPanel />));
+
+    const card = container.querySelector('.kayzart-ai-result.is-agent')!;
+    expect(card.querySelector('.kayzart-ai-agent-title')?.textContent).toBe('Title: “Old title” → “New title”');
+    expect(card.querySelector('.kayzart-ai-result-actions')).toBeNull();
+    expect(card.querySelector('.kayzart-ai-expired')).toBeNull();
+    await act(async () => root.unmount());
+  });
 });

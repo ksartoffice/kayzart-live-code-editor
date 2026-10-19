@@ -145,8 +145,11 @@ class Ai_Timeline_Store {
 	 * revision keeps one activity and the person sees who made the change.
 	 * Snapshots are not retained here: the revisions before and after the
 	 * change serve the diff and restore actions for as long as they exist.
+	 * A title change ($title_change: before and after, or null) is kept with
+	 * the activity, since titles are not part of the editor snapshot and a
+	 * title-only update creates no revision.
 	 */
-	public function record_agent_edit( int $post_id, int $user_id, ?int $revision_id, array $before, array $after, string $summary, string $client, string $action ) {
+	public function record_agent_edit( int $post_id, int $user_id, ?int $revision_id, array $before, array $after, string $summary, string $client, string $action, ?array $title_change = null ) {
 		global $wpdb;
 		$before   = self::snapshot_from_payload( $before );
 		$after    = self::snapshot_from_payload( $after );
@@ -162,6 +165,14 @@ class Ai_Timeline_Store {
 			'summary'            => self::truncate( $summary, 512 ),
 			'agent_client'       => self::truncate( $client, 128 ),
 			'agent_action'       => 'create' === $action ? 'create' : 'update',
+			'context_json'       => wp_json_encode(
+				null === $title_change ? array() : array(
+					'title' => array(
+						'before' => self::truncate( (string) $title_change['before'], 512 ),
+						'after'  => self::truncate( (string) $title_change['after'], 512 ),
+					),
+				)
+			),
 			'updated_at'         => $now,
 		);
 		$existing = $revision_id ? $this->get_by_revision( $revision_id ) : null;
@@ -511,7 +522,8 @@ class Ai_Timeline_Store {
 			'jobId'             => $row['job_uuid'] ? (string) $row['job_uuid'] : null,
 			'requestId'         => $row['request_id'] ? (string) $row['request_id'] : null,
 			'prompt'            => $row['prompt'] ? (string) $row['prompt'] : null,
-			'contexts'          => self::decode_array( $row['context_json'] ),
+			'contexts'          => $is_agent_edit ? array() : self::decode_array( $row['context_json'] ),
+			'titleChange'       => $is_agent_edit ? self::title_change( $row ) : null,
 			'executionStatus'   => $row['execution_status'] ? (string) $row['execution_status'] : null,
 			'applicationStatus' => $row['application_status'] ? (string) $row['application_status'] : null,
 			'changedTargets'    => self::decode_array( $row['changed_targets'] ),
@@ -640,6 +652,18 @@ class Ai_Timeline_Store {
 			break;
 		}
 		return $result;
+	}
+
+	/** Title before and after an agent edit, or null when it did not change. */
+	private static function title_change( array $row ) {
+		$context = self::decode_array( $row['context_json'] );
+		if ( ! isset( $context['title']['before'], $context['title']['after'] ) ) {
+			return null;
+		}
+		return array(
+			'before' => (string) $context['title']['before'],
+			'after'  => (string) $context['title']['after'],
+		);
 	}
 
 	/** Display-only line counts between two snapshots. */

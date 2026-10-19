@@ -85,6 +85,7 @@
 .kayzart-ai-result.is-agent { border-color: #3d5f8f; }
 .is-agent .kayzart-ai-result-icon { stroke: #8fb8f0; stroke-linecap: round; }
 .kayzart-ai-result-summary { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.kayzart-ai-agent-title { margin: 0; color: var(--ai-muted); font-size: 11px; overflow-wrap: anywhere; }
 .kayzart-ai-agent-meta { color: var(--ai-muted); font-size: 10px; }
 .kayzart-ai-expired { margin: 0; color: var(--ai-muted); font-size: 11px; }
 .kayzart-ai-details { color: var(--ai-muted); font-size: 11px; }

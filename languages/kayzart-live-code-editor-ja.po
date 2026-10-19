@@ -26,14 +26,14 @@ msgstr "K's Art Office"
 
 #. translators: %s: post title.
 #: includes/class-kayzart-admin.php:132
-#: assets/dist/main.js:5633
+#: assets/dist/main.js:5642
 #, php-format,js-format
 msgid "Kayzart: %s"
 msgstr "Kayzart: %s"
 
 #: includes/class-kayzart-admin.php:162
-#: assets/dist/main.js:2522
-#: assets/dist/main.js:5632
+#: assets/dist/main.js:2531
+#: assets/dist/main.js:5641
 msgid "Untitled"
 msgstr "無題"
 
@@ -59,7 +59,7 @@ msgstr "無題"
 #: includes/rest/class-kayzart-rest-ai-timeline.php:164
 #: includes/rest/class-kayzart-rest-ai.php:273
 #: includes/rest/class-kayzart-rest-revisions.php:88
-#: includes/rest/class-kayzart-rest-save.php:117
+#: includes/rest/class-kayzart-rest-save.php:153
 #: includes/rest/class-kayzart-rest-settings.php:171
 msgid "Permission denied."
 msgstr "権限がありません。"
@@ -108,7 +108,7 @@ msgstr "Kayzart で新規作成"
 #: includes/class-kayzart-admin.php:1171
 #: includes/class-kayzart-admin.php:1172
 #: includes/class-kayzart-admin.php:2377
-#: assets/dist/main.js:1937
+#: assets/dist/main.js:1942
 msgid "Settings"
 msgstr "設定"
 
@@ -169,7 +169,7 @@ msgstr "テンプレートモードが「デフォルト」に設定されてい
 
 #: includes/class-kayzart-admin.php:2776
 #: includes/class-kayzart-admin.php:2784
-#: assets/dist/main.js:2533
+#: assets/dist/main.js:2542
 msgid "Posts"
 msgstr "投稿"
 
@@ -232,7 +232,7 @@ msgstr "旧 Kayzart"
 #: includes/class-kayzart-admin.php:2194
 #: includes/class-kayzart-admin.php:2313
 #: assets/dist/main.js:55
-#: assets/dist/main.js:6817
+#: assets/dist/main.js:6831
 msgid "TailwindCSS"
 msgstr "TailwindCSS"
 
@@ -249,8 +249,8 @@ msgid "Invalid preview token."
 msgstr "プレビュートークンが無効です。"
 
 #: includes/class-kayzart-preview.php:202
-#: includes/rest/class-kayzart-rest-save.php:106
-#: includes/rest/class-kayzart-rest-save.php:477
+#: includes/rest/class-kayzart-rest-save.php:142
+#: includes/rest/class-kayzart-rest-save.php:513
 #: includes/rest/class-kayzart-rest-setup.php:32
 msgid "Invalid post type."
 msgstr "投稿タイプが無効です。"
@@ -260,11 +260,11 @@ msgstr "投稿タイプが無効です。"
 msgid "Post not found."
 msgstr "投稿が見つかりません。"
 
-#: includes/rest/class-kayzart-rest-save.php:133
+#: includes/rest/class-kayzart-rest-save.php:169
 msgid "Invalid jsMode value."
 msgstr "JavaScript モードの値が不正です。"
 
-#: includes/rest/class-kayzart-rest-save.php:145
+#: includes/rest/class-kayzart-rest-save.php:181
 #: includes/rest/class-kayzart-rest-settings.php:90
 msgid "Invalid payload."
 msgstr "ペイロードが不正です。"
@@ -304,12 +304,12 @@ msgid "Not available in preview. It will render on the front end."
 msgstr "プレビューでは表示されません。公開ページでは表示されます。"
 
 #: includes/class-kayzart-preview.php:446
-#: assets/dist/main.js:2502
+#: assets/dist/main.js:2511
 msgid "Show code"
 msgstr "コードを表示"
 
-#: assets/dist/main.js:2502
-#: assets/dist/main.js:3148
+#: assets/dist/main.js:2511
+#: assets/dist/main.js:3157
 msgid "Hide code"
 msgstr "コードを隠す"
 
@@ -317,9 +317,9 @@ msgstr "コードを隠す"
 #: assets/admin/editor-bridge.js:101
 #: assets/admin/editor-bridge.js:189
 #: assets/admin/editor-bridge.js:477
-#: assets/dist/main.js:2849
-#: assets/dist/main.js:6640
-#: assets/dist/main.js:6825
+#: assets/dist/main.js:2858
+#: assets/dist/main.js:6653
+#: assets/dist/main.js:6839
 msgid "Saving..."
 msgstr "保存中..."
 
@@ -351,7 +351,7 @@ msgstr "リビジョンが見つかりません。"
 msgid "Unknown user"
 msgstr "不明なユーザー"
 
-#: includes/rest/class-kayzart-rest-save.php:363
+#: includes/rest/class-kayzart-rest-save.php:399
 msgid "The saved page did not match the requested snapshot."
 msgstr "保存されたページが要求されたスナップショットと一致しませんでした。"
 
@@ -394,7 +394,7 @@ msgstr "プラグインが無効化されました。"
 msgid "This request ID was already used for different input."
 msgstr "このリクエスト ID は、別の内容ですでに使用されています。"
 
-#: includes/ai/class-kayzart-ai-timeline-store.php:542
+#: includes/ai/class-kayzart-ai-timeline-store.php:555
 msgid "Deleted user"
 msgstr "削除されたユーザー"
 
@@ -449,7 +449,7 @@ msgstr "「自動」はプロバイダーの既定モデルに追従し、新し
 
 #: includes/class-kayzart-preview.php:439
 #: assets/dist/main.js:520
-#: assets/dist/main.js:9621
+#: assets/dist/main.js:9638
 msgid "Replace image"
 msgstr "画像を差し替え"
 
@@ -583,8 +583,8 @@ msgid "You do not have permission to create Kayzart pages."
 msgstr "Kayzart ページを作成する権限がありません。"
 
 #: includes/class-kayzart-admin.php:2142
-#: assets/dist/main.js:2797
-#: assets/dist/main.js:2815
+#: assets/dist/main.js:2806
+#: assets/dist/main.js:2824
 msgid "Title"
 msgstr "タイトル"
 
@@ -627,7 +627,7 @@ msgstr "AI 編集を使用する権限がありません。"
 msgid "AI editing must be configured before you can start with a request."
 msgstr "指示から開始するには、AI 編集を設定する必要があります。"
 
-#: includes/rest/class-kayzart-rest-save.php:192
+#: includes/rest/class-kayzart-rest-save.php:228
 msgid "Invalid editor mode payload."
 msgstr "エディターモードのデータが不正です。"
 
@@ -795,7 +795,7 @@ msgstr "選択中: 要素"
 
 #: assets/dist/main.js:476
 #: assets/dist/main.js:478
-#: assets/dist/main.js:1929
+#: assets/dist/main.js:1934
 msgid "Elements"
 msgstr "要素"
 
@@ -1005,12 +1005,12 @@ msgid "Changes are ready."
 msgstr "変更の準備ができました。"
 
 #: assets/dist/main.js:1098
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 msgid "AI edit is waiting."
 msgstr "AI 編集の順番を待っています。"
 
 #: assets/dist/main.js:1099
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 msgid "Applying changes."
 msgstr "変更を適用しています。"
 
@@ -1157,17 +1157,17 @@ msgid "Run log"
 msgstr "実行ログ"
 
 #: assets/dist/main.js:1692
-#: assets/dist/main.js:1716
+#: assets/dist/main.js:1721
 msgid "This is the current state."
 msgstr "これが現在の状態です。"
 
 #: assets/dist/main.js:1692
-#: assets/dist/main.js:1716
+#: assets/dist/main.js:1721
 msgid "Restore before changes"
 msgstr "変更前に戻す"
 
 #: assets/dist/main.js:1692
-#: assets/dist/main.js:1716
+#: assets/dist/main.js:1721
 msgid "Restore this result"
 msgstr "この結果を復元"
 
@@ -1210,690 +1210,690 @@ msgstr "もう一度実行"
 msgid "Return to input"
 msgstr "入力欄に戻す"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "The editor changed while the AI edit was running."
 msgstr "AI 編集の実行中にエディタが変更されました。"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Choose whether to keep the current editor content or replace it with the completed AI result."
 msgstr "現在のエディタの内容を残すか、完了した AI の結果で置き換えるかを選んでください。"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Keep current content"
 msgstr "現在の内容を残す"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Applying…"
 msgstr "適用しています…"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Replace with AI result"
 msgstr "AI の結果で置き換える"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Loading…"
 msgstr "読み込んでいます…"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Load earlier history"
 msgstr "以前の履歴を読み込む"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Describe the landing page change you want."
 msgstr "変更したい内容を入力してください。"
 
-#: assets/dist/main.js:1718
+#: assets/dist/main.js:1723
 msgid "Changes saved · "
 msgstr "変更を保存しました · "
 
 #. translators: %d: revision ID.
-#: assets/dist/main.js:1720
-#: assets/dist/main.js:1724
+#: assets/dist/main.js:1725
+#: assets/dist/main.js:1729
 #, js-format
 msgid "Revision #%d"
 msgstr "リビジョン #%d"
 
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 msgid "Revision was deleted."
 msgstr "リビジョンは削除されました。"
 
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 #, js-format
 msgid "Restored edit #%d to its previous state."
 msgstr "編集 #%d を変更前の状態に戻しました。"
 
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 #, js-format
 msgid "Restored the result of edit #%d."
 msgstr "編集 #%d の結果を復元しました。"
 
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 msgid "Remove context"
 msgstr "対象から外す"
 
-#: assets/dist/main.js:1726
+#: assets/dist/main.js:1731
 msgid "Example: Make the hero clearer and improve the primary button."
 msgstr "例: ヒーローセクションを分かりやすくして、主要ボタンを改善してください。"
 
-#: assets/dist/main.js:1731
+#: assets/dist/main.js:1736
 msgid "Canceling…"
 msgstr "中止しています…"
 
-#: assets/dist/main.js:1731
+#: assets/dist/main.js:1736
 msgid "Stop"
 msgstr "停止"
 
-#: assets/dist/main.js:1731
+#: assets/dist/main.js:1736
 msgid "Send"
 msgstr "送信"
 
-#: assets/dist/main.js:1738
-#: assets/dist/main.js:1926
+#: assets/dist/main.js:1743
+#: assets/dist/main.js:1931
 msgid "AI Edit"
 msgstr "AI 編集"
 
-#: assets/dist/main.js:1739
-#: assets/dist/main.js:1763
+#: assets/dist/main.js:1744
+#: assets/dist/main.js:1768
 msgid "Edit with AI"
 msgstr "AI で編集"
 
-#: assets/dist/main.js:1933
+#: assets/dist/main.js:1938
 msgid "History"
 msgstr "履歴"
 
-#: assets/dist/main.js:2138
+#: assets/dist/main.js:2147
 msgid "Settings tabs"
 msgstr "設定タブ"
 
-#: assets/dist/main.js:2161
+#: assets/dist/main.js:2170
 msgid "Close settings panel"
 msgstr "設定パネルを閉じる"
 
-#: assets/dist/main.js:2503
+#: assets/dist/main.js:2512
 msgid "Reload preview"
 msgstr "プレビューを再読み込み"
 
-#: assets/dist/main.js:2507
+#: assets/dist/main.js:2516
 msgid "View post"
 msgstr "投稿を表示"
 
-#: assets/dist/main.js:2507
+#: assets/dist/main.js:2516
 msgid "Preview"
 msgstr "プレビュー"
 
-#: assets/dist/main.js:2510
+#: assets/dist/main.js:2519
 msgid "Desktop"
 msgstr "デスクトップ"
 
-#: assets/dist/main.js:2511
+#: assets/dist/main.js:2520
 msgid "Tablet"
 msgstr "タブレット"
 
-#: assets/dist/main.js:2512
+#: assets/dist/main.js:2521
 msgid "Mobile"
 msgstr "モバイル"
 
-#: assets/dist/main.js:2520
+#: assets/dist/main.js:2529
 msgid "Back to WordPress"
 msgstr "WordPress に戻る"
 
-#: assets/dist/main.js:2523
+#: assets/dist/main.js:2532
 msgid "(Draft)"
 msgstr "(下書き)"
 
-#: assets/dist/main.js:2527
+#: assets/dist/main.js:2536
 msgid "Tailwind CSS"
 msgstr "Tailwind CSS"
 
-#: assets/dist/main.js:2528
+#: assets/dist/main.js:2537
 msgid "Editing in Tailwind CSS mode"
 msgstr "Tailwind CSS モードで編集中"
 
-#: assets/dist/main.js:2529
+#: assets/dist/main.js:2538
 msgid "Import / Export"
 msgstr "インポート / エクスポート"
 
-#: assets/dist/main.js:2530
-#: assets/dist/main.js:6914
+#: assets/dist/main.js:2539
+#: assets/dist/main.js:6928
 msgid "Import full HTML"
 msgstr "HTML 全体をインポート"
 
-#: assets/dist/main.js:2531
+#: assets/dist/main.js:2540
 msgid "Copy full HTML"
 msgstr "HTML 全体をコピー"
 
-#: assets/dist/main.js:2532
+#: assets/dist/main.js:2541
 msgid "Download full HTML"
 msgstr "HTML 全体をダウンロード"
 
-#: assets/dist/main.js:2534
+#: assets/dist/main.js:2543
 msgid "Save draft"
 msgstr "下書き保存"
 
-#: assets/dist/main.js:2534
+#: assets/dist/main.js:2543
 msgid "Save for review"
 msgstr "レビュー待ちとして保存"
 
-#: assets/dist/main.js:2534
+#: assets/dist/main.js:2543
 msgid "Update as private"
 msgstr "非公開として更新"
 
-#: assets/dist/main.js:2534
+#: assets/dist/main.js:2543
 msgid "Update"
 msgstr "更新"
 
-#: assets/dist/main.js:2536
+#: assets/dist/main.js:2545
 msgid "Publish"
 msgstr "公開"
 
-#: assets/dist/main.js:2537
+#: assets/dist/main.js:2546
 msgid "Move to review"
 msgstr "レビュー待ちにする"
 
-#: assets/dist/main.js:2538
+#: assets/dist/main.js:2547
 msgid "Make private"
 msgstr "非公開にする"
 
-#: assets/dist/main.js:2539
+#: assets/dist/main.js:2548
 msgid "Revert to draft"
 msgstr "下書きに戻す"
 
-#: assets/dist/main.js:2582
-#: assets/dist/main.js:7256
-#: assets/dist/main.js:7274
-#: assets/dist/main.js:9164
-#: assets/dist/main.js:9182
-#: assets/dist/main.js:9204
-#: assets/dist/main.js:9213
+#: assets/dist/main.js:2591
+#: assets/dist/main.js:7270
+#: assets/dist/main.js:7288
+#: assets/dist/main.js:9181
+#: assets/dist/main.js:9199
+#: assets/dist/main.js:9221
+#: assets/dist/main.js:9230
 msgid "Update failed."
 msgstr "更新に失敗しました。"
 
-#: assets/dist/main.js:2712
-#: assets/dist/main.js:2713
+#: assets/dist/main.js:2721
+#: assets/dist/main.js:2722
 msgid "Undo"
 msgstr "元に戻す"
 
-#: assets/dist/main.js:2723
-#: assets/dist/main.js:2724
+#: assets/dist/main.js:2732
+#: assets/dist/main.js:2733
 msgid "Redo"
 msgstr "やり直す"
 
-#: assets/dist/main.js:2803
+#: assets/dist/main.js:2812
 msgid "Close"
 msgstr "閉じる"
 
-#: assets/dist/main.js:2828
+#: assets/dist/main.js:2837
 msgid "Slug"
 msgstr "スラッグ"
 
 #: includes/class-kayzart-deactivation-feedback.php:95
-#: assets/dist/main.js:2848
-#: assets/dist/main.js:6882
-#: assets/dist/main.js:6915
-#: assets/dist/main.js:6974
-#: assets/dist/main.js:7076
+#: assets/dist/main.js:2857
+#: assets/dist/main.js:6896
+#: assets/dist/main.js:6929
+#: assets/dist/main.js:6988
+#: assets/dist/main.js:7090
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: assets/dist/main.js:2849
-#: assets/dist/main.js:8885
+#: assets/dist/main.js:2858
+#: assets/dist/main.js:8902
 msgid "Save"
 msgstr "保存"
 
-#: assets/dist/main.js:2867
-#: assets/dist/main.js:2868
+#: assets/dist/main.js:2876
+#: assets/dist/main.js:2877
 msgid "Save options"
 msgstr "保存オプション"
 
-#: assets/dist/main.js:2881
+#: assets/dist/main.js:2890
 #, js-format
 msgid "Status: %s"
 msgstr "ステータス: %s"
 
-#: assets/dist/main.js:2882
+#: assets/dist/main.js:2891
 msgid "Draft"
 msgstr "下書き"
 
-#: assets/dist/main.js:2882
+#: assets/dist/main.js:2891
 msgid "Pending"
 msgstr "レビュー待ち"
 
-#: assets/dist/main.js:2882
+#: assets/dist/main.js:2891
 msgid "Private"
 msgstr "非公開"
 
-#: assets/dist/main.js:2882
+#: assets/dist/main.js:2891
 msgid "Scheduled"
 msgstr "予約投稿"
 
-#: assets/dist/main.js:2882
+#: assets/dist/main.js:2891
 msgid "Published"
 msgstr "公開済み"
 
-#: assets/dist/main.js:3039
+#: assets/dist/main.js:3048
 msgid "JavaScript mode"
 msgstr "JavaScript モード"
 
-#: assets/dist/main.js:3041
+#: assets/dist/main.js:3050
 msgid "type: classic script"
 msgstr "type: classic script"
 
-#: assets/dist/main.js:3042
+#: assets/dist/main.js:3051
 msgid "type: module"
 msgstr "type: module"
 
-#: assets/dist/main.js:3085
-#: assets/dist/main.js:3122
-#: assets/dist/main.js:3126
-#: assets/dist/main.js:6982
+#: assets/dist/main.js:3094
+#: assets/dist/main.js:3131
+#: assets/dist/main.js:3135
+#: assets/dist/main.js:6996
 msgid "HTML"
 msgstr "HTML"
 
-#: assets/dist/main.js:3089
-#: assets/dist/main.js:3190
-#: assets/dist/main.js:6994
+#: assets/dist/main.js:3098
+#: assets/dist/main.js:3199
+#: assets/dist/main.js:7008
 msgid "CSS"
 msgstr "CSS"
 
-#: assets/dist/main.js:3093
-#: assets/dist/main.js:3130
-#: assets/dist/main.js:6988
+#: assets/dist/main.js:3102
+#: assets/dist/main.js:3139
+#: assets/dist/main.js:7002
 msgid "head"
 msgstr "head"
 
-#: assets/dist/main.js:3097
-#: assets/dist/main.js:3194
+#: assets/dist/main.js:3106
+#: assets/dist/main.js:3203
 msgid "JavaScript"
 msgstr "JavaScript"
 
-#: assets/dist/main.js:3102
-#: assets/dist/main.js:3136
+#: assets/dist/main.js:3111
+#: assets/dist/main.js:3145
 msgid "Add Media"
 msgstr "メディアを追加"
 
-#: assets/dist/main.js:3107
-#: assets/dist/main.js:3141
-#: assets/dist/main.js:3142
-#: assets/dist/main.js:7393
-#: assets/dist/main.js:7401
-#: assets/dist/main.js:9349
-#: assets/dist/main.js:9355
+#: assets/dist/main.js:3116
+#: assets/dist/main.js:3150
+#: assets/dist/main.js:3151
+#: assets/dist/main.js:7407
+#: assets/dist/main.js:7415
+#: assets/dist/main.js:9366
+#: assets/dist/main.js:9372
 msgid "Format HTML"
 msgstr "HTML を整形"
 
-#: assets/dist/main.js:3140
-#: assets/dist/main.js:3201
+#: assets/dist/main.js:3149
+#: assets/dist/main.js:3210
 msgid "Format"
 msgstr "整形"
 
-#: assets/dist/main.js:3146
-#: assets/dist/main.js:3147
-#: assets/dist/main.js:8997
+#: assets/dist/main.js:3155
+#: assets/dist/main.js:3156
+#: assets/dist/main.js:9014
 msgid "Wrap: Off"
 msgstr "折り返し: オフ"
 
-#: assets/dist/main.js:3168
-#: assets/dist/main.js:3205
+#: assets/dist/main.js:3177
+#: assets/dist/main.js:3214
 msgid "Reload preview to apply head and JavaScript changes."
 msgstr "head と JavaScript の変更を反映するには、プレビューを再読み込みしてください。"
 
-#: assets/dist/main.js:3170
+#: assets/dist/main.js:3179
 msgid "Enter code to add inside the head."
 msgstr "head 内に追加するコードを入力します。"
 
-#: assets/dist/main.js:3171
+#: assets/dist/main.js:3180
 msgid "Use this for external CSS, Google Fonts, OGP, structured data, and similar head markup."
 msgstr "外部 CSS、Google Fonts、OGP、構造化データなど、head に置くマークアップに使用します。"
 
-#: assets/dist/main.js:3172
+#: assets/dist/main.js:3181
 msgid "Write external JS here, or add it as <script src=\"\"> at the bottom of the HTML editor."
 msgstr "外部 JS はここに記述するか、HTML エディターの末尾に <script src=\"\"> として追加してください。"
 
-#: assets/dist/main.js:3173
+#: assets/dist/main.js:3182
 msgid "Note: <title>, <meta charset>, viewport, and <base> cannot be used."
 msgstr "注意: <title>、<meta charset>、viewport、<base> は使用できません。"
 
-#: assets/dist/main.js:3202
-#: assets/dist/main.js:3203
-#: assets/dist/main.js:7388
-#: assets/dist/main.js:7399
-#: assets/dist/main.js:9361
+#: assets/dist/main.js:3211
+#: assets/dist/main.js:3212
+#: assets/dist/main.js:7402
+#: assets/dist/main.js:7413
+#: assets/dist/main.js:9378
 msgid "Format CSS"
 msgstr "CSS を整形"
 
-#: assets/dist/main.js:6337
-#: assets/dist/main.js:6345
+#: assets/dist/main.js:6346
+#: assets/dist/main.js:6354
 msgid "Tailwind compile failed."
 msgstr "Tailwind のコンパイルに失敗しました。"
 
-#: assets/dist/main.js:6347
+#: assets/dist/main.js:6356
 #, js-format
 msgid "Tailwind error: %s"
 msgstr "Tailwind エラー: %s"
 
 #: includes/class-kayzart-agent-pages.php:664
-#: assets/dist/main.js:6421
-#: assets/dist/main.js:6618
-#: assets/dist/main.js:6736
-#: assets/dist/main.js:6740
-#: assets/dist/main.js:8865
+#: assets/dist/main.js:6433
+#: assets/dist/main.js:6630
+#: assets/dist/main.js:6750
+#: assets/dist/main.js:6754
+#: assets/dist/main.js:8882
 msgid "Save failed."
 msgstr "保存に失敗しました。"
 
-#: assets/dist/main.js:6625
+#: assets/dist/main.js:6637
 msgid "Fix settings errors before saving."
 msgstr "保存する前に、設定のエラーを解消してください。"
 
-#: assets/dist/main.js:6650
-#: assets/dist/main.js:6703
-#: assets/dist/main.js:9263
+#: assets/dist/main.js:6663
+#: assets/dist/main.js:6717
+#: assets/dist/main.js:9280
 #, js-format
 msgid "Removed unsupported head tags: %s"
 msgstr "サポートされていない head タグを削除しました: %s"
 
-#: assets/dist/main.js:6719
+#: assets/dist/main.js:6733
 msgid "Saved."
 msgstr "保存しました。"
 
-#: assets/dist/main.js:6728
+#: assets/dist/main.js:6742
 #, js-format
 msgid "Save error: %s"
 msgstr "保存エラー: %s"
 
-#: assets/dist/main.js:6783
-#: assets/dist/main.js:8558
+#: assets/dist/main.js:6797
+#: assets/dist/main.js:8572
 msgid "Setup failed."
 msgstr "セットアップに失敗しました。"
 
-#: assets/dist/main.js:6799
+#: assets/dist/main.js:6813
 msgid "Choose editor mode"
 msgstr "エディターモードを選択"
 
-#: assets/dist/main.js:6799
+#: assets/dist/main.js:6813
 msgid "Select TailwindCSS or Normal mode. This choice cannot be changed later."
 msgstr "TailwindCSS モードか通常モードかを選択します。この選択は後から変更できません。"
 
-#: assets/dist/main.js:6808
+#: assets/dist/main.js:6822
 msgid "Normal (HTML/CSS)"
 msgstr "通常 (HTML/CSS)"
 
-#: assets/dist/main.js:6808
+#: assets/dist/main.js:6822
 msgid "Edit HTML and CSS directly in the code editor."
 msgstr "コードエディターで HTML と CSS を直接編集します。"
 
-#: assets/dist/main.js:6817
+#: assets/dist/main.js:6831
 msgid "Use Tailwind CSS v4 utility classes. CSS is compiled automatically."
 msgstr "Tailwind CSS v4 のユーティリティクラスを使います。CSS は自動でコンパイルされます。"
 
-#: assets/dist/main.js:6817
+#: assets/dist/main.js:6831
 msgid "Back"
 msgstr "戻る"
 
-#: assets/dist/main.js:6825
+#: assets/dist/main.js:6839
 msgid "Continue"
 msgstr "次へ"
 
-#: assets/dist/main.js:6831
+#: assets/dist/main.js:6845
 msgid "Setup unavailable."
 msgstr "セットアップを利用できません。"
 
-#: assets/dist/main.js:6832
+#: assets/dist/main.js:6846
 msgid "wp.apiFetch is unavailable."
 msgstr "wp.apiFetch を利用できません。"
 
-#: assets/dist/main.js:6868
+#: assets/dist/main.js:6882
 msgid "Switch to TailwindCSS?"
 msgstr "TailwindCSS に切り替えますか ?"
 
-#: assets/dist/main.js:6868
+#: assets/dist/main.js:6882
 msgid "Switch to Normal HTML/CSS?"
 msgstr "通常の HTML/CSS に切り替えますか ?"
 
-#: assets/dist/main.js:6869
+#: assets/dist/main.js:6883
 msgid "The CSS last used in the selected mode will be restored. CSS in the current mode is kept separately."
 msgstr "選択したモードで最後に使用した CSS に戻ります。現在のモードの CSS は別途保持されます。"
 
-#: assets/dist/main.js:6872
+#: assets/dist/main.js:6886
 msgid "TailwindCSS will be initialized from the current CSS. Tailwind Preflight may change the appearance of existing elements."
 msgstr "現在の CSS をもとに TailwindCSS を初期化します。Tailwind の Preflight により、既存要素の見た目が変わる場合があります。"
 
-#: assets/dist/main.js:6875
+#: assets/dist/main.js:6889
 msgid "The current Tailwind output will be converted to browser-ready CSS to preserve the current appearance. The Tailwind source is kept separately."
 msgstr "現在の見た目を保つため、Tailwind の出力をブラウザーがそのまま解釈できる CSS に変換します。Tailwind のソースは別途保持されます。"
 
-#: assets/dist/main.js:6879
+#: assets/dist/main.js:6893
 msgid "This change is not permanent until you save the page."
 msgstr "この変更は、ページを保存するまで確定しません。"
 
-#: assets/dist/main.js:6889
+#: assets/dist/main.js:6903
 msgid "Switch mode"
 msgstr "モードを切り替える"
 
-#: assets/dist/main.js:6921
-#: assets/dist/main.js:6948
+#: assets/dist/main.js:6935
+#: assets/dist/main.js:6962
 msgid "Paste a complete HTML document."
 msgstr "HTML ドキュメント全体を貼り付けてください。"
 
-#: assets/dist/main.js:6925
+#: assets/dist/main.js:6939
 msgid "Could not parse the content as a complete HTML document."
 msgstr "内容を HTML ドキュメント全体として解析できませんでした。"
 
-#: assets/dist/main.js:6948
+#: assets/dist/main.js:6962
 msgid "head, body, style, and script sections are split and imported automatically."
 msgstr "head・body・style・script の各部分は自動的に分割して取り込まれます。"
 
-#: assets/dist/main.js:6965
+#: assets/dist/main.js:6979
 msgid "Parse"
 msgstr "解析"
 
-#: assets/dist/main.js:6973
+#: assets/dist/main.js:6987
 msgid "Complete HTML detected"
 msgstr "HTML ドキュメント全体を検出しました"
 
-#: assets/dist/main.js:6983
+#: assets/dist/main.js:6997
 msgid "body content and body attributes"
 msgstr "body の内容と body 属性"
 
-#: assets/dist/main.js:6989
+#: assets/dist/main.js:7003
 msgid "head additions"
 msgstr "head への追加分"
 
-#: assets/dist/main.js:6995
+#: assets/dist/main.js:7009
 msgid "style tags"
 msgstr "style タグ"
 
-#: assets/dist/main.js:7000
+#: assets/dist/main.js:7014
 msgid "JS"
 msgstr "JS"
 
-#: assets/dist/main.js:7001
+#: assets/dist/main.js:7015
 msgid "inline script tags"
 msgstr "インライン script タグ"
 
-#: assets/dist/main.js:7014
+#: assets/dist/main.js:7028
 msgid "The pasted code looks like a complete HTML document. Choose which extracted parts should replace the matching editor content."
 msgstr "貼り付けられたコードは HTML ドキュメント全体のようです。抽出した部分のうち、どれをエディターの内容と置き換えるか選択してください。"
 
-#: assets/dist/main.js:7017
+#: assets/dist/main.js:7031
 msgid "head HTML and JavaScript will not be imported because your account cannot edit them."
 msgstr "お使いのアカウントには編集権限がないため、head の HTML と JavaScript は取り込まれません。"
 
-#: assets/dist/main.js:7037
+#: assets/dist/main.js:7051
 msgid "Replace"
 msgstr "置き換える"
 
-#: assets/dist/main.js:7046
+#: assets/dist/main.js:7060
 msgid "Skip"
 msgstr "取り込まない"
 
-#: assets/dist/main.js:7063
+#: assets/dist/main.js:7077
 msgid "Paste as HTML"
 msgstr "HTML としてそのまま貼り付け"
 
-#: assets/dist/main.js:7071
+#: assets/dist/main.js:7085
 msgid "Split and import"
 msgstr "分割して取り込む"
 
-#: assets/dist/main.js:7075
+#: assets/dist/main.js:7089
 msgid "Include compiled Tailwind CSS?"
 msgstr "コンパイル済みの Tailwind CSS を含めますか ?"
 
-#: assets/dist/main.js:7086
+#: assets/dist/main.js:7100
 msgid "Include it if this HTML should keep the current Tailwind styling when opened by itself. Choose “No” to write the CSS editor content instead."
 msgstr "この HTML を単体で開いたときに現在の Tailwind のスタイルを保ちたい場合は、含めてください。「いいえ」を選ぶと、CSS エディターの内容が書き出されます。"
 
-#: assets/dist/main.js:7096
+#: assets/dist/main.js:7110
 msgid "No, use CSS editor content"
 msgstr "いいえ、CSS エディターの内容を使う"
 
-#: assets/dist/main.js:7104
+#: assets/dist/main.js:7118
 msgid "Yes, include compiled CSS"
 msgstr "はい、コンパイル済み CSS を含める"
 
-#: assets/dist/main.js:7108
+#: assets/dist/main.js:7122
 msgid "Theme template unavailable"
 msgstr "テーマテンプレートを利用できません"
 
-#: assets/dist/main.js:7109
+#: assets/dist/main.js:7123
 msgid "This theme does not output \"the_content\", so the preview cannot be rendered. Kayzart will switch the template mode to Standalone."
 msgstr "このテーマは \"the_content\" を出力しないため、プレビューを表示できません。Kayzart はテンプレートモードをスタンドアロンに切り替えます。"
 
-#: assets/dist/main.js:7113
+#: assets/dist/main.js:7127
 msgid "OK"
 msgstr "OK"
 
-#: assets/dist/main.js:7114
+#: assets/dist/main.js:7128
 msgid "Preview markers are still missing after switching template mode. The current template does not output \"the_content\"."
 msgstr "テンプレートモードを切り替えても、プレビュー用のマーカーが見つかりません。現在のテンプレートは \"the_content\" を出力していません。"
 
-#: assets/dist/main.js:7236
-#: assets/dist/main.js:9149
-#: assets/dist/main.js:9191
+#: assets/dist/main.js:7250
+#: assets/dist/main.js:9166
+#: assets/dist/main.js:9208
 msgid "Settings unavailable."
 msgstr "設定を利用できません。"
 
-#: assets/dist/main.js:7391
-#: assets/dist/main.js:7396
-#: assets/dist/main.js:9367
+#: assets/dist/main.js:7405
+#: assets/dist/main.js:7410
+#: assets/dist/main.js:9384
 msgid "Format JavaScript"
 msgstr "JavaScript を整形"
 
-#: assets/dist/main.js:8868
+#: assets/dist/main.js:8885
 msgid "Wait for the CSS mode change to finish before saving."
 msgstr "CSS モードの切り替えが終わるまでお待ちください。"
 
-#: assets/dist/main.js:8893
+#: assets/dist/main.js:8910
 msgid "Toggle HTML word wrap"
 msgstr "HTML の折り返しを切り替え"
 
-#: assets/dist/main.js:8948
+#: assets/dist/main.js:8965
 msgid "Formatted HTML."
 msgstr "HTML を整形しました。"
 
-#: assets/dist/main.js:8949
+#: assets/dist/main.js:8966
 msgid "Could not format HTML."
 msgstr "HTML を整形できませんでした。"
 
-#: assets/dist/main.js:8957
+#: assets/dist/main.js:8974
 msgid "Formatted CSS."
 msgstr "CSS を整形しました。"
 
-#: assets/dist/main.js:8958
+#: assets/dist/main.js:8975
 msgid "Could not format CSS."
 msgstr "CSS を整形できませんでした。"
 
-#: assets/dist/main.js:8966
+#: assets/dist/main.js:8983
 msgid "Formatted JavaScript."
 msgstr "JavaScript を整形しました。"
 
-#: assets/dist/main.js:8967
+#: assets/dist/main.js:8984
 msgid "Could not format JavaScript."
 msgstr "JavaScript を整形できませんでした。"
 
-#: assets/dist/main.js:8997
+#: assets/dist/main.js:9014
 msgid "Wrap: On"
 msgstr "折り返し: オン"
 
-#: assets/dist/main.js:9234
+#: assets/dist/main.js:9251
 msgid "Loading editor..."
 msgstr "エディターを読み込んでいます…"
 
-#: assets/dist/main.js:9377
+#: assets/dist/main.js:9394
 msgid "You may have unsaved changes."
 msgstr "保存していない変更がある可能性があります。"
 
-#: assets/dist/main.js:9454
+#: assets/dist/main.js:9471
 msgid "Compiled Tailwind CSS is not available yet. The CSS editor content will be exported instead."
 msgstr "コンパイル済みの Tailwind CSS がまだありません。代わりに CSS エディターの内容を書き出します。"
 
-#: assets/dist/main.js:9481
+#: assets/dist/main.js:9498
 msgid "Could not copy full HTML to the clipboard."
 msgstr "HTML 全体をクリップボードにコピーできませんでした。"
 
-#: assets/dist/main.js:9489
+#: assets/dist/main.js:9506
 msgid "Full HTML copied."
 msgstr "HTML 全体をコピーしました。"
 
-#: assets/dist/main.js:9513
+#: assets/dist/main.js:9530
 msgid "HTML download started."
 msgstr "HTML のダウンロードを開始しました。"
 
-#: assets/dist/main.js:9523
+#: assets/dist/main.js:9540
 msgid "Could not find the selected element HTML."
 msgstr "選択した要素の HTML が見つかりませんでした。"
 
-#: assets/dist/main.js:9533
+#: assets/dist/main.js:9550
 msgid "Could not copy HTML to the clipboard."
 msgstr "HTML をクリップボードにコピーできませんでした。"
 
-#: assets/dist/main.js:9541
+#: assets/dist/main.js:9558
 msgid "Element HTML copied."
 msgstr "要素の HTML をコピーしました。"
 
-#: assets/dist/main.js:9553
+#: assets/dist/main.js:9570
 msgid "Could not find the selected element range."
 msgstr "選択した要素の範囲が見つかりませんでした。"
 
-#: assets/dist/main.js:9560
+#: assets/dist/main.js:9577
 msgid "Delete the selected element?"
 msgstr "選択した要素を削除しますか ?"
 
-#: assets/dist/main.js:9573
+#: assets/dist/main.js:9590
 msgid "Element deleted."
 msgstr "要素を削除しました。"
 
-#: assets/dist/main.js:9601
-#: assets/dist/main.js:9709
+#: assets/dist/main.js:9618
+#: assets/dist/main.js:9726
 msgid "Media library is unavailable."
 msgstr "メディアライブラリを利用できません。"
 
-#: assets/dist/main.js:9610
-#: assets/dist/main.js:9656
+#: assets/dist/main.js:9627
+#: assets/dist/main.js:9673
 msgid "Could not find the selected image source."
 msgstr "選択した画像のソースが見つかりませんでした。"
 
-#: assets/dist/main.js:9619
+#: assets/dist/main.js:9636
 msgid "Select replacement image."
 msgstr "差し替える画像を選択してください。"
 
-#: assets/dist/main.js:9647
-#: assets/dist/main.js:9756
+#: assets/dist/main.js:9664
+#: assets/dist/main.js:9773
 msgid "The selected media has no URL and was not inserted."
 msgstr "選択したメディアに URL がないため、挿入されませんでした。"
 
-#: assets/dist/main.js:9664
+#: assets/dist/main.js:9681
 msgid "Image replaced."
 msgstr "画像を差し替えました。"
 
-#: assets/dist/main.js:9718
+#: assets/dist/main.js:9735
 msgid "Select media to insert into HTML."
 msgstr "HTML に挿入するメディアを選択してください。"
 
-#: assets/dist/main.js:9720
+#: assets/dist/main.js:9737
 msgid "Insert into HTML"
 msgstr "HTML に挿入"
 
-#: assets/dist/main.js:10265
+#: assets/dist/main.js:10282
 msgid "Tailwind compile failed. The CSS mode was not changed."
 msgstr "Tailwind のコンパイルに失敗したため、CSS モードは変更されませんでした。"
 
@@ -2057,7 +2057,7 @@ msgstr "OpenAI への直接接続"
 msgid "AI editing is ready. Active backend:"
 msgstr "AI 編集を利用できます。使用中のバックエンド:"
 
-#: assets/dist/main.js:1739
+#: assets/dist/main.js:1744
 msgid "Set up AI editing"
 msgstr "AI 編集を設定する"
 
@@ -2079,12 +2079,12 @@ msgid "Ask an administrator to configure AI editing."
 msgstr "AI 編集の設定について、管理者にご依頼ください。"
 
 #. translators: 1: current instruction length, 2: maximum instruction length.
-#: assets/dist/main.js:1728
+#: assets/dist/main.js:1733
 #, js-format
 msgid "%1$d/%2$d characters"
 msgstr "%1$d/%2$d 文字"
 
-#: assets/dist/main.js:1738
+#: assets/dist/main.js:1743
 msgid "AI Setup"
 msgstr "AI セットアップ"
 
@@ -2113,31 +2113,31 @@ msgstr "空白ページから始める"
 msgid "Create blank page"
 msgstr "空白ページを作成"
 
-#: assets/dist/main.js:2508
+#: assets/dist/main.js:2517
 msgid "Close editor tools"
 msgstr "エディターツールを閉じる"
 
-#: assets/dist/main.js:2508
+#: assets/dist/main.js:2517
 msgid "Open editor tools"
 msgstr "エディターツールを開く"
 
-#: assets/dist/main.js:2509
+#: assets/dist/main.js:2518
 msgid "AI edit in progress"
 msgstr "AI 編集中"
 
-#: assets/dist/main.js:2509
+#: assets/dist/main.js:2518
 msgid "AI edit completed"
 msgstr "AI 編集が完了しました"
 
-#: assets/dist/main.js:2509
+#: assets/dist/main.js:2518
 msgid "AI edit needs attention"
 msgstr "AI 編集を確認してください"
 
-#: assets/dist/main.js:3063
+#: assets/dist/main.js:3072
 msgid "Editor tools"
 msgstr "エディターツール"
 
-#: assets/dist/main.js:8484
+#: assets/dist/main.js:8498
 msgid "Resize editor tools"
 msgstr "エディターツールの幅を変更"
 
@@ -2426,16 +2426,16 @@ msgstr "要素の設定"
 msgid "More actions"
 msgstr "その他の操作"
 
-#: assets/dist/main.js:3235
+#: assets/dist/main.js:3244
 msgid "AI is editing..."
 msgstr "AI が編集しています…"
 
-#: assets/dist/main.js:8873
+#: assets/dist/main.js:8890
 msgid "Wait for the AI edit to finish before saving."
 msgstr "保存する前に、AI の編集が終わるまでお待ちください。"
 
-#: assets/dist/main.js:9146
-#: assets/dist/main.js:9188
+#: assets/dist/main.js:9163
+#: assets/dist/main.js:9205
 msgid "Wait for the AI edit to finish."
 msgstr "AI の編集が終わるまでお待ちください。"
 
@@ -2938,12 +2938,12 @@ msgid "Only when you choose “Send answer and deactivate”, your answer, a ran
 msgstr "「回答を送信して無効化」を選んだ場合のみ、回答、ランダムな回答ID、アンケート版、Kayzart・WordPressのバージョン、管理画面の言語をfeedback.kayzart.comに送信し、2年間保管します。サイトURL、メールアドレス、APIキー、ページ内容、利用履歴は含みません。コメントには秘密情報を入力しないでください。受信サーバーのセキュリティログにはIPアドレスが残る場合があります。送信に失敗しても無効化は続行します。"
 
 #. translators: %s: agent name set with KAYZART_AGENT_NAME, such as Claude Code.
-#: includes/class-kayzart-agent-pages.php:752
+#: includes/class-kayzart-agent-pages.php:761
 #, php-format
 msgid "%s (local)"
 msgstr "%s（ローカル）"
 
-#: includes/class-kayzart-agent-pages.php:749
+#: includes/class-kayzart-agent-pages.php:758
 msgid "Local agent"
 msgstr "ローカルのエージェント"
 
@@ -3054,24 +3054,24 @@ msgid "The page was not saved: %s"
 msgstr "ページは保存されませんでした: %s"
 
 #. translators: %s: comma-separated tag names.
-#: includes/class-kayzart-agent-pages.php:779
+#: includes/class-kayzart-agent-pages.php:788
 #, php-format
 msgid "These tags were removed from head: %s"
 msgstr "head から次のタグが削除されました: %s"
 
-#: includes/class-kayzart-agent-pages.php:784
+#: includes/class-kayzart-agent-pages.php:793
 msgid "WordPress changed the html while saving, for example by removing markup your account cannot save. The page field shows what was stored."
 msgstr "保存時に WordPress が html を変更しました（このアカウントでは保存できないマークアップの削除など）。保存された内容は page フィールドで確認できます。"
 
-#: includes/class-kayzart-agent-pages.php:822
+#: includes/class-kayzart-agent-pages.php:831
 msgid "JavaScript is read-only for agents."
 msgstr "エージェントは JavaScript を編集できません。"
 
-#: includes/class-kayzart-agent-pages.php:825
+#: includes/class-kayzart-agent-pages.php:834
 msgid "Your account cannot edit the custom head."
 msgstr "このアカウントではカスタム head を編集できません。"
 
-#: includes/class-kayzart-agent-pages.php:827
+#: includes/class-kayzart-agent-pages.php:836
 msgid "Unknown target. Use html, css or head."
 msgstr "不明な target です。html、css、head のいずれかを指定してください。"
 
@@ -3094,12 +3094,12 @@ msgid "%s edited this page"
 msgstr "%s がこのページを編集しました"
 
 #. translators: 1: WordPress user the agent signed in as, 2: date and time.
-#: assets/dist/main.js:1713
+#: assets/dist/main.js:1718
 #, js-format
 msgid "External agent (MCP) as %1$s · %2$s"
 msgstr "外部エージェント（MCP）・%1$s として · %2$s"
 
-#: assets/dist/main.js:1716
+#: assets/dist/main.js:1721
 msgid "The revisions for these changes are no longer available."
 msgstr "この変更のリビジョンは利用できなくなりました。"
 
@@ -3108,14 +3108,20 @@ msgstr "この変更のリビジョンは利用できなくなりました。"
 msgid "Another save of this page is in progress. Try again in a moment."
 msgstr "このページの別の保存が進行中です。少し待ってからもう一度お試しください。"
 
-#: includes/rest/class-kayzart-rest-save.php:54
+#: includes/rest/class-kayzart-rest-save.php:57
 msgid "This page was changed outside this editor after you opened it, for example by an AI agent."
 msgstr "このエディタで開いた後に、AI エージェントなどエディタの外でページが変更されました。"
 
-#: assets/dist/main.js:6677
+#: assets/dist/main.js:6691
 msgid "This page was changed outside this editor after you opened it, for example by an AI agent. Replace those changes with what is in the editor? Choose Cancel to keep them. Their changes stay in the AI Edit history and revisions either way."
 msgstr "このエディタで開いた後に、AI エージェントなどエディタの外でページが変更されました。その変更をエディタの内容で置き換えますか？ 変更を残す場合はキャンセルを選んでください。どちらを選んでも、その変更は AI 編集の履歴とリビジョンに残ります。"
 
-#: assets/dist/main.js:6683
+#: assets/dist/main.js:6697
 msgid "Not saved. Reload the editor to load the latest version of this page."
 msgstr "保存していません。エディタを再読み込みして、このページの最新の内容を読み込んでください。"
+
+#. translators: 1: previous page title, 2: new page title.
+#: assets/dist/main.js:1710
+#, js-format
+msgid "Title: “%1$s” → “%2$s”"
+msgstr "タイトル: 「%1$s」→「%2$s」"

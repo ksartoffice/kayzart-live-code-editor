@@ -780,6 +780,10 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         /* translators: %s: name of the external AI agent, such as Claude Code. */
         : __('%s edited this page', 'kayzart-live-code-editor'), client)}</strong></div>
       {item.summary ? <p className="kayzart-ai-result-summary">{item.summary}</p> : null}
+      {item.titleChange ? <p className="kayzart-ai-agent-title">{sprintf(
+        /* translators: 1: previous page title, 2: new page title. */
+        __('Title: “%1$s” → “%2$s”', 'kayzart-live-code-editor'), item.titleChange.before, item.titleChange.after,
+      )}</p> : null}
       {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => {
         const stat = item.changeStats?.[value];
         return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;
@@ -788,7 +792,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         /* translators: 1: WordPress user the agent signed in as, 2: date and time. */
         __('External agent (MCP) as %1$s · %2$s', 'kayzart-live-code-editor'), item.author.name, formatDate(item.createdAt),
       )}</small>
-      {item.detailsAvailable ? <div className="kayzart-ai-result-actions">
+      {!item.changedTargets.length ? null : item.detailsAvailable ? <div className="kayzart-ai-result-actions">
         {item.beforeAvailable !== false ? <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'before')}>{__('Restore before changes', 'kayzart-live-code-editor')}</button> : null}
         <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'after')}>{__('Restore this result', 'kayzart-live-code-editor')}</button>
       </div> : <p className="kayzart-ai-expired">{__('The revisions for these changes are no longer available.', 'kayzart-live-code-editor')}</p>}

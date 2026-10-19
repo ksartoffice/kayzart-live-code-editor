@@ -139,6 +139,8 @@ export type AiTimelineItem = {
   /** Agent that made an agent_edit over MCP, such as an application password name. */
   agentClient?: string | null;
   agentAction?: 'create' | 'update' | null;
+  /** Title before and after an agent edit that renamed the page. */
+  titleChange?: { before: string; after: string } | null;
   canPoll: boolean;
   revisionAvailable: boolean;
   author: { id: number; name: string };

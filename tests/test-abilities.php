@@ -764,7 +764,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Welcome aboard', wp_json_encode( $context[0]['editFootprint'] ) );
 	}
 
-	public function test_title_only_update_is_not_recorded(): void {
+	public function test_title_changes_are_recorded_with_their_previous_title(): void {
 		wp_set_current_user( $this->admin() );
 		$created = Agent_Pages::create_page(
 			array(
@@ -773,15 +773,81 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 		$page    = $created['page'];
-		Agent_Pages::update_page(
+		$renamed = Agent_Pages::update_page(
 			array(
 				'id'       => $page['id'],
 				'baseHash' => $page['baseHash'],
 				'title'    => 'Renamed',
+				'summary'  => 'Renamed the page.',
+			)
+		);
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $renamed['page']['baseHash'],
+				'title'    => 'Renamed again',
+				'html'     => '<p>Changed too</p>',
 			)
 		);
 
-		$this->assertCount( 1, ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'] );
+		$items = ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'];
+
+		$this->assertCount( 3, $items, 'A title-only update is recorded too.' );
+		$this->assertNull( $items[0]['titleChange'] );
+		$this->assertSame( 'agent_edit', $items[1]['type'] );
+		$this->assertSame(
+			array(
+				'before' => 'Title',
+				'after'  => 'Renamed',
+			),
+			$items[1]['titleChange']
+		);
+		$this->assertSame( array(), $items[1]['changedTargets'] );
+		$this->assertSame( 'Renamed the page.', $items[1]['summary'] );
+		$this->assertSame( array(), $items[1]['contexts'] );
+		$this->assertSame( 'Renamed again', $items[2]['titleChange']['after'] );
+		$this->assertSame( array( 'html' ), $items[2]['changedTargets'] );
+	}
+
+	public function test_editor_save_is_refused_when_a_submitted_setting_changed_elsewhere(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Settings',
+				'html'  => '<p>Hi</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		$version = \KayzArt\Rest_Save::current_version( $post_id );
+		// Another tab switches the template mode while this editor still shows the old one.
+		update_post_meta( $post_id, '_kayzart_template_mode', 'theme' );
+
+		$stale = $this->editor_save_with_settings( $post_id, $version, array( 'templateMode' => 'standalone' ), array( 'templateMode' => 'default' ) );
+		$this->assertSame( 409, $stale->get_status() );
+		$this->assertSame( 'theme', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
+
+		$title = $this->editor_save_with_settings( $post_id, $version, array( 'title' => 'Mine' ), array( 'title' => 'Not the saved title' ) );
+		$this->assertSame( 409, $title->get_status(), 'Any submitted setting is compared, not only the sidebar ones.' );
+
+		$current = $this->editor_save_with_settings( $post_id, $version, array( 'templateMode' => 'standalone' ), array( 'templateMode' => 'theme' ) );
+		$this->assertSame( 200, $current->get_status() );
+		$this->assertSame( 'standalone', get_post_meta( $post_id, '_kayzart_template_mode', true ) );
+
+		$unrelated = $this->editor_save_with_settings( $post_id, $current->get_data()['version'], array(), array() );
+		$this->assertSame( 200, $unrelated->get_status(), 'A save without settings ignores settings changes made elsewhere.' );
+	}
+
+	private function editor_save_with_settings( int $post_id, string $base_version, array $updates, array $base ): WP_REST_Response {
+		$request = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$request->set_param( 'post_id', $post_id );
+		$request->set_param( 'html', '<p>Hi</p>' );
+		$request->set_param( 'css', '' );
+		$request->set_param( 'baseVersion', $base_version );
+		if ( $updates ) {
+			$request->set_param( 'settingsUpdates', $updates );
+			$request->set_param( 'settingsBase', $base );
+		}
+		return \KayzArt\Rest_Save::save( $request );
 	}
 
 	public function test_local_agent_names_are_shown_in_the_viewer_language(): void {

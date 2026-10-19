@@ -476,7 +476,7 @@ class Agent_Pages {
 		if ( is_wp_error( $saved ) ) {
 			return $saved;
 		}
-		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update' );
+		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update', (string) $post->post_title );
 
 		return self::write_result( $post_id, $saved, $after );
 	}
@@ -670,15 +670,23 @@ class Agent_Pages {
 	/**
 	 * Show the write in the editor's AI history as an agent edit.
 	 *
-	 * @param int    $post_id Post ID.
-	 * @param array  $saved   Save response data.
-	 * @param array  $before  Snapshot before the write.
-	 * @param string $summary Agent-written description of the change.
-	 * @param string $action  create or update.
+	 * @param int         $post_id Post ID.
+	 * @param array       $saved   Save response data.
+	 * @param array       $before  Snapshot before the write.
+	 * @param string      $summary      Agent-written description of the change.
+	 * @param string      $action       create or update.
+	 * @param string|null $title_before Title before an update; null for a new page.
 	 */
-	private static function record_activity( int $post_id, array $saved, array $before, string $summary, string $action ): void {
-		$after = Snapshot::for_post( $post_id );
-		if ( Snapshot::hash( Snapshot::normalize( $before ) ) === Snapshot::hash( $after ) ) {
+	private static function record_activity( int $post_id, array $saved, array $before, string $summary, string $action, ?string $title_before = null ): void {
+		$after        = Snapshot::for_post( $post_id );
+		$title_after  = (string) get_post_field( 'post_title', $post_id, 'raw' );
+		$title_change = null !== $title_before && $title_before !== $title_after
+			? array(
+				'before' => $title_before,
+				'after'  => $title_after,
+			)
+			: null;
+		if ( null === $title_change && Snapshot::hash( Snapshot::normalize( $before ) ) === Snapshot::hash( $after ) ) {
 			return;
 		}
 		( new Ai_Timeline_Store() )->record_agent_edit(
@@ -689,7 +697,8 @@ class Agent_Pages {
 			$after,
 			sanitize_textarea_field( $summary ),
 			self::client_label(),
-			$action
+			$action,
+			$title_change
 		);
 	}
 

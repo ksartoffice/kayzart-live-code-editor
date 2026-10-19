@@ -313,6 +313,7 @@ async function main() {
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
   let hasUnsavedChanges = false;
   let pendingSettingsUpdates: Record<string, unknown> = {};
+  let pendingSettingsBase: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
   let hasSettingsValidationErrors = false;
   let importFullHtmlHandler = () => {};
@@ -589,11 +590,13 @@ async function main() {
     getCssByMode,
     getPendingSettingsState: () => ({
       pendingSettingsUpdates,
+      pendingSettingsBase,
       hasUnsavedSettings,
       hasSettingsValidationErrors,
     }),
     clearPendingSettingsState: () => {
       pendingSettingsUpdates = {};
+      pendingSettingsBase = {};
       hasUnsavedSettings = false;
       hasSettingsValidationErrors = false;
     },
@@ -2365,6 +2368,7 @@ async function main() {
     },
     onPendingUpdatesChange: (nextState: PendingSettingsState) => {
       pendingSettingsUpdates = { ...nextState.updates };
+      pendingSettingsBase = { ...nextState.base };
       hasUnsavedSettings = nextState.hasUnsavedSettings;
       hasSettingsValidationErrors = nextState.hasValidationErrors;
       syncUnsavedUi();

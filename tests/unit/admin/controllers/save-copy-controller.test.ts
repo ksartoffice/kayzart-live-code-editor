@@ -370,4 +370,23 @@ describe('save copy controller', () => {
     expect(result.ok).toBe(true);
     expect(vi.mocked(saveKayzArt).mock.calls[1][0]).toMatchObject({ baseVersion: 'v1', force: true });
   });
+
+  it('sends the saved value of each pending setting with the save', async () => {
+    vi.mocked(saveKayzArt).mockResolvedValue({ ok: true });
+    const { controller } = createController({
+      getPendingSettingsState: () => ({
+        pendingSettingsUpdates: { templateMode: 'theme' },
+        pendingSettingsBase: { templateMode: 'standalone' },
+        hasUnsavedSettings: true,
+        hasSettingsValidationErrors: false,
+      }),
+    });
+
+    await controller.handleSave();
+
+    expect(vi.mocked(saveKayzArt).mock.calls[0][0]).toMatchObject({
+      settingsUpdates: { templateMode: 'theme' },
+      settingsBase: { templateMode: 'standalone' },
+    });
+  });
 });

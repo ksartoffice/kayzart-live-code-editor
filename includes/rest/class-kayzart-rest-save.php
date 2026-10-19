@@ -45,7 +45,10 @@ class Rest_Save {
 				is_string( $base_version ) && '' !== $base_version
 				&& ! rest_sanitize_boolean( $request->get_param( 'force' ) )
 				&& Post_Type::is_editor_enabled_post( $post_id )
-				&& ! hash_equals( self::current_version( $post_id ), $base_version )
+				&& (
+					! hash_equals( self::current_version( $post_id ), $base_version )
+					|| self::settings_changed_since( $post_id, $request )
+				)
 			) {
 				return new \WP_REST_Response(
 					array(
@@ -61,6 +64,39 @@ class Rest_Save {
 		} finally {
 			Save_Lock::release( $post_id );
 		}
+	}
+
+	/**
+	 * Whether a setting this save would write changed since the editor read it.
+	 *
+	 * Settings are not part of the source version: the editor writes some of
+	 * them immediately through the settings endpoint, which would otherwise
+	 * make its own next save look stale. Instead the editor sends, for each
+	 * setting in settingsUpdates, the saved value it last knew as
+	 * settingsBase, and only those fields are compared.
+	 *
+	 * @param int              $post_id Post ID.
+	 * @param \WP_REST_Request $request Save request.
+	 * @return bool
+	 */
+	private static function settings_changed_since( int $post_id, \WP_REST_Request $request ): bool {
+		$updates = $request->get_param( 'settingsUpdates' );
+		$base    = $request->get_param( 'settingsBase' );
+		if ( ! is_array( $updates ) || ! is_array( $base ) ) {
+			return false;
+		}
+		$current = Rest_Settings::build_settings_payload( $post_id );
+		foreach ( array( 'title', 'slug', 'status', 'templateMode', 'liveHighlightEnabled' ) as $key ) {
+			if ( ! array_key_exists( $key, $updates ) || ! array_key_exists( $key, $base ) || ! array_key_exists( $key, $current ) ) {
+				continue;
+			}
+			$known = 'liveHighlightEnabled' === $key ? rest_sanitize_boolean( $base[ $key ] ) : (string) $base[ $key ];
+			$now   = 'liveHighlightEnabled' === $key ? rest_sanitize_boolean( $current[ $key ] ) : (string) $current[ $key ];
+			if ( $known !== $now ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

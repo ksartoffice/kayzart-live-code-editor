@@ -142,7 +142,7 @@ Kayzart page rules:
 - Use only the font CSS values listed in fonts. Write a listed cssValue exactly, never its display name.
 - Use an image, video or audio URL only when it was given to you or kayzart/list-media returned it, and write it exactly. Never invent one. Give every image an alt attribute (alt="" when decorative).
 - Ensure the result is responsive on both mobile and desktop screens.
-- Pages are saved as drafts. A person reviews and publishes them in WordPress.
+- Pages are saved as drafts. A person reviews and publishes them in WordPress. Published and scheduled pages cannot be updated; to change one, ask the person to switch it to draft, or create a new draft page.
 - Read a page with kayzart/get-page before updating it, and pass its baseHash. Prefer edits (exact from/to replacements) for small changes; send full sources only to rewrite a target.
 - Pass summary with every create or update: one sentence, in the page owner's language, saying what you changed. It is shown in the editor's AI history.
 - After saving, read warnings in the result and fix what applies. If you can open a browser, call kayzart/get-preview-link and check the page at a mobile and a desktop width before you report back.

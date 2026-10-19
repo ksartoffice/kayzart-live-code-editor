@@ -326,7 +326,7 @@ class Abilities {
 			),
 			'kayzart/update-page'      => array(
 				'label'               => __( 'Update a Kayzart page', 'kayzart-live-code-editor' ),
-				'description'         => 'Changes an existing page. Requires baseHash from kayzart/get-page; if the page changed since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every change is saved as a revision the person can restore.',
+				'description'         => 'Changes an existing page that is not live (status draft, pending or private); published and scheduled pages are refused so nothing goes public without review. Requires baseHash from kayzart/get-page; if the page changed since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every change is saved as a revision the person can restore.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',

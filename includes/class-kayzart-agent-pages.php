@@ -513,6 +513,13 @@ class Agent_Pages {
 		if ( ! $post instanceof \WP_Post || ! self::is_agent_page( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
+		if ( self::is_live( $post ) ) {
+			return self::error(
+				'kayzart_page_published',
+				__( 'This page is published or scheduled, and agents only change pages that are not live, so nothing goes public without review. Ask the person to switch it to draft first, or create a new draft with kayzart/create-page.', 'kayzart-live-code-editor' ),
+				409
+			);
+		}
 		$before = Snapshot::for_post( $post_id );
 		if ( ! hash_equals( self::version_hash( $post, $before ), (string) ( $input['baseHash'] ?? '' ) ) ) {
 			return self::error(
@@ -558,6 +565,25 @@ class Agent_Pages {
 		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update', (string) $post->post_title );
 
 		return self::write_result( $post_id, $saved, $after );
+	}
+
+	/**
+	 * Whether visitors see the page now or will without anyone acting.
+	 *
+	 * The editor saves straight into the post, so an agent update to a
+	 * published page would go live at once, and one to a scheduled page would
+	 * go live when it is due. Agents may change drafts, pending and private
+	 * pages only, which keeps every agent change behind a person's review.
+	 *
+	 * @param \WP_Post $post Post.
+	 * @return bool
+	 */
+	public static function is_live( \WP_Post $post ): bool {
+		if ( 'future' === $post->post_status ) {
+			return true;
+		}
+		$status = get_post_status_object( $post->post_status );
+		return $status instanceof \stdClass && ! empty( $status->public );
 	}
 
 	/**

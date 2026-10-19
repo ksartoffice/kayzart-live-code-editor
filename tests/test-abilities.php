@@ -1304,6 +1304,71 @@ class Test_Abilities extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_update_page_refuses_published_and_scheduled_pages(): void {
+		wp_set_current_user( $this->admin() );
+		foreach ( array( 'publish', 'future' ) as $status ) {
+			$created = Agent_Pages::create_page(
+				array(
+					'title' => 'Live ' . $status,
+					'html'  => '<p>Live</p>',
+				)
+			);
+			$post_id = $created['page']['id'];
+			wp_update_post(
+				array(
+					'ID'            => $post_id,
+					'post_status'   => $status,
+					'post_date'     => 'future' === $status ? gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) : current_time( 'mysql' ),
+					'post_date_gmt' => 'future' === $status ? gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) : current_time( 'mysql', true ),
+					'edit_date'     => true,
+				)
+			);
+			$this->assertSame( $status, get_post_status( $post_id ) );
+			$page = Agent_Pages::get_page( $post_id );
+			$this->assertIsArray( $page, 'Agents can still read live pages.' );
+
+			$result = wp_get_ability( 'kayzart/update-page' )->execute(
+				array(
+					'id'       => $post_id,
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Agent</p>',
+				)
+			);
+			$this->assertWPError( $result, $status . ' pages must not be changed in place.' );
+			$this->assertSame( 'kayzart_page_published', $result->get_error_code() );
+			$this->assertSame( '<p>Live</p>', get_post( $post_id )->post_content );
+		}
+	}
+
+	public function test_update_page_allows_private_and_pending_pages(): void {
+		wp_set_current_user( $this->admin() );
+		foreach ( array( 'private', 'pending' ) as $status ) {
+			$created = Agent_Pages::create_page(
+				array(
+					'title' => 'Not live ' . $status,
+					'html'  => '<p>Before</p>',
+				)
+			);
+			$post_id = $created['page']['id'];
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => $status,
+				)
+			);
+			$result = Agent_Pages::update_page(
+				array(
+					'id'       => $post_id,
+					'baseHash' => Agent_Pages::get_page( $post_id )['baseHash'],
+					'html'     => '<p>After</p>',
+				)
+			);
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+			$this->assertSame( '<p>After</p>', get_post( $post_id )->post_content );
+			$this->assertSame( $status, get_post_status( $post_id ), 'The status is left as it was.' );
+		}
+	}
+
 	private function admin(): int {
 		return (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 	}

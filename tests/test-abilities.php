@@ -1336,8 +1336,67 @@ class Test_Abilities extends WP_UnitTestCase {
 			);
 			$this->assertWPError( $result, $status . ' pages must not be changed in place.' );
 			$this->assertSame( 'kayzart_page_published', $result->get_error_code() );
+			$this->assertStringContainsString( Admin::get_agent_live_updates_label(), $result->get_error_message(), 'The agent learns which setting to ask for.' );
 			$this->assertSame( '<p>Live</p>', get_post( $post_id )->post_content );
+			$this->assertFalse( $page['canUpdate'] );
+			$this->assertSame( $result->get_error_message(), $page['updateBlockedReason'] );
 		}
+	}
+
+	public function test_live_pages_can_be_updated_when_an_administrator_allows_it(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Live and allowed',
+				'html'  => '<p>Live</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_status' => 'publish',
+			)
+		);
+		update_option( Admin::OPTION_AGENT_LIVE_UPDATES, '1' );
+		try {
+			$page = Agent_Pages::get_page( $post_id );
+			$this->assertTrue( $page['canUpdate'] );
+			$this->assertNull( $page['updateBlockedReason'] );
+			$this->assertTrue( Agent_Pages::guidelines( 'normal' )['publishedPages']['agentsCanUpdate'] );
+
+			$result = Agent_Pages::update_page(
+				array(
+					'id'       => $post_id,
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Updated live</p>',
+				)
+			);
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+			$this->assertSame( '<p>Updated live</p>', get_post( $post_id )->post_content );
+			$this->assertSame( 'publish', get_post_status( $post_id ) );
+		} finally {
+			delete_option( Admin::OPTION_AGENT_LIVE_UPDATES );
+		}
+		$this->assertFalse( Agent_Pages::guidelines( 'normal' )['publishedPages']['agentsCanUpdate'], 'Off by default.' );
+	}
+
+	public function test_agent_settings_section_says_it_is_only_for_mcp_agents(): void {
+		$this->assertSame( '0', Admin::sanitize_agent_live_updates( 'nope' ) );
+		$this->assertSame( '1', Admin::sanitize_agent_live_updates( '1' ) );
+		update_option( Admin::OPTION_AGENT_LIVE_UPDATES, '1' );
+		$this->assertSame( '1', Admin::sanitize_agent_live_updates( null ), 'A field missing from the form keeps the stored choice.' );
+		delete_option( Admin::OPTION_AGENT_LIVE_UPDATES );
+
+		ob_start();
+		Admin::render_agents_section();
+		Admin::render_agent_live_updates_field();
+		$html = (string) ob_get_clean();
+
+		$this->assertStringContainsString( 'MCP Adapter', $html );
+		$this->assertStringContainsString( 'do not change AI Edit in the Kayzart editor', $html );
+		$this->assertStringContainsString( 'name="' . Admin::OPTION_AGENT_LIVE_UPDATES . '"', $html );
+		$this->assertStringNotContainsString( 'checked', $html, 'Off by default.' );
 	}
 
 	public function test_update_page_allows_private_and_pending_pages(): void {

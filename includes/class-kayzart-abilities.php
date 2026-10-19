@@ -121,6 +121,7 @@ class Abilities {
 						'fonts'           => array( 'type' => 'object' ),
 						'editableTargets' => self::string_list(),
 						'postTypes'       => self::string_list(),
+						'publishedPages'  => array( 'type' => 'object' ),
 						'limits'          => array( 'type' => 'object' ),
 					),
 				),
@@ -326,7 +327,7 @@ class Abilities {
 			),
 			'kayzart/update-page'      => array(
 				'label'               => __( 'Update a Kayzart page', 'kayzart-live-code-editor' ),
-				'description'         => 'Changes an existing page that is not live (status draft, pending or private); published and scheduled pages are refused so nothing goes public without review. Requires baseHash from kayzart/get-page; if the page changed since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every change is saved as a revision the person can restore.',
+				'description'         => 'Changes an existing page. Published and scheduled pages can be changed only when the site allows it: check canUpdate from kayzart/get-page, and when it is false, tell the person the updateBlockedReason it gives. Requires baseHash from kayzart/get-page; if the page changed since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every change is saved as a revision the person can restore.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -442,12 +443,14 @@ class Abilities {
 	private static function page_schema(): array {
 		$schema                = self::summary_schema();
 		$schema['properties'] += array(
-			'html'            => array( 'type' => 'string' ),
-			'css'             => array( 'type' => 'string' ),
-			'head'            => array( 'type' => 'string' ),
-			'js'              => array( 'type' => 'string' ),
-			'baseHash'        => array( 'type' => 'string' ),
-			'editableTargets' => self::string_list(),
+			'html'                => array( 'type' => 'string' ),
+			'css'                 => array( 'type' => 'string' ),
+			'head'                => array( 'type' => 'string' ),
+			'js'                  => array( 'type' => 'string' ),
+			'baseHash'            => array( 'type' => 'string' ),
+			'editableTargets'     => self::string_list(),
+			'canUpdate'           => array( 'type' => 'boolean' ),
+			'updateBlockedReason' => array( 'type' => array( 'string', 'null' ) ),
 		);
 		return $schema;
 	}

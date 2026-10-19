@@ -277,9 +277,9 @@ class Rest_Save {
 				return self::error_response( $compiled_css );
 			}
 		}
-		$custom_head_result           = Custom_Head::sanitize( $custom_head );
-		$before_snapshot              = Snapshot::is_supported() ? Snapshot::for_post( $post_id ) : null;
-		$desired_snapshot             = Snapshot::normalize(
+		$custom_head_result = Custom_Head::sanitize( $custom_head );
+		$before_snapshot    = Snapshot::is_supported() ? Snapshot::for_post( $post_id ) : null;
+		$desired_snapshot   = Snapshot::normalize(
 			array(
 				'html'       => Html_Document::build_editor_html( $content_html, $body_attrs ),
 				'customHead' => $custom_head_result['html'],
@@ -297,8 +297,19 @@ class Rest_Save {
 				),
 			)
 		);
-		$snapshot_changed             = is_array( $before_snapshot )
+		$snapshot_changed   = is_array( $before_snapshot )
 			&& Snapshot::hash( $before_snapshot ) !== Snapshot::hash( $desired_snapshot );
+		// Validation and Tailwind compilation can take a while. Write only if
+		// this request still owns the page's lock, renewing its lease.
+		if ( ! Save_Lock::confirm( $post_id ) ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'    => false,
+					'error' => __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ),
+				),
+				409
+			);
+		}
 		$revision_insert_hook_removed = false;
 		$revision_update_hook_removed = false;
 

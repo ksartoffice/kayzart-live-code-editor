@@ -34,11 +34,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The row stores "<timestamp>:<owner token>". A request releases only the
  * row carrying its own token, so a save that outlived STALE_SECONDS and had
  * its lock taken over cannot unlock the request that replaced it.
+ *
+ * PHP cannot renew a lease while a request is busy, so the lease never
+ * expires while its owner is alive in practice instead:
+ * - every lock a request holds is released at shutdown, which also runs
+ *   after a fatal error or the execution time limit, so only a killed
+ *   process leaves a row behind;
+ * - that makes a long STALE_SECONDS safe;
+ * - the save handler calls confirm() right before writing, which renews
+ *   the lease and refuses the write if the lock was taken over anyway.
  */
 final class Save_Lock {
 
-	/** Seconds after which a lock left by a crashed request is ignored. */
-	const STALE_SECONDS = 60;
+	/** Seconds after which a lock left by a killed request is ignored. */
+	const STALE_SECONDS = 600;
 
 	/** Seconds to wait for another save of the same page to finish. */
 	const WAIT_SECONDS = 10;
@@ -49,6 +58,13 @@ final class Save_Lock {
 	 * @var array<int,array{depth:int,value:string}>
 	 */
 	private static $held = array();
+
+	/**
+	 * Whether the shutdown release is registered for this request.
+	 *
+	 * @var bool
+	 */
+	private static $shutdown_registered = false;
 
 	/**
 	 * Acquire the lock for a page, waiting briefly if another save holds it.
@@ -78,6 +94,10 @@ final class Save_Lock {
 					'depth' => 1,
 					'value' => $value,
 				);
+				if ( ! self::$shutdown_registered ) {
+					register_shutdown_function( array( __CLASS__, 'release_all' ) );
+					self::$shutdown_registered = true;
+				}
 				return true;
 			}
 			$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
@@ -126,6 +146,51 @@ final class Save_Lock {
 				'option_value' => $value,
 			)
 		);
+	}
+
+	/**
+	 * Renew the lease and confirm this request still owns the lock.
+	 *
+	 * Call right before writing. The single UPDATE both proves ownership
+	 * (it matches only this request's row value) and restarts the lease.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool False when this request does not hold the lock any more.
+	 */
+	public static function confirm( int $post_id ): bool {
+		if ( ! isset( self::$held[ $post_id ] ) ) {
+			return false;
+		}
+		global $wpdb;
+		$old   = self::$held[ $post_id ]['value'];
+		$token = substr( $old, (int) strpos( $old, ':' ) + 1 );
+		$value = time() . ':' . $token;
+		if ( $value === $old ) {
+			return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::option_name( $post_id ), $old ) );
+		}
+		$updated = $wpdb->update(
+			$wpdb->options,
+			array( 'option_value' => $value ),
+			array(
+				'option_name'  => self::option_name( $post_id ),
+				'option_value' => $old,
+			)
+		);
+		if ( 1 !== $updated ) {
+			return false;
+		}
+		self::$held[ $post_id ]['value'] = $value;
+		return true;
+	}
+
+	/**
+	 * Release every lock this request still holds. Runs at shutdown.
+	 */
+	public static function release_all(): void {
+		foreach ( array_keys( self::$held ) as $post_id ) {
+			self::$held[ $post_id ]['depth'] = 1;
+			self::release( (int) $post_id );
+		}
 	}
 
 	/**

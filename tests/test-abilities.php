@@ -1428,6 +1428,61 @@ class Test_Abilities extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_save_is_refused_when_its_lock_was_taken_over(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Long save',
+				'html'  => '<p>Before</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		$name    = 'kayzart_save_lock_' . $post_id;
+
+		// This request holds the lock, then outlives its lease and loses it to another request.
+		$this->assertTrue( Save_Lock::acquire( $post_id ) );
+		$wpdb->update( $wpdb->options, array( 'option_value' => time() . ':successor' ), array( 'option_name' => $name ) );
+
+		$request = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$request->set_param( 'post_id', $post_id );
+		$request->set_param( 'html', '<p>Late write</p>' );
+		$request->set_param( 'css', '' );
+		$response = \KayzArt\Rest_Save::save( $request );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( '<p>Before</p>', get_post( $post_id )->post_content, 'The late writer does not overwrite the new owner.' );
+		Save_Lock::release( $post_id );
+		$this->assertSame( time() . ':successor', $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) ) );
+		$wpdb->delete( $wpdb->options, array( 'option_name' => $name ) );
+	}
+
+	public function test_confirm_renews_the_lease_and_release_all_frees_held_locks(): void {
+		global $wpdb;
+		$this->assertFalse( Save_Lock::confirm( 321 ), 'Nothing to confirm without holding the lock.' );
+		$this->assertTrue( Save_Lock::acquire( 321 ) );
+		$this->assertTrue( Save_Lock::acquire( 321 ) );
+		$name  = 'kayzart_save_lock_321';
+		$value = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		$token = substr( $value, strpos( $value, ':' ) + 1 );
+		// Pretend the lease started long ago.
+		$wpdb->update( $wpdb->options, array( 'option_value' => '1000:' . $token ), array( 'option_name' => $name ) );
+		$reflection = new ReflectionProperty( Save_Lock::class, 'held' );
+		$reflection->setAccessible( true );
+		$held                 = $reflection->getValue();
+		$held[321]['value']   = '1000:' . $token;
+		$reflection->setValue( null, $held );
+
+		$this->assertTrue( Save_Lock::confirm( 321 ) );
+		$renewed = (string) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		$this->assertGreaterThan( time() - 5, (int) strtok( $renewed, ':' ), 'The lease restarts.' );
+		$this->assertStringEndsWith( ':' . $token, $renewed, 'The owner token is kept.' );
+
+		Save_Lock::release_all();
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) ), 'Shutdown frees the lock even when nested.' );
+		$this->assertFalse( Save_Lock::confirm( 321 ) );
+	}
+
 	private function admin(): int {
 		return (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 	}

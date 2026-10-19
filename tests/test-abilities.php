@@ -1543,6 +1543,52 @@ class Test_Abilities extends WP_UnitTestCase {
 		$wpdb->delete( $wpdb->options, array( 'option_name' => 'kayzart_save_lock_' . $post_id ) );
 	}
 
+	public function test_a_stale_lock_that_cannot_be_deleted_does_not_hang_the_save(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Stuck stale lock',
+				'html'  => '<p>Before</p>',
+			)
+		);
+		$post_id = $created['page']['id'];
+		$name    = 'kayzart_save_lock_' . $post_id;
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => $name,
+				'option_value' => ( time() - Save_Lock::STALE_SECONDS - 5 ) . ':killed',
+				'autoload'     => 'no',
+			)
+		);
+		$log = ini_set( 'error_log', wp_tempnam( 'kayzart-lock' ) ); // phpcs:ignore WordPress.PHP.IniSet.Risky
+
+		foreach ( array( 'error', 'ignored' ) as $mode ) {
+			$break = static function ( $query ) use ( $mode, $name ) {
+				if ( 0 !== strpos( $query, 'DELETE' ) || false === strpos( $query, $name ) ) {
+					return $query;
+				}
+				// Either the database fails, or the delete silently matches nothing.
+				return 'error' === $mode ? 'DELETE FROM kayzart_missing_table' : 'DELETE FROM ' . $GLOBALS['wpdb']->options . ' WHERE 1 = 0';
+			};
+			add_filter( 'query', $break );
+			$suppressed = $wpdb->suppress_errors( true );
+			$started    = microtime( true );
+			try {
+				$response = $this->editor_save( $post_id, '<p>Saved past a stuck lock (' . $mode . ')</p>', null );
+			} finally {
+				remove_filter( 'query', $break );
+				$wpdb->suppress_errors( $suppressed );
+			}
+			$this->assertSame( 200, $response->get_status(), $mode . ': the save goes through instead of spinning.' );
+			$this->assertLessThan( 5, microtime( true ) - $started );
+			$this->assertSame( '<p>Saved past a stuck lock (' . $mode . ')</p>', get_post( $post_id )->post_content );
+		}
+		ini_set( 'error_log', (string) $log ); // phpcs:ignore WordPress.PHP.IniSet.Risky
+		$wpdb->delete( $wpdb->options, array( 'option_name' => $name ) );
+	}
+
 	private function admin(): int {
 		return (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 	}

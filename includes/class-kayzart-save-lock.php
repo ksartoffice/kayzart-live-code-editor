@@ -97,8 +97,9 @@ final class Save_Lock {
 		}
 
 		global $wpdb;
-		$name   = self::option_name( $post_id );
-		$misses = 0;
+		$name          = self::option_name( $post_id );
+		$misses        = 0;
+		$stale_retries = 0;
 		/**
 		 * Filters how long a save waits for another save of the same page.
 		 *
@@ -140,13 +141,21 @@ final class Save_Lock {
 			$since   = (int) strtok( $current, ':' );
 			if ( $since > 0 && $since < time() - self::STALE_SECONDS ) {
 				// Delete only the stale row, so a lock another request just took survives.
-				$wpdb->delete(
+				$deleted = $wpdb->delete(
 					$wpdb->options,
 					array(
 						'option_name'  => $name,
 						'option_value' => $current,
 					)
 				);
+				if ( false === $deleted ) {
+					return self::fail_open( $post_id, 'delete stale', (string) $wpdb->last_error );
+				}
+				// Retry at once, but never loop on a stale row that will not go away.
+				++$stale_retries;
+				if ( $stale_retries > 3 ) {
+					return self::fail_open( $post_id, 'stale lock persists', '' );
+				}
 				continue;
 			}
 			if ( microtime( true ) >= $deadline ) {

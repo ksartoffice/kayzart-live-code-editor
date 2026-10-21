@@ -143,34 +143,64 @@ class Ai_Timeline_Store {
 	 * The agent saves through the editor's save handler, which has already
 	 * logged a plain save for the same revision. That row is taken over, so the
 	 * revision keeps one activity and the person sees who made the change.
-	 * Snapshots are not retained here: the revisions before and after the
-	 * change serve the diff and restore actions for as long as they exist.
-	 * A title change ($title_change: before and after, or null) is kept with
-	 * the activity, since titles are not part of the editor snapshot and a
-	 * title-only update creates no revision.
+	 *
+	 * An update is saved to the agent's working copy, not the page, and
+	 * recorded as a pending proposal on the page until a person merges it in
+	 * the editor and saves, or discards it. The working copy and its revisions
+	 * are deleted after that, so the before and after snapshots are kept with
+	 * the activity.
+	 *
+	 * Details: summary, client, action (create or update), titleChange (before
+	 * and after, or null), proposal (bool), agentKey and base (the page version
+	 * the working copy started from). Titles are not part of the editor
+	 * snapshot, so a title change is kept with the activity too.
+	 *
+	 * @param int      $post_id     Page the edit belongs to.
+	 * @param int      $user_id     User the agent authenticated as.
+	 * @param int|null $revision_id Revision the save created, if any.
+	 * @param array    $before      Snapshot before the write.
+	 * @param array    $after       Snapshot after the write.
+	 * @param array    $details     See above.
+	 * @return array|false|null
 	 */
-	public function record_agent_edit( int $post_id, int $user_id, ?int $revision_id, array $before, array $after, string $summary, string $client, string $action, ?array $title_change = null ) {
+	public function record_agent_edit( int $post_id, int $user_id, ?int $revision_id, array $before, array $after, array $details ) {
 		global $wpdb;
-		$before   = self::snapshot_from_payload( $before );
-		$after    = self::snapshot_from_payload( $after );
+		$before       = self::snapshot_from_payload( $before );
+		$after        = self::snapshot_from_payload( $after );
+		$is_create    = 'create' === ( $details['action'] ?? '' );
+		$title_change = isset( $details['titleChange'] ) && is_array( $details['titleChange'] ) ? $details['titleChange'] : null;
+		$context      = array();
+		if ( null !== $title_change ) {
+			$context['title'] = array(
+				'before' => self::truncate( (string) $title_change['before'], 512 ),
+				'after'  => self::truncate( (string) $title_change['after'], 512 ),
+			);
+		}
+		if ( ! empty( $details['proposal'] ) ) {
+			$context['proposal'] = array(
+				'agent' => (string) ( $details['agentKey'] ?? '' ),
+				'base'  => (string) ( $details['base'] ?? '' ),
+			);
+		}
 		$table    = Ai_Setup::get_timeline_table_name();
 		$now      = self::now();
 		$data     = array(
+			'post_id'            => $post_id,
 			'activity_type'      => 'agent_edit',
 			'execution_status'   => 'completed',
-			'application_status' => 'applied',
+			'application_status' => empty( $details['proposal'] ) ? 'applied' : 'pending',
 			'changed_targets'    => wp_json_encode( self::changed_targets( $before, $after ) ),
 			'before_hash'        => self::editor_hash( $before ),
 			'after_hash'         => self::editor_hash( $after ),
-			'summary'            => self::truncate( $summary, 512 ),
-			'agent_client'       => self::truncate( $client, 128 ),
-			'agent_action'       => 'create' === $action ? 'create' : 'update',
-			'context_json'       => wp_json_encode(
-				null === $title_change ? array() : array(
-					'title' => array(
-						'before' => self::truncate( (string) $title_change['before'], 512 ),
-						'after'  => self::truncate( (string) $title_change['after'], 512 ),
-					),
+			'summary'            => self::truncate( (string) ( $details['summary'] ?? '' ), 512 ),
+			'agent_client'       => self::truncate( (string) ( $details['client'] ?? '' ), 128 ),
+			'agent_action'       => $is_create ? 'create' : 'update',
+			'context_json'       => wp_json_encode( $context ),
+			'snapshots_json'     => wp_json_encode(
+				array(
+					// A new page has no earlier state to restore.
+					'before' => $is_create ? null : $before,
+					'after'  => $after,
 				)
 			),
 			'updated_at'         => $now,
@@ -181,7 +211,6 @@ class Ai_Timeline_Store {
 			return false === $updated ? false : $this->get( (int) $existing['id'] );
 		}
 		$data['activity_uuid'] = wp_generate_uuid4();
-		$data['post_id']       = $post_id;
 		$data['user_id']       = $user_id;
 		$data['created_at']    = $now;
 		if ( $revision_id ) {
@@ -299,10 +328,11 @@ class Ai_Timeline_Store {
 		if ( 0 === $limit ) {
 			return array();
 		}
+		// Agent proposals not merged into the page are not part of it.
 		global $wpdb;
 		$timeline = Ai_Setup::get_timeline_table_name();
 		$jobs     = Ai_Setup::get_jobs_table_name();
-		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.id, t.post_id, t.activity_type, t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, t.revision_id, t.before_hash, t.after_hash, t.agent_client, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type IN ('ai_edit', 'agent_edit') AND t.execution_status = 'completed' ORDER BY t.id DESC LIMIT %d", $post_id, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		$rows     = $wpdb->get_results( $wpdb->prepare( "SELECT t.id, t.post_id, t.activity_type, t.activity_uuid, t.prompt, t.changed_targets, t.application_status, t.summary, t.created_at, t.revision_id, t.before_hash, t.after_hash, t.agent_client, t.snapshots_json, j.job_uuid AS retained_job_uuid, j.payload_json AS retained_payload_json, j.snapshot_json AS retained_snapshot_json FROM {$timeline} t LEFT JOIN {$jobs} j ON j.job_uuid = t.job_uuid WHERE t.post_id = %d AND t.activity_type IN ('ai_edit', 'agent_edit') AND t.execution_status = 'completed' AND NOT ( t.activity_type = 'agent_edit' AND t.application_status IN ('pending', 'discarded') ) ORDER BY t.id DESC LIMIT %d", $post_id, $limit ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
 		$context  = array_map(
 			static function ( array $row ): array {
 				$item = array(
@@ -545,6 +575,7 @@ class Ai_Timeline_Store {
 			'beforeAvailable'   => $before_available,
 			'agentClient'       => isset( $row['agent_client'] ) && '' !== (string) $row['agent_client'] ? Agent_Pages::display_label( (string) $row['agent_client'] ) : null,
 			'agentAction'       => isset( $row['agent_action'] ) && '' !== (string) $row['agent_action'] ? (string) $row['agent_action'] : null,
+			'proposal'          => $is_agent_edit ? self::proposal_ref( $row ) : null,
 			// Written by the built-in engine or the external agent for the person who asked.
 			'summary'           => isset( $row['summary'] ) && '' !== (string) $row['summary'] ? (string) $row['summary'] : null,
 			'canPoll'           => ! empty( $row['job_uuid'] ) && ( get_current_user_id() === (int) $row['user_id'] || current_user_can( 'manage_options' ) ),
@@ -603,20 +634,30 @@ class Ai_Timeline_Store {
 	}
 
 	/**
-	 * Before/after snapshots of an agent edit, read from WordPress revisions.
+	 * Before/after snapshots of an agent edit.
 	 *
-	 * After is the revision the agent's save created. Before is the newest
-	 * earlier Kayzart revision, which every editor and agent save creates. Each
-	 * is returned only when its hash matches the one recorded with the edit, so
-	 * a missing or deleted revision never restores the wrong state.
+	 * They are kept with the activity. Activities recorded before that read
+	 * them from WordPress revisions instead: after is the revision the agent's
+	 * save created, and before is the newest earlier Kayzart revision. Each is
+	 * returned only when its hash matches the one recorded with the edit, so a
+	 * missing or deleted revision never restores the wrong state.
 	 *
 	 * @return array{before:array|null,after:array|null}
 	 */
 	private function agent_snapshots( array $row ): array {
-		$result      = array(
+		$result = array(
 			'before' => null,
 			'after'  => null,
 		);
+		$stored = isset( $row['snapshots_json'] ) ? json_decode( (string) $row['snapshots_json'], true ) : null;
+		if ( is_array( $stored ) ) {
+			foreach ( array( 'before', 'after' ) as $key ) {
+				if ( isset( $stored[ $key ] ) && is_array( $stored[ $key ] ) ) {
+					$result[ $key ] = self::snapshot_from_payload( $stored[ $key ] );
+				}
+			}
+			return $result;
+		}
 		$revision_id = ! empty( $row['revision_id'] ) ? (int) $row['revision_id'] : 0;
 		if ( $revision_id <= 0 ) {
 			return $result;
@@ -652,6 +693,27 @@ class Ai_Timeline_Store {
 			break;
 		}
 		return $result;
+	}
+
+	/**
+	 * Opaque references grouping an agent's proposals, or null for a direct write.
+	 *
+	 * The agent reference groups proposals by the agent that made them. The
+	 * chain groups those built on the same working copy, where each one
+	 * includes the ones before.
+	 *
+	 * @return array{agent:string,chain:string}|null
+	 */
+	private static function proposal_ref( array $row ) {
+		$context = self::decode_array( $row['context_json'] );
+		if ( ! isset( $context['proposal']['agent'], $context['proposal']['base'] ) ) {
+			return null;
+		}
+		$agent = (string) $context['proposal']['agent'];
+		return array(
+			'agent' => substr( hash( 'sha256', $agent ), 0, 16 ),
+			'chain' => substr( hash( 'sha256', $agent . '|' . (string) $context['proposal']['base'] ), 0, 16 ),
+		);
 	}
 
 	/** Title before and after an agent edit, or null when it did not change. */

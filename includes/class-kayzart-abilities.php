@@ -215,6 +215,10 @@ class Abilities {
 						'url'       => array( 'type' => 'string' ),
 						'expiresAt' => array( 'type' => 'string' ),
 						'expiresIn' => array( 'type' => 'integer' ),
+						'state'     => array(
+							'type' => 'string',
+							'enum' => array( 'saved', 'proposed' ),
+						),
 					),
 				),
 				'execute_callback'    => static function ( $input ) {
@@ -448,6 +452,10 @@ class Abilities {
 			'js'              => array( 'type' => 'string' ),
 			'baseHash'        => array( 'type' => 'string' ),
 			'editableTargets' => self::string_list(),
+			'state'           => array(
+				'type' => 'string',
+				'enum' => array( 'saved', 'proposed' ),
+			),
 		);
 		return $schema;
 	}
@@ -462,6 +470,11 @@ class Abilities {
 			'type'       => 'object',
 			'properties' => array(
 				'page'       => self::page_schema(),
+				'state'      => array(
+					'type' => 'string',
+					'enum' => array( 'saved', 'proposed' ),
+				),
+				'message'    => array( 'type' => 'string' ),
 				'revisionId' => array( 'type' => array( 'integer', 'null' ) ),
 				'warnings'   => self::string_list(),
 			),

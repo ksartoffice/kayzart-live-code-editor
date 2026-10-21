@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Ai_Setup {
 	const CAPABILITY            = 'kayzart_ai_edit';
-	const DB_VERSION            = '7';
+	const DB_VERSION            = '8';
 	const DB_VERSION_OPTION     = 'kayzart_ai_db_version';
 	const JOBS_TABLE_SUFFIX     = 'kayzart_ai_jobs';
 	const TIMELINE_TABLE_SUFFIX = 'kayzart_ai_timeline';
@@ -122,6 +122,7 @@ class Ai_Setup {
 			restore_target varchar(10) NULL,
 			agent_client varchar(128) NULL,
 			agent_action varchar(10) NULL,
+			snapshots_json longtext NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),

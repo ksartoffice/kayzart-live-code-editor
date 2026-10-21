@@ -30,8 +30,8 @@ class Agent_Preview {
 	const META_KEY    = '_kayzart_agent_preview';
 	const DEFAULT_TTL = 1800;
 
-	/** Statuses a link can show. Trash and auto-drafts stay hidden. */
-	const STATUSES = array( 'draft', 'pending', 'private', 'future', 'publish' );
+	/** Statuses a link can show, including agents' working copies. Trash and auto-drafts stay hidden. */
+	const STATUSES = array( 'draft', 'pending', 'private', 'future', 'publish', Agent_Working_Copy::STATUS );
 
 	/**
 	 * Post ID served by the current request, or 0.

@@ -197,7 +197,8 @@ class Admin {
 			return 0;
 		}
 
-		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
+		// An agent's working copy is merged from its page's editor, never opened itself.
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) || Agent_Working_Copy::is_copy( $post_id ) ) {
 			if ( $die_on_failure ) {
 				wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
 			}
@@ -277,7 +278,7 @@ class Admin {
 	public static function action_open_editor(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect; the editor it forwards to verifies its own nonce.
 		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
-		if ( ! $post_id || ! Post_Type::is_editor_enabled_post( $post_id ) || ! Post_Type::is_kayzart_post( $post_id ) ) {
+		if ( ! $post_id || ! Post_Type::is_editor_enabled_post( $post_id ) || ! Post_Type::is_kayzart_post( $post_id ) || Agent_Working_Copy::is_copy( $post_id ) ) {
 			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {

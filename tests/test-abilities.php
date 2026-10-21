@@ -10,6 +10,7 @@ use KayzArt\Admin;
 use KayzArt\Agent_Checks;
 use KayzArt\Agent_Preview;
 use KayzArt\Agent_Pages;
+use KayzArt\Agent_Working_Copy;
 use KayzArt\Ai_Timeline_Store;
 use KayzArt\Post_Type;
 use KayzArt\Snapshot;
@@ -327,12 +328,21 @@ class Test_Abilities extends WP_UnitTestCase {
 		);
 
 		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+		$this->assertSame( 'proposed', $result['state'] );
+		$this->assertNotEmpty( $result['message'] );
+		$this->assertSame( 'proposed', $result['page']['state'] );
 		$this->assertSame( '<h1>New heading</h1><p>Body</p>', $result['page']['html'] );
 		$this->assertSame( 'h1{color:blue;}', $result['page']['css'] );
-		$this->assertSame( 'After', get_post( $page['id'] )->post_title );
+		$this->assertSame( 'After', $result['page']['title'] );
+		$this->assertSame( $page['id'], $result['page']['id'], 'The agent keeps addressing the page, not its working copy.' );
 		$this->assertNotSame( $page['baseHash'], $result['page']['baseHash'] );
 		$this->assertIsInt( $result['revisionId'] );
 		$this->assertNotSame( $created['revisionId'], $result['revisionId'] );
+
+		$saved = get_post( $page['id'] );
+		$this->assertSame( 'Before', $saved->post_title, 'The page itself is not changed by an update.' );
+		$this->assertSame( '<h1>Old heading</h1><p>Body</p>', $saved->post_content );
+		$this->assertSame( 'h1{color:red;}', get_post_meta( $page['id'], '_kayzart_css', true ) );
 	}
 
 	public function test_update_page_refuses_a_stale_base_hash(): void {
@@ -704,7 +714,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( $updated['revisionId'], $items[1]['revisionId'] );
 	}
 
-	public function test_agent_edit_snapshots_come_from_revisions_and_can_be_restored(): void {
+	public function test_agent_edit_snapshots_are_kept_after_the_working_copy_is_gone(): void {
 		wp_set_current_user( $this->admin() );
 		$created = Agent_Pages::create_page(
 			array(
@@ -720,6 +730,7 @@ class Test_Abilities extends WP_UnitTestCase {
 				'html'     => '<p>Second</p>',
 			)
 		);
+		Agent_Working_Copy::delete( Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ) );
 		$store    = new Ai_Timeline_Store();
 		$activity = $store->get( $store->list_for_post( $page['id'] )['items'][1]['id'] );
 
@@ -729,15 +740,17 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 'reverted', $store->get( (int) $activity['id'] )['application_status'] );
 	}
 
-	public function test_built_in_ai_sees_the_latest_agent_edit(): void {
+	public function test_built_in_ai_sees_the_latest_merged_agent_edit(): void {
 		wp_set_current_user( $this->admin() );
 		$created = Agent_Pages::create_page(
 			array(
-				'title' => 'Context',
-				'html'  => '<h1>Hello</h1><p>Body</p>',
+				'title'   => 'Context',
+				'html'    => '<h1>Hello</h1><p>Body</p>',
+				'summary' => 'Created the draft.',
 			)
 		);
 		$page    = $created['page'];
+		$store   = new Ai_Timeline_Store();
 		Agent_Pages::update_page(
 			array(
 				'id'       => $page['id'],
@@ -752,9 +765,15 @@ class Test_Abilities extends WP_UnitTestCase {
 				),
 			)
 		);
-		$current = Snapshot::for_post( $page['id'] );
+		$pending = $store->recent_context( $page['id'], Snapshot::for_post( $page['id'] ), 1 );
+		$this->assertSame( 'Created the draft.', $pending[0]['summary'], 'A proposal is not part of the page until it is merged.' );
 
-		$context = ( new Ai_Timeline_Store() )->recent_context( $page['id'], $current, 1 );
+		$items = $store->list_for_post( $page['id'] )['items'];
+		$this->assertTrue( $store->update_application( (int) $items[1]['id'], 'applied' ) );
+		$merged  = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
+		$current = Snapshot::for_post( $merged );
+
+		$context = $store->recent_context( $page['id'], $current, 1 );
 
 		$this->assertCount( 1, $context );
 		$this->assertSame( 'external_agent', $context[0]['source'] );
@@ -792,6 +811,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$items = ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'];
 
 		$this->assertCount( 3, $items, 'A title-only update is recorded too.' );
+		$this->assertSame( 'Title', get_post( $page['id'] )->post_title, 'Titles are proposed like sources.' );
 		$this->assertNull( $items[0]['titleChange'] );
 		$this->assertSame( 'agent_edit', $items[1]['type'] );
 		$this->assertSame(
@@ -1005,6 +1025,349 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 2, $first['totalPages'] );
 		$this->assertSame( $expected, $ids );
 		$this->assertNotContains( $secret, $ids, 'A file attached to someone else\'s draft stays hidden.' );
+	}
+
+	public function test_updates_build_on_one_working_copy_per_agent(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Copy',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page    = $created['page'];
+		$this->assertSame( 'saved', $created['state'] );
+		$this->assertSame( 'saved', $page['state'] );
+
+		$first = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Two</p>',
+			)
+		);
+		$this->assertIsArray( $first, is_wp_error( $first ) ? $first->get_error_message() : '' );
+		$copy_id = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
+		$this->assertGreaterThan( 0, $copy_id );
+		$this->assertSame( Agent_Working_Copy::STATUS, get_post_status( $copy_id ) );
+		$this->assertSame( $page['id'], Agent_Working_Copy::page_of( $copy_id ) );
+
+		$read = Agent_Pages::get_page( $page['id'] );
+		$this->assertSame( 'proposed', $read['state'] );
+		$this->assertSame( '<p>Two</p>', $read['html'] );
+		$this->assertSame( $first['page']['baseHash'], $read['baseHash'] );
+
+		$this->assertWPError(
+			Agent_Pages::update_page(
+				array(
+					'id'       => $page['id'],
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Stale</p>',
+				)
+			),
+			'The baseHash of the saved page no longer matches once a proposal exists.'
+		);
+
+		$second = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $read['baseHash'],
+				'edits'    => array(
+					array(
+						'target' => 'html',
+						'from'   => 'Two',
+						'to'     => 'Three',
+					),
+				),
+			)
+		);
+		$this->assertIsArray( $second, is_wp_error( $second ) ? $second->get_error_message() : '' );
+		$this->assertSame( '<p>Three</p>', $second['page']['html'] );
+		$this->assertSame( $copy_id, Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ), 'One working copy per page and agent.' );
+		$this->assertSame( '<p>One</p>', get_post( $page['id'] )->post_content );
+	}
+
+	public function test_a_working_copy_starts_at_the_page_version_with_its_settings(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title'   => 'Tailwind copy',
+				'html'    => '<main class="flex p-4">Hi</main>',
+				'head'    => '<meta name="description" content="Copy">',
+				'cssMode' => 'tailwind',
+			)
+		);
+		$page_id = $created['page']['id'];
+		update_post_meta( $page_id, '_wp_page_template', 'blank.php' );
+
+		$started = Agent_Working_Copy::start( $page_id, Agent_Pages::agent_key() );
+
+		$this->assertIsArray( $started );
+		$this->assertSame( Agent_Working_Copy::version( $page_id ), $started['base'] );
+		$this->assertSame( Agent_Working_Copy::version( $page_id ), Agent_Working_Copy::version( $started['id'] ) );
+		$this->assertSame( '1', get_post_meta( $started['id'], '_kayzart_tailwind', true ) );
+		$this->assertSame( get_post_meta( $page_id, '_kayzart_generated_css', true ), get_post_meta( $started['id'], '_kayzart_generated_css', true ) );
+		$this->assertSame( 'blank.php', get_post_meta( $started['id'], '_wp_page_template', true ) );
+		$this->assertSame( '', get_post_meta( $started['id'], Agent_Preview::META_KEY, true ) );
+	}
+
+	public function test_working_copies_stay_out_of_lists_the_editor_and_direct_access(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Hidden',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page = $created['page'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Two</p>',
+			)
+		);
+		$copy_id = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
+
+		$listed = Agent_Pages::list_pages( array() );
+		$this->assertSame( array( $page['id'] ), array_column( $listed['pages'], 'id' ) );
+		$this->assertNotContains( $copy_id, get_posts( array( 'post_type' => 'page', 'post_status' => 'any', 'fields' => 'ids', 'numberposts' => -1 ) ) );
+		$this->assertFalse( Agent_Pages::is_agent_page( $copy_id ) );
+		$this->assertWPError( Agent_Pages::get_page( $copy_id ) );
+		$this->assertFalse( Agent_Pages::can_edit( $copy_id ) );
+
+		$request = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$request->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$request->set_param( 'post_id', $copy_id );
+		$this->assertFalse( \KayzArt\Rest::permission_check( $request ), 'The editor REST routes refuse working copies.' );
+
+		$this->assertSame( array(), ( new Ai_Timeline_Store() )->list_for_post( $copy_id )['items'], 'History is kept on the page.' );
+	}
+
+	public function test_a_working_copy_starts_over_when_a_person_saved_something_else(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Rebase',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page     = $created['page'];
+		$proposed = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Agent</p>',
+			)
+		);
+		$copy_id  = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
+		wp_update_post(
+			array(
+				'ID'           => $page['id'],
+				'post_content' => '<p>Person</p>',
+			)
+		);
+
+		$this->assertSame( 0, Agent_Working_Copy::current( $page['id'], Agent_Pages::agent_key() ) );
+		$stale = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $proposed['page']['baseHash'],
+				'html'     => '<p>Agent again</p>',
+			)
+		);
+		$this->assertWPError( $stale );
+		$this->assertSame( 'kayzart_page_changed', $stale->get_error_code() );
+
+		$read = Agent_Pages::get_page( $page['id'] );
+		$this->assertSame( 'saved', $read['state'] );
+		$this->assertSame( '<p>Person</p>', $read['html'] );
+
+		$restarted = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $read['baseHash'],
+				'edits'    => array(
+					array(
+						'target' => 'html',
+						'from'   => 'Person',
+						'to'     => 'Person and agent',
+					),
+				),
+			)
+		);
+		$this->assertIsArray( $restarted, is_wp_error( $restarted ) ? $restarted->get_error_message() : '' );
+		$this->assertSame( '<p>Person and agent</p>', $restarted['page']['html'] );
+		$this->assertSame( $copy_id, Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ), 'The copy is reset in place.' );
+
+		$items = ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'];
+		$this->assertSame( $items[1]['proposal']['agent'], $items[2]['proposal']['agent'] );
+		$this->assertNotSame( $items[1]['proposal']['chain'], $items[2]['proposal']['chain'], 'A restarted copy begins a new chain.' );
+	}
+
+	public function test_an_agent_continues_after_its_proposal_was_saved_as_is(): void {
+		wp_set_current_user( $this->admin() );
+		$created  = Agent_Pages::create_page(
+			array(
+				'title' => 'Merged',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page     = $created['page'];
+		$proposed = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Two</p>',
+			)
+		);
+		// The person merges the proposal in the editor and saves it unchanged.
+		wp_update_post(
+			array(
+				'ID'           => $page['id'],
+				'post_content' => '<p>Two</p>',
+			)
+		);
+		Agent_Working_Copy::delete( Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ) );
+
+		$read = Agent_Pages::get_page( $page['id'] );
+		$this->assertSame( 'saved', $read['state'] );
+		$this->assertSame( $proposed['page']['baseHash'], $read['baseHash'], 'The saved page has the version the agent last saw.' );
+
+		$next = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $proposed['page']['baseHash'],
+				'html'     => '<p>Three</p>',
+			)
+		);
+		$this->assertIsArray( $next, is_wp_error( $next ) ? $next->get_error_message() : '' );
+		$this->assertSame( '<p>Three</p>', $next['page']['html'] );
+	}
+
+	public function test_each_agent_has_its_own_working_copy(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Two agents',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page    = $created['page'];
+		$name    = 'Claude Code';
+		$label   = static function () use ( &$name ) {
+			return 'local:' . $name;
+		};
+		add_filter( 'kayzart_agent_client_label', $label );
+		try {
+			Agent_Pages::update_page(
+				array(
+					'id'       => $page['id'],
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Claude</p>',
+				)
+			);
+			$claude = Agent_Pages::agent_key();
+			$name   = 'Codex';
+			$this->assertSame( 'saved', Agent_Pages::get_page( $page['id'] )['state'], 'Another agent does not see the first agent\'s proposal.' );
+			$codex = Agent_Pages::update_page(
+				array(
+					'id'       => $page['id'],
+					'baseHash' => $page['baseHash'],
+					'html'     => '<p>Codex</p>',
+				)
+			);
+			$this->assertIsArray( $codex, is_wp_error( $codex ) ? $codex->get_error_message() : '' );
+			$this->assertNotSame( $claude, Agent_Pages::agent_key() );
+			$this->assertNotSame( Agent_Working_Copy::find( $page['id'], $claude ), Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ) );
+			$name = 'Claude Code';
+			$this->assertSame( '<p>Claude</p>', Agent_Pages::get_page( $page['id'] )['html'] );
+		} finally {
+			remove_filter( 'kayzart_agent_client_label', $label );
+		}
+	}
+
+	public function test_preview_link_shows_the_agents_proposal(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Preview proposal',
+				'html'  => '<p>Saved</p>',
+			)
+		);
+		$page = $created['page'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Proposed</p>',
+			)
+		);
+		$copy_id = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
+
+		$link = Agent_Pages::preview_link( $page['id'] );
+		$this->assertSame( 'proposed', $link['state'] );
+
+		wp_set_current_user( 0 );
+		$this->go_to( $link['url'] );
+		$this->assertSame( $copy_id, get_queried_object_id() );
+		$this->assertSame( '<p>Proposed</p>', $GLOBALS['wp_query']->posts[0]->post_content );
+	}
+
+	public function test_proposals_are_recorded_as_pending_on_the_page(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Pending',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page    = $created['page'];
+		$first   = Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Two</p>',
+			)
+		);
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $first['page']['baseHash'],
+				'html'     => '<p>Three</p>',
+			)
+		);
+
+		$items = ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'];
+
+		$this->assertSame( 'applied', $items[0]['applicationStatus'], 'A new draft is written directly.' );
+		$this->assertNull( $items[0]['proposal'] );
+		$this->assertSame( array( 'pending', 'pending' ), array( $items[1]['applicationStatus'], $items[2]['applicationStatus'] ) );
+		$this->assertSame( $items[1]['proposal']['chain'], $items[2]['proposal']['chain'], 'Updates on one working copy form a chain.' );
+		$this->assertSame( $items[1]['afterHash'], $items[2]['beforeHash'] );
+	}
+
+	public function test_deleting_a_page_deletes_its_working_copies(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Deleted',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$page = $created['page'];
+		Agent_Pages::update_page(
+			array(
+				'id'       => $page['id'],
+				'baseHash' => $page['baseHash'],
+				'html'     => '<p>Two</p>',
+			)
+		);
+		$copy_id = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
+
+		wp_delete_post( $page['id'], true );
+
+		$this->assertNull( get_post( $copy_id ) );
 	}
 
 	private function admin(): int {

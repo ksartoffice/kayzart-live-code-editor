@@ -87,6 +87,7 @@ require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-agent-checks.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-agent-preview.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-working-copy.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-agent-pages.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-abilities.php';
 
@@ -140,6 +141,7 @@ add_action(
 
 		// Abilities for external AI agents (MCP via the MCP Adapter plugin).
 		\KayzArt\Agent_Preview::init();
+		\KayzArt\Agent_Working_Copy::init();
 		\KayzArt\Abilities::init();
 	}
 );

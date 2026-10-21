@@ -14,6 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Reads, creates and updates Kayzart pages on behalf of an external agent.
  *
+ * A new page is created as a draft directly. An update never touches the
+ * page: it is saved to the agent's working copy (Agent_Working_Copy) as a
+ * proposal, which a person merges in the editor and saves. The agent reads
+ * and previews its working copy while one is current, so it can keep
+ * building on its own changes.
+ *
  * Every write goes through Rest_Save::save(), the same code path as the
  * editor, so Tailwind compilation, custom head sanitizing and snapshot
  * revisions behave identically. The REST route itself cannot be used: its
@@ -113,7 +119,7 @@ class Agent_Pages {
 	public static function is_agent_page( int $post_id ): bool {
 		$post = get_post( $post_id );
 		return $post instanceof \WP_Post
-			&& 'trash' !== $post->post_status
+			&& ! in_array( $post->post_status, array( 'trash', Agent_Working_Copy::STATUS ), true )
 			&& Post_Type::is_editor_enabled_post( $post )
 			&& Post_Type::is_kayzart_post( $post );
 	}
@@ -380,11 +386,19 @@ class Agent_Pages {
 		if ( ! self::can_edit( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
-		return Agent_Preview::issue( $post_id );
+		$copy_id = Agent_Working_Copy::current( $post_id, self::agent_key() );
+		return array_merge(
+			Agent_Preview::issue( $copy_id ? $copy_id : $post_id ),
+			array( 'state' => $copy_id ? 'proposed' : 'saved' )
+		);
 	}
 
 	/**
 	 * Read one page with its sources.
+	 *
+	 * While the agent has a current working copy, its proposal is returned
+	 * (state "proposed"), so the agent keeps building on its own changes;
+	 * otherwise the saved page (state "saved").
 	 *
 	 * @param int $post_id Post ID.
 	 * @return array|\WP_Error
@@ -394,16 +408,20 @@ class Agent_Pages {
 		if ( ! $post instanceof \WP_Post || ! self::is_agent_page( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
-		$snapshot = Snapshot::for_post( $post_id );
+		$copy_id    = Agent_Working_Copy::current( $post_id, self::agent_key() );
+		$working_id = $copy_id ? $copy_id : $post_id;
+		$snapshot   = Snapshot::for_post( $working_id );
 
 		return array_merge(
 			self::summary( $post ),
 			array(
+				'title'           => html_entity_decode( get_the_title( $working_id ), ENT_QUOTES, 'UTF-8' ),
+				'state'           => $copy_id ? 'proposed' : 'saved',
 				'html'            => $snapshot['html'],
 				'css'             => $snapshot['css'],
 				'head'            => $snapshot['customHead'],
 				'js'              => $snapshot['js'],
-				'baseHash'        => self::version_hash( $post, $snapshot ),
+				'baseHash'        => Agent_Working_Copy::version( $working_id ),
 				'editableTargets' => self::editable_targets(),
 			)
 		);
@@ -471,13 +489,18 @@ class Agent_Pages {
 			wp_delete_post( $post_id, true );
 			return $saved;
 		}
-		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'create' );
+		self::record_activity( $post_id, $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'create' );
 
-		return self::write_result( $post_id, $saved, $after );
+		return self::write_result( $post_id, $post_id, $saved, $after );
 	}
 
 	/**
-	 * Update an existing page with full sources and/or exact replacements.
+	 * Propose changes to an existing page with full sources and/or exact
+	 * replacements.
+	 *
+	 * The change is saved to the agent's working copy, never to the page. The
+	 * working copy starts from the page on the first update, and again once
+	 * the page has moved on without it.
 	 *
 	 * @param array $input Ability input (id, baseHash, title, html, css, head, edits).
 	 * @return array|\WP_Error
@@ -487,15 +510,15 @@ class Agent_Pages {
 		if ( ! self::can_edit( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
-		$post   = get_post( $post_id );
-		$before = Snapshot::for_post( $post_id );
-		if ( ! hash_equals( self::version_hash( $post, $before ), (string) ( $input['baseHash'] ?? '' ) ) ) {
-			return self::error(
-				'kayzart_page_changed',
-				__( 'The page changed after you read it. Call kayzart/get-page again and reapply your change to the current sources.', 'kayzart-live-code-editor' ),
-				409
-			);
+		$agent      = self::agent_key();
+		$copy_id    = Agent_Working_Copy::current( $post_id, $agent );
+		$working_id = $copy_id ? $copy_id : $post_id;
+		$version    = Agent_Working_Copy::version( $working_id );
+		if ( ! hash_equals( $version, (string) ( $input['baseHash'] ?? '' ) ) ) {
+			return self::page_changed_error();
 		}
+		$before       = Snapshot::for_post( $working_id );
+		$title_before = (string) get_post_field( 'post_title', $working_id, 'raw' );
 
 		$sources = array();
 		foreach ( array( 'html', 'css', 'head' ) as $target ) {
@@ -525,28 +548,40 @@ class Agent_Pages {
 			return $invalid;
 		}
 
+		if ( ! $copy_id ) {
+			$started = Agent_Working_Copy::start( $post_id, $agent );
+			if ( is_wp_error( $started ) ) {
+				return $started;
+			}
+			// A person saved the page after the check above: the change was
+			// made to the older version, so it must be made again.
+			if ( ! hash_equals( $started['base'], $version ) ) {
+				return self::page_changed_error();
+			}
+			$copy_id = $started['id'];
+		}
+
 		$head_changed = $before['customHead'] !== $after['customHead'];
-		$saved        = self::save( $post_id, $after, $head_changed, $title );
+		$saved        = self::save( $copy_id, $after, $head_changed, $title );
 		if ( is_wp_error( $saved ) ) {
 			return $saved;
 		}
-		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update', (string) $post->post_title );
+		self::record_activity( $post_id, $copy_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update', $title_before );
 
-		return self::write_result( $post_id, $saved, $after );
+		return self::write_result( $post_id, $copy_id, $saved, $after );
 	}
 
 	/**
-	 * Version token an update must present.
+	 * Error for an update made to sources that are no longer current.
 	 *
-	 * Covers the editor sources and modes plus the title, the fields an update
-	 * can change, so a person's newer title is not silently overwritten either.
-	 *
-	 * @param \WP_Post $post     Post.
-	 * @param array    $snapshot Snapshot::for_post() of the post.
-	 * @return string
+	 * @return \WP_Error
 	 */
-	private static function version_hash( \WP_Post $post, array $snapshot ): string {
-		return hash( 'sha256', Snapshot::hash( $snapshot ) . '|' . (string) $post->post_title );
+	private static function page_changed_error(): \WP_Error {
+		return self::error(
+			'kayzart_page_changed',
+			__( 'The page changed after you read it, for example because a person saved it. Call kayzart/get-page again and reapply your change to the current sources.', 'kayzart-live-code-editor' ),
+			409
+		);
 	}
 
 	/**
@@ -722,18 +757,21 @@ class Agent_Pages {
 	}
 
 	/**
-	 * Show the write in the editor's AI history as an agent edit.
+	 * Show the write in the page's AI history as an agent edit.
 	 *
-	 * @param int         $post_id Post ID.
-	 * @param array       $saved   Save response data.
-	 * @param array       $before  Snapshot before the write.
+	 * A write to a working copy is recorded on its page as a proposal.
+	 *
+	 * @param int         $page_id      Page the write belongs to.
+	 * @param int         $written_id   Post written: the page, or the agent's working copy.
+	 * @param array       $saved        Save response data.
+	 * @param array       $before       Snapshot before the write.
 	 * @param string      $summary      Agent-written description of the change.
 	 * @param string      $action       create or update.
 	 * @param string|null $title_before Title before an update; null for a new page.
 	 */
-	private static function record_activity( int $post_id, array $saved, array $before, string $summary, string $action, ?string $title_before = null ): void {
-		$after        = Snapshot::for_post( $post_id );
-		$title_after  = (string) get_post_field( 'post_title', $post_id, 'raw' );
+	private static function record_activity( int $page_id, int $written_id, array $saved, array $before, string $summary, string $action, ?string $title_before = null ): void {
+		$after        = Snapshot::for_post( $written_id );
+		$title_after  = (string) get_post_field( 'post_title', $written_id, 'raw' );
 		$title_change = null !== $title_before && $title_before !== $title_after
 			? array(
 				'before' => $title_before,
@@ -743,17 +781,42 @@ class Agent_Pages {
 		if ( null === $title_change && Snapshot::hash( Snapshot::normalize( $before ) ) === Snapshot::hash( $after ) ) {
 			return;
 		}
+		$proposal = $written_id !== $page_id;
 		( new Ai_Timeline_Store() )->record_agent_edit(
-			$post_id,
+			$page_id,
 			get_current_user_id(),
 			isset( $saved['revision']['id'] ) ? (int) $saved['revision']['id'] : null,
 			$before,
 			$after,
-			sanitize_textarea_field( $summary ),
-			self::client_label(),
-			$action,
-			$title_change
+			array(
+				'summary'     => sanitize_textarea_field( $summary ),
+				'client'      => self::client_label(),
+				'action'      => $action,
+				'titleChange' => $title_change,
+				'proposal'    => $proposal,
+				'agentKey'    => $proposal ? self::agent_key() : '',
+				'base'        => $proposal ? Agent_Working_Copy::base( $written_id ) : '',
+			)
 		);
+	}
+
+	/**
+	 * Identify the agent a working copy belongs to.
+	 *
+	 * Scoped to the WordPress user. Over HTTP the application password is
+	 * identified by its UUID rather than its name, which can be edited. Over
+	 * a local STDIO connection it is the name from KAYZART_AGENT_NAME. Two
+	 * agents with different keys never share a working copy.
+	 *
+	 * @return string Opaque key.
+	 */
+	public static function agent_key(): string {
+		$uuid = '';
+		if ( ! ( defined( 'WP_CLI' ) && WP_CLI ) && function_exists( 'rest_get_authenticated_app_password' ) ) {
+			$uuid = (string) rest_get_authenticated_app_password();
+		}
+		$agent = '' !== $uuid ? 'app:' . $uuid : 'label:' . self::client_label();
+		return hash( 'sha256', get_current_user_id() . '|' . $agent );
 	}
 
 	/** Prefix marking a stored agent name as a local STDIO connection. */
@@ -828,13 +891,14 @@ class Agent_Pages {
 	/**
 	 * Build the result of a successful write.
 	 *
-	 * @param int   $post_id Post ID.
-	 * @param array $saved   Save response data.
-	 * @param array $sent    Snapshot the agent asked to store.
+	 * @param int   $page_id    Page ID.
+	 * @param int   $written_id Post written: the page, or the agent's working copy.
+	 * @param array $saved      Save response data.
+	 * @param array $sent       Snapshot the agent asked to store.
 	 * @return array
 	 */
-	private static function write_result( int $post_id, array $saved, array $sent ): array {
-		$page     = self::get_page( $post_id );
+	private static function write_result( int $page_id, int $written_id, array $saved, array $sent ): array {
+		$page     = self::get_page( $page_id );
 		$warnings = array();
 		if ( ! empty( $saved['customHeadRemovedTags'] ) && is_array( $saved['customHeadRemovedTags'] ) ) {
 			$warnings[] = sprintf(
@@ -847,11 +911,16 @@ class Agent_Pages {
 			$warnings[] = __( 'WordPress changed the html while saving, for example by removing markup your account cannot save. The page field shows what was stored.', 'kayzart-live-code-editor' );
 		}
 
-		return array(
+		$result = array(
 			'page'       => is_array( $page ) ? $page : array(),
+			'state'      => $written_id === $page_id ? 'saved' : 'proposed',
 			'revisionId' => isset( $saved['revision']['id'] ) ? (int) $saved['revision']['id'] : null,
-			'warnings'   => array_merge( $warnings, Agent_Checks::inspect( $post_id ) ),
+			'warnings'   => array_merge( $warnings, Agent_Checks::inspect( $written_id ) ),
 		);
+		if ( 'proposed' === $result['state'] ) {
+			$result['message'] = __( 'Saved as a proposal. The page itself does not change until a person opens it in the Kayzart editor, merges your changes and saves. Tell the person and give them editUrl. Keep updating with the returned baseHash to refine the proposal.', 'kayzart-live-code-editor' );
+		}
+		return $result;
 	}
 
 	/**

@@ -372,17 +372,32 @@ class Ai_Timeline_Store {
 	}
 
 	/**
-	 * Short value that changes whenever a page's history changes, so the
-	 * editor can poll cheaply and reload the history only then.
+	 * What the editor needs to poll a page's history cheaply.
+	 *
+	 * The signature changes whenever the history changes, so the editor
+	 * reloads the history only then. agentIdleSeconds is how long ago an agent
+	 * last wrote to the page (null if never), so the editor checks often only
+	 * while an agent is at work.
 	 *
 	 * @param int $post_id Page ID.
-	 * @return string
+	 * @return array{signature:string,agentIdleSeconds:int|null}
 	 */
-	public function signature( int $post_id ): string {
+	public function poll_state( int $post_id ): array {
 		global $wpdb;
 		// Statuses can change several times within updated_at's one-second resolution.
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, MAX(id) AS last_id, MAX(updated_at) AS last_update, SUM(CRC32(CONCAT_WS(':', id, application_status, execution_status))) AS statuses FROM " . Ai_Setup::get_timeline_table_name() . ' WHERE post_id = %d', $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return is_array( $row ) ? implode( ':', array( (int) $row['total'], (int) $row['last_id'], (string) $row['last_update'], (string) $row['statuses'] ) ) : '';
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, MAX(id) AS last_id, MAX(updated_at) AS last_update, SUM(CRC32(CONCAT_WS(':', id, application_status, execution_status))) AS statuses, MAX(CASE WHEN activity_type = 'agent_edit' THEN created_at END) AS agent_at FROM " . Ai_Setup::get_timeline_table_name() . ' WHERE post_id = %d', $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		if ( ! is_array( $row ) ) {
+			return array(
+				'signature'        => '',
+				'agentIdleSeconds' => null,
+			);
+		}
+		// Measured on the server, so the browser's clock does not matter.
+		$agent_at = empty( $row['agent_at'] ) ? false : strtotime( (string) $row['agent_at'] . ' UTC' );
+		return array(
+			'signature'        => implode( ':', array( (int) $row['total'], (int) $row['last_id'], (string) $row['last_update'], (string) $row['statuses'] ) ),
+			'agentIdleSeconds' => false === $agent_at ? null : max( 0, time() - $agent_at ),
+		);
 	}
 
 	/** Get one activity row. */

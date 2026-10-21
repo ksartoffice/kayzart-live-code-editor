@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AiTimelineItem } from '../../../src/editor-ai/contract';
 import {
-  actionableProposals, arrivedProposals, canMergeAutomatically, includedProposalIds, proposalView,
+  actionableProposals, arrivedProposals, canMergeAutomatically, includedProposalIds, proposalPollDelay, proposalView,
 } from '../../../src/editor-ai/proposals';
 
 function proposal(id: number, chain: string, before: string, after: string, overrides: Partial<AiTimelineItem> = {}) {
@@ -52,5 +52,13 @@ describe('agent proposals', () => {
     const groups = arrivedProposals(items, new Set([10]));
     expect(groups.map((group) => [group.newest.id, group.arrived.map((item) => item.id)])).toEqual([[11, [11]], [12, [12]]]);
     expect(arrivedProposals(items, new Set([10, 11, 12]))).toEqual([]);
+  });
+
+  it('checks often only while an agent has written recently', () => {
+    expect(proposalPollDelay(0)).toBe(5000);
+    expect(proposalPollDelay(599)).toBe(5000);
+    expect(proposalPollDelay(600)).toBe(60000);
+    expect(proposalPollDelay(null)).toBe(60000);
+    expect(proposalPollDelay(undefined)).toBe(60000);
   });
 });

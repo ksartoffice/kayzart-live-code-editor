@@ -10,8 +10,8 @@ import {
   getTimelineState, reportMergedProposals, restoreTimeline, updateTimelineApplication,
 } from './api';
 import {
-  actionableProposals, arrivedProposals, canMergeAutomatically, includedProposalIds, isProposal, proposalView,
-  type ProposalView,
+  actionableProposals, arrivedProposals, canMergeAutomatically, includedProposalIds, isProposal, PROPOSAL_POLL_IDLE_MS,
+  proposalPollDelay, proposalView, type ProposalView,
 } from './proposals';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotContent, sameSnapshotIdentity, sleep } from './polling';
 import { clearActiveJob, loadActiveJob, saveActiveJob } from './session';
@@ -30,8 +30,6 @@ const DEFAULT_MAX_PROMPT_CHARS = 8000;
 const MAX_CONTEXTS = 20;
 const ELEMENTS_PANEL_SELECTOR = '[data-kayzart-panel="elements"]';
 const ELEMENTS_BUTTON_CLASS = 'kayzart-ai-elements-button';
-/* How often the open editor checks for proposals from external agents. */
-const PROPOSAL_POLL_MS = 5000;
 
 type PendingConflict = {
   output: EditorSnapshot;
@@ -590,25 +588,41 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     };
   }, []);
 
+  /* Sites where no agent has written make no background requests. Elsewhere
+     the editor checks often while an agent is at work on the page and rarely
+     otherwise, and not at all while the tab is hidden. */
   useEffect(() => {
     const baseUrl = ai?.timelineBaseUrl;
-    if (!baseUrl || postId <= 0) return;
+    if (!baseUrl || postId <= 0 || !ai?.agentProposals) return;
     let signature = '';
+    let delay = PROPOSAL_POLL_IDLE_MS;
+    let timer = 0;
     let inFlight = false;
+    let stopped = false;
+    const schedule = () => {
+      window.clearTimeout(timer);
+      if (!stopped) timer = window.setTimeout(() => void check(), delay);
+    };
     const check = async () => {
-      if (inFlight || document.hidden) return;
+      if (inFlight) return;
+      if (document.hidden) { schedule(); return; }
       inFlight = true;
       try {
         const state = await getTimelineState(baseUrl, nonce, postId);
-        if (!mountedRef.current || typeof state.signature !== 'string') return;
-        if (signature && state.signature !== signature) await refresh();
-        signature = state.signature;
-      } catch { /* Checked again on the next tick. */ } finally { inFlight = false; }
+        if (stopped || !mountedRef.current) return;
+        if (typeof state.signature === 'string') {
+          if (signature && state.signature !== signature) await refresh();
+          signature = state.signature;
+        }
+        delay = proposalPollDelay(state.agentIdleSeconds);
+      } catch { /* Checked again later. */ } finally { inFlight = false; }
+      schedule();
     };
+    const resume = () => { if (!document.hidden) void check(); };
+    document.addEventListener('visibilitychange', resume);
     void check();
-    const timer = window.setInterval(() => void check(), PROPOSAL_POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [ai?.timelineBaseUrl]);
+    return () => { stopped = true; window.clearTimeout(timer); document.removeEventListener('visibilitychange', resume); };
+  }, [ai?.timelineBaseUrl, ai?.agentProposals]);
 
   useEffect(() => {
     const syncEditorIdentity = () => {

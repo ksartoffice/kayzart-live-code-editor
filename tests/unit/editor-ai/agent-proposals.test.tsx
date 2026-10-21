@@ -18,8 +18,12 @@ const proposalItem = {
 };
 
 type Timeline = { items: unknown[] };
+/* An agent wrote a moment ago, then wrote again. */
+const AGENT_AT_WORK = [{ signature: '1', agentIdleSeconds: 30 }, { signature: '2', agentIdleSeconds: 0 }];
 
-function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; signatures?: string[] }) {
+type PollState = { signature: string; agentIdleSeconds: number | null };
+
+function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; states?: PollState[] }) {
   let editor = options.editor || savedSnapshot;
   const replaceEditorSnapshot = vi.fn((snapshot: typeof savedSnapshot) => { editor = snapshot; return true; });
   const setPostTitle = vi.fn(async () => true);
@@ -31,14 +35,14 @@ function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; 
     setEditorLock: vi.fn(), isEditorLocked: vi.fn(() => false), setPostTitle,
   };
   const timelines = [...options.timelines];
-  const signatures = [...(options.signatures || ['1'])];
+  const states = [...(options.states || [{ signature: '1', agentIdleSeconds: null }])];
   const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
   const requests: Array<{ method: string; url: string; body: unknown }> = [];
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input);
     const method = init?.method || 'GET';
     requests.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : null });
-    if (url.includes('/timeline/state')) return json({ ok: true, signature: signatures.length > 1 ? signatures.shift() : signatures[0] });
+    if (url.includes('/timeline/state')) return json({ ok: true, ...(states.length > 1 ? states.shift() : states[0]) });
     if (url.includes('/timeline/40/snapshot') && url.includes('target=after')) return json({ ok: true, snapshot: proposedSnapshot });
     if (url.includes('/timeline/40/snapshot') && url.includes('target=before')) return json({ ok: true, snapshot: savedSnapshot });
     if (url.includes('/timeline/40/discard')) return json({ ok: true, item: { ...proposalItem, applicationStatus: 'discarded' } });
@@ -65,6 +69,7 @@ describe('AiEditorPanel agent proposals', () => {
     (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
       available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, mbstringPresent: true, domPresent: true, canEdit: true,
       jobsUrl: '/jobs', jobsBaseUrl: '/jobs/', timelineUrl: '/timeline', timelineBaseUrl: '/timeline/', connectorsUrl: '/connectors', canManageConnectors: true,
+      agentProposals: true,
     } };
   });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; delete (window as any).wp; });
@@ -105,7 +110,7 @@ describe('AiEditorPanel agent proposals', () => {
 
   it('merges a proposal that arrives while the editor holds what the agent started from', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
-    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], signatures: ['1', '2'] });
+    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
     const { container, root } = await render();
     expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
 
@@ -120,7 +125,7 @@ describe('AiEditorPanel agent proposals', () => {
   it('only announces a proposal that arrives while the person has other changes', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
     const edited = { ...savedSnapshot, html: '<main>Edited</main>', baseHash: 'edited' };
-    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], signatures: ['1', '2'], editor: edited });
+    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK, editor: edited });
     const { container, root } = await render();
 
     await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
@@ -147,6 +152,32 @@ describe('AiEditorPanel agent proposals', () => {
     expect(env.editor().html).toBe('<main>Saved</main>');
     expect(env.requests.some((request) => request.url.includes('/timeline/40/discard') && request.method === 'POST')).toBe(true);
     expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('Discarded.');
+    await act(async () => root.unmount());
+  });
+
+  it('makes no background requests on a site where no agent has written', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval', 'clearTimeout'] });
+    (window as any).KAYZART.ai.agentProposals = false;
+    const env = setup({ timelines: [{ items: [] }] });
+    const { root } = await render();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000); });
+
+    expect(env.requests.filter((request) => request.url.includes('/timeline/state'))).toHaveLength(0);
+    await act(async () => root.unmount());
+  });
+
+  it('checks once a minute while no agent is at work on the page', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval', 'clearTimeout'] });
+    const env = setup({ timelines: [{ items: [] }], states: [{ signature: '1', agentIdleSeconds: 3600 }] });
+    const { root } = await render();
+    const checks = () => env.requests.filter((request) => request.url.includes('/timeline/state')).length;
+    expect(checks()).toBe(1);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(checks()).toBe(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(55000); });
+    expect(checks()).toBe(2);
     await act(async () => root.unmount());
   });
 

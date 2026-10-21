@@ -1,5 +1,17 @@
 import type { AiTimelineItem, EditorSnapshot } from './contract';
 
+/* The open editor checks for proposals often while an agent is at work on
+   the page, and rarely otherwise. */
+export const PROPOSAL_POLL_ACTIVE_MS = 5000;
+export const PROPOSAL_POLL_IDLE_MS = 60000;
+export const AGENT_ACTIVE_WINDOW_SECONDS = 600;
+
+export function proposalPollDelay(agentIdleSeconds: number | null | undefined) {
+  return typeof agentIdleSeconds === 'number' && agentIdleSeconds < AGENT_ACTIVE_WINDOW_SECONDS
+    ? PROPOSAL_POLL_ACTIVE_MS
+    : PROPOSAL_POLL_IDLE_MS;
+}
+
 /*
  * An external agent never writes the page. Its updates arrive as proposals in
  * the page's history, and a person merges them into the editor and saves.

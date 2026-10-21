@@ -782,6 +782,7 @@ class Agent_Pages {
 			return;
 		}
 		$proposal = $written_id !== $page_id;
+		Agent_Working_Copy::mark_in_use();
 		( new Ai_Timeline_Store() )->record_agent_edit(
 			$page_id,
 			get_current_user_id(),

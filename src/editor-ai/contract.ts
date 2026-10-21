@@ -43,6 +43,8 @@ export type AiAvailability = {
   jobsBaseUrl: string;
   timelineUrl: string;
   timelineBaseUrl: string;
+  /** True once an agent has written to this site; only then does the editor check for incoming proposals. */
+  agentProposals?: boolean;
   connectorsUrl: string;
 	settingsUrl?: string;
   canManageConnectors: boolean;
@@ -163,7 +165,12 @@ export type AiTimelineResponse = {
 };
 
 export type AiTimelineSnapshotResponse = { ok: boolean; snapshot: EditorSnapshot };
-export type AiTimelineStateResponse = { ok: boolean; signature: string };
+export type AiTimelineStateResponse = {
+  ok: boolean;
+  signature: string;
+  /** Seconds since an agent last wrote to the page, or null if one never has. */
+  agentIdleSeconds: number | null;
+};
 export type AiTimelineRestoreResponse = AiTimelineSnapshotResponse & { item: AiTimelineItem | null };
 
 export type AiJobStatusResponse = {

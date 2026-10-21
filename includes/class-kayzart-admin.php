@@ -2618,6 +2618,8 @@ class Admin {
 					'jobsBaseUrl'     => rest_url( 'kayzart/v1/ai/jobs/' ),
 					'timelineUrl'     => rest_url( 'kayzart/v1/ai/timeline' ),
 					'timelineBaseUrl' => rest_url( 'kayzart/v1/ai/timeline/' ),
+					// Only sites where an agent has written check for incoming proposals.
+					'agentProposals'  => Agent_Working_Copy::in_use(),
 					'connectorsUrl'   => admin_url( 'options-connectors.php' ),
 					'settingsUrl'     => self::get_settings_url(),
 					'initialRequest'  => $initial_ai_request,

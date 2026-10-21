@@ -1475,8 +1475,17 @@ class Test_Abilities extends WP_UnitTestCase {
 		$state = new WP_REST_Request( 'GET', '/kayzart/v1/ai/timeline/state' );
 		$state->set_header( 'X-WP-Nonce', $nonce );
 		$state->set_param( 'post_id', $page_id );
-		$before = rest_get_server()->dispatch( $state )->get_data()['signature'];
+		$polled = rest_get_server()->dispatch( $state )->get_data();
+		$before = $polled['signature'];
 		$this->assertNotSame( '', $before );
+		$this->assertLessThan( 60, $polled['agentIdleSeconds'], 'The agent just wrote to the page.' );
+
+		$quiet = new WP_REST_Request( 'GET', '/kayzart/v1/ai/timeline/state' );
+		$quiet->set_header( 'X-WP-Nonce', $nonce );
+		$quiet->set_param( 'post_id', Agent_Pages::create_page( array( 'title' => 'Quiet', 'html' => '<p>Hi</p>' ) )['page']['id'] );
+		$this->assertLessThan( 60, rest_get_server()->dispatch( $quiet )->get_data()['agentIdleSeconds'], 'Creating a page is agent work too.' );
+		$quiet->set_param( 'post_id', self::factory()->post->create( array( 'post_type' => 'page' ) ) );
+		$this->assertNull( rest_get_server()->dispatch( $quiet )->get_data()['agentIdleSeconds'], 'No agent ever wrote to this page.' );
 
 		$discard = new WP_REST_Request( 'POST', '/kayzart/v1/ai/timeline/' . $items[1]['id'] . '/discard' );
 		$discard->set_header( 'X-WP-Nonce', $nonce );
@@ -1498,6 +1507,22 @@ class Test_Abilities extends WP_UnitTestCase {
 		wp_set_current_user( $author );
 		$state->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
 		$this->assertSame( 403, rest_get_server()->dispatch( $state )->get_status() );
+	}
+
+	public function test_the_editor_checks_for_proposals_only_once_an_agent_has_written(): void {
+		delete_option( Agent_Working_Copy::IN_USE_OPTION );
+		wp_set_current_user( $this->admin() );
+		$this->assertFalse( Agent_Working_Copy::in_use() );
+
+		Agent_Pages::create_page(
+			array(
+				'title' => 'First agent page',
+				'html'  => '<p>Hi</p>',
+			)
+		);
+
+		$this->assertTrue( Agent_Working_Copy::in_use() );
+		delete_option( Agent_Working_Copy::IN_USE_OPTION );
 	}
 
 	/**

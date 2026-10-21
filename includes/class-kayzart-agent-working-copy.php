@@ -48,6 +48,9 @@ final class Agent_Working_Copy {
 	/** Meta key holding the chain the working copy's proposals belong to. */
 	const CHAIN_META = '_kayzart_agent_copy_chain';
 
+	/** Option set once an agent has written to this site. */
+	const IN_USE_OPTION = 'kayzart_agent_in_use';
+
 	/** Page meta that is not carried over to a working copy. */
 	const META_DENYLIST = array(
 		'_kayzart_setup_required',
@@ -83,6 +86,27 @@ final class Agent_Working_Copy {
 				'show_in_admin_status_list' => false,
 			)
 		);
+	}
+
+	/**
+	 * Whether agents can send proposals here and one already has written.
+	 *
+	 * The editor checks for incoming proposals only then, so sites that do
+	 * not use agents make no background requests at all.
+	 *
+	 * @return bool
+	 */
+	public static function in_use(): bool {
+		return Abilities::is_supported() && '1' === get_option( self::IN_USE_OPTION, '' );
+	}
+
+	/**
+	 * Remember that an agent has written to this site.
+	 */
+	public static function mark_in_use(): void {
+		if ( '1' !== get_option( self::IN_USE_OPTION, '' ) ) {
+			update_option( self::IN_USE_OPTION, '1', false );
+		}
 	}
 
 	/**

@@ -91,12 +91,12 @@ class Rest_Ai_Timeline {
 		return rest_ensure_response( array_merge( array( 'ok' => true ), $data ) );
 	}
 
-	/** Return a value that changes whenever the post timeline changes. */
+	/** Return what the editor needs to poll the post timeline cheaply. */
 	public static function state( \WP_REST_Request $request ) {
 		return rest_ensure_response(
-			array(
-				'ok'        => true,
-				'signature' => ( new Ai_Timeline_Store() )->signature( absint( $request->get_param( 'post_id' ) ) ),
+			array_merge(
+				array( 'ok' => true ),
+				( new Ai_Timeline_Store() )->poll_state( absint( $request->get_param( 'post_id' ) ) )
 			)
 		);
 	}

@@ -274,6 +274,21 @@ describe('save copy controller', () => {
     );
   });
 
+  it('keeps content changed while a save is on its way unsaved', async () => {
+    let finish: (value: { ok: boolean }) => void = () => {};
+    vi.mocked(saveKayzArt).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const onUnsavedChange = vi.fn();
+    const { controller, htmlModel } = createController({ onUnsavedChange, getJsMode: () => 'classic' });
+
+    const saving = controller.handleSave();
+    // An agent proposal (or typing) lands after the request captured the content.
+    htmlModel.getValue = () => '<main>Arrived during the save</main>';
+    finish({ ok: true });
+    await saving;
+
+    expect(onUnsavedChange).toHaveBeenLastCalledWith(true);
+  });
+
   it('treats an editor mode-only change as unsaved CSS', () => {
     let mode: 'normal' | 'tailwind' = 'normal';
     const cssByMode = {

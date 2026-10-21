@@ -18,7 +18,7 @@
   background: var(--ai-bg);
 }
 .kayzart-ai-panel[hidden] { display: none; }
-.kayzart-ai-notice, .kayzart-ai-error, .kayzart-ai-conflict, .kayzart-ai-result {
+.kayzart-ai-notice, .kayzart-ai-error, .kayzart-ai-conflict, .kayzart-ai-proposal-notice, .kayzart-ai-result {
   padding: 11px;
   border: 1px solid var(--ai-border);
   border-radius: 8px;
@@ -39,6 +39,8 @@
 .kayzart-ai-error { color: var(--ai-danger); border-color: #6b2a30; background: #3a1b20; }
 .kayzart-ai-conflict { color: var(--ai-text); border-color: #85622c; background: #2d2416; }
 .kayzart-ai-conflict p { margin: 6px 0 10px; color: var(--ai-muted); }
+.kayzart-ai-proposal-notice { flex-shrink: 0; color: var(--ai-text); border-color: #3d5f8f; background: #18263a; }
+.kayzart-ai-proposal-notice p { margin: 6px 0 0; color: var(--ai-muted); }
 .kayzart-ai-conflict-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .kayzart-ai-conflict-actions button { padding: 7px 10px; border: 1px solid transparent; border-radius: 6px; color: #fff; cursor: pointer; }
 .kayzart-ai-conflict-actions button.is-keep { background: #2563eb; }
@@ -80,8 +82,18 @@
 .kayzart-ai-result-actions button { padding: 5px 8px; border: 1px solid #445268; border-radius: 5px; color: var(--ai-text); background: #202a38; cursor: pointer; }
 .kayzart-ai-result-actions button.is-restore-before { border-color: #8d4248; color: #ffc2bc; }
 .kayzart-ai-result-actions button.is-restore-after { border-color: #356fbd; color: #dbe9ff; }
+.kayzart-ai-result-actions button.is-merge { border-color: #2563eb; color: #fff; background: #2563eb; }
+.kayzart-ai-result-actions button.is-discard { border-color: #8d4248; color: #ffc2bc; }
 .kayzart-ai-result-actions button:disabled { cursor: default; opacity: .45; }
 .kayzart-ai-status { margin: 0; color: var(--ai-muted); font-size: 11px; overflow-wrap: anywhere; }
+.kayzart-ai-result.is-agent { border-color: #3d5f8f; }
+.is-agent .kayzart-ai-result-icon { stroke: #8fb8f0; stroke-linecap: round; }
+.kayzart-ai-result-summary { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.kayzart-ai-agent-title { margin: 0; color: var(--ai-muted); font-size: 11px; overflow-wrap: anywhere; }
+.kayzart-ai-agent-meta { color: var(--ai-muted); font-size: 10px; }
+.kayzart-ai-proposal-status { margin: 0; color: var(--ai-muted); font-size: 11px; }
+.is-proposal.is-pending .kayzart-ai-proposal-status, .is-proposal.is-merged .kayzart-ai-proposal-status { color: #dbe9ff; }
+.is-proposal.is-included, .is-proposal.is-discarded { opacity: .7; }
 .kayzart-ai-expired { margin: 0; color: var(--ai-muted); font-size: 11px; }
 .kayzart-ai-details { color: var(--ai-muted); font-size: 11px; }
 .kayzart-ai-details summary { cursor: pointer; list-style: none; }

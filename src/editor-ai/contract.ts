@@ -43,6 +43,12 @@ export type AiAvailability = {
   jobsBaseUrl: string;
   timelineUrl: string;
   timelineBaseUrl: string;
+  /**
+   * How the editor watches for agent proposals: none where agents cannot
+   * connect, focus to check when the person returns to the editor, poll to
+   * also check on a timer where agents are used.
+   */
+  agentProposalChecks?: 'none' | 'focus' | 'poll';
   connectorsUrl: string;
 	settingsUrl?: string;
   canManageConnectors: boolean;
@@ -104,7 +110,7 @@ export type AiCreateJobResponse = {
   timelineItem: AiTimelineItem | null;
 };
 
-export type AiTimelineType = 'ai_edit' | 'save' | 'restore';
+export type AiTimelineType = 'ai_edit' | 'agent_edit' | 'save' | 'restore';
 
 export type AiTimelineItem = {
   id: number;
@@ -115,7 +121,8 @@ export type AiTimelineItem = {
   prompt: string | null;
   contexts: Array<{ lcId?: string; tagName?: string; text?: string }>;
   executionStatus: AiJobStatus | null;
-  applicationStatus: 'not_applied' | 'applied' | 'reverted' | null;
+  /** pending and discarded apply to agent proposals, which become applied once saved merged. */
+  applicationStatus: 'not_applied' | 'applied' | 'reverted' | 'pending' | 'discarded' | null;
   changedTargets: ChangedTarget[];
   changeStats: Partial<Record<ChangedTarget, ChangeStat>> | null;
   durationSeconds: number | null;
@@ -131,7 +138,22 @@ export type AiTimelineItem = {
   sourceActivityId: number | null;
   sourcePrompt: string | null;
   restoreTarget: 'before' | 'after' | null;
+  /** What the built-in AI or the external agent says it changed, written for the person who asked. */
+  summary?: string | null;
   detailsAvailable: boolean;
+  /** False when the state before the edit cannot be restored, such as a page an agent created. */
+  beforeAvailable?: boolean;
+  /** Agent that made an agent_edit over MCP, such as an application password name. */
+  agentClient?: string | null;
+  agentAction?: 'create' | 'update' | null;
+  /** Title before and after an agent edit that renamed the page. */
+  titleChange?: { before: string; after: string } | null;
+  /**
+   * Set when an agent saved the edit to its working copy as a proposal. agent
+   * groups an agent's proposals; chain groups those built on one working
+   * copy, where each includes the ones before it.
+   */
+  proposal?: { agent: string; chain: string; beforeHash?: string | null; afterHash?: string | null } | null;
   canPoll: boolean;
   revisionAvailable: boolean;
   author: { id: number; name: string };
@@ -147,6 +169,12 @@ export type AiTimelineResponse = {
 };
 
 export type AiTimelineSnapshotResponse = { ok: boolean; snapshot: EditorSnapshot };
+export type AiTimelineStateResponse = {
+  ok: boolean;
+  signature: string;
+  /** Seconds since an agent last wrote to the page, or null if one never has. */
+  agentIdleSeconds: number | null;
+};
 export type AiTimelineRestoreResponse = AiTimelineSnapshotResponse & { item: AiTimelineItem | null };
 
 export type AiJobStatusResponse = {

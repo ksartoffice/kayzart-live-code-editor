@@ -79,6 +79,8 @@ export type KayzArtExtensionApi = {
   getElementContext?: (lcId: string) => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;
   isEditorLocked?: () => boolean;
+  /** Whether a save request is on its way. */
+  isSaving?: () => boolean;
 };
 
 const RESERVED_TAB_IDS = new Set(['settings', 'elements', 'history']);

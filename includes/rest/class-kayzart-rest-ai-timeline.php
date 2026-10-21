@@ -29,6 +29,24 @@ class Rest_Ai_Timeline {
 		);
 		register_rest_route(
 			'kayzart/v1',
+			'/ai/timeline/state',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'state' ),
+				'permission_callback' => array( __CLASS__, 'post_permission' ),
+			)
+		);
+		register_rest_route(
+			'kayzart/v1',
+			'/ai/timeline/(?P<activity_id>\d+)/discard',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'discard' ),
+				'permission_callback' => array( __CLASS__, 'activity_permission' ),
+			)
+		);
+		register_rest_route(
+			'kayzart/v1',
 			'/ai/timeline/(?P<activity_id>\d+)/snapshot',
 			array(
 				'methods'             => 'GET',
@@ -62,6 +80,33 @@ class Rest_Ai_Timeline {
 		$before  = absint( $request->get_param( 'before' ) );
 		$data    = ( new Ai_Timeline_Store() )->list_for_post( $post_id, $before );
 		return rest_ensure_response( array_merge( array( 'ok' => true ), $data ) );
+	}
+
+	/** Return what the editor needs to poll the post timeline cheaply. */
+	public static function state( \WP_REST_Request $request ) {
+		$post_id = absint( $request->get_param( 'post_id' ) );
+		$state   = ( new Ai_Timeline_Store() )->poll_state( $post_id );
+		// An agent reading the page or the site counts as at work too.
+		$seen = Agent_Pages::seen_seconds_ago( $post_id );
+		if ( null !== $seen && ( null === $state['agentIdleSeconds'] || $seen < $state['agentIdleSeconds'] ) ) {
+			$state['agentIdleSeconds'] = $seen;
+		}
+		return rest_ensure_response( array_merge( array( 'ok' => true ), $state ) );
+	}
+
+	/** Discard an agent proposal and the working copy holding it. */
+	public static function discard( \WP_REST_Request $request ) {
+		$store    = new Ai_Timeline_Store();
+		$activity = $store->get( absint( $request['activity_id'] ) );
+		if ( ! $activity || ! Agent_Working_Copy::discard( (int) $activity['post_id'], (int) $activity['id'] ) ) {
+			return new \WP_Error( 'kayzart_ai_proposal_not_pending', __( 'This proposal was already saved or discarded.', 'kayzart-live-code-editor' ), array( 'status' => 409 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => $store->to_response( $store->get( (int) $activity['id'] ) ),
+			)
+		);
 	}
 
 	/** Return a retained before or after snapshot. */

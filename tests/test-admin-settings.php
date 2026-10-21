@@ -1038,6 +1038,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 				'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
 				'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
 				'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
+				'agentProposalChecks' => \KayzArt\Agent_Working_Copy::proposal_checks(),
 				'connectorsUrl'       => admin_url( 'options-connectors.php' ),
 				'settingsUrl'         => Admin::get_settings_url(),
 				'initialRequest'      => null,

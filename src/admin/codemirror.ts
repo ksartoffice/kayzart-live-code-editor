@@ -30,6 +30,7 @@ import {
   defaultKeymap,
   history,
   historyKeymap,
+  isolateHistory,
   redo,
   redoDepth,
   undo,
@@ -123,7 +124,8 @@ export type EditorModel = {
     operations: Array<{ range: EditorRange; text: string }>,
     computeCursorState?: (inverseOperations: Array<{ range: EditorRange; text: string }>) =>
       | EditorSelection[]
-      | null
+      | null,
+    editOptions?: { isolateHistory?: boolean }
   ) => EditorSelection[] | null;
   resetValue: (value: string) => void;
   deltaDecorations: (oldDecorationIds: string[], decorations: EditorDecoration[]) => string[];
@@ -910,7 +912,7 @@ const createEditorWrapper = (options: {
     },
     canUndo: () => undoDepth(view.state) > 0,
     canRedo: () => redoDepth(view.state) > 0,
-    pushEditOperations: (_beforeSelections, operations, computeCursorState) => {
+    pushEditOperations: (_beforeSelections, operations, computeCursorState, editOptions) => {
       if (!operations.length) {
         return null;
       }
@@ -931,7 +933,7 @@ const createEditorWrapper = (options: {
         insert: operation.text,
       }));
 
-      view.dispatch({ changes });
+      view.dispatch({ changes, annotations: editOptions?.isolateHistory ? isolateHistory.of('full') : undefined });
 
       const inverseOperations = sorted
         .slice()

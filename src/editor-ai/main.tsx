@@ -6,9 +6,13 @@ import type {
 } from './contract';
 import { normalizeSnapshot } from './contract';
 import {
-  AiApiError, cancelJob, createJob, getAvailability, getJob, getTimeline, getTimelineSnapshot,
-  restoreTimeline, updateTimelineApplication,
+  AiApiError, cancelJob, createJob, discardProposal, getAvailability, getJob, getTimeline, getTimelineSnapshot,
+  getTimelineState, restoreTimeline, updateTimelineApplication,
 } from './api';
+import {
+  actionableProposals, importProposal, isProposal, proposalHash, PROPOSAL_POLL_IDLE_MS,
+  proposalPollDelay, proposalView, type ProposalView,
+} from './proposals';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotContent, sameSnapshotIdentity, sleep } from './polling';
 import { clearActiveJob, loadActiveJob, saveActiveJob } from './session';
 import { resolveAiActivityNotification } from '../admin/logic/ai-activity';
@@ -26,6 +30,8 @@ const DEFAULT_MAX_PROMPT_CHARS = 8000;
 const MAX_CONTEXTS = 20;
 const ELEMENTS_PANEL_SELECTOR = '[data-kayzart-panel="elements"]';
 const ELEMENTS_BUTTON_CLASS = 'kayzart-ai-elements-button';
+/* Minimum time between proposal checks triggered by focus or visibility. */
+const RESUME_CHECK_GAP_MS = 2000;
 
 type PendingConflict = {
   output: EditorSnapshot;
@@ -47,6 +53,20 @@ const TERMINAL_INITIAL_REQUEST_CODES = new Set([
   'kayzart_ai_initial_request_terminal',
 ]);
 let promptFocusRequest = 0;
+/* Per post: proposals already announced, so polling does not repeat notices. */
+const handledProposals = new Map<number, Set<number>>();
+function proposalSet(store: Map<number, Set<number>>, postId: number) {
+  let set = store.get(postId);
+  if (!set) { set = new Set(); store.set(postId, set); }
+  return set;
+}
+
+type NoticesGlobal = { wp?: { data?: { dispatch?: (store: string) => { createNotice?: (status: string, message: string, options: Record<string, unknown>) => void } | undefined } } };
+function announce(message: string, id: string) {
+  try {
+    (window as Window & NoticesGlobal).wp?.data?.dispatch?.('core/notices')?.createNotice?.('info', message, { type: 'snackbar', isDismissible: true, id });
+  } catch { /* The card in AI Edit carries the same information. */ }
+}
 
 function notifyAiActivity(state: 'idle' | 'running' | 'complete' | 'error') {
   window.dispatchEvent(new CustomEvent(AI_ACTIVITY_EVENT, { detail: { state } }));
@@ -235,6 +255,23 @@ function formatDuration(seconds: number) {
 function AiIcon() {
   return <svg className="kayzart-ai-result-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l1.7 6.3a2.1 2.1 0 0 0 1.5 1.5l6.3 1.7-6.3 1.7a2.1 2.1 0 0 0-1.5 1.5L12 21.5l-1.7-6.3a2.1 2.1 0 0 0-1.5-1.5L2.5 12l6.3-1.7a2.1 2.1 0 0 0 1.5-1.5L12 2.5z" /></svg>;
 }
+function AgentIcon() {
+  return <svg className="kayzart-ai-result-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13.5 6l-3 12" /></svg>;
+}
+function proposalStatusLabel(view: ProposalView) {
+  switch (view) {
+    case 'merged':
+      return __('In the editor, not saved yet. Save to apply it to the page.', 'kayzart-live-code-editor');
+    case 'pending':
+      return __('Not in the editor yet. The page does not change until you merge it and save.', 'kayzart-live-code-editor');
+    case 'included':
+      return __('Included in a later proposal.', 'kayzart-live-code-editor');
+    case 'discarded':
+      return __('Discarded.', 'kayzart-live-code-editor');
+    default:
+      return __('Saved to the page.', 'kayzart-live-code-editor');
+  }
+}
 function RestoreIcon() {
   return <svg className="kayzart-ai-system-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M4 12h11a5 5 0 0 1 0 10h-3" /></svg>;
 }
@@ -333,9 +370,10 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
-  const [editorIdentity, setEditorIdentity] = useState<Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null>(() => {
+  const [proposalBusy, setProposalBusy] = useState(false);
+  const [editorIdentity, setEditorIdentity] = useState<EditorSnapshot | null>(() => {
     const snapshot = host()?.getEditorSnapshot?.();
-    return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
+    return snapshot ? normalizeSnapshot(snapshot) : null;
   });
 
   const checkAvailability = async () => {
@@ -377,15 +415,20 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     if (!ai?.timelineUrl) {
       setLoading(false);
       if (settleInitialTimeline) setInitialTimelineSettled(true);
-      return;
+      return false;
     }
     try {
       const page = await getTimeline(ai.timelineUrl, nonce, postId);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) return false;
       reconcileRuntimeInitialRequest(postId, page.items);
       setItems(page.items); setHasMore(page.hasMore); setCursor(page.nextCursor);
+      // The initial notice lists waiting proposals; later arrivals get a snackbar too.
+      if (settleInitialTimeline) page.items.forEach((item) => { if (isProposal(item)) proposalSet(handledProposals, postId).add(item.id); });
+      else receiveProposals(page.items);
+      return true;
     } catch (caught) {
       if (mountedRef.current) setError(caught instanceof Error ? caught.message : __('History could not be loaded.', 'kayzart-live-code-editor'));
+      return false;
     } finally {
       if (mountedRef.current) {
         setLoading(false);
@@ -407,7 +450,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     notifyAiActivity('complete');
     const current = host()?.getEditorSnapshot?.();
     if (current && sameSnapshotContent(normalizeSnapshot(current), output)) {
-      setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
+      setEditorIdentity(output);
       await markApplied(active.activityId);
       finish();
       return;
@@ -423,7 +466,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       finish();
       return;
     }
-    setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
+    setEditorIdentity(output);
     await markApplied(active.activityId);
     finish();
   };
@@ -444,7 +487,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       setResolvingConflict(false);
       return;
     }
-    setEditorIdentity({ baseHash: pendingConflict.output.baseHash, jsMode: pendingConflict.output.jsMode });
+    setEditorIdentity(pendingConflict.output);
     await markApplied(pendingConflict.activityId);
     setPendingConflict(null); setResolvingConflict(false); void refresh();
   };
@@ -548,10 +591,58 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     };
   }, []);
 
+  /* How the editor watches for agent proposals: never where agents cannot
+     connect; once whenever the person comes back to the editor window or tab
+     ("focus"); and on a timer as well where agents are used ("poll"), often
+     while an agent is at work on the page and rarely otherwise. A hidden tab
+     is never checked. */
+  useEffect(() => {
+    const baseUrl = ai?.timelineBaseUrl;
+    const mode = ai?.agentProposalChecks;
+    // Proposals already waiting are settled by the first timeline load; start after it.
+    if (!baseUrl || postId <= 0 || !initialTimelineSettled || (mode !== 'focus' && mode !== 'poll')) return;
+    let signature = '';
+    let delay = PROPOSAL_POLL_IDLE_MS;
+    let timer = 0;
+    let inFlight = false;
+    let stopped = false;
+    let lastCheck = 0;
+    const schedule = () => {
+      window.clearTimeout(timer);
+      if (!stopped && mode === 'poll') timer = window.setTimeout(() => void check(), delay);
+    };
+    const check = async () => {
+      if (inFlight) return;
+      if (document.hidden) { schedule(); return; }
+      inFlight = true;
+      lastCheck = Date.now();
+      try {
+        const state = await getTimelineState(baseUrl, nonce, postId);
+        if (stopped || !mountedRef.current) return;
+        if (typeof state.signature === 'string') {
+          // The first check reloads too: a proposal may have arrived since the first timeline load.
+          if (state.signature !== signature && await refresh()) signature = state.signature;
+        }
+        delay = proposalPollDelay(state.agentIdleSeconds);
+      } catch { /* Checked again later. */ } finally { inFlight = false; }
+      schedule();
+    };
+    /* Coming back from the agent's window is when a person looks for its result.
+       Focus also returns from the preview frame, hence the short gap. */
+    const resume = () => { if (!document.hidden && Date.now() - lastCheck >= RESUME_CHECK_GAP_MS) void check(); };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('focus', resume);
+    void check();
+    return () => {
+      stopped = true; window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', resume); window.removeEventListener('focus', resume);
+    };
+  }, [ai?.timelineBaseUrl, ai?.agentProposalChecks, initialTimelineSettled]);
+
   useEffect(() => {
     const syncEditorIdentity = () => {
       const snapshot = host()?.getEditorSnapshot?.();
-      setEditorIdentity(snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null);
+      setEditorIdentity(snapshot ? normalizeSnapshot(snapshot) : null);
     };
     syncEditorIdentity();
     return host()?.subscribeEditorSnapshot?.(syncEditorIdentity);
@@ -683,6 +774,63 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     try { const status = await cancelJob(active.cancelUrl, nonce); if (isTerminalStatus(status.status)) terminal(status, active); }
     catch (caught) { setError(caught instanceof Error ? caught.message : __('Cancel request failed.', 'kayzart-live-code-editor')); setCanceling(false); }
   };
+  /* Only an explicit action can replace the editor with a proposal. Check
+     its current content after the fetch, so intervening edits are noticed. */
+  const mergeProposal = async (item: AiTimelineItem) => {
+    if (!ai || !isProposal(item) || proposalBusy || host()?.isSaving?.() || host()?.isEditorLocked?.()) return;
+    setProposalBusy(true);
+    setError('');
+    try {
+      const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, 'after');
+      if (!mountedRef.current || host()?.isSaving?.() || host()?.isEditorLocked?.()) return;
+      const current = host()?.getEditorSnapshot?.();
+      if (!current) return;
+      const snapshot = importProposal(normalizeSnapshot(result.snapshot), normalizeSnapshot(current));
+      if (sameSnapshotContent(normalizeSnapshot(current), snapshot)) return;
+      if ((proposalHash(normalizeSnapshot(current)) !== item.proposal.beforeHash)
+        && !window.confirm(__('This replaces the code in the editor, including any changes you have not saved. Continue?', 'kayzart-live-code-editor'))) return;
+      const replace = host()?.replaceEditorSnapshot;
+      if (typeof replace !== 'function' || !replace(snapshot)) {
+        setError(__('The proposal could not be merged because the editor rejected it.', 'kayzart-live-code-editor'));
+        return;
+      }
+      setEditorIdentity(snapshot);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : __('The proposal could not be merged.', 'kayzart-live-code-editor'));
+    } finally {
+      if (mountedRef.current) setProposalBusy(false);
+    }
+  };
+  /* Background checks announce proposals and never change the editor. */
+  const receiveProposals = (list: AiTimelineItem[]) => {
+    const handled = proposalSet(handledProposals, postId);
+    for (const newest of actionableProposals(list)) {
+      if (handled.has(newest.id)) continue;
+      handled.add(newest.id);
+      const client = newest.agentClient || 'MCP';
+      announce(sprintf(
+        /* translators: %s: name of the external AI agent, such as Claude Code. */
+        __('%s proposed changes to this page. Review them in AI Edit.', 'kayzart-live-code-editor'), client,
+      ), `kayzart-ai-proposal-${newest.id}`);
+    }
+  };
+  const discard = async (item: AiTimelineItem) => {
+    if (!ai || !isProposal(item) || proposalBusy || host()?.isSaving?.() || host()?.isEditorLocked?.()) return;
+    const current = host()?.getEditorSnapshot?.();
+    if (proposalView(item, items, current ? proposalHash(normalizeSnapshot(current)) : null) !== 'pending') return;
+    if (!window.confirm(__('Discard this proposal? The page stays as it is.', 'kayzart-live-code-editor'))) return;
+    setProposalBusy(true);
+    setError('');
+    try {
+      await discardProposal(ai.timelineBaseUrl, nonce, item.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : __('The proposal could not be discarded.', 'kayzart-live-code-editor'));
+    } finally {
+      if (mountedRef.current) setProposalBusy(false);
+    }
+    await refresh();
+  };
+
   const snapshotPosition = (item: AiTimelineItem, current: Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null): 'before' | 'after' | 'other' => {
     const matchesBefore = Boolean(current && item.beforeHash && item.beforeJsMode && current.baseHash === item.beforeHash && current.jsMode === item.beforeJsMode);
     const matchesAfter = Boolean(current && item.afterHash && item.afterJsMode && current.baseHash === item.afterHash && current.jsMode === item.afterJsMode);
@@ -705,7 +853,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         setError(__('The edit could not be restored because the editor rejected the snapshot.', 'kayzart-live-code-editor'));
         return;
       }
-      setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
+      setEditorIdentity(snapshot);
       try {
         await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target);
         await refresh();
@@ -730,6 +878,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       </div>
       <div className={`kayzart-ai-result is-${executionStatus || 'unknown'}`}>
         <div className="kayzart-ai-result-heading"><AiIcon /><strong>{statusLabel(item, executionStatus)}</strong></div>
+        {executionStatus === 'completed' && item.summary ? <p className="kayzart-ai-result-summary">{item.summary}</p> : null}
         {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => {
           const stat = item.changeStats?.[value];
           return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;
@@ -766,10 +915,58 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     </div>;
   };
 
+  const renderAgent = (item: AiTimelineItem) => {
+    const position = snapshotPosition(item, editorIdentity);
+    const client = item.agentClient || 'MCP';
+    const view: ProposalView = isProposal(item) ? proposalView(item, items, editorIdentity ? proposalHash(editorIdentity) : null) : 'saved';
+    const heading = item.agentAction === 'create'
+      /* translators: %s: name of the external AI agent, such as Claude Code. */
+      ? __('%s created this page', 'kayzart-live-code-editor')
+      : isProposal(item)
+        /* translators: %s: name of the external AI agent, such as Claude Code. */
+        ? __('%s proposed changes to this page', 'kayzart-live-code-editor')
+        /* translators: %s: name of the external AI agent, such as Claude Code. */
+        : __('%s edited this page', 'kayzart-live-code-editor');
+    const actions = view === 'pending' ? <div className="kayzart-ai-result-actions">
+      <button type="button" className="is-merge" disabled={proposalBusy || running} onClick={() => void mergeProposal(item)}>{__('Merge into editor', 'kayzart-live-code-editor')}</button>
+      <button type="button" className="is-discard" disabled={proposalBusy || running} onClick={() => void discard(item)}>{__('Discard', 'kayzart-live-code-editor')}</button>
+    </div> : view !== 'saved' || !item.changedTargets.length ? null : item.detailsAvailable ? <div className="kayzart-ai-result-actions">
+      {item.beforeAvailable !== false ? <button type="button" className="is-restore-before" disabled={position === 'before'} title={position === 'before' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'before')}>{__('Restore before changes', 'kayzart-live-code-editor')}</button> : null}
+      <button type="button" className="is-restore-after" disabled={position === 'after'} title={position === 'after' ? __('This is the current state.', 'kayzart-live-code-editor') : undefined} onClick={() => void restore(item, 'after')}>{__('Restore this result', 'kayzart-live-code-editor')}</button>
+    </div> : <p className="kayzart-ai-expired">{__('The revisions for these changes are no longer available.', 'kayzart-live-code-editor')}</p>;
+    return <div className={`kayzart-ai-result is-completed is-agent${isProposal(item) ? ` is-proposal is-${view}` : ''}`} key={item.activityId}>
+      <div className="kayzart-ai-result-heading"><AgentIcon /><strong>{sprintf(heading, client)}</strong></div>
+      {item.summary ? <p className="kayzart-ai-result-summary">{item.summary}</p> : null}
+      {item.titleChange ? <p className="kayzart-ai-agent-title">{sprintf(
+        /* translators: 1: previous page title, 2: new page title. */
+        __('Title: “%1$s” → “%2$s”', 'kayzart-live-code-editor'), item.titleChange.before, item.titleChange.after,
+      )}</p> : null}
+      {item.changedTargets.length ? <div className="kayzart-ai-targets">{item.changedTargets.map((value) => {
+        const stat = item.changeStats?.[value];
+        return <span key={value}><b>{value.toUpperCase()}</b>{stat ? <><i>+{stat.added}</i><em>−{stat.removed}</em></> : null}</span>;
+      })}</div> : null}
+      <small className="kayzart-ai-agent-meta">{sprintf(
+        /* translators: 1: WordPress user the agent signed in as, 2: date and time. */
+        __('External agent (MCP) as %1$s · %2$s', 'kayzart-live-code-editor'), item.author.name, formatDate(item.createdAt),
+      )}</small>
+      {isProposal(item) ? <p className="kayzart-ai-proposal-status">{proposalStatusLabel(view)}</p> : null}
+      {view === 'merged' ? <p className="kayzart-ai-proposal-status">{__('To undo the changes, use Undo in each code editor.', 'kayzart-live-code-editor')}</p> : null}
+      {actions}
+    </div>;
+  };
+  const waitingProposals = actionableProposals(items).filter((item) => proposalView(item, items, editorIdentity ? proposalHash(editorIdentity) : null) !== 'merged');
+
   return <div className="kayzart-ai-panel" hidden={!active}>
     {availabilityResult ? <p className="kayzart-ai-availability-result" role="status" aria-live="polite">{availabilityResult}</p> : null}
     {ai ? <AvailabilityNotice ai={ai} checking={checkingAvailability || running} opened={settingsOpened} onOpen={() => setSettingsOpened(true)} onCheck={() => void checkAvailability()} /> : null}
     {error ? <div className="kayzart-ai-error" role="alert">{error}</div> : null}
+    {waitingProposals.length ? <div className="kayzart-ai-proposal-notice" role="status">
+      <strong>{sprintf(
+        /* translators: %d: number of proposals. */
+        _n('%d proposal from an external agent is waiting.', '%d proposals from external agents are waiting.', waitingProposals.length, 'kayzart-live-code-editor'), waitingProposals.length,
+      )}</strong>
+      <p>{__('Review it below and choose Merge into editor. The page does not change until you save.', 'kayzart-live-code-editor')}</p>
+    </div> : null}
     {pendingConflict ? <div className="kayzart-ai-conflict" role="alert">
       <strong>{__('The editor changed while the AI edit was running.', 'kayzart-live-code-editor')}</strong>
       <p>{__('Choose whether to keep the current editor content or replace it with the completed AI result.', 'kayzart-live-code-editor')}</p>
@@ -781,7 +978,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     <div className="kayzart-ai-chat" ref={chatRef} role="log" aria-live="polite">
       {hasMore ? <button className="kayzart-ai-load-more" type="button" disabled={loading} onClick={() => void loadOlder()}>{loading ? __('Loading…', 'kayzart-live-code-editor') : __('Load earlier history', 'kayzart-live-code-editor')}</button> : null}
       {!loading && !items.length && !optimistic ? <p className="kayzart-ai-empty">{__('Describe the landing page change you want.', 'kayzart-live-code-editor')}</p> : null}
-      {items.map((item) => item.type === 'ai_edit' ? renderAi(item) : item.type === 'save' ? <div className="kayzart-ai-save-divider" key={item.activityId}>
+      {items.map((item) => item.type === 'ai_edit' ? renderAi(item) : item.type === 'agent_edit' ? renderAgent(item) : item.type === 'save' ? <div className="kayzart-ai-save-divider" key={item.activityId}>
         <span>{__('Changes saved · ', 'kayzart-live-code-editor')}</span>{item.revisionAvailable ? <button type="button" onClick={() => host()?.openSettingsTab?.('history')}>{sprintf(
           /* translators: %d: revision ID. */
           __('Revision #%d', 'kayzart-live-code-editor'), item.revisionId || 0,
@@ -859,10 +1056,9 @@ export function initAiEditorIntegration() {
   if (ai?.timelineUrl && postId > 0) {
     void getTimeline(ai.timelineUrl, window.KAYZART.restNonce || '', postId).then((page) => {
       const active = page.items.some((item) => item.type === 'ai_edit' && item.canPoll && (item.executionStatus === 'pending' || item.executionStatus === 'running'));
-      if (active) {
-        host()?.setEditorLock?.(true);
-        window.requestAnimationFrame(() => openAi(false, false));
-      }
+      if (active) host()?.setEditorLock?.(true);
+      // Proposals waiting from external agents are shown, so the person can merge or discard them.
+      if (active || actionableProposals(page.items).length) window.requestAnimationFrame(() => openAi(false, false));
     }).catch(() => { /* Availability UI reports recoverable REST failures when opened. */ });
   }
 }

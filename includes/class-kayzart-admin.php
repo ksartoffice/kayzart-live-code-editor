@@ -33,6 +33,7 @@ class Admin {
 	const DUPLICATE_POST_ACTION        = 'kayzart_duplicate';
 	const DUPLICATE_POST_NONCE_ACTION  = 'kayzart_duplicate_post';
 	const REDIRECT_NONCE_ACTION        = 'kayzart_redirect';
+	const OPEN_EDITOR_ACTION           = 'kayzart_open_editor';
 	const EDITOR_PAGE_NONCE_ACTION     = 'kayzart_editor_page';
 	const OPTION_POST_SLUG             = 'kayzart_post_slug';
 	const OPTION_ENABLED_POST_TYPES    = 'kayzart_enabled_post_types';
@@ -74,6 +75,7 @@ class Admin {
 		add_filter( 'admin_title', array( __CLASS__, 'filter_admin_title' ), 10, 2 );
 		add_action( 'current_screen', array( __CLASS__, 'maybe_suppress_editor_notices' ) );
 		add_action( 'admin_action_kayzart', array( __CLASS__, 'action_redirect' ) ); // admin.php?action=kayzart.
+		add_action( 'admin_action_' . self::OPEN_EDITOR_ACTION, array( __CLASS__, 'action_open_editor' ) );
 		add_action( 'admin_action_' . self::NEW_POST_ACTION, array( __CLASS__, 'action_create_new_post' ) );
 		add_action( 'admin_action_' . self::NEW_PAGE_ACTION, array( __CLASS__, 'action_create_new_page' ) );
 		add_action( 'admin_action_' . self::CONVERT_POST_ACTION, array( __CLASS__, 'action_convert_existing_post' ) );
@@ -195,7 +197,8 @@ class Admin {
 			return 0;
 		}
 
-		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
+		// An agent's working copy is merged from its page's editor, never opened itself.
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) || Agent_Working_Copy::is_copy( $post_id ) ) {
 			if ( $die_on_failure ) {
 				wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
 			}
@@ -260,6 +263,45 @@ class Admin {
 		Post_Type::enable_for_post( $post_id );
 		wp_safe_redirect( Post_Type::get_editor_url( $post_id ) );
 		exit;
+	}
+
+	/**
+	 * Open an existing Kayzart page from a link handed out without a nonce.
+	 *
+	 * AI agents connected over MCP authenticate with an application password,
+	 * so a nonce they create belongs to no browser session and the editor would
+	 * reject it. This entry point accepts only a post ID and forwards to the
+	 * nonce-protected editor URL created for the person who clicked. It changes
+	 * nothing itself and refuses posts that are not Kayzart-managed yet, because
+	 * opening the editor would otherwise convert them.
+	 */
+	public static function action_open_editor(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect; the editor it forwards to verifies its own nonce.
+		$post_id = isset( $_GET['post_id'] ) ? absint( wp_unslash( (string) $_GET['post_id'] ) ) : 0;
+		if ( ! $post_id || ! Post_Type::is_editor_enabled_post( $post_id ) || ! Post_Type::is_kayzart_post( $post_id ) || Agent_Working_Copy::is_copy( $post_id ) ) {
+			wp_die( esc_html__( 'This editor is only available for Kayzart posts.', 'kayzart-live-code-editor' ) );
+		}
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'kayzart-live-code-editor' ) );
+		}
+		wp_safe_redirect( Post_Type::get_editor_url( $post_id ) );
+		exit;
+	}
+
+	/**
+	 * Build the nonce-free link that opens a Kayzart page in the editor.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string
+	 */
+	public static function get_open_editor_url( int $post_id ): string {
+		return add_query_arg(
+			array(
+				'action'  => self::OPEN_EDITOR_ACTION,
+				'post_id' => $post_id,
+			),
+			admin_url( 'admin.php' )
+		);
 	}
 
 	/**
@@ -2572,13 +2614,14 @@ class Admin {
 			'ai'                           => array_merge(
 				Ai_Onboarding::get_data(),
 				array(
-					'jobsUrl'         => rest_url( 'kayzart/v1/ai/jobs' ),
-					'jobsBaseUrl'     => rest_url( 'kayzart/v1/ai/jobs/' ),
-					'timelineUrl'     => rest_url( 'kayzart/v1/ai/timeline' ),
-					'timelineBaseUrl' => rest_url( 'kayzart/v1/ai/timeline/' ),
-					'connectorsUrl'   => admin_url( 'options-connectors.php' ),
-					'settingsUrl'     => self::get_settings_url(),
-					'initialRequest'  => $initial_ai_request,
+					'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+					'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+					'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
+					'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
+					'agentProposalChecks' => Agent_Working_Copy::proposal_checks(),
+					'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+					'settingsUrl'         => self::get_settings_url(),
+					'initialRequest'      => $initial_ai_request,
 				)
 			),
 		);

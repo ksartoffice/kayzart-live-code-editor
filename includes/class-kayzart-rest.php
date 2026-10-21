@@ -187,7 +187,8 @@ class Rest {
 		if ( 0 >= $post_id ) {
 			return false;
 		}
-		if ( ! Post_Type::is_editor_enabled_post( $post_id ) ) {
+		// Only its agent writes a working copy, through Agent_Pages.
+		if ( ! Post_Type::is_editor_enabled_post( $post_id ) || Agent_Working_Copy::is_copy( $post_id ) ) {
 			return false;
 		}
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {

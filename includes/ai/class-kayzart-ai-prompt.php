@@ -119,6 +119,46 @@ class Ai_Prompt {
 	}
 
 	/**
+	 * Authoring rules handed to an external agent connected over MCP.
+	 *
+	 * The agent brings its own model, tools and planning, so the engine identity,
+	 * tool-use and finishing rules do not apply. What it must share with the
+	 * built-in engine is the shape of a Kayzart page, the editor mode rules and
+	 * the security rules, so those come from the same builders and cannot drift.
+	 * The server enforces the same policy on every write regardless.
+	 *
+	 * @param string $editor_mode normal or tailwind.
+	 * @return string
+	 */
+	public static function agent_guidelines( string $editor_mode = 'normal' ): string {
+		$page_rules = <<<'PROMPT'
+Kayzart page rules:
+- A page has separate sources: html (a body fragment), css, and optional head (custom additions inside the document <head>, such as <title> and <meta>). JavaScript is read-only for agents.
+- Never write <!doctype>, <html>, <head>, or <body> tags in html or head.
+- Do not add stylesheet or script links in html. CSS is loaded from the css source.
+- Build one complete page that covers the whole brief, with substantial, specific copy. Never leave placeholder stubs such as "Lorem ipsum" or an empty section.
+- Do not write HTML comments. They reach the published page.
+- You cannot add JavaScript, so build interaction without it: <details> and <summary> for accordions and FAQs, the popover attribute with a popovertarget button for menus and dialogs, :target for tabs and in-page switching, and CSS scroll-behavior, transitions and animations for motion.
+- Use only the font CSS values listed in fonts. Write a listed cssValue exactly, never its display name.
+- Use an image, video or audio URL only when it was given to you or kayzart/list-media returned it, and write it exactly. Never invent one. Give every image an alt attribute (alt="" when decorative).
+- Ensure the result is responsive on both mobile and desktop screens.
+- kayzart/create-page saves a new draft. A person reviews and publishes it in WordPress.
+- kayzart/update-page never changes the page itself. It saves your changes as a proposal in your own working copy, and a person merges it in the Kayzart editor and saves. Until then, kayzart/get-page and kayzart/get-preview-link show your proposal (state "proposed"), so keep refining it with the baseHash each result returns. When you are done, tell the person to open editUrl, merge your proposal and save. It cannot change the page title; suggest a new title in summary instead.
+- Read a page with kayzart/get-page before updating it, and pass its baseHash. If a person saved the page in the meantime, the update fails: read the page again and reapply your change. Prefer edits (exact from/to replacements) for small changes; send full sources only to rewrite a target.
+- Pass summary with every create or update: one sentence, in the page owner's language, saying what you changed. It is shown in the editor's AI history.
+- After saving, read warnings in the result and fix what applies. If you can open a browser, call kayzart/get-preview-link and check the page at a mobile and a desktop width before you report back.
+PROMPT;
+
+		return self::assemble(
+			array(
+				$page_rules,
+				self::editor_mode_rules( self::INTENT_CREATE, $editor_mode ),
+				self::security_rules(),
+			)
+		);
+	}
+
+	/**
 	 * Join prompt sections into one normalized prompt.
 	 *
 	 * @param array<int,string> $parts Prompt sections; empty ones are skipped.
@@ -325,6 +365,7 @@ PROMPT;
 - Match the human-readable language of the HTML to the existing document content, not to the language of the user's instruction. If the document already contains copy in a given language (for example English), keep writing in that language even when the instruction is written in a different language.
 - Only switch the output language when the user explicitly asks to translate or to write in a specific language.
 - If the document is empty or has no existing copy to infer a language from, use the same language as the user's instruction.
+- The summary is shown to the person who asked. Write it in the language of their instruction, in one to three plain sentences about what changed, and say so when part of the request could not be done.
 - You cannot open URLs. What a linked page says is known only from a reference block in the user message. Never describe, quote or imitate the content of a URL that has no readable reference block; build from the brief alone and say in your summary that the page could not be read.
 PROMPT;
 

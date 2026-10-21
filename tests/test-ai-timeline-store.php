@@ -41,7 +41,7 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertTrue( $this->store->complete( $job['job_uuid'], $payload, $after, str_repeat( 'a', 800 ) ) );
 		$item = $this->store->to_response( $this->store->get( (int) $first['id'] ) );
 		$this->assertSame( array( 'html' ), $item['changedTargets'] );
-		$this->assertArrayNotHasKey( 'summary', $item );
+		$this->assertSame( 512, strlen( $item['summary'] ), 'The summary is shown, truncated as stored.' );
 		$context = $this->store->recent_context( 42 );
 		$this->assertCount( 1, $context );
 		$this->assertLessThanOrEqual( 512, strlen( $context[0]['summary'] ) );
@@ -420,7 +420,6 @@ class Test_Kayzart_Ai_Timeline_Store extends WP_UnitTestCase {
 		$this->assertSame( Ai_Job_Store::STEPWISE_TIMEOUT_SECONDS * 1000, $item['timeoutMs'] );
 		$this->assertStringEndsWith( '+00:00', $item['createdAt'] );
 		$this->assertArrayNotHasKey( 'snapshot', $item );
-		$this->assertArrayNotHasKey( 'summary', $item );
 
 		global $wpdb;
 		$wpdb->delete( Ai_Setup::get_jobs_table_name(), array( 'job_uuid' => $job['job_uuid'] ), array( '%s' ) );

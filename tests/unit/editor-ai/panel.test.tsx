@@ -9,7 +9,7 @@ const afterSnapshot = { html: '<main>After</main>', customHead: '', css: 'main{}
 const timelineItem = {
   id: 12, activityId: 'activity-12', type: 'ai_edit', jobId: 'job-1', requestId: 'request-1', prompt: 'Improve the hero', contexts: [],
   executionStatus: 'completed', applicationStatus: 'applied', changedTargets: ['html', 'css'], changeStats: { html: { added: 2, removed: 1 }, css: { added: 1, removed: 0 } }, durationSeconds: 18, timeoutMs: 600000, model: 'gpt-4o', inputTokens: 1234, outputTokens: 567, beforeHash: 'before', afterHash: 'after', beforeJsMode: 'classic' as const, afterJsMode: 'classic' as const,
-  revisionId: null, sourceActivityId: null, sourcePrompt: null, restoreTarget: null, detailsAvailable: true, canPoll: true,
+  revisionId: null, sourceActivityId: null, sourcePrompt: null, restoreTarget: null, summary: 'Updated hero', detailsAvailable: true, canPoll: true,
   revisionAvailable: false, author: { id: 1, name: 'Editor' }, createdAt: '2026-07-15T00:00:00Z', updatedAt: '2026-07-15T00:00:01Z',
 };
 
@@ -181,7 +181,7 @@ describe('AiEditorPanel', () => {
     await act(async () => root.unmount());
   });
 
-  it('persists the prompt timeline, hides summary, and applies the completed snapshot', async () => {
+  it('persists the prompt timeline, shows the summary, and applies the completed snapshot', async () => {
     const replaceEditorSnapshot = vi.fn(() => true); const setEditorLock = vi.fn();
     (window as any).KAYZART_EXTENSION_API = {
       registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
@@ -215,7 +215,7 @@ describe('AiEditorPanel', () => {
     const createCall = fetchMock.mock.calls.find(([url]) => String(url) === '/jobs');
     expect(JSON.parse(String(createCall?.[1]?.body))).toMatchObject({ post_id: 7, prompt: 'Improve the hero', html: '<main>Before</main>' });
     await vi.waitFor(() => expect(container.textContent).toContain('Improve the hero'));
-    expect(container.textContent).not.toContain('Updated hero');
+    expect(container.querySelector('.kayzart-ai-result-summary')?.textContent).toBe('Updated hero');
     expect(container.textContent).toContain('Changes were applied.');
     expect(container.textContent).toContain('HTML+2−1');
     expect(container.textContent).toContain('Details');

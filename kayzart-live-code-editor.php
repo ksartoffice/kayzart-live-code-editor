@@ -3,7 +3,7 @@
  * Plugin Name: Kayzart — AI Landing Page Builder with Real HTML
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Build landing pages with AI inside WordPress — bring your own AI key. Real HTML/CSS you can edit live. No drag-and-drop, no builder lock-in.
- * Version: 3.4.2
+ * Version: 3.5.0
  * Requires at least: 5.9
  * Tested up to: 7.1
  * Requires PHP: 7.4
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '3.4.2' );
+define( 'KAYZART_VERSION', '3.5.0' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 
@@ -85,6 +85,11 @@ require_once KAYZART_PATH . 'includes/rest/class-kayzart-rest-revisions.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-rest.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-preview.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-frontend.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-checks.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-preview.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-working-copy.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-agent-pages.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-abilities.php';
 
 if ( ! function_exists( 'kayzart_is_standalone_mode' ) ) {
 	/**
@@ -133,6 +138,11 @@ add_action(
 
 		// Frontend rendering (public view).
 		\KayzArt\Frontend::init();
+
+		// Abilities for external AI agents (MCP via the MCP Adapter plugin).
+		\KayzArt\Agent_Preview::init();
+		\KayzArt\Agent_Working_Copy::init();
+		\KayzArt\Abilities::init();
 	}
 );
 

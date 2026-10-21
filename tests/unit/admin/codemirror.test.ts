@@ -5,6 +5,7 @@ import {
   initCodeMirrorEditors,
 } from '../../../src/admin/codemirror';
 import { EditorView } from '@codemirror/view';
+import { undo, redo } from '@codemirror/commands';
 
 describe('codemirror keybinding decoding', () => {
   it('decodes Shift + Alt + F for HTML formatting', () => {
@@ -154,6 +155,29 @@ describe('codemirror editor selection highlight', () => {
 
     expect(onBeforeHtmlUserInteraction).not.toHaveBeenCalled();
     expect(document.querySelector('.kayzart-highlight-inline')).toBeTruthy();
+  });
+
+  it('undoes a snapshot replacement independently of typing before and after it', async () => {
+    const { htmlModel, cssModel } = await createEditors();
+    const views = Array.from(document.querySelectorAll<HTMLElement>('.cm-editor')).map((element) => EditorView.findFromDOM(element)!);
+    for (const [model, view] of [[htmlModel, views[0]], [cssModel, views[2]]] as const) {
+      const initial = model.getValue();
+      view.dispatch({ changes: { from: 0, insert: 'before' }, userEvent: 'input.type' });
+      const beforeProposal = model.getValue();
+      const end = model.getPositionAt(beforeProposal.length);
+      model.pushEditOperations([], [{ range: new EditorRange(1, 1, end.lineNumber, end.column), text: 'proposal' }], () => null, { isolateHistory: true });
+      view.dispatch({ changes: { from: 8, insert: 'after' }, userEvent: 'input.type' });
+
+      expect(undo(view)).toBe(true);
+      expect(model.getValue()).toBe('proposal');
+      expect(undo(view)).toBe(true);
+      expect(model.getValue()).toBe(beforeProposal);
+      expect(undo(view)).toBe(true);
+      expect(model.getValue()).toBe(initial);
+      expect(redo(view)).toBe(true);
+      expect(redo(view)).toBe(true);
+      expect(model.getValue()).toBe('proposal');
+    }
   });
 
   it('resets document history when replacing a mode-specific CSS buffer', async () => {

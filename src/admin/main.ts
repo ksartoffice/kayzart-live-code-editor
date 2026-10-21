@@ -1,3 +1,4 @@
+import { computeEditorBaseHash } from './logic/editor-hash';
 import './style.css';
 import {
   initSettings,
@@ -131,17 +132,6 @@ const saveHtmlWordWrapMode = (mode: HtmlWordWrapMode) => {
   } catch {
     // Ignore storage errors and keep editing.
   }
-};
-
-const computeEditorBaseHash = (html: string, customHead: string, css: string, js: string) => {
-  const source = `${html}\n\u0000${customHead}\n\u0000${css}\n\u0000${js}`;
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < source.length; i += 1) {
-    hash ^= source.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-    hash >>>= 0;
-  }
-  return hash.toString(16).padStart(8, '0');
 };
 
 const buildHtmlExportFilename = (slug: string, title: string): string => {
@@ -909,6 +899,55 @@ async function main() {
     noticeErrorMs: NOTICE_ERROR_DURATION_MS,
   });
 
+  const updatePostIdentity = async ({ title, slug }: { title: string; slug: string }) => {
+    if (extensionEditorLock) {
+      return { ok: false, error: __( 'Wait for the AI edit to finish.', 'kayzart-live-code-editor') };
+    }
+    if (!cfg.settingsRestUrl || !wp?.apiFetch) {
+      return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };
+    }
+    try {
+      const response = await wp.apiFetch({
+        url: cfg.settingsRestUrl,
+        method: 'POST',
+        data: {
+          post_id: postId,
+          updates: {
+            title,
+            slug,
+          },
+        },
+      });
+      if (!response?.ok) {
+        return { ok: false, error: response?.error || __( 'Update failed.', 'kayzart-live-code-editor') };
+      }
+      const nextSettings = response.settings as SettingsData | undefined;
+      const nextTitle =
+        nextSettings && typeof nextSettings.title === 'string'
+          ? nextSettings.title
+          : title;
+      const nextSlug =
+        nextSettings && typeof nextSettings.slug === 'string'
+          ? nextSettings.slug
+          : slug;
+      postTitle = nextTitle;
+      postSlug = nextSlug;
+      toolbarApi?.update({ postTitle, postSlug });
+      settingsApi?.applySettings({ title: postTitle, slug: postSlug });
+      syncDocumentTitle(postTitle);
+      window.dispatchEvent(
+        new CustomEvent('kayzart-title-updated', { detail: { title: postTitle, slug: postSlug } })
+      );
+      reloadPreviewPreservingScroll();
+      return { ok: true };
+    } catch (error: any) {
+      return {
+        ok: false,
+        error: error?.message || __( 'Update failed.', 'kayzart-live-code-editor'),
+      };
+    }
+  };
+
   toolbarApi = mountToolbar(
     ui.toolbar,
     {
@@ -955,54 +994,7 @@ async function main() {
       },
       onToggleSettings: () => setSettingsOpen(!settingsOpen),
       onViewportChange: changeViewportPreservingScroll,
-      onUpdatePostIdentity: async ({ title, slug }) => {
-        if (extensionEditorLock) {
-          return { ok: false, error: __( 'Wait for the AI edit to finish.', 'kayzart-live-code-editor') };
-        }
-        if (!cfg.settingsRestUrl || !wp?.apiFetch) {
-          return { ok: false, error: __( 'Settings unavailable.', 'kayzart-live-code-editor') };
-        }
-        try {
-          const response = await wp.apiFetch({
-            url: cfg.settingsRestUrl,
-            method: 'POST',
-            data: {
-              post_id: postId,
-              updates: {
-                title,
-                slug,
-              },
-            },
-          });
-          if (!response?.ok) {
-            return { ok: false, error: response?.error || __( 'Update failed.', 'kayzart-live-code-editor') };
-          }
-          const nextSettings = response.settings as SettingsData | undefined;
-          const nextTitle =
-            nextSettings && typeof nextSettings.title === 'string'
-              ? nextSettings.title
-              : title;
-          const nextSlug =
-            nextSettings && typeof nextSettings.slug === 'string'
-              ? nextSettings.slug
-              : slug;
-          postTitle = nextTitle;
-          postSlug = nextSlug;
-          toolbarApi?.update({ postTitle, postSlug });
-          settingsApi?.applySettings({ title: postTitle, slug: postSlug });
-          syncDocumentTitle(postTitle);
-          window.dispatchEvent(
-            new CustomEvent('kayzart-title-updated', { detail: { title: postTitle, slug: postSlug } })
-          );
-          reloadPreviewPreservingScroll();
-          return { ok: true };
-        } catch (error: any) {
-          return {
-            ok: false,
-            error: error?.message || __( 'Update failed.', 'kayzart-live-code-editor'),
-          };
-        }
-      },
+      onUpdatePostIdentity: updatePostIdentity,
       onUpdateStatus: async (nextStatus) => {
         if (extensionEditorLock) {
           return { ok: false, error: __( 'Wait for the AI edit to finish.', 'kayzart-live-code-editor') };
@@ -2134,7 +2126,8 @@ async function main() {
           text: nextText,
         },
       ],
-      () => null
+      () => null,
+      { isolateHistory: true }
     );
     return true;
   };
@@ -2322,6 +2315,7 @@ async function main() {
       getElementContext: getElementContextById,
       setEditorLock,
       isEditorLocked: () => extensionEditorLock,
+      isSaving: () => saveInFlight,
     };
   };
 

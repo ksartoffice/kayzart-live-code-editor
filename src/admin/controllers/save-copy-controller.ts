@@ -324,23 +324,32 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     }
   };
 
-  const markSavedState = () => {
+  const captureEditorState = (): typeof lastSaved | null => {
     const htmlModel = deps.getHtmlModel();
     const customHeadModel = deps.getCustomHeadModel();
     const cssModel = deps.getCssModel();
     const jsModel = deps.getJsModel();
     if (!htmlModel || !customHeadModel || !cssModel || !jsModel) {
-      return;
+      return null;
     }
-    lastSaved = {
+    return {
       html: htmlModel.getValue(),
       customHead: customHeadModel.getValue(),
       css: cssModel.getValue(),
       js: jsModel.getValue(),
       jsMode: deps.getJsMode(),
       editorMode: deps.getEditorMode(),
-      cssByMode: deps.getCssByMode(),
+      cssByMode: { ...deps.getCssByMode() },
     };
+  };
+
+  /* A save records what it sent, not what the editor holds when the request
+     returns: anything changed while it was on its way stays unsaved. */
+  const markSavedState = (saved: typeof lastSaved | null = captureEditorState()) => {
+    if (!saved) {
+      return;
+    }
+    lastSaved = saved;
     syncUnsavedUi();
   };
 
@@ -393,6 +402,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         }
       }
 
+      const sent = captureEditorState();
       const result = await saveKayzArt({
         apiFetch: deps.apiFetch,
         restUrl: deps.restUrl,
@@ -413,6 +423,9 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         if (deps.canEditJs && typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
           replaceModelContent(customHeadModel, result.customHead);
         }
+        if (sent && deps.canEditJs && typeof result.customHead === 'string') {
+          sent.customHead = result.customHead;
+        }
         if (deps.canEditJs && Array.isArray(result.customHeadRemovedTags) && result.customHeadRemovedTags.length > 0) {
           deps.createSnackbar(
             'warning',
@@ -429,7 +442,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
           deps.applySettingsToSidebar(result.settings);
         }
         deps.clearPendingSettingsState();
-        markSavedState();
+        markSavedState(sent);
         deps.onSaveSuccess?.();
         deps.createSnackbar(
           'success',

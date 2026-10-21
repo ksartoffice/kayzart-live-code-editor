@@ -23,7 +23,7 @@ const AGENT_AT_WORK = [{ signature: '1', agentIdleSeconds: 30 }, { signature: '2
 
 type PollState = { signature: string; agentIdleSeconds: number | null };
 
-function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; states?: PollState[] }) {
+function setup(options: { timelines: Array<Timeline | Error>; editor?: typeof savedSnapshot; states?: PollState[]; snapshot?: () => Promise<typeof proposedSnapshot> }) {
   let editor = options.editor || savedSnapshot;
   const replaceEditorSnapshot = vi.fn((snapshot: typeof savedSnapshot) => { editor = snapshot; return true; });
   const createNotice = vi.fn();
@@ -42,16 +42,17 @@ function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; 
     const method = init?.method || 'GET';
     requests.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : null });
     if (url.includes('/timeline/state')) return json({ ok: true, ...(states.length > 1 ? states.shift() : states[0]) });
-    if (url.includes('/timeline/40/snapshot') && url.includes('target=after')) return json({ ok: true, snapshot: proposedSnapshot });
+    if (url.includes('/timeline/40/snapshot') && url.includes('target=after')) return json({ ok: true, snapshot: options.snapshot ? await options.snapshot() : proposedSnapshot });
     if (url.includes('/timeline/40/snapshot') && url.includes('target=before')) return json({ ok: true, snapshot: savedSnapshot });
     if (url.includes('/timeline/40/discard')) return json({ ok: true, item: { ...proposalItem, applicationStatus: 'discarded' } });
     if (url.includes('/timeline') && method === 'GET') {
       const page = timelines.length > 1 ? timelines.shift()! : timelines[0];
+      if (page instanceof Error) throw page;
       return json({ ok: true, items: page.items, hasMore: false, nextCursor: null });
     }
     throw new Error(`Unexpected request ${method} ${url}`);
   });
-  return { replaceEditorSnapshot, createNotice, fetchMock, requests, editor: () => editor };
+  return { replaceEditorSnapshot, createNotice, fetchMock, requests, editor: () => editor, setEditor: (next: typeof savedSnapshot) => { editor = next; } };
 }
 
 async function render() {
@@ -88,6 +89,8 @@ describe('AiEditorPanel agent proposals', () => {
     expect(container.querySelector('.kayzart-ai-proposal-notice')).toBeNull();
     expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('In the editor, not saved yet.');
     expect(container.querySelector('.is-proposal .is-merge')).toBeNull();
+    expect(container.querySelector('.is-proposal .is-discard')).toBeNull();
+    expect(card.textContent).toContain('To undo the changes, use Undo in each code editor.');
     await act(async () => root.unmount());
   });
 
@@ -124,7 +127,7 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => again.root.unmount());
   });
 
-  it('does not replace the editor while a save is on its way', async () => {
+  it('announces proposals during a save without replacing the editor', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
     const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
     let saving = true;
@@ -133,16 +136,16 @@ describe('AiEditorPanel agent proposals', () => {
 
     await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
     expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
-    expect(env.requests.some((request) => request.url.includes('/timeline/state'))).toBe(false);
+    expect(env.createNotice).toHaveBeenCalledWith('info', 'Claude Code proposed changes to this page. Review them in AI Edit.', expect.anything());
 
-    // The save finishes; the history reload after it merges the proposal.
+    // The save finishes; its history reload still only announces proposals.
     saving = false;
     await act(async () => { window.dispatchEvent(new CustomEvent('kayzart-editor-saved')); await vi.advanceTimersByTimeAsync(200); });
-    expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' }));
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
     await act(async () => root.unmount());
   });
 
-  it('merges a proposal that arrives while the editor holds what the agent started from', async () => {
+  it('only announces a proposal even when the editor holds what the agent started from', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
     const env = setup({ timelines: [{ items: [] }, { items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
     const { container, root } = await render();
@@ -150,17 +153,21 @@ describe('AiEditorPanel agent proposals', () => {
 
     await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
 
-    expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' }));
-    expect(env.createNotice).toHaveBeenCalledWith('info', 'Claude Code changed this page. The changes are in the editor and not saved yet.', expect.anything());
-    expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('In the editor, not saved yet.');
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(env.createNotice).toHaveBeenCalledWith('info', 'Claude Code proposed changes to this page. Review them in AI Edit.', expect.anything());
+    expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('Not in the editor yet.');
+    expect(env.requests.some((request) => request.url.includes('/snapshot'))).toBe(false);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(env.createNotice).toHaveBeenCalledTimes(1);
     await act(async () => root.unmount());
   });
 
   it('finds a proposal that arrived right after the first history load', async () => {
     const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: [{ signature: '2', agentIdleSeconds: 0 }] });
-    const { root } = await render();
+    const { container, root } = await render();
 
-    await vi.waitFor(() => expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' })));
+    expect(container.querySelector('.is-proposal .is-merge')).not.toBeNull();
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
     await act(async () => root.unmount());
   });
 
@@ -183,15 +190,72 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => root.unmount());
   });
 
-  it('discarding a merged proposal puts the editor back and discards it on the server', async () => {
-    const env = setup({ timelines: [{ items: [proposalItem] }, { items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'discarded' }] }] });
+  it('retries a failed history refresh even when the polling signature has not changed', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval', 'clearTimeout'] });
+    const env = setup({
+      timelines: [{ items: [] }, new Error('Temporary connection failure'), { items: [proposalItem] }],
+      states: [{ signature: '2', agentIdleSeconds: 0 }],
+    });
+    const { container, root } = await render();
+    expect(container.querySelector('.is-proposal')).toBeNull();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+
+    expect(container.querySelector('.is-proposal .is-merge')).not.toBeNull();
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(env.createNotice).toHaveBeenCalledTimes(1);
+    await act(async () => root.unmount());
+  });
+
+  it('checks for edits made while the manual proposal fetch is pending', async () => {
+    let resolveSnapshot!: (snapshot: typeof proposedSnapshot) => void;
+    const env = setup({
+      timelines: [{ items: [proposalItem] }],
+      snapshot: () => new Promise((resolve) => { resolveSnapshot = resolve; }),
+    });
     const { container, root } = await render();
     await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
+    env.setEditor({ ...savedSnapshot, html: '<main>Typed while waiting</main>', baseHash: 'typed' });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    await act(async () => resolveSnapshot(proposedSnapshot));
+
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(env.editor().baseHash).toBe('typed');
+    await act(async () => root.unmount());
+  });
+
+  it('does not apply a manual proposal when a save starts during its fetch', async () => {
+    let resolveSnapshot!: (snapshot: typeof proposedSnapshot) => void;
+    const env = setup({
+      timelines: [{ items: [proposalItem] }],
+      snapshot: () => new Promise((resolve) => { resolveSnapshot = resolve; }),
+    });
+    let saving = false;
+    (window as any).KAYZART_EXTENSION_API.isSaving = () => saving;
+    const { container, root } = await render();
+    await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
+    saving = true;
+
+    await act(async () => resolveSnapshot(proposedSnapshot));
+
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(container.querySelector('.is-proposal .is-merge')).not.toBeNull();
+    await act(async () => root.unmount());
+  });
+
+  it('discards a waiting proposal without changing unsaved content or fetching a rollback snapshot', async () => {
+    const edited = { ...savedSnapshot, html: '<main>Edited</main>', baseHash: 'edited' };
+    const env = setup({ editor: edited, timelines: [{ items: [proposalItem] }, { items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'discarded' }] }] });
+    const { container, root } = await render();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-discard')!.click());
 
-    expect(env.editor().html).toBe('<main>Saved</main>');
+    expect(env.editor()).toEqual(edited);
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(env.requests.some((request) => request.url.includes('/snapshot'))).toBe(false);
     expect(env.requests.some((request) => request.url.includes('/timeline/40/discard') && request.method === 'POST')).toBe(true);
     expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('Discarded.');
     await act(async () => root.unmount());
@@ -223,8 +287,8 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => { window.dispatchEvent(new Event('focus')); await vi.advanceTimersByTimeAsync(0); });
 
     expect(checks()).toBe(2);
-    expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' }));
-    expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('In the editor, not saved yet.');
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('Not in the editor yet.');
     await act(async () => root.unmount());
   });
 

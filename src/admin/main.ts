@@ -2136,7 +2136,8 @@ async function main() {
           text: nextText,
         },
       ],
-      () => null
+      () => null,
+      { isolateHistory: true }
     );
     return true;
   };

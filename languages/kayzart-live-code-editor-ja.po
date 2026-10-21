@@ -3147,12 +3147,6 @@ msgid "The proposal could not be merged."
 msgstr "変更案を取り込めませんでした。"
 
 #. translators: %s: name of the external AI agent, such as Claude Code.
-#: assets/dist/main.js:1812
-#, js-format
-msgid "%s changed this page. The changes are in the editor and not saved yet."
-msgstr "%s がこのページを変更しました。変更はエディタに反映済みで、まだ保存されていません。"
-
-#. translators: %s: name of the external AI agent, such as Claude Code.
 #: assets/dist/main.js:1818
 #, js-format
 msgid "%s proposed changes to this page. Review them in AI Edit."
@@ -3197,3 +3191,8 @@ msgstr "下で内容を確認し、「取り込む」を押してください。
 #: includes/class-kayzart-agent-pages.php:543
 msgid "Provide html, css, head or edits to update."
 msgstr "更新する html、css、head または edits を指定してください。"
+
+
+#: assets/dist/main.js
+msgid "To undo the changes, use Undo in each code editor."
+msgstr "変更を取り消すには、変更した各コードエディタの「元に戻す」を使ってください。"

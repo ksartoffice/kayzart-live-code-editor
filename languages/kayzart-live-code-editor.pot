@@ -2318,12 +2318,6 @@ msgid "The proposal could not be merged."
 msgstr ""
 
 #. translators: %s: name of the external AI agent, such as Claude Code.
-#: assets/dist/main.js:1812
-#, js-format
-msgid "%s changed this page. The changes are in the editor and not saved yet."
-msgstr ""
-
-#. translators: %s: name of the external AI agent, such as Claude Code.
 #: assets/dist/main.js:1818
 #, js-format
 msgid "%s proposed changes to this page. Review them in AI Edit."
@@ -3199,4 +3193,9 @@ msgstr ""
 
 #: assets/dist/main.js:10461
 msgid "Tailwind compile failed. The CSS mode was not changed."
+msgstr ""
+
+
+#: assets/dist/main.js
+msgid "To undo the changes, use Undo in each code editor."
 msgstr ""

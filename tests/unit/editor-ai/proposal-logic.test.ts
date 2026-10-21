@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AiTimelineItem } from '../../../src/editor-ai/contract';
 import {
-  actionableProposals, arrivedProposals, canMergeAutomatically, includedProposalIds, proposalPollDelay, proposalView,
+  actionableProposals, proposalPollDelay, proposalView,
 } from '../../../src/editor-ai/proposals';
 
 function proposal(id: number, chain: string, before: string, after: string, overrides: Partial<AiTimelineItem> = {}) {
@@ -26,8 +26,6 @@ describe('agent proposals', () => {
 
   it('offers the newest pending proposal of each chain', () => {
     expect(actionableProposals(items).map((item) => item.id)).toEqual([11, 12]);
-    expect(includedProposalIds(second, items)).toEqual([10, 11]);
-    expect(includedProposalIds(first, items)).toEqual([10]);
   });
 
   it('describes each proposal for its card', () => {
@@ -37,20 +35,6 @@ describe('agent proposals', () => {
     expect(proposalView(second, items, null)).toBe('pending');
     expect(proposalView(saved, items, 'h0')).toBe('saved');
     expect(proposalView(proposal(13, 'c3', 'a', 'b', { applicationStatus: 'discarded' }), items, 'b')).toBe('discarded');
-  });
-
-  it('merges automatically only when the editor holds what the agent started from', () => {
-    expect(canMergeAutomatically([first, second], { baseHash: 'h0', jsMode: 'classic' })).toBe(true);
-    expect(canMergeAutomatically([second], { baseHash: 'h1', jsMode: 'classic' })).toBe(true);
-    expect(canMergeAutomatically([second], { baseHash: 'h0', jsMode: 'classic' })).toBe(false);
-    expect(canMergeAutomatically([first], { baseHash: 'h0', jsMode: 'module' })).toBe(false);
-    expect(canMergeAutomatically([first], null)).toBe(false);
-  });
-
-  it('groups proposals that arrived since the handled ones by chain', () => {
-    const groups = arrivedProposals(items, new Set([10]));
-    expect(groups.map((group) => [group.newest.id, group.arrived.map((item) => item.id)])).toEqual([[11, [11]], [12, [12]]]);
-    expect(arrivedProposals(items, new Set([10, 11, 12]))).toEqual([]);
   });
 
   it('checks often only while an agent has written recently', () => {

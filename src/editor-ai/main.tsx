@@ -30,6 +30,8 @@ const DEFAULT_MAX_PROMPT_CHARS = 8000;
 const MAX_CONTEXTS = 20;
 const ELEMENTS_PANEL_SELECTOR = '[data-kayzart-panel="elements"]';
 const ELEMENTS_BUTTON_CLASS = 'kayzart-ai-elements-button';
+/* Minimum time between proposal checks triggered by focus or visibility. */
+const RESUME_CHECK_GAP_MS = 2000;
 
 type PendingConflict = {
   output: EditorSnapshot;
@@ -588,25 +590,30 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     };
   }, []);
 
-  /* Sites where no agent has written make no background requests. Elsewhere
-     the editor checks often while an agent is at work on the page and rarely
-     otherwise, and not at all while the tab is hidden. */
+  /* How the editor watches for agent proposals: never where agents cannot
+     connect; once whenever the person comes back to the editor window or tab
+     ("focus"); and on a timer as well where agents are used ("poll"), often
+     while an agent is at work on the page and rarely otherwise. A hidden tab
+     is never checked. */
   useEffect(() => {
     const baseUrl = ai?.timelineBaseUrl;
-    if (!baseUrl || postId <= 0 || !ai?.agentProposals) return;
+    const mode = ai?.agentProposalChecks;
+    if (!baseUrl || postId <= 0 || (mode !== 'focus' && mode !== 'poll')) return;
     let signature = '';
     let delay = PROPOSAL_POLL_IDLE_MS;
     let timer = 0;
     let inFlight = false;
     let stopped = false;
+    let lastCheck = 0;
     const schedule = () => {
       window.clearTimeout(timer);
-      if (!stopped) timer = window.setTimeout(() => void check(), delay);
+      if (!stopped && mode === 'poll') timer = window.setTimeout(() => void check(), delay);
     };
     const check = async () => {
       if (inFlight) return;
       if (document.hidden) { schedule(); return; }
       inFlight = true;
+      lastCheck = Date.now();
       try {
         const state = await getTimelineState(baseUrl, nonce, postId);
         if (stopped || !mountedRef.current) return;
@@ -618,11 +625,17 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       } catch { /* Checked again later. */ } finally { inFlight = false; }
       schedule();
     };
-    const resume = () => { if (!document.hidden) void check(); };
+    /* Coming back from the agent's window is when a person looks for its result.
+       Focus also returns from the preview frame, hence the short gap. */
+    const resume = () => { if (!document.hidden && Date.now() - lastCheck >= RESUME_CHECK_GAP_MS) void check(); };
     document.addEventListener('visibilitychange', resume);
+    window.addEventListener('focus', resume);
     void check();
-    return () => { stopped = true; window.clearTimeout(timer); document.removeEventListener('visibilitychange', resume); };
-  }, [ai?.timelineBaseUrl, ai?.agentProposals]);
+    return () => {
+      stopped = true; window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', resume); window.removeEventListener('focus', resume);
+    };
+  }, [ai?.timelineBaseUrl, ai?.agentProposalChecks]);
 
   useEffect(() => {
     const syncEditorIdentity = () => {

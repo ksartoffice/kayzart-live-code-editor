@@ -2614,15 +2614,14 @@ class Admin {
 			'ai'                           => array_merge(
 				Ai_Onboarding::get_data(),
 				array(
-					'jobsUrl'         => rest_url( 'kayzart/v1/ai/jobs' ),
-					'jobsBaseUrl'     => rest_url( 'kayzart/v1/ai/jobs/' ),
-					'timelineUrl'     => rest_url( 'kayzart/v1/ai/timeline' ),
-					'timelineBaseUrl' => rest_url( 'kayzart/v1/ai/timeline/' ),
-					// Only sites where an agent has written check for incoming proposals.
-					'agentProposals'  => Agent_Working_Copy::in_use(),
-					'connectorsUrl'   => admin_url( 'options-connectors.php' ),
-					'settingsUrl'     => self::get_settings_url(),
-					'initialRequest'  => $initial_ai_request,
+					'jobsUrl'             => rest_url( 'kayzart/v1/ai/jobs' ),
+					'jobsBaseUrl'         => rest_url( 'kayzart/v1/ai/jobs/' ),
+					'timelineUrl'         => rest_url( 'kayzart/v1/ai/timeline' ),
+					'timelineBaseUrl'     => rest_url( 'kayzart/v1/ai/timeline/' ),
+					'agentProposalChecks' => Agent_Working_Copy::proposal_checks(),
+					'connectorsUrl'       => admin_url( 'options-connectors.php' ),
+					'settingsUrl'         => self::get_settings_url(),
+					'initialRequest'      => $initial_ai_request,
 				)
 			),
 		);

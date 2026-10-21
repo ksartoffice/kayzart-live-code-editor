@@ -1484,8 +1484,9 @@ class Test_Abilities extends WP_UnitTestCase {
 		$quiet->set_header( 'X-WP-Nonce', $nonce );
 		$quiet->set_param( 'post_id', Agent_Pages::create_page( array( 'title' => 'Quiet', 'html' => '<p>Hi</p>' ) )['page']['id'] );
 		$this->assertLessThan( 60, rest_get_server()->dispatch( $quiet )->get_data()['agentIdleSeconds'], 'Creating a page is agent work too.' );
+		delete_option( Agent_Pages::SEEN_OPTION );
 		$quiet->set_param( 'post_id', self::factory()->post->create( array( 'post_type' => 'page' ) ) );
-		$this->assertNull( rest_get_server()->dispatch( $quiet )->get_data()['agentIdleSeconds'], 'No agent ever wrote to this page.' );
+		$this->assertNull( rest_get_server()->dispatch( $quiet )->get_data()['agentIdleSeconds'], 'No agent ever worked on this page.' );
 
 		$discard = new WP_REST_Request( 'POST', '/kayzart/v1/ai/timeline/' . $items[1]['id'] . '/discard' );
 		$discard->set_header( 'X-WP-Nonce', $nonce );
@@ -1509,10 +1510,10 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 403, rest_get_server()->dispatch( $state )->get_status() );
 	}
 
-	public function test_the_editor_checks_for_proposals_only_once_an_agent_has_written(): void {
+	public function test_the_editor_checks_on_a_timer_once_agents_are_used(): void {
 		delete_option( Agent_Working_Copy::IN_USE_OPTION );
 		wp_set_current_user( $this->admin() );
-		$this->assertFalse( Agent_Working_Copy::in_use() );
+		$this->assertSame( 'focus', Agent_Working_Copy::proposal_checks(), 'Without the MCP Adapter or an agent write, the editor checks when the person comes back.' );
 
 		Agent_Pages::create_page(
 			array(
@@ -1520,9 +1521,43 @@ class Test_Abilities extends WP_UnitTestCase {
 				'html'  => '<p>Hi</p>',
 			)
 		);
-
-		$this->assertTrue( Agent_Working_Copy::in_use() );
+		$this->assertSame( 'poll', Agent_Working_Copy::proposal_checks() );
 		delete_option( Agent_Working_Copy::IN_USE_OPTION );
+
+		$checks = static function () {
+			return 'nonsense';
+		};
+		add_filter( 'kayzart_agent_proposal_checks', $checks );
+		try {
+			$this->assertSame( 'focus', Agent_Working_Copy::proposal_checks(), 'An unknown value falls back to focus.' );
+		} finally {
+			remove_filter( 'kayzart_agent_proposal_checks', $checks );
+		}
+	}
+
+	public function test_an_agent_reading_counts_as_at_work(): void {
+		wp_set_current_user( $this->admin() );
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Read first',
+				'html'  => '<p>Hi</p>',
+			)
+		);
+		$page_id = $created['page']['id'];
+		delete_option( Agent_Pages::SEEN_OPTION );
+		delete_post_meta( $page_id, Agent_Pages::SEEN_META );
+		$this->assertNull( Agent_Pages::seen_seconds_ago( $page_id ) );
+
+		Agent_Pages::get_page( $page_id );
+
+		$this->assertLessThan( 5, Agent_Pages::seen_seconds_ago( $page_id ) );
+		$this->assertNotSame( '', get_post_meta( $page_id, Agent_Pages::SEEN_META, true ) );
+		$started = Agent_Working_Copy::start( $page_id, Agent_Pages::agent_key() );
+		$this->assertSame( '', get_post_meta( $started['id'], Agent_Pages::SEEN_META, true ), 'The working copy does not carry it.' );
+
+		delete_post_meta( $page_id, Agent_Pages::SEEN_META );
+		Agent_Pages::guidelines( 'normal' );
+		$this->assertLessThan( 5, Agent_Pages::seen_seconds_ago( $page_id ), 'Reading the guidelines counts for every page.' );
 	}
 
 	/**

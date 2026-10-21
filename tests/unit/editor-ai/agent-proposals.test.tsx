@@ -69,7 +69,7 @@ describe('AiEditorPanel agent proposals', () => {
     (window as any).KAYZART = { post_id: 7, restNonce: 'nonce', ai: {
       available: true, featureEnabled: true, sdkPresent: true, providerConfigured: true, schedulerPresent: true, mbstringPresent: true, domPresent: true, canEdit: true,
       jobsUrl: '/jobs', jobsBaseUrl: '/jobs/', timelineUrl: '/timeline', timelineBaseUrl: '/timeline/', connectorsUrl: '/connectors', canManageConnectors: true,
-      agentProposals: true,
+      agentProposalChecks: 'poll',
     } };
   });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); document.body.innerHTML = ''; delete (window as any).wp; });
@@ -155,15 +155,34 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => root.unmount());
   });
 
-  it('makes no background requests on a site where no agent has written', async () => {
+  it('never checks where agents cannot connect', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval', 'clearTimeout'] });
-    (window as any).KAYZART.ai.agentProposals = false;
+    (window as any).KAYZART.ai.agentProposalChecks = 'none';
     const env = setup({ timelines: [{ items: [] }] });
     const { root } = await render();
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000); window.dispatchEvent(new Event('focus')); });
 
     expect(env.requests.filter((request) => request.url.includes('/timeline/state'))).toHaveLength(0);
+    await act(async () => root.unmount());
+  });
+
+  it('checks only when the person comes back where no agent has been used yet', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval', 'clearTimeout', 'Date'] });
+    (window as any).KAYZART.ai.agentProposalChecks = 'focus';
+    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
+    const { container, root } = await render();
+    const checks = () => env.requests.filter((request) => request.url.includes('/timeline/state')).length;
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000); });
+    expect(checks()).toBe(1);
+
+    // The person asked the agent in another window and comes back.
+    await act(async () => { window.dispatchEvent(new Event('focus')); await vi.advanceTimersByTimeAsync(0); });
+
+    expect(checks()).toBe(2);
+    expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' }));
+    expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('In the editor, not saved yet.');
     await act(async () => root.unmount());
   });
 

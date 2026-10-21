@@ -61,6 +61,7 @@ final class Agent_Working_Copy {
 		self::AGENT_META,
 		self::BASE_META,
 		self::CHAIN_META,
+		Agent_Pages::SEEN_META,
 	);
 
 	/**
@@ -89,15 +90,34 @@ final class Agent_Working_Copy {
 	}
 
 	/**
-	 * Whether agents can send proposals here and one already has written.
+	 * How the open editor watches for incoming proposals.
 	 *
-	 * The editor checks for incoming proposals only then, so sites that do
-	 * not use agents make no background requests at all.
+	 * - none: agents cannot connect (no Abilities API), so it never checks.
+	 * - focus: agents could connect but nothing shows one is used. It checks
+	 *   once when the person comes back to the editor window or tab, which
+	 *   is when a person who asked an agent elsewhere looks for the result.
+	 * - poll: an agent has written here, or the MCP Adapter that agents
+	 *   connect through is active. It also checks on a timer, so a person
+	 *   watching the editor next to the agent sees proposals arrive.
 	 *
-	 * @return bool
+	 * @return string none, focus or poll.
 	 */
-	public static function in_use(): bool {
-		return Abilities::is_supported() && '1' === get_option( self::IN_USE_OPTION, '' );
+	public static function proposal_checks(): string {
+		if ( ! Abilities::is_supported() ) {
+			return 'none';
+		}
+		$in_use = '1' === get_option( self::IN_USE_OPTION, '' ) || class_exists( '\\WP\\MCP\\Core\\McpAdapter' );
+		$checks = $in_use ? 'poll' : 'focus';
+		/**
+		 * Filters how the open editor watches for agent proposals.
+		 *
+		 * Return poll on a site whose agents connect through another MCP
+		 * server, or focus to avoid timed checks.
+		 *
+		 * @param string $checks focus or poll.
+		 */
+		$checks = (string) apply_filters( 'kayzart_agent_proposal_checks', $checks );
+		return in_array( $checks, array( 'none', 'focus', 'poll' ), true ) ? $checks : 'focus';
 	}
 
 	/**

@@ -93,12 +93,14 @@ class Rest_Ai_Timeline {
 
 	/** Return what the editor needs to poll the post timeline cheaply. */
 	public static function state( \WP_REST_Request $request ) {
-		return rest_ensure_response(
-			array_merge(
-				array( 'ok' => true ),
-				( new Ai_Timeline_Store() )->poll_state( absint( $request->get_param( 'post_id' ) ) )
-			)
-		);
+		$post_id = absint( $request->get_param( 'post_id' ) );
+		$state   = ( new Ai_Timeline_Store() )->poll_state( $post_id );
+		// An agent reading the page or the site counts as at work too.
+		$seen = Agent_Pages::seen_seconds_ago( $post_id );
+		if ( null !== $seen && ( null === $state['agentIdleSeconds'] || $seen < $state['agentIdleSeconds'] ) ) {
+			$state['agentIdleSeconds'] = $seen;
+		}
+		return rest_ensure_response( array_merge( array( 'ok' => true ), $state ) );
 	}
 
 	/** Settle agent proposals the person just saved merged. */

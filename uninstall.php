@@ -24,3 +24,5 @@ delete_option( 'kayzart_review_save_count' );
 delete_option( 'kayzart_review_since' );
 delete_metadata( 'user', 0, 'kayzart_review_state', '', true );
 delete_option( 'kayzart_agent_in_use' );
+delete_option( 'kayzart_agent_seen' );
+delete_metadata( 'post', 0, '_kayzart_agent_seen', '', true );

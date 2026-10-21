@@ -52,6 +52,13 @@ class Agent_Pages {
 	/** CSS modes a page can be created in. */
 	const CSS_MODES = array( 'normal', 'tailwind' );
 
+	/** Option and page meta holding when an agent last called Kayzart. */
+	const SEEN_OPTION = 'kayzart_agent_seen';
+	const SEEN_META   = '_kayzart_agent_seen';
+
+	/** Seconds within which a repeated call is not recorded again. */
+	const SEEN_RESOLUTION = 30;
+
 	/**
 	 * Whether the current user may use agent page operations at all.
 	 *
@@ -148,6 +155,7 @@ class Agent_Pages {
 	 * @return array
 	 */
 	public static function guidelines( string $css_mode ): array {
+		self::seen();
 		$css_mode = 'tailwind' === $css_mode ? 'tailwind' : 'normal';
 		$fonts    = Ai_Fonts::catalog_for_tool( Ai_Fonts::resolve_for_payload() );
 		unset( $fonts['ok'] );
@@ -172,6 +180,7 @@ class Agent_Pages {
 	 * @return array
 	 */
 	public static function list_pages( array $input ): array {
+		self::seen();
 		$per_page = isset( $input['perPage'] ) ? (int) $input['perPage'] : self::DEFAULT_PER_PAGE;
 		$per_page = max( 1, min( self::MAX_PER_PAGE, $per_page ) );
 		$page     = isset( $input['page'] ) ? max( 1, (int) $input['page'] ) : 1;
@@ -386,6 +395,7 @@ class Agent_Pages {
 		if ( ! self::can_edit( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
+		self::seen( $post_id );
 		$copy_id = Agent_Working_Copy::current( $post_id, self::agent_key() );
 		return array_merge(
 			Agent_Preview::issue( $copy_id ? $copy_id : $post_id ),
@@ -408,6 +418,7 @@ class Agent_Pages {
 		if ( ! $post instanceof \WP_Post || ! self::is_agent_page( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
+		self::seen( $post_id );
 		$copy_id    = Agent_Working_Copy::current( $post_id, self::agent_key() );
 		$working_id = $copy_id ? $copy_id : $post_id;
 		$snapshot   = Snapshot::for_post( $working_id );
@@ -800,6 +811,36 @@ class Agent_Pages {
 				'version'     => $proposal ? Agent_Working_Copy::version( $written_id ) : '',
 			)
 		);
+	}
+
+	/**
+	 * Record that an agent is at work, on the site and on a page.
+	 *
+	 * An agent reads before it writes, so an open editor can start checking
+	 * for proposals often before the first one arrives. Calls within
+	 * SEEN_RESOLUTION seconds of the last record write nothing.
+	 *
+	 * @param int $post_id Page the agent is working on, or 0.
+	 */
+	private static function seen( int $post_id = 0 ): void {
+		$now = time();
+		if ( $now - (int) get_option( self::SEEN_OPTION, 0 ) >= self::SEEN_RESOLUTION ) {
+			update_option( self::SEEN_OPTION, $now, false );
+		}
+		if ( $post_id > 0 && $now - (int) get_post_meta( $post_id, self::SEEN_META, true ) >= self::SEEN_RESOLUTION ) {
+			update_post_meta( $post_id, self::SEEN_META, $now );
+		}
+	}
+
+	/**
+	 * Seconds since an agent last called Kayzart for a page or for the site.
+	 *
+	 * @param int $post_id Page ID.
+	 * @return int|null Null when no agent has.
+	 */
+	public static function seen_seconds_ago( int $post_id ): ?int {
+		$last = max( (int) get_option( self::SEEN_OPTION, 0 ), (int) get_post_meta( $post_id, self::SEEN_META, true ) );
+		return $last > 0 ? max( 0, time() - $last ) : null;
 	}
 
 	/**

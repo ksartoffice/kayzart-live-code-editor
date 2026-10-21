@@ -43,8 +43,12 @@ export type AiAvailability = {
   jobsBaseUrl: string;
   timelineUrl: string;
   timelineBaseUrl: string;
-  /** True once an agent has written to this site; only then does the editor check for incoming proposals. */
-  agentProposals?: boolean;
+  /**
+   * How the editor watches for agent proposals: none where agents cannot
+   * connect, focus to check when the person returns to the editor, poll to
+   * also check on a timer where agents are used.
+   */
+  agentProposalChecks?: 'none' | 'focus' | 'poll';
   connectorsUrl: string;
 	settingsUrl?: string;
   canManageConnectors: boolean;

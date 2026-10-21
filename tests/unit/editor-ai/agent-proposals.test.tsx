@@ -1,11 +1,13 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EditorSnapshot } from '../../../src/editor-ai/contract';
+import { proposalHash } from '../../../src/editor-ai/proposals';
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const savedSnapshot = { html: '<main>Saved</main>', customHead: '', css: '', js: '', jsMode: 'classic' as const, baseHash: 'saved' };
-const proposedSnapshot = { html: '<main>Proposed</main>', customHead: '', css: '', js: '', jsMode: 'classic' as const, baseHash: 'proposed' };
+const savedSnapshot: EditorSnapshot = { html: '<main>Saved</main>', customHead: '', css: '', js: '', jsMode: 'classic', baseHash: 'saved' };
+const proposedSnapshot: EditorSnapshot = { html: '<main>Proposed</main>', customHead: '', css: '', js: '', jsMode: 'classic', baseHash: 'proposed' };
 const proposalItem = {
   id: 40, activityId: 'activity-40', type: 'agent_edit', jobId: null, requestId: null, prompt: null, contexts: [],
   executionStatus: 'completed', applicationStatus: 'pending', changedTargets: ['html'],
@@ -13,7 +15,7 @@ const proposalItem = {
   model: null, inputTokens: null, outputTokens: null, beforeHash: 'saved', afterHash: 'proposed',
   beforeJsMode: 'classic' as const, afterJsMode: 'classic' as const, revisionId: 201, sourceActivityId: null, sourcePrompt: null,
   restoreTarget: null, detailsAvailable: true, beforeAvailable: true, agentClient: 'Claude Code', agentAction: 'update' as const,
-  summary: 'Rewrote the hero.', canPoll: false, revisionAvailable: false, proposal: { agent: 'agent', chain: 'chain' },
+  summary: 'Rewrote the hero.', canPoll: false, revisionAvailable: false, proposal: { agent: 'agent', chain: 'chain', beforeHash: proposalHash(savedSnapshot), afterHash: proposalHash(proposedSnapshot) },
   author: { id: 1, name: 'Editor' }, createdAt: '2026-10-21T00:00:00Z', updatedAt: '2026-10-21T00:00:00Z',
 };
 
@@ -223,6 +225,23 @@ describe('AiEditorPanel agent proposals', () => {
     expect(confirm).toHaveBeenCalledTimes(1);
     expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
     expect(env.editor().baseHash).toBe('typed');
+    await act(async () => root.unmount());
+  });
+
+  it('imports agent sources while retaining newer JavaScript and its mode', async () => {
+    const current: EditorSnapshot = { ...savedSnapshot, js: 'console.log("newer");', jsMode: 'module', baseHash: 'new-js' };
+    const env = setup({ timelines: [{ items: [proposalItem] }], editor: current });
+    const confirm = vi.spyOn(window, 'confirm');
+    const { container, root } = await render();
+
+    await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
+
+    expect(env.editor()).toMatchObject({ html: proposedSnapshot.html, js: current.js, jsMode: 'module' });
+    expect(env.editor().baseHash).not.toBe(proposedSnapshot.baseHash);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(container.querySelector('.is-proposal')?.textContent).toContain('In the editor, not saved yet.');
+    expect(container.querySelector('.is-proposal .is-discard')).toBeNull();
+    expect(container.querySelector('.kayzart-ai-proposal-notice')).toBeNull();
     await act(async () => root.unmount());
   });
 

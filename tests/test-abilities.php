@@ -1014,6 +1014,52 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertNotContains( $secret, $ids, 'A file attached to someone else\'s draft stays hidden.' );
 	}
 
+	public function test_media_permissions_and_pagination_are_preserved_across_bounded_batches(): void {
+		$admin  = $this->admin();
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		$public = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_author' => $admin ) );
+		$secret = self::factory()->post->create( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_author' => $admin ) );
+		$visible = array();
+		$all     = array();
+		for ( $index = 0; $index < 225; ++$index ) {
+			$id = self::factory()->attachment->create_object(
+				array(
+					'file'           => 'bounded-' . $index . '.jpg',
+					'post_mime_type' => 'image/jpeg',
+					'post_author'    => $admin,
+					'post_parent'    => 0 === $index % 3 ? $secret : $public,
+					'post_date'      => '2026-01-01 09:00:00',
+				)
+			);
+			$all[] = $id;
+			if ( 0 !== $index % 3 ) {
+				$visible[] = $id;
+			}
+		}
+		rsort( $visible );
+		wp_set_current_user( $author );
+		wp_cache_flush();
+		$batches = array();
+		$inspect = static function ( $sql, $query ) use ( &$batches ) {
+			if ( 'attachment' === $query->get( 'post_type' ) ) {
+				$batches[] = (int) $query->get( 'posts_per_page' );
+			}
+			return $sql;
+		};
+		add_filter( 'posts_request', $inspect, 10, 2 );
+		try {
+			$result = Agent_Pages::list_media( array( 'perPage' => 20, 'page' => 6 ) );
+		} finally {
+			remove_filter( 'posts_request', $inspect, 10 );
+		}
+		$this->assertSame( 150, $result['total'] );
+		$this->assertSame( 8, $result['totalPages'] );
+		$this->assertSame( array_slice( $visible, 100, 20 ), array_column( $result['media'], 'id' ) );
+		$this->assertSame( array( 100, 100, 100 ), $batches, 'No query loads the entire library.' );
+		$this->assertFalse( wp_cache_get( $all[0], 'posts' ), 'A scanned hidden attachment does not stay cached.' );
+		$this->assertFalse( wp_cache_get( $secret, 'posts' ), 'A scanned parent does not stay cached.' );
+	}
+
 	public function test_updates_build_on_one_working_copy_per_agent(): void {
 		wp_set_current_user( $this->admin() );
 		$created = Agent_Pages::create_page(
@@ -1376,6 +1422,47 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 'applied', $store->get( $items[2]['id'] )['application_status'] );
 		$this->assertNull( get_post( $copy_id ), 'Nothing is left in the copy beyond the saved page.' );
 		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id ), 'Settling twice changes nothing.' );
+	}
+
+	public function test_saving_a_proposal_with_newer_javascript_applies_it_and_preserves_javascript(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
+		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
+		do_action( 'rest_api_init' );
+		$save = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$save->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$save->set_param( 'post_id', $page_id );
+		$save->set_param( 'html', '<p>Two</p>' );
+		$save->set_param( 'css', '' );
+		$save->set_param( 'js', 'console.log("newer");' );
+		$save->set_param( 'jsMode', 'module' );
+
+		$response = rest_get_server()->dispatch( $save );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'console.log("newer");', get_post_meta( $page_id, '_kayzart_js', true ) );
+		$this->assertSame( 'module', get_post_meta( $page_id, '_kayzart_js_mode', true ) );
+		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
+		$this->assertNull( get_post( $copy_id ) );
+		$this->assertNotEmpty( $items[1]['proposal']['beforeHash'] );
+		$this->assertNotEmpty( $items[1]['proposal']['afterHash'] );
+	}
+
+	public function test_older_proposals_without_source_versions_can_be_settled(): void {
+		global $wpdb;
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
+		$store                   = new Ai_Timeline_Store();
+		$row                     = $store->get( $items[1]['id'] );
+		$context                 = json_decode( $row['context_json'], true );
+		unset( $context['proposal']['sourceVersion'] );
+		$context['proposal']['version'] = 'old-full-page-version';
+		$wpdb->update( \KayzArt\Ai_Setup::get_timeline_table_name(), array( 'context_json' => wp_json_encode( $context ) ), array( 'id' => $items[1]['id'] ) );
+		wp_update_post( array( 'ID' => $page_id, 'post_content' => '<p>Two</p>' ) );
+		update_post_meta( $page_id, '_kayzart_js', 'newer();' );
+
+		$this->assertSame( 1, Agent_Working_Copy::settle( $page_id ) );
+		$this->assertSame( 'applied', $store->get( $items[1]['id'] )['application_status'] );
 	}
 
 	public function test_a_copy_with_newer_proposals_continues_from_the_saved_page(): void {

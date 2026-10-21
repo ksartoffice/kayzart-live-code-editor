@@ -151,14 +151,33 @@ final class Agent_Working_Copy {
 	}
 
 	/**
-	 * Version of a page or working copy: its editor sources and modes, the
-	 * fields an agent update can change.
+	 * Version of a page or working copy, including read-only context, used
+	 * to detect changes since the agent last read it.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return string
 	 */
 	public static function version( int $post_id ): string {
 		return Snapshot::hash( Snapshot::for_post( $post_id ) );
+	}
+
+	/**
+	 * Version of only the proposed sources; JavaScript stays with the page.
+	 *
+	 * @param array $snapshot Editor snapshot.
+	 * @return string
+	 */
+	public static function proposal_version( array $snapshot ): string {
+		return hash(
+			'sha256',
+			wp_json_encode(
+				array(
+					'html'       => (string) ( $snapshot['html'] ?? '' ),
+					'customHead' => (string) ( $snapshot['customHead'] ?? '' ),
+					'css'        => (string) ( $snapshot['css'] ?? '' ),
+				)
+			)
+		);
 	}
 
 	/**
@@ -295,7 +314,7 @@ final class Agent_Working_Copy {
 	 * Settle proposals when the editor saves the page.
 	 *
 	 * Runs inside the save and looks only at what was saved: a proposal is
-	 * taken in when the saved page is exactly that proposal. Nothing the
+	 * taken in when the saved HTML, CSS and head match that proposal. Nothing the
 	 * browser remembers about merging is trusted, so that record can never
 	 * drift from the content. A proposal merged and then edited before saving
 	 * stays pending, and the person discards it. Taken-in proposals, and the
@@ -315,15 +334,16 @@ final class Agent_Working_Copy {
 		}
 		$store   = new Ai_Timeline_Store();
 		$version = self::version( $page_id );
-		$result  = $store->mark_proposals_merged( $page_id, $version );
+		$sources = self::proposal_version( Snapshot::for_post( $page_id ) );
+		$result  = $store->mark_proposals_merged( $page_id, $sources );
 		foreach ( $result['newest'] as $proposal ) {
 			$copy_id = self::find_chain( $page_id, $proposal['chain'] );
 			if ( ! $copy_id ) {
 				continue;
 			}
-			if ( hash_equals( self::version( $copy_id ), $version ) ) {
+			if ( hash_equals( self::proposal_version( Snapshot::for_post( $copy_id ) ), $sources ) ) {
 				self::delete( $copy_id );
-			} elseif ( '' !== $proposal['version'] && hash_equals( $proposal['version'], $version ) ) {
+			} elseif ( '' !== $proposal['version'] && hash_equals( $proposal['version'], $sources ) ) {
 				update_post_meta( $copy_id, self::BASE_META, $version );
 			}
 		}

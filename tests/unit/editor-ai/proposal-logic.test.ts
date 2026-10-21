@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AiTimelineItem } from '../../../src/editor-ai/contract';
 import {
-  actionableProposals, proposalPollDelay, proposalView,
+  actionableProposals, importProposal, proposalHash, proposalPollDelay, proposalView,
 } from '../../../src/editor-ai/proposals';
 
 function proposal(id: number, chain: string, before: string, after: string, overrides: Partial<AiTimelineItem> = {}) {
@@ -12,7 +12,7 @@ function proposal(id: number, chain: string, before: string, after: string, over
     beforeHash: before, afterHash: after, beforeJsMode: 'classic', afterJsMode: 'classic', revisionId: null,
     sourceActivityId: null, sourcePrompt: null, restoreTarget: null, detailsAvailable: true, canPoll: false,
     revisionAvailable: false, author: { id: 1, name: 'Editor' }, createdAt: '', updatedAt: '',
-    agentClient: 'Claude Code', agentAction: 'update', proposal: { agent: 'a', chain }, ...overrides,
+    agentClient: 'Claude Code', agentAction: 'update', proposal: { agent: 'a', chain, beforeHash: before, afterHash: after }, ...overrides,
   } as AiTimelineItem & { proposal: { agent: string; chain: string } };
 }
 
@@ -43,5 +43,15 @@ describe('agent proposals', () => {
     expect(proposalPollDelay(600)).toBe(60000);
     expect(proposalPollDelay(null)).toBe(60000);
     expect(proposalPollDelay(undefined)).toBe(60000);
+  });
+
+  it('compares proposal sources independently of JavaScript and recalculates the imported hash', () => {
+    const proposed = { html: '<p>Hero 🐈</p>', css: 'p { color: red; }', customHead: '<meta name="description" content="LP">', js: 'old();', jsMode: 'classic' as const, baseHash: 'old-hash' };
+    const current = { ...proposed, html: '<p>Original</p>', js: 'newer();', jsMode: 'module' as const };
+    const imported = importProposal(proposed, current);
+    expect(imported).toMatchObject({ html: proposed.html, css: proposed.css, customHead: proposed.customHead, js: current.js, jsMode: current.jsMode });
+    expect(imported.baseHash).not.toBe(proposed.baseHash);
+    expect(proposalHash(imported)).toBe(proposalHash(proposed));
+    expect(proposalHash({ ...imported, css: 'p { color: blue; }' })).not.toBe(proposalHash(proposed));
   });
 });

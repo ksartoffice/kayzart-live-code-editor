@@ -10,7 +10,7 @@ import {
   getTimelineState, restoreTimeline, updateTimelineApplication,
 } from './api';
 import {
-  actionableProposals, isProposal, PROPOSAL_POLL_IDLE_MS,
+  actionableProposals, importProposal, isProposal, proposalHash, PROPOSAL_POLL_IDLE_MS,
   proposalPollDelay, proposalView, type ProposalView,
 } from './proposals';
 import { DEFAULT_POLL_INTERVAL_MS, DEFAULT_TIMEOUT_MS, isRetryableHttpStatus, isTerminalStatus, positiveInteger, sameSnapshotContent, sameSnapshotIdentity, sleep } from './polling';
@@ -371,9 +371,9 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
   const [proposalBusy, setProposalBusy] = useState(false);
-  const [editorIdentity, setEditorIdentity] = useState<Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null>(() => {
+  const [editorIdentity, setEditorIdentity] = useState<EditorSnapshot | null>(() => {
     const snapshot = host()?.getEditorSnapshot?.();
-    return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
+    return snapshot ? normalizeSnapshot(snapshot) : null;
   });
 
   const checkAvailability = async () => {
@@ -450,7 +450,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     notifyAiActivity('complete');
     const current = host()?.getEditorSnapshot?.();
     if (current && sameSnapshotContent(normalizeSnapshot(current), output)) {
-      setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
+      setEditorIdentity(output);
       await markApplied(active.activityId);
       finish();
       return;
@@ -466,7 +466,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       finish();
       return;
     }
-    setEditorIdentity({ baseHash: output.baseHash, jsMode: output.jsMode });
+    setEditorIdentity(output);
     await markApplied(active.activityId);
     finish();
   };
@@ -487,7 +487,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       setResolvingConflict(false);
       return;
     }
-    setEditorIdentity({ baseHash: pendingConflict.output.baseHash, jsMode: pendingConflict.output.jsMode });
+    setEditorIdentity(pendingConflict.output);
     await markApplied(pendingConflict.activityId);
     setPendingConflict(null); setResolvingConflict(false); void refresh();
   };
@@ -642,7 +642,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   useEffect(() => {
     const syncEditorIdentity = () => {
       const snapshot = host()?.getEditorSnapshot?.();
-      setEditorIdentity(snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null);
+      setEditorIdentity(snapshot ? normalizeSnapshot(snapshot) : null);
     };
     syncEditorIdentity();
     return host()?.subscribeEditorSnapshot?.(syncEditorIdentity);
@@ -783,17 +783,18 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     try {
       const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, 'after');
       if (!mountedRef.current || host()?.isSaving?.() || host()?.isEditorLocked?.()) return;
-      const snapshot = normalizeSnapshot(result.snapshot);
       const current = host()?.getEditorSnapshot?.();
-      if (current && sameSnapshotContent(normalizeSnapshot(current), snapshot)) return;
-      if ((!current || current.baseHash !== item.beforeHash || current.jsMode !== item.beforeJsMode)
+      if (!current) return;
+      const snapshot = importProposal(normalizeSnapshot(result.snapshot), normalizeSnapshot(current));
+      if (sameSnapshotContent(normalizeSnapshot(current), snapshot)) return;
+      if ((proposalHash(normalizeSnapshot(current)) !== item.proposal.beforeHash)
         && !window.confirm(__('This replaces the code in the editor, including any changes you have not saved. Continue?', 'kayzart-live-code-editor'))) return;
       const replace = host()?.replaceEditorSnapshot;
       if (typeof replace !== 'function' || !replace(snapshot)) {
         setError(__('The proposal could not be merged because the editor rejected it.', 'kayzart-live-code-editor'));
         return;
       }
-      setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
+      setEditorIdentity(snapshot);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : __('The proposal could not be merged.', 'kayzart-live-code-editor'));
     } finally {
@@ -816,7 +817,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const discard = async (item: AiTimelineItem) => {
     if (!ai || !isProposal(item) || proposalBusy || host()?.isSaving?.() || host()?.isEditorLocked?.()) return;
     const current = host()?.getEditorSnapshot?.();
-    if (proposalView(item, items, current?.baseHash ?? null) !== 'pending') return;
+    if (proposalView(item, items, current ? proposalHash(normalizeSnapshot(current)) : null) !== 'pending') return;
     if (!window.confirm(__('Discard this proposal? The page stays as it is.', 'kayzart-live-code-editor'))) return;
     setProposalBusy(true);
     setError('');
@@ -852,7 +853,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         setError(__('The edit could not be restored because the editor rejected the snapshot.', 'kayzart-live-code-editor'));
         return;
       }
-      setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
+      setEditorIdentity(snapshot);
       try {
         await restoreTimeline(ai.timelineBaseUrl, nonce, item.id, target);
         await refresh();
@@ -917,7 +918,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const renderAgent = (item: AiTimelineItem) => {
     const position = snapshotPosition(item, editorIdentity);
     const client = item.agentClient || 'MCP';
-    const view: ProposalView = isProposal(item) ? proposalView(item, items, editorIdentity?.baseHash ?? null) : 'saved';
+    const view: ProposalView = isProposal(item) ? proposalView(item, items, editorIdentity ? proposalHash(editorIdentity) : null) : 'saved';
     const heading = item.agentAction === 'create'
       /* translators: %s: name of the external AI agent, such as Claude Code. */
       ? __('%s created this page', 'kayzart-live-code-editor')
@@ -953,7 +954,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       {actions}
     </div>;
   };
-  const waitingProposals = actionableProposals(items).filter((item) => item.afterHash !== editorIdentity?.baseHash);
+  const waitingProposals = actionableProposals(items).filter((item) => proposalView(item, items, editorIdentity ? proposalHash(editorIdentity) : null) !== 'merged');
 
   return <div className="kayzart-ai-panel" hidden={!active}>
     {availabilityResult ? <p className="kayzart-ai-availability-result" role="status" aria-live="polite">{availabilityResult}</p> : null}

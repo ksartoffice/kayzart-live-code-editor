@@ -278,30 +278,58 @@ class Agent_Pages {
 			$attachments = $query->posts;
 			$total       = (int) $query->found_posts;
 		} else {
-			$ids = array_map(
-				'intval',
-				( new \WP_Query(
+			// Count readable files without keeping the entire library in memory.
+			// Exact totals still require a scan, but only one batch and the
+			// requested page are retained. Permission checks stay per attachment.
+			$total       = 0;
+			$attachments = array();
+			$offset      = ( $page - 1 ) * $per_page;
+			$scan_page   = 1;
+			$batch_size  = 100;
+			do {
+				$query = new \WP_Query(
 					array_merge(
 						$args,
 						array(
-							'posts_per_page' => -1,
-							'fields'         => 'ids',
-							'no_found_rows'  => true,
+							'posts_per_page'         => $batch_size,
+							'paged'                  => $scan_page++,
+							'fields'                 => 'ids',
+							'orderby'                => array(
+								'date' => 'DESC',
+								'ID'   => 'DESC',
+							),
+							'no_found_rows'          => true,
+							'cache_results'          => false,
+							'update_post_meta_cache' => false,
 						)
 					)
-				) )->posts
-			);
-			_prime_post_caches( $ids, false, false );
-			$readable    = array_values(
-				array_filter(
-					$ids,
-					static function ( int $id ): bool {
-						return self::can_read_attachment( $id );
+				);
+				$ids   = array_map( 'intval', $query->posts );
+				$added = self::prime_scan_posts( $ids );
+				try {
+					$parents = array();
+					foreach ( $ids as $id ) {
+						$attachment = get_post( $id );
+						if ( $attachment instanceof \WP_Post && $attachment->post_parent > 0 ) {
+							$parents[] = (int) $attachment->post_parent;
+						}
 					}
-				)
-			);
-			$total       = count( $readable );
-			$attachments = array_map( 'get_post', array_slice( $readable, ( $page - 1 ) * $per_page, $per_page ) );
+					$added = array_merge( $added, self::prime_scan_posts( array_unique( $parents ) ) );
+					foreach ( $ids as $id ) {
+						if ( self::can_read_attachment( $id ) ) {
+							if ( $total >= $offset && count( $attachments ) < $per_page ) {
+								$attachments[] = get_post( $id );
+							}
+							++$total;
+						}
+					}
+				} finally {
+					foreach ( $added as $id ) {
+						wp_cache_delete( $id, 'posts' );
+					}
+				}
+				$batch_count = count( $ids );
+			} while ( $batch_count === $batch_size );
 		}
 
 		$items = array();
@@ -343,6 +371,23 @@ class Agent_Pages {
 			'totalPages' => (int) ceil( $total / $per_page ),
 			'total'      => $total,
 		);
+	}
+
+	/**
+	 * Prime one scan batch and return only cache entries added by this scan.
+	 *
+	 * @param array<int> $ids Post IDs.
+	 * @return array<int>
+	 */
+	private static function prime_scan_posts( array $ids ): array {
+		$added = array();
+		foreach ( $ids as $id ) {
+			if ( false === wp_cache_get( $id, 'posts' ) ) {
+				$added[] = $id;
+			}
+		}
+		_prime_post_caches( $ids, false, false );
+		return $added;
 	}
 
 	/**
@@ -804,7 +849,6 @@ class Agent_Pages {
 				'proposal'    => $proposal,
 				'agentKey'    => $proposal ? self::agent_key() : '',
 				'chain'       => $proposal ? Agent_Working_Copy::chain( $written_id ) : '',
-				'version'     => $proposal ? Agent_Working_Copy::version( $written_id ) : '',
 			)
 		);
 	}

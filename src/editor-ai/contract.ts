@@ -153,7 +153,7 @@ export type AiTimelineItem = {
    * groups an agent's proposals; chain groups those built on one working
    * copy, where each includes the ones before it.
    */
-  proposal?: { agent: string; chain: string } | null;
+  proposal?: { agent: string; chain: string; beforeHash?: string | null; afterHash?: string | null } | null;
   canPoll: boolean;
   revisionAvailable: boolean;
   author: { id: number; name: string };

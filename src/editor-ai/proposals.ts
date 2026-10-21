@@ -1,4 +1,17 @@
-import type { AiTimelineItem } from './contract';
+import type { AiTimelineItem, EditorSnapshot } from './contract';
+import { computeEditorBaseHash } from '../admin/logic/editor-hash';
+
+/** Compare only the sources an external agent may edit. */
+export function proposalHash(snapshot: EditorSnapshot): string {
+  return computeEditorBaseHash(snapshot.html, snapshot.customHead, snapshot.css, '');
+}
+
+/** JavaScript is read-only context, never part of importing a proposal. */
+export function importProposal(proposal: EditorSnapshot, current: EditorSnapshot): EditorSnapshot {
+  const result = { ...proposal, js: current.js, jsMode: current.jsMode };
+  result.baseHash = computeEditorBaseHash(result.html, result.customHead, result.css, result.js);
+  return result;
+}
 
 /* The open editor checks for proposals often while an agent is at work on
    the page, and rarely otherwise. */
@@ -62,5 +75,5 @@ export function proposalView(item: Proposal, items: AiTimelineItem[], editorHash
   if (item.applicationStatus === 'discarded') return 'discarded';
   if (item.applicationStatus !== 'pending') return 'saved';
   if (pendingOnChain(items, item.proposal.chain).some((candidate) => candidate.id > item.id)) return 'included';
-  return editorHash !== null && editorHash === item.afterHash ? 'merged' : 'pending';
+  return editorHash !== null && editorHash === item.proposal.afterHash ? 'merged' : 'pending';
 }

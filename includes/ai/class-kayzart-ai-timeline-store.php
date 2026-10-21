@@ -151,10 +151,9 @@ class Ai_Timeline_Store {
 	 * the activity.
 	 *
 	 * Details: summary, client, action (create or update), titleChange (before
-	 * and after, or null), proposal (bool), agentKey, chain (of the working
-	 * copy) and version (of the working copy after the write). Titles are not
-	 * part of the editor snapshot, so a title change is kept with the
-	 * activity too.
+	 * and after, or null), proposal (bool), agentKey and chain (of the working
+	 * copy). Titles are not part of the editor snapshot, so a title change is
+	 * kept with the activity too.
 	 *
 	 * @param int      $post_id     Page the edit belongs to.
 	 * @param int      $user_id     User the agent authenticated as.
@@ -179,9 +178,9 @@ class Ai_Timeline_Store {
 		}
 		if ( ! empty( $details['proposal'] ) ) {
 			$context['proposal'] = array(
-				'agent'   => (string) ( $details['agentKey'] ?? '' ),
-				'chain'   => (string) ( $details['chain'] ?? '' ),
-				'version' => (string) ( $details['version'] ?? '' ),
+				'agent'         => (string) ( $details['agentKey'] ?? '' ),
+				'chain'         => (string) ( $details['chain'] ?? '' ),
+				'sourceVersion' => Agent_Working_Copy::proposal_version( $after ),
 			);
 		}
 		$table    = Ai_Setup::get_timeline_table_name();
@@ -275,11 +274,11 @@ class Ai_Timeline_Store {
 	}
 
 	/**
-	 * Mark the proposals the saved page is exactly, with the earlier pending
-	 * ones on their chains, as applied.
+	 * Mark proposals matching saved agent-editable sources and earlier pending
+	 * proposals on their chains as applied.
 	 *
 	 * @param int    $post_id Page ID.
-	 * @param string $version Version of the saved page.
+	 * @param string $version Version of the saved HTML, CSS and head.
 	 * @return array{count:int,newest:array<int,array{chain:string,version:string}>}
 	 */
 	public function mark_proposals_merged( int $post_id, string $version ): array {
@@ -340,9 +339,16 @@ class Ai_Timeline_Store {
 		foreach ( (array) $rows as $row ) {
 			$context = self::decode_array( $row['context_json'] );
 			if ( isset( $context['proposal']['chain'] ) && '' !== (string) $context['proposal']['chain'] ) {
+				$version = (string) ( $context['proposal']['sourceVersion'] ?? '' );
+				if ( '' === $version ) {
+					// Older proposals stored a full-page version, including JS.
+					$activity = $this->get( (int) $row['id'] );
+					$stored   = self::decode_array( $activity['snapshots_json'] ?? '' );
+					$version  = isset( $stored['after'] ) && is_array( $stored['after'] ) ? Agent_Working_Copy::proposal_version( $stored['after'] ) : '';
+				}
 				$result[ (int) $row['id'] ] = array(
 					'chain'   => (string) $context['proposal']['chain'],
-					'version' => isset( $context['proposal']['version'] ) ? (string) $context['proposal']['version'] : '',
+					'version' => $version,
 				);
 			}
 		}
@@ -707,7 +713,7 @@ class Ai_Timeline_Store {
 			'beforeAvailable'   => $before_available,
 			'agentClient'       => isset( $row['agent_client'] ) && '' !== (string) $row['agent_client'] ? Agent_Pages::display_label( (string) $row['agent_client'] ) : null,
 			'agentAction'       => isset( $row['agent_action'] ) && '' !== (string) $row['agent_action'] ? (string) $row['agent_action'] : null,
-			'proposal'          => $is_agent_edit ? self::proposal_ref( $row ) : null,
+			'proposal'          => $is_agent_edit ? self::proposal_ref( $row, $agent_snapshots ) : null,
 			// Written by the built-in engine or the external agent for the person who asked.
 			'summary'           => isset( $row['summary'] ) && '' !== (string) $row['summary'] ? (string) $row['summary'] : null,
 			'canPoll'           => ! empty( $row['job_uuid'] ) && ( get_current_user_id() === (int) $row['user_id'] || current_user_can( 'manage_options' ) ),
@@ -834,17 +840,32 @@ class Ai_Timeline_Store {
 	 * chain groups those built on the same working copy, where each one
 	 * includes the ones before.
 	 *
-	 * @return array{agent:string,chain:string}|null
+	 * @param array $row       Timeline activity.
+	 * @param array $snapshots Retained before/after snapshots.
+	 * @return array{agent:string,chain:string,beforeHash:?string,afterHash:?string}|null
 	 */
-	private static function proposal_ref( array $row ) {
+	private static function proposal_ref( array $row, array $snapshots ) {
 		$context = self::decode_array( $row['context_json'] );
 		if ( ! isset( $context['proposal']['agent'], $context['proposal']['chain'] ) ) {
 			return null;
 		}
 		return array(
-			'agent' => substr( hash( 'sha256', (string) $context['proposal']['agent'] ), 0, 16 ),
-			'chain' => substr( hash( 'sha256', (string) $context['proposal']['chain'] ), 0, 16 ),
+			'agent'      => substr( hash( 'sha256', (string) $context['proposal']['agent'] ), 0, 16 ),
+			'chain'      => substr( hash( 'sha256', (string) $context['proposal']['chain'] ), 0, 16 ),
+			'beforeHash' => is_array( $snapshots['before'] ) ? self::proposal_editor_hash( $snapshots['before'] ) : null,
+			'afterHash'  => is_array( $snapshots['after'] ) ? self::proposal_editor_hash( $snapshots['after'] ) : null,
 		);
+	}
+
+	/**
+	 * Browser hash of only the sources an agent may edit.
+	 *
+	 * @param array $snapshot Editor snapshot.
+	 * @return string
+	 */
+	private static function proposal_editor_hash( array $snapshot ): string {
+		$snapshot['js'] = '';
+		return self::editor_hash( $snapshot );
 	}
 
 	/** Title before and after an agent edit, or null when it did not change. */

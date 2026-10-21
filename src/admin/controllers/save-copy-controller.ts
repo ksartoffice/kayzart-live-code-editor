@@ -63,7 +63,9 @@ type SaveCopyControllerDeps = {
     compactJsTab: HTMLElement;
   };
   onUnsavedChange: (hasUnsavedChanges: boolean) => void;
-  onSaveSuccess?: () => void;
+  /** Agent proposals merged into the editor since the last save. */
+  getMergedProposalIds?: () => number[];
+  onSaveSuccess?: (details: { mergedProposals: number[] }) => void;
   onSaveStateChange?: (saving: boolean) => void;
 };
 
@@ -393,6 +395,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         }
       }
 
+      const mergedProposals = deps.getMergedProposalIds?.() ?? [];
       const result = await saveKayzArt({
         apiFetch: deps.apiFetch,
         restUrl: deps.restUrl,
@@ -407,6 +410,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),
         settingsUpdates,
+        mergedProposals,
       });
 
       if (result.ok) {
@@ -430,7 +434,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         }
         deps.clearPendingSettingsState();
         markSavedState();
-        deps.onSaveSuccess?.();
+        deps.onSaveSuccess?.({ mergedProposals });
         deps.createSnackbar(
           'success',
           __('Saved.', 'kayzart-live-code-editor'),

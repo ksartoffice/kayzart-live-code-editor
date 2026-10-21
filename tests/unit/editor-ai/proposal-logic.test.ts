@@ -44,8 +44,6 @@ describe('agent proposals', () => {
     expect(canMergeAutomatically([second], { baseHash: 'h0', jsMode: 'classic' })).toBe(false);
     expect(canMergeAutomatically([first], { baseHash: 'h0', jsMode: 'module' })).toBe(false);
     expect(canMergeAutomatically([first], null)).toBe(false);
-    const renamed = proposal(14, 'c1', 'h0', 'h1', { titleChange: { before: 'A', after: 'B' } });
-    expect(canMergeAutomatically([renamed], { baseHash: 'h0', jsMode: 'classic' })).toBe(false);
   });
 
   it('groups proposals that arrived since the handled ones by chain', () => {

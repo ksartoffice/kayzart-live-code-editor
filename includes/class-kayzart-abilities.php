@@ -330,7 +330,7 @@ class Abilities {
 			),
 			'kayzart/update-page'      => array(
 				'label'               => __( 'Update a Kayzart page', 'kayzart-live-code-editor' ),
-				'description'         => 'Proposes changes to an existing page. The page itself does not change: your changes are saved as a proposal in your own working copy, which a person merges in the Kayzart editor and saves. Call again to refine the proposal. Requires baseHash from kayzart/get-page or the last write result; if a person saved the page since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every proposal is kept in the AI Edit history of the page. After a save, warnings lists problems found in the proposal.',
+				'description'         => 'Proposes changes to an existing page. The page itself does not change: your changes are saved as a proposal in your own working copy, which a person merges in the Kayzart editor and saves. Call again to refine the proposal. Requires baseHash from kayzart/get-page or the last write result; if a person saved the page since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every proposal is kept in the AI Edit history of the page. After a save, warnings lists problems found in the proposal. The title cannot be changed here; suggest a new title in summary instead.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -340,7 +340,6 @@ class Abilities {
 							'type'        => 'string',
 							'description' => 'baseHash from the latest kayzart/get-page or write result.',
 						),
-						'title'    => array( 'type' => 'string' ),
 						'html'     => $sources['html'],
 						'css'      => $sources['css'],
 						'head'     => $sources['head'],

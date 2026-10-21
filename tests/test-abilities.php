@@ -311,7 +311,6 @@ class Test_Abilities extends WP_UnitTestCase {
 			array(
 				'id'       => $page['id'],
 				'baseHash' => $page['baseHash'],
-				'title'    => 'After',
 				'edits'    => array(
 					array(
 						'target' => 'html',
@@ -333,14 +332,13 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 'proposed', $result['page']['state'] );
 		$this->assertSame( '<h1>New heading</h1><p>Body</p>', $result['page']['html'] );
 		$this->assertSame( 'h1{color:blue;}', $result['page']['css'] );
-		$this->assertSame( 'After', $result['page']['title'] );
 		$this->assertSame( $page['id'], $result['page']['id'], 'The agent keeps addressing the page, not its working copy.' );
 		$this->assertNotSame( $page['baseHash'], $result['page']['baseHash'] );
 		$this->assertIsInt( $result['revisionId'] );
 		$this->assertNotSame( $created['revisionId'], $result['revisionId'] );
 
 		$saved = get_post( $page['id'] );
-		$this->assertSame( 'Before', $saved->post_title, 'The page itself is not changed by an update.' );
+		$this->assertSame( 'Before', $saved->post_title );
 		$this->assertSame( '<h1>Old heading</h1><p>Body</p>', $saved->post_content );
 		$this->assertSame( 'h1{color:red;}', get_post_meta( $page['id'], '_kayzart_css', true ) );
 	}
@@ -738,7 +736,7 @@ class Test_Abilities extends WP_UnitTestCase {
 				'post_content' => '<p>Second</p>',
 			)
 		);
-		Agent_Working_Copy::merged( $page['id'], array( (int) $activity['id'] ) );
+		Agent_Working_Copy::settle( $page['id'], array( (int) $activity['id'] ) );
 		$this->assertSame( 0, Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ), 'The working copy is gone after the merge.' );
 
 		$this->assertSame( '<p>First</p>', $store->get_snapshot( $activity, 'before' )['html'] );
@@ -782,7 +780,7 @@ class Test_Abilities extends WP_UnitTestCase {
 				'post_content' => '<h1>Welcome aboard</h1><p>Body</p>',
 			)
 		);
-		$this->assertSame( 1, Agent_Working_Copy::merged( $page['id'], array( (int) $items[1]['id'] ) ) );
+		$this->assertSame( 1, Agent_Working_Copy::settle( $page['id'], array( (int) $items[1]['id'] ) ) );
 		$current = Snapshot::for_post( $page['id'] );
 
 		$context = $store->recent_context( $page['id'], $current, 1 );
@@ -794,7 +792,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Welcome aboard', wp_json_encode( $context[0]['editFootprint'] ) );
 	}
 
-	public function test_title_changes_are_recorded_with_their_previous_title(): void {
+	public function test_update_page_does_not_change_the_title(): void {
 		wp_set_current_user( $this->admin() );
 		$created = Agent_Pages::create_page(
 			array(
@@ -803,41 +801,19 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 		$page    = $created['page'];
-		$renamed = Agent_Pages::update_page(
+
+		$result = wp_get_ability( 'kayzart/update-page' )->execute(
 			array(
 				'id'       => $page['id'],
 				'baseHash' => $page['baseHash'],
 				'title'    => 'Renamed',
-				'summary'  => 'Renamed the page.',
-			)
-		);
-		Agent_Pages::update_page(
-			array(
-				'id'       => $page['id'],
-				'baseHash' => $renamed['page']['baseHash'],
-				'title'    => 'Renamed again',
-				'html'     => '<p>Changed too</p>',
+				'html'     => '<p>Changed</p>',
 			)
 		);
 
-		$items = ( new Ai_Timeline_Store() )->list_for_post( $page['id'] )['items'];
-
-		$this->assertCount( 3, $items, 'A title-only update is recorded too.' );
-		$this->assertSame( 'Title', get_post( $page['id'] )->post_title, 'Titles are proposed like sources.' );
-		$this->assertNull( $items[0]['titleChange'] );
-		$this->assertSame( 'agent_edit', $items[1]['type'] );
-		$this->assertSame(
-			array(
-				'before' => 'Title',
-				'after'  => 'Renamed',
-			),
-			$items[1]['titleChange']
-		);
-		$this->assertSame( array(), $items[1]['changedTargets'] );
-		$this->assertSame( 'Renamed the page.', $items[1]['summary'] );
-		$this->assertSame( array(), $items[1]['contexts'] );
-		$this->assertSame( 'Renamed again', $items[2]['titleChange']['after'] );
-		$this->assertSame( array( 'html' ), $items[2]['changedTargets'] );
+		$this->assertWPError( $result, 'The schema has no title.' );
+		$this->assertSame( 'Title', get_post( $page['id'] )->post_title );
+		$this->assertSame( 0, Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ) );
 	}
 
 	public function test_local_agent_names_are_shown_in_the_viewer_language(): void {
@@ -892,7 +868,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertTrue( Agent_Pages::can_use() );
 	}
 
-	public function test_update_page_refuses_a_stale_title(): void {
+	public function test_a_person_renaming_the_page_does_not_interrupt_the_agent(): void {
 		wp_set_current_user( $this->admin() );
 		$created = Agent_Pages::create_page(
 			array(
@@ -912,13 +888,12 @@ class Test_Abilities extends WP_UnitTestCase {
 			array(
 				'id'       => $page['id'],
 				'baseHash' => $page['baseHash'],
-				'title'    => 'Agent title',
+				'html'     => '<p>Agent</p>',
 			)
 		);
 
-		$this->assertWPError( $result );
-		$this->assertSame( 'kayzart_page_changed', $result->get_error_code() );
-		$this->assertSame( 'Title chosen by a person', get_post( $page['id'] )->post_title );
+		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+		$this->assertSame( 'Title chosen by a person', $result['page']['title'] );
 	}
 
 	public function test_list_pages_paginates_only_editable_pages(): void {
@@ -1394,13 +1369,13 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 2, Agent_Working_Copy::merged( $page_id, array( $items[2]['id'] ) ) );
+		$this->assertSame( 2, Agent_Working_Copy::settle( $page_id, array( $items[2]['id'] ) ) );
 
 		$store = new Ai_Timeline_Store();
 		$this->assertSame( 'applied', $store->get( $items[1]['id'] )['application_status'], 'An earlier proposal on the chain is included.' );
 		$this->assertSame( 'applied', $store->get( $items[2]['id'] )['application_status'] );
 		$this->assertNull( get_post( $copy_id ), 'Nothing is left in the copy beyond the saved page.' );
-		$this->assertSame( 0, Agent_Working_Copy::merged( $page_id, array( $items[2]['id'] ) ), 'Settling twice changes nothing.' );
+		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id, array( $items[2]['id'] ) ), 'Settling twice changes nothing.' );
 	}
 
 	public function test_a_copy_with_newer_proposals_continues_from_the_saved_page(): void {
@@ -1415,7 +1390,7 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 1, Agent_Working_Copy::merged( $page_id, array( $items[1]['id'] ) ) );
+		$this->assertSame( 1, Agent_Working_Copy::settle( $page_id, array( $items[1]['id'] ) ) );
 
 		$store = new Ai_Timeline_Store();
 		$this->assertSame( 'pending', $store->get( $items[2]['id'] )['application_status'] );
@@ -1433,7 +1408,7 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 
-		Agent_Working_Copy::merged( $page_id, array( $items[1]['id'] ) );
+		Agent_Working_Copy::settle( $page_id, array( $items[1]['id'] ) );
 
 		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
 		$this->assertSame( 0, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ) );
@@ -1496,13 +1471,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 409, rest_get_server()->dispatch( $discard )->get_status() );
 		$this->assertNotSame( $before, rest_get_server()->dispatch( $state )->get_data()['signature'], 'The signature changes with the history.' );
 
-		$merged = new WP_REST_Request( 'POST', '/kayzart/v1/ai/timeline/merged' );
-		$merged->set_header( 'X-WP-Nonce', $nonce );
-		$merged->set_param( 'post_id', $page_id );
-		$merged->set_param( 'ids', array( $items[1]['id'] ) );
-		$response = rest_get_server()->dispatch( $merged );
-		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( 0, $response->get_data()['applied'], 'A discarded proposal is not applied later.' );
+		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id, array( $items[1]['id'] ) ), 'A discarded proposal is not applied later.' );
 
 		$author = self::factory()->user->create( array( 'role' => 'author' ) );
 		wp_set_current_user( $author );
@@ -1558,6 +1527,44 @@ class Test_Abilities extends WP_UnitTestCase {
 		delete_post_meta( $page_id, Agent_Pages::SEEN_META );
 		Agent_Pages::guidelines( 'normal' );
 		$this->assertLessThan( 5, Agent_Pages::seen_seconds_ago( $page_id ), 'Reading the guidelines counts for every page.' );
+	}
+
+	public function test_the_editor_save_settles_the_proposals_it_merged(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
+		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
+		do_action( 'rest_api_init' );
+
+		// The person merged the proposal, edited it further and saved.
+		$save = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$save->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$save->set_param( 'post_id', $page_id );
+		$save->set_param( 'html', '<p>Two, edited</p>' );
+		$save->set_param( 'css', '' );
+		$save->set_param( 'mergedProposals', array( $items[1]['id'] ) );
+		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
+
+		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
+		$this->assertSame( 0, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ), 'Edited after merging, the copy is out of date.' );
+		$this->assertNotNull( get_post( $copy_id ), 'It starts over on the next update.' );
+	}
+
+	public function test_saving_exactly_a_proposal_settles_it_without_being_told(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
+		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
+		do_action( 'rest_api_init' );
+
+		// Merged, then the editor was reloaded before saving: no list arrives.
+		$save = new WP_REST_Request( 'POST', '/kayzart/v1/save' );
+		$save->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$save->set_param( 'post_id', $page_id );
+		$save->set_param( 'html', '<p>Two</p>' );
+		$save->set_param( 'css', '' );
+		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
+
+		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
+		$this->assertNull( get_post( $copy_id ) );
 	}
 
 	/**

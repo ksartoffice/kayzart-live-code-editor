@@ -151,14 +151,14 @@ final class Agent_Working_Copy {
 	}
 
 	/**
-	 * Version of a page or working copy: its editor sources and modes plus
-	 * its title, the fields an agent update can change.
+	 * Version of a page or working copy: its editor sources and modes, the
+	 * fields an agent update can change.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return string
 	 */
 	public static function version( int $post_id ): string {
-		return hash( 'sha256', Snapshot::hash( Snapshot::for_post( $post_id ) ) . '|' . (string) get_post_field( 'post_title', $post_id, 'raw' ) );
+		return Snapshot::hash( Snapshot::for_post( $post_id ) );
 	}
 
 	/**
@@ -292,23 +292,30 @@ final class Agent_Working_Copy {
 	}
 
 	/**
-	 * Settle working copies after a person saved the page with proposals
-	 * merged in the editor.
+	 * Settle proposals when the editor saves the page.
 	 *
-	 * The merged proposals, and the earlier ones on their chains, become
-	 * applied. A working copy that holds nothing beyond the saved page is
-	 * deleted. One the agent has added to since now continues from the saved
-	 * page, as long as the page was saved with the merged proposal unchanged.
+	 * Runs inside the save, so nothing depends on a later request from the
+	 * browser. A proposal is taken in when the editor says it merged it
+	 * before saving, or when the saved page is exactly that proposal (which
+	 * also covers a merge whose editor was reloaded before saving). Taken-in
+	 * proposals, and the earlier ones on their chains, become applied.
+	 *
+	 * A working copy that holds nothing beyond the saved page is deleted.
+	 * One the agent has added to since continues from the saved page, as
+	 * long as the page was saved with the merged proposal unchanged.
 	 * Otherwise it is left out of date, and its next update starts over.
 	 *
-	 * @param int        $page_id      Page ID.
-	 * @param array<int> $activity_ids Merged proposal activities.
+	 * @param int        $page_id      Page just saved.
+	 * @param array<int> $activity_ids Proposals the editor merged before saving.
 	 * @return int Number of proposals marked applied.
 	 */
-	public static function merged( int $page_id, array $activity_ids ): int {
+	public static function settle( int $page_id, array $activity_ids ): int {
+		if ( self::is_copy( $page_id ) ) {
+			return 0;
+		}
 		$store   = new Ai_Timeline_Store();
-		$result  = $store->mark_proposals_merged( $page_id, $activity_ids );
 		$version = self::version( $page_id );
+		$result  = $store->mark_proposals_merged( $page_id, $activity_ids, $version );
 		foreach ( $result['newest'] as $proposal ) {
 			$copy_id = self::find_chain( $page_id, $proposal['chain'] );
 			if ( ! $copy_id ) {

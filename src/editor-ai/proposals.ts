@@ -69,13 +69,12 @@ export function proposalView(item: Proposal, items: AiTimelineItem[], merged: Re
  * changes: the editor must hold exactly what the agent started from, so
  * nothing the person has not seen is replaced. The new proposals on a chain
  * build on each other, so the earliest one's starting point is what counts.
- * A title change waits for the person, since titles are saved at once.
  */
 export function canMergeAutomatically(
   arrived: Proposal[],
   editor: Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null,
 ) {
-  if (!editor || !arrived.length || arrived.some((item) => item.titleChange)) return false;
+  if (!editor || !arrived.length) return false;
   const first = [...arrived].sort((left, right) => left.id - right.id)[0];
   return Boolean(first.beforeHash)
     && editor.baseHash === first.beforeHash

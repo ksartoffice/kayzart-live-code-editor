@@ -26,13 +26,12 @@ type PollState = { signature: string; agentIdleSeconds: number | null };
 function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; states?: PollState[] }) {
   let editor = options.editor || savedSnapshot;
   const replaceEditorSnapshot = vi.fn((snapshot: typeof savedSnapshot) => { editor = snapshot; return true; });
-  const setPostTitle = vi.fn(async () => true);
   const createNotice = vi.fn();
   (window as any).wp = { data: { dispatch: () => ({ createNotice }) } };
   (window as any).KAYZART_EXTENSION_API = {
     registerSettingsTab: vi.fn(() => vi.fn()), registerToolbarAction: vi.fn(() => vi.fn()),
     getEditorSnapshot: vi.fn(() => editor), getEditorMode: vi.fn(() => 'normal'), replaceEditorSnapshot,
-    setEditorLock: vi.fn(), isEditorLocked: vi.fn(() => false), setPostTitle,
+    setEditorLock: vi.fn(), isEditorLocked: vi.fn(() => false),
   };
   const timelines = [...options.timelines];
   const states = [...(options.states || [{ signature: '1', agentIdleSeconds: null }])];
@@ -46,14 +45,13 @@ function setup(options: { timelines: Timeline[]; editor?: typeof savedSnapshot; 
     if (url.includes('/timeline/40/snapshot') && url.includes('target=after')) return json({ ok: true, snapshot: proposedSnapshot });
     if (url.includes('/timeline/40/snapshot') && url.includes('target=before')) return json({ ok: true, snapshot: savedSnapshot });
     if (url.includes('/timeline/40/discard')) return json({ ok: true, item: { ...proposalItem, applicationStatus: 'discarded' } });
-    if (url.includes('/timeline/merged')) return json({ ok: true, applied: 1 });
     if (url.includes('/timeline') && method === 'GET') {
       const page = timelines.length > 1 ? timelines.shift()! : timelines[0];
       return json({ ok: true, items: page.items, hasMore: false, nextCursor: null });
     }
     throw new Error(`Unexpected request ${method} ${url}`);
   });
-  return { replaceEditorSnapshot, setPostTitle, createNotice, fetchMock, requests, editor: () => editor };
+  return { replaceEditorSnapshot, createNotice, fetchMock, requests, editor: () => editor };
 }
 
 async function render() {
@@ -93,24 +91,26 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => root.unmount());
   });
 
-  it('reports merged proposals after the editor saves', async () => {
+  it('hands merged proposals to the save and forgets them once saved', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
-    const env = setup({ timelines: [{ items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'applied' }] }] });
+    const env = setup({ timelines: [{ items: [proposalItem] }, { items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'applied' }] }] });
     const { container, root } = await render();
+    const { mergedProposalIds } = await import('../../../src/editor-ai/main');
     await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
+    expect(mergedProposalIds(7)).toEqual([40]);
 
-    await act(async () => { window.dispatchEvent(new CustomEvent('kayzart-editor-saved')); await vi.advanceTimersByTimeAsync(200); });
+    // The save request carried them and the server settled them.
+    await act(async () => { window.dispatchEvent(new CustomEvent('kayzart-editor-saved', { detail: { mergedProposals: [40] } })); await vi.advanceTimersByTimeAsync(200); });
 
-    const merged = env.requests.find((request) => request.url.includes('/timeline/merged'));
-    expect(merged?.method).toBe('POST');
-    expect(merged?.body).toEqual({ post_id: 7, ids: [40] });
+    expect(mergedProposalIds(7)).toEqual([]);
+    expect(env.requests.some((request) => request.url.includes('/timeline/merged'))).toBe(false);
     expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('Saved to the page.');
     await act(async () => root.unmount());
   });
 
   it('merges a proposal that arrives while the editor holds what the agent started from', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
-    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
+    const env = setup({ timelines: [{ items: [] }, { items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
     const { container, root } = await render();
     expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
 
@@ -122,10 +122,18 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => root.unmount());
   });
 
+  it('finds a proposal that arrived right after the first history load', async () => {
+    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: [{ signature: '2', agentIdleSeconds: 0 }] });
+    const { root } = await render();
+
+    await vi.waitFor(() => expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' })));
+    await act(async () => root.unmount());
+  });
+
   it('only announces a proposal that arrives while the person has other changes', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
     const edited = { ...savedSnapshot, html: '<main>Edited</main>', baseHash: 'edited' };
-    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK, editor: edited });
+    const env = setup({ timelines: [{ items: [] }, { items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK, editor: edited });
     const { container, root } = await render();
 
     await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
@@ -142,7 +150,7 @@ describe('AiEditorPanel agent proposals', () => {
   });
 
   it('discarding a merged proposal puts the editor back and discards it on the server', async () => {
-    const env = setup({ timelines: [{ items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'discarded' }] }] });
+    const env = setup({ timelines: [{ items: [proposalItem] }, { items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'discarded' }] }] });
     const { container, root } = await render();
     await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
     vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -170,7 +178,7 @@ describe('AiEditorPanel agent proposals', () => {
   it('checks only when the person comes back where no agent has been used yet', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval', 'clearTimeout', 'Date'] });
     (window as any).KAYZART.ai.agentProposalChecks = 'focus';
-    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
+    const env = setup({ timelines: [{ items: [] }, { items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
     const { container, root } = await render();
     const checks = () => env.requests.filter((request) => request.url.includes('/timeline/state')).length;
 
@@ -197,17 +205,6 @@ describe('AiEditorPanel agent proposals', () => {
     expect(checks()).toBe(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(55000); });
     expect(checks()).toBe(2);
-    await act(async () => root.unmount());
-  });
-
-  it('a merged title change renames the page', async () => {
-    const renamed = { ...proposalItem, titleChange: { before: 'Old', after: 'New' } };
-    const env = setup({ timelines: [{ items: [renamed] }] });
-    const { container, root } = await render();
-
-    await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
-
-    expect(env.setPostTitle).toHaveBeenCalledWith('New');
     await act(async () => root.unmount());
   });
 });

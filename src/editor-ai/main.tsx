@@ -7,7 +7,7 @@ import type {
 import { normalizeSnapshot } from './contract';
 import {
   AiApiError, cancelJob, createJob, discardProposal, getAvailability, getJob, getTimeline, getTimelineSnapshot,
-  getTimelineState, reportMergedProposals, restoreTimeline, updateTimelineApplication,
+  getTimelineState, restoreTimeline, updateTimelineApplication,
 } from './api';
 import {
   actionableProposals, arrivedProposals, canMergeAutomatically, includedProposalIds, isProposal, PROPOSAL_POLL_IDLE_MS,
@@ -61,6 +61,10 @@ function proposalSet(store: Map<number, Set<number>>, postId: number) {
   let set = store.get(postId);
   if (!set) { set = new Set(); store.set(postId, set); }
   return set;
+}
+/** Agent proposals merged into the editor since the last save; the save sends them so the server settles them. */
+export function mergedProposalIds(postId: number) {
+  return [...proposalSet(mergedProposals, postId)];
 }
 type NoticesGlobal = { wp?: { data?: { dispatch?: (store: string) => { createNotice?: (status: string, message: string, options: Record<string, unknown>) => void } | undefined } } };
 function announce(message: string, id: string) {
@@ -579,7 +583,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       const queued = Array.from(pendingContexts.values()); pendingContexts.clear();
       if (queued.length) setContexts(mergeContexts(draftState.contexts, queued));
     };
-    const saved = () => { window.setTimeout(() => void settleMergedProposals().then(() => refresh()), 150); };
+    const saved = (event: Event) => { forgetSavedProposals(event); window.setTimeout(() => void refresh(), 150); };
     window.addEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.addEventListener(SAVE_EVENT, saved);
     syncContexts(); void refresh(true);
     const active = loadActiveJob(postId); if (active) void poll(active);
@@ -598,7 +602,8 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   useEffect(() => {
     const baseUrl = ai?.timelineBaseUrl;
     const mode = ai?.agentProposalChecks;
-    if (!baseUrl || postId <= 0 || (mode !== 'focus' && mode !== 'poll')) return;
+    // Proposals already waiting are settled by the first timeline load; start after it.
+    if (!baseUrl || postId <= 0 || !initialTimelineSettled || (mode !== 'focus' && mode !== 'poll')) return;
     let signature = '';
     let delay = PROPOSAL_POLL_IDLE_MS;
     let timer = 0;
@@ -618,7 +623,8 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         const state = await getTimelineState(baseUrl, nonce, postId);
         if (stopped || !mountedRef.current) return;
         if (typeof state.signature === 'string') {
-          if (signature && state.signature !== signature) await refresh();
+          // The first check reloads too: a proposal may have arrived since the first timeline load.
+          if (state.signature !== signature) await refresh();
           signature = state.signature;
         }
         delay = proposalPollDelay(state.agentIdleSeconds);
@@ -635,7 +641,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       stopped = true; window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', resume); window.removeEventListener('focus', resume);
     };
-  }, [ai?.timelineBaseUrl, ai?.agentProposalChecks]);
+  }, [ai?.timelineBaseUrl, ai?.agentProposalChecks, initialTimelineSettled]);
 
   useEffect(() => {
     const syncEditorIdentity = () => {
@@ -785,9 +791,6 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         return false;
       }
       setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
-      if (item.titleChange && await host()?.setPostTitle?.(item.titleChange.after) === false) {
-        setError(__('The proposal was merged, but the title could not be changed.', 'kayzart-live-code-editor'));
-      }
       const merged = proposalSet(mergedProposals, postId);
       includedProposalIds(item, list).forEach((id) => merged.add(id));
       setProposalTick((value) => value + 1);
@@ -845,8 +848,6 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
           const snapshot = normalizeSnapshot(result.snapshot);
           if (host()?.replaceEditorSnapshot?.(snapshot)) setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
         }
-        const renamed = items.filter((candidate) => mergedIds.includes(candidate.id) && candidate.titleChange).sort((left, right) => left.id - right.id)[0];
-        if (renamed?.titleChange) await host()?.setPostTitle?.(renamed.titleChange.before);
         chainIds.forEach((id) => merged.delete(id));
         setProposalTick((value) => value + 1);
       }
@@ -856,14 +857,14 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     }
     await refresh();
   };
-  /* After a save, tell the server which proposals the saved content took in. */
-  const settleMergedProposals = async () => {
+  /* The save carried the merged proposals and the server settled them; forget
+     those, keeping any merged while the save was on its way. */
+  const forgetSavedProposals = (event: Event) => {
+    const ids = (event as CustomEvent<{ mergedProposals?: number[] }>).detail?.mergedProposals;
+    if (!Array.isArray(ids) || !ids.length) return;
     const merged = proposalSet(mergedProposals, postId);
-    if (!ai || !merged.size) return;
-    const ids = [...merged];
-    merged.clear();
+    ids.forEach((id) => merged.delete(id));
     setProposalTick((value) => value + 1);
-    try { await reportMergedProposals(ai.timelineBaseUrl, nonce, postId, ids); } catch { /* They stay pending and can be merged and saved again. */ }
   };
 
   const snapshotPosition = (item: AiTimelineItem, current: Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null): 'before' | 'after' | 'other' => {

@@ -79,8 +79,6 @@ export type KayzArtExtensionApi = {
   getElementContext?: (lcId: string) => SelectedElementContext | null;
   setEditorLock?: (locked: boolean) => void;
   isEditorLocked?: () => boolean;
-  /** Rename the page right away, as the toolbar title field does. Resolves false when refused. */
-  setPostTitle?: (title: string) => Promise<boolean>;
 };
 
 const RESERVED_TAB_IDS = new Set(['settings', 'elements', 'history']);

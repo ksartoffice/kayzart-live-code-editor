@@ -426,7 +426,6 @@ class Agent_Pages {
 		return array_merge(
 			self::summary( $post ),
 			array(
-				'title'           => html_entity_decode( get_the_title( $working_id ), ENT_QUOTES, 'UTF-8' ),
 				'state'           => $copy_id ? 'proposed' : 'saved',
 				'html'            => $snapshot['html'],
 				'css'             => $snapshot['css'],
@@ -513,7 +512,10 @@ class Agent_Pages {
 	 * working copy starts from the page on the first update, and again once
 	 * the page has moved on without it.
 	 *
-	 * @param array $input Ability input (id, baseHash, title, html, css, head, edits).
+	 * The title is not proposed: titles are saved the moment they change,
+	 * outside the editor's unsaved state, so they cannot wait for a merge.
+	 *
+	 * @param array $input Ability input (id, baseHash, html, css, head, edits).
 	 * @return array|\WP_Error
 	 */
 	public static function update_page( array $input ) {
@@ -528,8 +530,7 @@ class Agent_Pages {
 		if ( ! hash_equals( $version, (string) ( $input['baseHash'] ?? '' ) ) ) {
 			return self::page_changed_error();
 		}
-		$before       = Snapshot::for_post( $working_id );
-		$title_before = (string) get_post_field( 'post_title', $working_id, 'raw' );
+		$before = Snapshot::for_post( $working_id );
 
 		$sources = array();
 		foreach ( array( 'html', 'css', 'head' ) as $target ) {
@@ -538,9 +539,8 @@ class Agent_Pages {
 			}
 		}
 		$edits = isset( $input['edits'] ) && is_array( $input['edits'] ) ? $input['edits'] : array();
-		$title = isset( $input['title'] ) ? sanitize_text_field( (string) $input['title'] ) : null;
-		if ( empty( $sources ) && empty( $edits ) && null === $title ) {
-			return self::error( 'kayzart_nothing_to_update', __( 'Provide html, css, head, edits or title to update.', 'kayzart-live-code-editor' ), 400 );
+		if ( empty( $sources ) && empty( $edits ) ) {
+			return self::error( 'kayzart_nothing_to_update', __( 'Provide html, css, head or edits to update.', 'kayzart-live-code-editor' ), 400 );
 		}
 		if ( count( $edits ) > self::MAX_EDITS ) {
 			return self::error( 'kayzart_too_many_edits', __( 'Too many edits in one update.', 'kayzart-live-code-editor' ), 400 );
@@ -573,11 +573,11 @@ class Agent_Pages {
 		}
 
 		$head_changed = $before['customHead'] !== $after['customHead'];
-		$saved        = self::save( $copy_id, $after, $head_changed, $title );
+		$saved        = self::save( $copy_id, $after, $head_changed );
 		if ( is_wp_error( $saved ) ) {
 			return $saved;
 		}
-		self::record_activity( $post_id, $copy_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update', $title_before );
+		self::record_activity( $post_id, $copy_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update' );
 
 		return self::write_result( $post_id, $copy_id, $saved, $after );
 	}
@@ -729,13 +729,12 @@ class Agent_Pages {
 	/**
 	 * Persist a snapshot through the editor's save handler.
 	 *
-	 * @param int         $post_id      Post ID.
-	 * @param array       $snapshot     Snapshot to persist.
-	 * @param bool        $include_head Whether to write the custom head.
-	 * @param string|null $title        New title, or null to keep it.
+	 * @param int   $post_id      Post ID.
+	 * @param array $snapshot     Snapshot to persist.
+	 * @param bool  $include_head Whether to write the custom head.
 	 * @return array|\WP_Error Save response data.
 	 */
-	private static function save( int $post_id, array $snapshot, bool $include_head, ?string $title = null ) {
+	private static function save( int $post_id, array $snapshot, bool $include_head ) {
 		$tailwind = '1' === get_post_meta( $post_id, '_kayzart_tailwind', true );
 		$request  = new \WP_REST_Request( 'POST', '/kayzart/v1/save' );
 		$request->set_param( 'post_id', $post_id );
@@ -753,9 +752,6 @@ class Agent_Pages {
 				return self::error( $candidates->get_error_code(), $candidates->get_error_message(), 400 );
 			}
 			$request->set_param( 'tailwindCandidates', $candidates );
-		}
-		if ( null !== $title ) {
-			$request->set_param( 'settingsUpdates', array( 'title' => $title ) );
 		}
 
 		$response = Rest_Save::save( $request );

@@ -134,13 +134,6 @@ export function getTimelineState(baseUrl: string, nonce: string, postId: number,
   return fetchJson<AiTimelineStateResponse>(url.toString(), nonce, { method: 'GET', cache: 'no-store', signal });
 }
 
-/** Tell the server which agent proposals were merged into the content just saved. */
-export function reportMergedProposals(baseUrl: string, nonce: string, postId: number, ids: number[]) {
-  return fetchJson<{ ok: boolean; applied: number }>(`${baseUrl}merged`, nonce, {
-    method: 'POST', body: JSON.stringify({ post_id: postId, ids }),
-  });
-}
-
 export function discardProposal(baseUrl: string, nonce: string, id: number) {
   return fetchJson<{ ok: boolean; item: AiTimelineItem }>(`${baseUrl}${id}/discard`, nonce, { method: 'POST', body: '{}' });
 }

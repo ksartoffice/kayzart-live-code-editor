@@ -38,15 +38,6 @@ class Rest_Ai_Timeline {
 		);
 		register_rest_route(
 			'kayzart/v1',
-			'/ai/timeline/merged',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( __CLASS__, 'merged' ),
-				'permission_callback' => array( __CLASS__, 'post_permission' ),
-			)
-		);
-		register_rest_route(
-			'kayzart/v1',
 			'/ai/timeline/(?P<activity_id>\d+)/discard',
 			array(
 				'methods'             => 'POST',
@@ -101,20 +92,6 @@ class Rest_Ai_Timeline {
 			$state['agentIdleSeconds'] = $seen;
 		}
 		return rest_ensure_response( array_merge( array( 'ok' => true ), $state ) );
-	}
-
-	/** Settle agent proposals the person just saved merged. */
-	public static function merged( \WP_REST_Request $request ) {
-		$ids = $request->get_param( 'ids' );
-		if ( ! is_array( $ids ) ) {
-			return new \WP_Error( 'kayzart_ai_proposals_invalid', __( 'The merged proposals are invalid.', 'kayzart-live-code-editor' ), array( 'status' => 400 ) );
-		}
-		return rest_ensure_response(
-			array(
-				'ok'      => true,
-				'applied' => Agent_Working_Copy::merged( absint( $request->get_param( 'post_id' ) ), array_map( 'absint', $ids ) ),
-			)
-		);
 	}
 
 	/** Discard an agent proposal and the working copy holding it. */

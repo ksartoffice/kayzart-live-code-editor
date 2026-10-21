@@ -274,6 +274,17 @@ describe('save copy controller', () => {
     );
   });
 
+  it('sends the merged agent proposals with the save and reports them', async () => {
+    vi.mocked(saveKayzArt).mockResolvedValue({ ok: true });
+    const onSaveSuccess = vi.fn();
+    const { controller } = createController({ onSaveSuccess, getJsMode: () => 'classic', getMergedProposalIds: () => [40, 41] });
+
+    await controller.handleSave();
+
+    expect(saveKayzArt).toHaveBeenCalledWith(expect.objectContaining({ mergedProposals: [40, 41] }));
+    expect(onSaveSuccess).toHaveBeenCalledWith({ mergedProposals: [40, 41] });
+  });
+
   it('treats an editor mode-only change as unsaved CSS', () => {
     let mode: 'normal' | 'tailwind' = 'normal';
     const cssByMode = {

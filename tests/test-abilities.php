@@ -58,7 +58,7 @@ class Test_Abilities extends WP_UnitTestCase {
 			$this->assertTrue( $meta['mcp']['public'] ?? false, $name . ' should be exposed over MCP.' );
 			$this->assertSame( $readonly, $meta['annotations']['readonly'] );
 		}
-		$this->assertTrue( wp_get_ability( 'kayzart/update-page' )->get_meta()['annotations']['destructive'] );
+		$this->assertFalse( wp_get_ability( 'kayzart/update-page' )->get_meta()['annotations']['destructive'], 'Updates are proposals; the page is not overwritten.' );
 	}
 
 	public function test_guidelines_include_rules_fonts_and_targets(): void {

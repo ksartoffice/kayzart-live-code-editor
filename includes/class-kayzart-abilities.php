@@ -182,7 +182,7 @@ class Abilities {
 			),
 			'kayzart/get-page'         => array(
 				'label'               => __( 'Get a Kayzart page', 'kayzart-live-code-editor' ),
-				'description'         => 'Reads one page: html, css, head and js (js is read-only), plus baseHash. Pass baseHash to kayzart/update-page.',
+				'description'         => 'Reads one page: html, css, head and js (js is read-only), plus baseHash. While you have a proposal for the page that a person has not merged yet, returns your proposal (state "proposed"); otherwise the saved page (state "saved"). Pass baseHash to kayzart/update-page.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -201,7 +201,7 @@ class Abilities {
 			),
 			'kayzart/get-preview-link' => array(
 				'label'               => __( 'Get a Kayzart preview link', 'kayzart-live-code-editor' ),
-				'description'         => 'Returns a link that shows the saved page without logging in, valid for a short time (see expiresIn). Open it with your own browser or screenshot tool to check the page visually at mobile and desktop widths. Issuing a new link invalidates the previous one. Do not share it publicly.',
+				'description'         => 'Returns a link that shows the page without logging in, valid for a short time (see expiresIn). While you have a proposal for the page, the link shows your proposal (state "proposed"). Open it with your own browser or screenshot tool to check the page visually at mobile and desktop widths. Issuing a new link invalidates the previous one. Do not share it publicly.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -330,7 +330,7 @@ class Abilities {
 			),
 			'kayzart/update-page'      => array(
 				'label'               => __( 'Update a Kayzart page', 'kayzart-live-code-editor' ),
-				'description'         => 'Changes an existing page. Requires baseHash from kayzart/get-page; if the page changed since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every change is saved as a revision the person can restore.',
+				'description'         => 'Proposes changes to an existing page. The page itself does not change: your changes are saved as a proposal in your own working copy, which a person merges in the Kayzart editor and saves. Call again to refine the proposal. Requires baseHash from kayzart/get-page or the last write result; if a person saved the page since, the call fails and you must read it again. Use edits for small changes: each edit replaces an exact substring (from) with to, in order; a from that matches more than once fails unless replaceAll is true. Send html, css or head only to replace a whole source. Every proposal is kept in the AI Edit history of the page. After a save, warnings lists problems found in the proposal.',
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -377,7 +377,7 @@ class Abilities {
 				'permission_callback' => static function ( $input ) {
 					return Agent_Pages::can_edit( (int) ( $input['id'] ?? 0 ) );
 				},
-				'meta'                => self::meta( false, true, false ),
+				'meta'                => self::meta( false, false, false ),
 			),
 		);
 	}

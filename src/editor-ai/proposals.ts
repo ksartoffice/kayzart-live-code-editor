@@ -20,7 +20,7 @@ export function proposalPollDelay(agentIdleSeconds: number | null | undefined) {
  */
 
 export type ProposalView =
-  /** Merged into the editor in this session and not saved yet. */
+  /** The editor holds it, not saved yet. */
   | 'merged'
   /** Waiting for the person to merge or discard it. */
   | 'pending'
@@ -57,11 +57,17 @@ export function includedProposalIds(item: Proposal, items: AiTimelineItem[]) {
   return pendingOnChain(items, item.proposal.chain).filter((candidate) => candidate.id <= item.id).map((candidate) => candidate.id);
 }
 
-export function proposalView(item: Proposal, items: AiTimelineItem[], merged: ReadonlySet<number>): ProposalView {
+/*
+ * Where a proposal stands is read from the editor's content, never from a
+ * record of what was merged, so it cannot drift from what the editor holds:
+ * a pending proposal is in the editor exactly when the editor holds its
+ * result. The server settles proposals the same way when the page is saved.
+ */
+export function proposalView(item: Proposal, items: AiTimelineItem[], editorHash: string | null): ProposalView {
   if (item.applicationStatus === 'discarded') return 'discarded';
   if (item.applicationStatus !== 'pending') return 'saved';
   if (pendingOnChain(items, item.proposal.chain).some((candidate) => candidate.id > item.id)) return 'included';
-  return merged.has(item.id) ? 'merged' : 'pending';
+  return editorHash !== null && editorHash === item.afterHash ? 'merged' : 'pending';
 }
 
 /**

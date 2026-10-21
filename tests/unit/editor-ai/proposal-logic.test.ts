@@ -31,11 +31,12 @@ describe('agent proposals', () => {
   });
 
   it('describes each proposal for its card', () => {
-    expect(proposalView(first, items, new Set())).toBe('included');
-    expect(proposalView(second, items, new Set())).toBe('pending');
-    expect(proposalView(second, items, new Set([10, 11]))).toBe('merged');
-    expect(proposalView(saved, items, new Set())).toBe('saved');
-    expect(proposalView(proposal(13, 'c3', 'a', 'b', { applicationStatus: 'discarded' }), items, new Set())).toBe('discarded');
+    expect(proposalView(first, items, 'h0')).toBe('included');
+    expect(proposalView(second, items, 'h1')).toBe('pending');
+    expect(proposalView(second, items, 'h2')).toBe('merged');
+    expect(proposalView(second, items, null)).toBe('pending');
+    expect(proposalView(saved, items, 'h0')).toBe('saved');
+    expect(proposalView(proposal(13, 'c3', 'a', 'b', { applicationStatus: 'discarded' }), items, 'b')).toBe('discarded');
   });
 
   it('merges automatically only when the editor holds what the agent started from', () => {

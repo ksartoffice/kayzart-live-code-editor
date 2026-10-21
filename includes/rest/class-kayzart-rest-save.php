@@ -315,9 +315,7 @@ class Rest_Save {
 		if ( $revision_id ) {
 			( new Ai_Timeline_Store() )->record_save( $post_id, get_current_user_id(), $revision_id );
 		}
-		// The editor lists the agent proposals it merged into what it saved.
-		$merged = $request->get_param( 'mergedProposals' );
-		Agent_Working_Copy::settle( $post_id, is_array( $merged ) ? array_map( 'absint', $merged ) : array() );
+		Agent_Working_Copy::settle( $post_id );
 		Review::record_save();
 
 		return new \WP_REST_Response(

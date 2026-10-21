@@ -275,20 +275,18 @@ class Ai_Timeline_Store {
 	}
 
 	/**
-	 * Mark proposals a person saved merged, with the earlier pending ones on
-	 * their chains, as applied.
+	 * Mark the proposals the saved page is exactly, with the earlier pending
+	 * ones on their chains, as applied.
 	 *
-	 * @param int        $post_id Page ID.
-	 * @param array<int> $ids     Proposals the editor merged.
-	 * @param string     $version Version of the saved page; a pending proposal with this version was saved as it is.
+	 * @param int    $post_id Page ID.
+	 * @param string $version Version of the saved page.
 	 * @return array{count:int,newest:array<int,array{chain:string,version:string}>}
 	 */
-	public function mark_proposals_merged( int $post_id, array $ids, string $version = '' ): array {
-		$ids     = array_map( 'intval', $ids );
+	public function mark_proposals_merged( int $post_id, string $version ): array {
 		$pending = $this->pending_proposals( $post_id );
 		$newest  = array();
 		foreach ( $pending as $id => $proposal ) {
-			$taken_in = in_array( $id, $ids, true ) || ( '' !== $version && hash_equals( $proposal['version'], $version ) );
+			$taken_in = '' !== $version && hash_equals( $proposal['version'], $version );
 			if ( $taken_in && ( ! isset( $newest[ $proposal['chain'] ] ) || $id > $newest[ $proposal['chain'] ]['id'] ) ) {
 				$newest[ $proposal['chain'] ] = array_merge( $proposal, array( 'id' => $id ) );
 			}

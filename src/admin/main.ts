@@ -87,7 +87,7 @@ import type {
   SelectedElementContext,
 } from './extensions/settings-tab-registry';
 import { __, sprintf } from '@wordpress/i18n';
-import { initAiEditorIntegration, mergedProposalIds } from '../editor-ai/main';
+import { initAiEditorIntegration } from '../editor-ai/main';
 import {
   createEditorLayoutStore,
   getEditorLayoutKind,
@@ -617,11 +617,10 @@ async function main() {
       hasUnsavedChanges = nextHasUnsavedChanges;
       toolbarApi?.update({ hasUnsavedChanges });
     },
-    getMergedProposalIds: () => mergedProposalIds(postId),
-    onSaveSuccess: ({ mergedProposals }) => {
+    onSaveSuccess: () => {
       requestPreviewReload();
       settingsApi?.refreshHistory();
-      window.dispatchEvent(new CustomEvent('kayzart-editor-saved', { detail: { mergedProposals } }));
+      window.dispatchEvent(new CustomEvent('kayzart-editor-saved'));
     },
     onSaveStateChange: (saving) => {
       saveInFlight = saving;
@@ -2325,6 +2324,7 @@ async function main() {
       getElementContext: getElementContextById,
       setEditorLock,
       isEditorLocked: () => extensionEditorLock,
+      isSaving: () => saveInFlight,
     };
   };
 

@@ -91,20 +91,54 @@ describe('AiEditorPanel agent proposals', () => {
     await act(async () => root.unmount());
   });
 
-  it('hands merged proposals to the save and forgets them once saved', async () => {
+  it('shows a merged proposal as saved once the server settled the save', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
     const env = setup({ timelines: [{ items: [proposalItem] }, { items: [proposalItem] }, { items: [{ ...proposalItem, applicationStatus: 'applied' }] }] });
     const { container, root } = await render();
-    const { mergedProposalIds } = await import('../../../src/editor-ai/main');
     await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
-    expect(mergedProposalIds(7)).toEqual([40]);
 
-    // The save request carried them and the server settled them.
-    await act(async () => { window.dispatchEvent(new CustomEvent('kayzart-editor-saved', { detail: { mergedProposals: [40] } })); await vi.advanceTimersByTimeAsync(200); });
+    await act(async () => { window.dispatchEvent(new CustomEvent('kayzart-editor-saved')); await vi.advanceTimersByTimeAsync(200); });
 
-    expect(mergedProposalIds(7)).toEqual([]);
     expect(env.requests.some((request) => request.url.includes('/timeline/merged'))).toBe(false);
     expect(container.querySelector('.kayzart-ai-result.is-proposal')?.textContent).toContain('Saved to the page.');
+    await act(async () => root.unmount());
+  });
+
+  it('reads whether a proposal is in the editor from the editor content', async () => {
+    const env = setup({ timelines: [{ items: [proposalItem] }] });
+    const { container, root } = await render();
+    await act(async () => container.querySelector<HTMLButtonElement>('.is-proposal .is-merge')!.click());
+    expect(container.querySelector('.is-proposal')?.textContent).toContain('In the editor, not saved yet.');
+
+    // Anything else replaces the editor content, such as restoring an earlier state.
+    const host = (window as any).KAYZART_EXTENSION_API;
+    const listeners: Array<() => void> = [];
+    host.subscribeEditorSnapshot = (listener: () => void) => { listeners.push(listener); return () => undefined; };
+    await act(async () => root.unmount());
+    const again = await render();
+    env.replaceEditorSnapshot(savedSnapshot);
+    await act(async () => listeners.forEach((listener) => listener()));
+
+    expect(again.container.querySelector('.is-proposal')?.textContent).toContain('Not in the editor yet.');
+    expect(again.container.querySelector('.is-proposal .is-merge')).not.toBeNull();
+    await act(async () => again.root.unmount());
+  });
+
+  it('does not replace the editor while a save is on its way', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'clearInterval'] });
+    const env = setup({ timelines: [{ items: [] }, { items: [proposalItem] }], states: AGENT_AT_WORK });
+    let saving = true;
+    (window as any).KAYZART_EXTENSION_API.isSaving = () => saving;
+    const { root } = await render();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(env.replaceEditorSnapshot).not.toHaveBeenCalled();
+    expect(env.requests.some((request) => request.url.includes('/timeline/state'))).toBe(false);
+
+    // The save finishes; the history reload after it merges the proposal.
+    saving = false;
+    await act(async () => { window.dispatchEvent(new CustomEvent('kayzart-editor-saved')); await vi.advanceTimersByTimeAsync(200); });
+    expect(env.replaceEditorSnapshot).toHaveBeenCalledWith(expect.objectContaining({ html: '<main>Proposed</main>' }));
     await act(async () => root.unmount());
   });
 

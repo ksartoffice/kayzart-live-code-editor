@@ -167,8 +167,6 @@ type SaveParams = {
   js: string;
   jsMode: JsMode;
   settingsUpdates?: Record<string, unknown>;
-  /** Agent proposals merged into this content, so the server can settle them with the save. */
-  mergedProposals?: number[];
 };
 
 export async function saveKayzArt(
@@ -201,9 +199,6 @@ export async function saveKayzArt(
     }
     if (params.settingsUpdates && Object.keys(params.settingsUpdates).length > 0) {
       payload.settingsUpdates = params.settingsUpdates;
-    }
-    if (params.mergedProposals && params.mergedProposals.length > 0) {
-      payload.mergedProposals = params.mergedProposals;
     }
     const res = await params.apiFetch<SaveResponse>({
       url: params.restUrl,

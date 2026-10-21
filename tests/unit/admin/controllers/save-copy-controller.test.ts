@@ -274,15 +274,19 @@ describe('save copy controller', () => {
     );
   });
 
-  it('sends the merged agent proposals with the save and reports them', async () => {
-    vi.mocked(saveKayzArt).mockResolvedValue({ ok: true });
-    const onSaveSuccess = vi.fn();
-    const { controller } = createController({ onSaveSuccess, getJsMode: () => 'classic', getMergedProposalIds: () => [40, 41] });
+  it('keeps content changed while a save is on its way unsaved', async () => {
+    let finish: (value: { ok: boolean }) => void = () => {};
+    vi.mocked(saveKayzArt).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const onUnsavedChange = vi.fn();
+    const { controller, htmlModel } = createController({ onUnsavedChange, getJsMode: () => 'classic' });
 
-    await controller.handleSave();
+    const saving = controller.handleSave();
+    // An agent proposal (or typing) lands after the request captured the content.
+    htmlModel.getValue = () => '<main>Arrived during the save</main>';
+    finish({ ok: true });
+    await saving;
 
-    expect(saveKayzArt).toHaveBeenCalledWith(expect.objectContaining({ mergedProposals: [40, 41] }));
-    expect(onSaveSuccess).toHaveBeenCalledWith({ mergedProposals: [40, 41] });
+    expect(onUnsavedChange).toHaveBeenLastCalledWith(true);
   });
 
   it('treats an editor mode-only change as unsaved CSS', () => {

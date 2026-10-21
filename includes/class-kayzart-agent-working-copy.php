@@ -294,28 +294,28 @@ final class Agent_Working_Copy {
 	/**
 	 * Settle proposals when the editor saves the page.
 	 *
-	 * Runs inside the save, so nothing depends on a later request from the
-	 * browser. A proposal is taken in when the editor says it merged it
-	 * before saving, or when the saved page is exactly that proposal (which
-	 * also covers a merge whose editor was reloaded before saving). Taken-in
-	 * proposals, and the earlier ones on their chains, become applied.
+	 * Runs inside the save and looks only at what was saved: a proposal is
+	 * taken in when the saved page is exactly that proposal. Nothing the
+	 * browser remembers about merging is trusted, so that record can never
+	 * drift from the content. A proposal merged and then edited before saving
+	 * stays pending, and the person discards it. Taken-in proposals, and the
+	 * earlier ones on their chains, become applied.
 	 *
 	 * A working copy that holds nothing beyond the saved page is deleted.
 	 * One the agent has added to since continues from the saved page, as
 	 * long as the page was saved with the merged proposal unchanged.
 	 * Otherwise it is left out of date, and its next update starts over.
 	 *
-	 * @param int        $page_id      Page just saved.
-	 * @param array<int> $activity_ids Proposals the editor merged before saving.
+	 * @param int $page_id Page just saved.
 	 * @return int Number of proposals marked applied.
 	 */
-	public static function settle( int $page_id, array $activity_ids ): int {
+	public static function settle( int $page_id ): int {
 		if ( self::is_copy( $page_id ) ) {
 			return 0;
 		}
 		$store   = new Ai_Timeline_Store();
 		$version = self::version( $page_id );
-		$result  = $store->mark_proposals_merged( $page_id, $activity_ids, $version );
+		$result  = $store->mark_proposals_merged( $page_id, $version );
 		foreach ( $result['newest'] as $proposal ) {
 			$copy_id = self::find_chain( $page_id, $proposal['chain'] );
 			if ( ! $copy_id ) {

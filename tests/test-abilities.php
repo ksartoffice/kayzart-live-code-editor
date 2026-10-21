@@ -736,7 +736,7 @@ class Test_Abilities extends WP_UnitTestCase {
 				'post_content' => '<p>Second</p>',
 			)
 		);
-		Agent_Working_Copy::settle( $page['id'], array( (int) $activity['id'] ) );
+		Agent_Working_Copy::settle( $page['id'] );
 		$this->assertSame( 0, Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ), 'The working copy is gone after the merge.' );
 
 		$this->assertSame( '<p>First</p>', $store->get_snapshot( $activity, 'before' )['html'] );
@@ -780,7 +780,7 @@ class Test_Abilities extends WP_UnitTestCase {
 				'post_content' => '<h1>Welcome aboard</h1><p>Body</p>',
 			)
 		);
-		$this->assertSame( 1, Agent_Working_Copy::settle( $page['id'], array( (int) $items[1]['id'] ) ) );
+		$this->assertSame( 1, Agent_Working_Copy::settle( $page['id'] ) );
 		$current = Snapshot::for_post( $page['id'] );
 
 		$context = $store->recent_context( $page['id'], $current, 1 );
@@ -1369,13 +1369,13 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 2, Agent_Working_Copy::settle( $page_id, array( $items[2]['id'] ) ) );
+		$this->assertSame( 2, Agent_Working_Copy::settle( $page_id ) );
 
 		$store = new Ai_Timeline_Store();
 		$this->assertSame( 'applied', $store->get( $items[1]['id'] )['application_status'], 'An earlier proposal on the chain is included.' );
 		$this->assertSame( 'applied', $store->get( $items[2]['id'] )['application_status'] );
 		$this->assertNull( get_post( $copy_id ), 'Nothing is left in the copy beyond the saved page.' );
-		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id, array( $items[2]['id'] ) ), 'Settling twice changes nothing.' );
+		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id ), 'Settling twice changes nothing.' );
 	}
 
 	public function test_a_copy_with_newer_proposals_continues_from_the_saved_page(): void {
@@ -1390,29 +1390,12 @@ class Test_Abilities extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( 1, Agent_Working_Copy::settle( $page_id, array( $items[1]['id'] ) ) );
+		$this->assertSame( 1, Agent_Working_Copy::settle( $page_id ) );
 
 		$store = new Ai_Timeline_Store();
 		$this->assertSame( 'pending', $store->get( $items[2]['id'] )['application_status'] );
 		$this->assertSame( $copy_id, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ), 'The newer proposal stays current.' );
 		$this->assertSame( '<p>Three</p>', Agent_Pages::get_page( $page_id )['html'] );
-	}
-
-	public function test_a_merged_proposal_changed_before_saving_leaves_the_copy_out_of_date(): void {
-		wp_set_current_user( $this->admin() );
-		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>', '<p>Three</p>' ) );
-		wp_update_post(
-			array(
-				'ID'           => $page_id,
-				'post_content' => '<p>Two, edited by the person</p>',
-			)
-		);
-
-		Agent_Working_Copy::settle( $page_id, array( $items[1]['id'] ) );
-
-		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
-		$this->assertSame( 0, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ) );
-		$this->assertSame( '<p>Two, edited by the person</p>', Agent_Pages::get_page( $page_id )['html'] );
 	}
 
 	public function test_discarding_a_proposal_discards_its_chain_and_copy(): void {
@@ -1471,7 +1454,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 409, rest_get_server()->dispatch( $discard )->get_status() );
 		$this->assertNotSame( $before, rest_get_server()->dispatch( $state )->get_data()['signature'], 'The signature changes with the history.' );
 
-		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id, array( $items[1]['id'] ) ), 'A discarded proposal is not applied later.' );
+		$this->assertSame( 0, Agent_Working_Copy::settle( $page_id ), 'A discarded proposal is not applied later.' );
 
 		$author = self::factory()->user->create( array( 'role' => 'author' ) );
 		wp_set_current_user( $author );
@@ -1529,7 +1512,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertLessThan( 5, Agent_Pages::seen_seconds_ago( $page_id ), 'Reading the guidelines counts for every page.' );
 	}
 
-	public function test_the_editor_save_settles_the_proposals_it_merged(): void {
+	public function test_a_proposal_edited_before_saving_stays_pending(): void {
 		wp_set_current_user( $this->admin() );
 		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
 		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
@@ -1544,7 +1527,7 @@ class Test_Abilities extends WP_UnitTestCase {
 		$save->set_param( 'mergedProposals', array( $items[1]['id'] ) );
 		$this->assertSame( 200, rest_get_server()->dispatch( $save )->get_status() );
 
-		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
+		$this->assertSame( 'pending', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'], 'Only what was saved counts; the browser is not trusted to say what it merged.' );
 		$this->assertSame( 0, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ), 'Edited after merging, the copy is out of date.' );
 		$this->assertNotNull( get_post( $copy_id ), 'It starts over on the next update.' );
 	}

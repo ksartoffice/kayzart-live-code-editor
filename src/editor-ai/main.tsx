@@ -53,19 +53,14 @@ const TERMINAL_INITIAL_REQUEST_CODES = new Set([
   'kayzart_ai_initial_request_terminal',
 ]);
 let promptFocusRequest = 0;
-/* Per post: agent proposals merged into the editor and not saved yet, and
-   proposals already handled, so each arrival is merged or announced once. */
-const mergedProposals = new Map<number, Set<number>>();
+/* Per post: proposals already handled, so each arrival is merged or announced once. */
 const handledProposals = new Map<number, Set<number>>();
 function proposalSet(store: Map<number, Set<number>>, postId: number) {
   let set = store.get(postId);
   if (!set) { set = new Set(); store.set(postId, set); }
   return set;
 }
-/** Agent proposals merged into the editor since the last save; the save sends them so the server settles them. */
-export function mergedProposalIds(postId: number) {
-  return [...proposalSet(mergedProposals, postId)];
-}
+
 type NoticesGlobal = { wp?: { data?: { dispatch?: (store: string) => { createNotice?: (status: string, message: string, options: Record<string, unknown>) => void } | undefined } } };
 function announce(message: string, id: string) {
   try {
@@ -375,7 +370,6 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const [optimistic, setOptimistic] = useState<{ requestId: string; prompt: string; contexts: SelectedElementContext[] } | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
   const [resolvingConflict, setResolvingConflict] = useState(false);
-  const [, setProposalTick] = useState(0);
   const [editorIdentity, setEditorIdentity] = useState<Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null>(() => {
     const snapshot = host()?.getEditorSnapshot?.();
     return snapshot ? { baseHash: snapshot.baseHash, jsMode: snapshot.jsMode } : null;
@@ -583,7 +577,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       const queued = Array.from(pendingContexts.values()); pendingContexts.clear();
       if (queued.length) setContexts(mergeContexts(draftState.contexts, queued));
     };
-    const saved = (event: Event) => { forgetSavedProposals(event); window.setTimeout(() => void refresh(), 150); };
+    const saved = () => { window.setTimeout(() => void refresh(), 150); };
     window.addEventListener(CONTEXT_SYNC_EVENT, syncContexts); window.addEventListener(SAVE_EVENT, saved);
     syncContexts(); void refresh(true);
     const active = loadActiveJob(postId); if (active) void poll(active);
@@ -616,7 +610,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     };
     const check = async () => {
       if (inFlight) return;
-      if (document.hidden) { schedule(); return; }
+      if (document.hidden || host()?.isSaving?.()) { schedule(); return; }
       inFlight = true;
       lastCheck = Date.now();
       try {
@@ -778,9 +772,9 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     try { const status = await cancelJob(active.cancelUrl, nonce); if (isTerminalStatus(status.status)) terminal(status, active); }
     catch (caught) { setError(caught instanceof Error ? caught.message : __('Cancel request failed.', 'kayzart-live-code-editor')); setCanceling(false); }
   };
-  /* Put a proposal into the editor as unsaved changes, with the earlier
-     proposals on its chain that it includes. */
-  const loadProposal = async (item: AiTimelineItem, list: AiTimelineItem[]) => {
+  /* Put a proposal into the editor as unsaved changes. It includes the
+     earlier proposals on its chain. */
+  const loadProposal = async (item: AiTimelineItem) => {
     if (!ai || !isProposal(item)) return false;
     try {
       const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, item.id, 'after');
@@ -791,9 +785,6 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
         return false;
       }
       setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
-      const merged = proposalSet(mergedProposals, postId);
-      includedProposalIds(item, list).forEach((id) => merged.add(id));
-      setProposalTick((value) => value + 1);
       return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : __('The proposal could not be merged.', 'kayzart-live-code-editor'));
@@ -802,15 +793,17 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   };
   /* A proposal that arrives while the editor holds exactly what the agent
      started from goes straight in as unsaved changes; any other is announced
-     and waits for the person. */
+     and waits for the person. During a save nothing is replaced: the save
+     already sent the old content, and the next check after it merges. */
   const receiveProposals = async (list: AiTimelineItem[]) => {
+    if (host()?.isSaving?.()) return;
     const handled = proposalSet(handledProposals, postId);
     for (const { newest, arrived } of arrivedProposals(list, handled)) {
       arrived.forEach((item) => handled.add(item.id));
       const client = newest.agentClient || 'MCP';
       const editor = host()?.getEditorSnapshot?.();
       const identity = editor ? { baseHash: editor.baseHash, jsMode: editor.jsMode } : null;
-      if (!host()?.isEditorLocked?.() && canMergeAutomatically(arrived, identity) && await loadProposal(newest, list)) {
+      if (!host()?.isEditorLocked?.() && canMergeAutomatically(arrived, identity) && await loadProposal(newest)) {
         announce(sprintf(
           /* translators: %s: name of the external AI agent, such as Claude Code. */
           __('%s changed this page. The changes are in the editor and not saved yet.', 'kayzart-live-code-editor'), client,
@@ -830,41 +823,25 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
     const current = host()?.getEditorSnapshot?.();
     if ((!current || !first || current.baseHash !== first.beforeHash) && !window.confirm(__('This replaces the code in the editor, including any changes you have not saved. Continue?', 'kayzart-live-code-editor'))) return;
     setError('');
-    await loadProposal(item, items);
+    await loadProposal(item);
   };
   const discard = async (item: AiTimelineItem) => {
     if (!ai || !isProposal(item)) return;
     if (!window.confirm(__('Discard this proposal? The page stays as it is.', 'kayzart-live-code-editor'))) return;
     setError('');
-    const merged = proposalSet(mergedProposals, postId);
-    const chainIds = includedProposalIds(item, items);
-    const mergedIds = chainIds.filter((id) => merged.has(id));
     try {
-      if (mergedIds.length) {
-        // Put back what the editor held before the proposal was merged, unless the person has edited it since.
-        const current = host()?.getEditorSnapshot?.();
-        if (current && current.baseHash === item.afterHash) {
-          const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, Math.min(...mergedIds), 'before');
-          const snapshot = normalizeSnapshot(result.snapshot);
-          if (host()?.replaceEditorSnapshot?.(snapshot)) setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
-        }
-        chainIds.forEach((id) => merged.delete(id));
-        setProposalTick((value) => value + 1);
+      // While the editor holds the proposal, put back what the agent started from.
+      const current = host()?.getEditorSnapshot?.();
+      if (current && current.baseHash === item.afterHash) {
+        const result = await getTimelineSnapshot(ai.timelineBaseUrl, nonce, includedProposalIds(item, items)[0], 'before');
+        const snapshot = normalizeSnapshot(result.snapshot);
+        if (host()?.replaceEditorSnapshot?.(snapshot)) setEditorIdentity({ baseHash: snapshot.baseHash, jsMode: snapshot.jsMode });
       }
       await discardProposal(ai.timelineBaseUrl, nonce, item.id);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : __('The proposal could not be discarded.', 'kayzart-live-code-editor'));
     }
     await refresh();
-  };
-  /* The save carried the merged proposals and the server settled them; forget
-     those, keeping any merged while the save was on its way. */
-  const forgetSavedProposals = (event: Event) => {
-    const ids = (event as CustomEvent<{ mergedProposals?: number[] }>).detail?.mergedProposals;
-    if (!Array.isArray(ids) || !ids.length) return;
-    const merged = proposalSet(mergedProposals, postId);
-    ids.forEach((id) => merged.delete(id));
-    setProposalTick((value) => value + 1);
   };
 
   const snapshotPosition = (item: AiTimelineItem, current: Pick<EditorSnapshot, 'baseHash' | 'jsMode'> | null): 'before' | 'after' | 'other' => {
@@ -954,7 +931,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
   const renderAgent = (item: AiTimelineItem) => {
     const position = snapshotPosition(item, editorIdentity);
     const client = item.agentClient || 'MCP';
-    const view: ProposalView = isProposal(item) ? proposalView(item, items, proposalSet(mergedProposals, postId)) : 'saved';
+    const view: ProposalView = isProposal(item) ? proposalView(item, items, editorIdentity?.baseHash ?? null) : 'saved';
     const heading = item.agentAction === 'create'
       /* translators: %s: name of the external AI agent, such as Claude Code. */
       ? __('%s created this page', 'kayzart-live-code-editor')
@@ -989,7 +966,7 @@ export function AiEditorPanel({ active = true }: { active?: boolean } = {}) {
       {actions}
     </div>;
   };
-  const waitingProposals = actionableProposals(items).filter((item) => !proposalSet(mergedProposals, postId).has(item.id));
+  const waitingProposals = actionableProposals(items).filter((item) => item.afterHash !== editorIdentity?.baseHash);
 
   return <div className="kayzart-ai-panel" hidden={!active}>
     {availabilityResult ? <p className="kayzart-ai-availability-result" role="status" aria-live="polite">{availabilityResult}</p> : null}

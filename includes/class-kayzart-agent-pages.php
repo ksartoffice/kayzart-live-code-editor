@@ -152,10 +152,6 @@ class Agent_Pages {
 			'fonts'           => $fonts,
 			'editableTargets' => self::editable_targets(),
 			'postTypes'       => Post_Type::get_enabled_post_types(),
-			'publishedPages'  => array(
-				'agentsCanUpdate' => Admin::get_agent_live_updates_enabled(),
-				'setting'         => implode( ' > ', array( 'Kayzart', __( 'Settings', 'kayzart-live-code-editor' ), Admin::get_agent_settings_section_title(), Admin::get_agent_live_updates_label() ) ),
-			),
 			'limits'          => array(
 				'maxSourceBytes' => self::MAX_SOURCE_BYTES,
 				'maxEdits'       => self::MAX_EDITS,
@@ -403,14 +399,12 @@ class Agent_Pages {
 		return array_merge(
 			self::summary( $post ),
 			array(
-				'html'                => $snapshot['html'],
-				'css'                 => $snapshot['css'],
-				'head'                => $snapshot['customHead'],
-				'js'                  => $snapshot['js'],
-				'baseHash'            => self::version_hash( $post, $snapshot ),
-				'editableTargets'     => self::editable_targets(),
-				'canUpdate'           => null === self::update_blocked_reason( $post ),
-				'updateBlockedReason' => self::update_blocked_reason( $post ),
+				'html'            => $snapshot['html'],
+				'css'             => $snapshot['css'],
+				'head'            => $snapshot['customHead'],
+				'js'              => $snapshot['js'],
+				'baseHash'        => self::version_hash( $post, $snapshot ),
+				'editableTargets' => self::editable_targets(),
 			)
 		);
 	}
@@ -493,36 +487,7 @@ class Agent_Pages {
 		if ( ! self::can_edit( $post_id ) ) {
 			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
 		}
-
-		// Hold the page's save lock from the baseHash check through the write,
-		// so no other save can land in between and be overwritten.
-		if ( ! Save_Lock::acquire( $post_id ) ) {
-			return self::error( 'kayzart_page_busy', __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ), 409 );
-		}
-		try {
-			return self::update_page_locked( $post_id, $input );
-		} finally {
-			Save_Lock::release( $post_id );
-		}
-	}
-
-	/**
-	 * Update a page while holding its save lock.
-	 *
-	 * @param int   $post_id Post ID.
-	 * @param array $input   Ability input.
-	 * @return array|\WP_Error
-	 */
-	private static function update_page_locked( int $post_id, array $input ) {
-		clean_post_cache( $post_id );
-		$post = get_post( $post_id );
-		if ( ! $post instanceof \WP_Post || ! self::is_agent_page( $post_id ) ) {
-			return self::error( 'kayzart_page_not_found', __( 'Kayzart page not found.', 'kayzart-live-code-editor' ), 404 );
-		}
-		$blocked = self::update_blocked_reason( $post );
-		if ( null !== $blocked ) {
-			return self::error( 'kayzart_page_published', $blocked, 409 );
-		}
+		$post   = get_post( $post_id );
 		$before = Snapshot::for_post( $post_id );
 		if ( ! hash_equals( self::version_hash( $post, $before ), (string) ( $input['baseHash'] ?? '' ) ) ) {
 			return self::error(
@@ -568,47 +533,6 @@ class Agent_Pages {
 		self::record_activity( $post_id, $saved, $before, (string) ( $input['summary'] ?? '' ), 'update', (string) $post->post_title );
 
 		return self::write_result( $post_id, $saved, $after );
-	}
-
-	/**
-	 * Why an agent may not update a page, or null when it may.
-	 *
-	 * Written for the agent to pass on: it names the setting exactly as the
-	 * settings screen shows it, in the site's language.
-	 *
-	 * @param \WP_Post $post Post.
-	 * @return string|null
-	 */
-	public static function update_blocked_reason( \WP_Post $post ): ?string {
-		if ( ! self::is_live( $post ) || Admin::get_agent_live_updates_enabled() ) {
-			return null;
-		}
-		return sprintf(
-			/* translators: 1: settings section title, 2: checkbox label. */
-			__( 'This page is published or scheduled, and this site does not let AI agents change live pages. A site administrator can allow it in Kayzart > Settings > %1$s by turning on "%2$s". Tell the person this, or create a new draft with kayzart/create-page instead.', 'kayzart-live-code-editor' ),
-			Admin::get_agent_settings_section_title(),
-			Admin::get_agent_live_updates_label()
-		);
-	}
-
-	/**
-	 * Whether visitors see the page now or will without anyone acting.
-	 *
-	 * The editor saves straight into the post, so an agent update to a
-	 * published page goes live at once, and one to a scheduled page goes live
-	 * when it is due. Unless a site administrator allows it, agents change
-	 * drafts, pending and private pages only, which keeps every agent change
-	 * behind a person's review.
-	 *
-	 * @param \WP_Post $post Post.
-	 * @return bool
-	 */
-	public static function is_live( \WP_Post $post ): bool {
-		if ( 'future' === $post->post_status ) {
-			return true;
-		}
-		$status = get_post_status_object( $post->post_status );
-		return $status instanceof \stdClass && ! empty( $status->public );
 	}
 
 	/**

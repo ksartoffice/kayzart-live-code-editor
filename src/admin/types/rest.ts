@@ -4,8 +4,6 @@ import type { CssByMode, EditorCssMode } from './css-mode';
 export type SaveResponse = {
   ok?: boolean;
   error?: string;
-  code?: string;
-  version?: string;
   customHead?: string;
   customHeadRemovedTags?: string[];
   settings?: SettingsData;
@@ -59,7 +57,6 @@ export type SetupResponse = {
   ok?: boolean;
   error?: string;
   tailwindEnabled?: boolean;
-  snapshotVersion?: string;
 };
 
 export type CompileTailwindResponse = {

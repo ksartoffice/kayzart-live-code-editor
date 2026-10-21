@@ -265,7 +265,6 @@ async function main() {
   }
 
   let setupTailwindEnabled: boolean | undefined;
-  let snapshotVersion = cfg.snapshotVersion;
   if (cfg.setupRequired) {
     try {
       const setupResult = await runSetupWizard({
@@ -277,7 +276,6 @@ async function main() {
         initialTailwindEnabled: Boolean(cfg.tailwindEnabled),
       });
       setupTailwindEnabled = setupResult.tailwindEnabled;
-      snapshotVersion = setupResult.snapshotVersion ?? snapshotVersion;
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[Kayzart] Setup failed', error);
@@ -313,7 +311,6 @@ async function main() {
   let liveHighlightEnabled = initialState.settingsData?.liveHighlightEnabled ?? true;
   let hasUnsavedChanges = false;
   let pendingSettingsUpdates: Record<string, unknown> = {};
-  let pendingSettingsBase: Record<string, unknown> = {};
   let hasUnsavedSettings = false;
   let hasSettingsValidationErrors = false;
   let importFullHtmlHandler = () => {};
@@ -579,7 +576,6 @@ async function main() {
     restUrl: cfg.restUrl,
     postId,
     canEditJs,
-    initialSnapshotVersion: snapshotVersion,
     getHtmlModel: () => htmlModel,
     getCustomHeadModel: () => customHeadModel,
     getCssModel: () => cssModel,
@@ -590,13 +586,11 @@ async function main() {
     getCssByMode,
     getPendingSettingsState: () => ({
       pendingSettingsUpdates,
-      pendingSettingsBase,
       hasUnsavedSettings,
       hasSettingsValidationErrors,
     }),
     clearPendingSettingsState: () => {
       pendingSettingsUpdates = {};
-      pendingSettingsBase = {};
       hasUnsavedSettings = false;
       hasSettingsValidationErrors = false;
     },
@@ -2368,7 +2362,6 @@ async function main() {
     },
     onPendingUpdatesChange: (nextState: PendingSettingsState) => {
       pendingSettingsUpdates = { ...nextState.updates };
-      pendingSettingsBase = { ...nextState.base };
       hasUnsavedSettings = nextState.hasUnsavedSettings;
       hasSettingsValidationErrors = nextState.hasValidationErrors;
       syncUnsavedUi();

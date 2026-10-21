@@ -30,8 +30,6 @@ export type AppConfig = {
   listLabel?: string;
   tailwindEnabled?: boolean;
   setupRequired?: boolean;
-  /** Version of the saved sources when the editor loaded; sent back on save to detect outside changes. */
-  snapshotVersion?: string;
   restNonce: string;
   revisionsSupported?: boolean;
   wpVersion?: string;

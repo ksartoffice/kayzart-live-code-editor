@@ -167,15 +167,7 @@ type SaveParams = {
   js: string;
   jsMode: JsMode;
   settingsUpdates?: Record<string, unknown>;
-  /** Saved values of the settings in settingsUpdates, compared on the server before writing them. */
-  settingsBase?: Record<string, unknown>;
-  /** Version the editor last loaded or saved; the server refuses the save if the page changed since. */
-  baseVersion?: string;
-  /** Overwrite changes made outside the editor after a conflict. */
-  force?: boolean;
 };
-
-export const PAGE_CHANGED_CODE = 'kayzart_page_changed';
 
 export async function saveKayzArt(
   params: SaveParams
@@ -187,12 +179,6 @@ export async function saveKayzArt(
   settings?: SettingsData;
   editorMode?: EditorCssMode;
   cssByMode?: CssByMode;
-  version?: string;
-  conflict?: boolean;
-  /** Version the server had when it refused the save, to retry against after the person confirms. */
-  conflictVersion?: string;
-  /** Saved settings when the server refused the save. */
-  conflictSettings?: Record<string, unknown>;
 }> {
   try {
     const payload: Record<string, unknown> = {
@@ -213,15 +199,6 @@ export async function saveKayzArt(
     }
     if (params.settingsUpdates && Object.keys(params.settingsUpdates).length > 0) {
       payload.settingsUpdates = params.settingsUpdates;
-      if (params.settingsBase && Object.keys(params.settingsBase).length > 0) {
-        payload.settingsBase = params.settingsBase;
-      }
-    }
-    if (params.baseVersion) {
-      payload.baseVersion = params.baseVersion;
-    }
-    if (params.force) {
-      payload.force = true;
     }
     const res = await params.apiFetch<SaveResponse>({
       url: params.restUrl,
@@ -245,7 +222,6 @@ export async function saveKayzArt(
         settings,
         editorMode: res.editorMode,
         cssByMode: res.cssByMode,
-        version: typeof res.version === 'string' ? res.version : undefined,
       };
     }
     if (typeof res?.error === 'string' && res.error.trim()) {
@@ -253,16 +229,8 @@ export async function saveKayzArt(
     }
     return { ok: false };
   } catch (error: unknown) {
-    const body = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
-    const conflict = body.code === PAGE_CHANGED_CODE;
     return {
       ok: false,
-      conflict,
-      conflictVersion: conflict && typeof body.version === 'string' ? body.version : undefined,
-      conflictSettings:
-        conflict && body.settings && typeof body.settings === 'object'
-          ? (body.settings as Record<string, unknown>)
-          : undefined,
       error: resolveUnknownErrorMessage(error, __('Save failed.', 'kayzart-live-code-editor')),
     };
   }

@@ -16,39 +16,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Rest_Setup {
 	/**
-	 * Set up KayzArt mode (Normal or Tailwind), one page save at a time.
-	 *
-	 * Setup rewrites the CSS buffers, so it takes the page's save lock like
-	 * every other write and cannot land inside an agent update.
+	 * Set up KayzArt mode (Normal or Tailwind).
 	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @return \WP_REST_Response
 	 */
 	public static function setup_mode( \WP_REST_Request $request ): \WP_REST_Response {
-		$post_id = absint( $request->get_param( 'post_id' ) );
-		if ( ! Save_Lock::acquire( $post_id ) ) {
-			return new \WP_REST_Response(
-				array(
-					'ok'    => false,
-					'error' => __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ),
-				),
-				409
-			);
-		}
-		try {
-			return self::setup_mode_unlocked( $request );
-		} finally {
-			Save_Lock::release( $post_id );
-		}
-	}
-
-	/**
-	 * Set up KayzArt mode while holding the page's save lock.
-	 *
-	 * @param \WP_REST_Request $request REST request.
-	 * @return \WP_REST_Response
-	 */
-	private static function setup_mode_unlocked( \WP_REST_Request $request ): \WP_REST_Response {
 		$post_id = absint( $request->get_param( 'post_id' ) );
 		$mode    = sanitize_key( (string) $request->get_param( 'mode' ) );
 
@@ -89,8 +62,6 @@ class Rest_Setup {
 			array(
 				'ok'              => true,
 				'tailwindEnabled' => $tailwind_enabled,
-				// Setup rewrites the CSS buffers, so the editor's version moves too.
-				'snapshotVersion' => Rest_Save::current_version( $post_id ),
 			),
 			200
 		);

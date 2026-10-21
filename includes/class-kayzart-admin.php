@@ -53,7 +53,6 @@ class Admin {
 	const OPTION_AI_SITE_INSTRUCTIONS  = 'kayzart_ai_site_instructions';
 	const AI_SITE_INSTRUCTIONS_MAX     = 4000;
 	const OPTION_AI_REFERENCE_FETCH    = 'kayzart_ai_reference_fetch';
-	const OPTION_AGENT_LIVE_UPDATES    = 'kayzart_agent_live_updates';
 	const OPTION_FLUSH_REWRITE         = 'kayzart_flush_rewrite';
 	const REMOVE_OPENAI_KEY_ACTION     = 'kayzart_remove_openai_key';
 	const REMOVE_OPENAI_KEY_NONCE      = 'kayzart_remove_openai_key';
@@ -1313,16 +1312,6 @@ class Admin {
 			)
 		);
 
-		register_setting(
-			self::SETTINGS_GROUP,
-			self::OPTION_AGENT_LIVE_UPDATES,
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => array( __CLASS__, 'sanitize_agent_live_updates' ),
-				'default'           => '0',
-			)
-		);
-
 		add_settings_section(
 			'kayzart_ai',
 			__( 'AI connection', 'kayzart-live-code-editor' ),
@@ -1391,25 +1380,6 @@ class Admin {
 			self::SETTINGS_SLUG,
 			'kayzart_ai_advanced_fields'
 		);
-
-		// Agents connect through the Abilities API, so the section only appears
-		// where WordPress can offer them at all.
-		if ( Abilities::is_supported() ) {
-			add_settings_section(
-				'kayzart_ai_agents',
-				self::get_agent_settings_section_title(),
-				array( __CLASS__, 'render_agents_section' ),
-				self::SETTINGS_SLUG
-			);
-
-			add_settings_field(
-				self::OPTION_AGENT_LIVE_UPDATES,
-				__( 'Published pages', 'kayzart-live-code-editor' ),
-				array( __CLASS__, 'render_agent_live_updates_field' ),
-				self::SETTINGS_SLUG,
-				'kayzart_ai_agents'
-			);
-		}
 
 		if ( self::should_show_post_slug_settings() ) {
 			add_settings_section(
@@ -1962,82 +1932,6 @@ class Admin {
 					self::AI_SITE_INSTRUCTIONS_MAX
 				)
 			)
-		);
-	}
-
-	/**
-	 * Sanitize whether connected AI agents may update live pages.
-	 *
-	 * A missing value means the field was not on the submitted form, so the
-	 * stored choice is kept, as with the linked pages checkbox.
-	 *
-	 * @param mixed $value Raw value.
-	 * @return string '1' when allowed, '0' when not.
-	 */
-	public static function sanitize_agent_live_updates( $value ): string {
-		if ( null === $value ) {
-			$value = get_option( self::OPTION_AGENT_LIVE_UPDATES, '0' );
-		}
-		return in_array( $value, array( true, 1, '1', 'on', 'yes' ), true ) ? '1' : '0';
-	}
-
-	/**
-	 * Whether AI agents connected over MCP may update published and scheduled pages.
-	 *
-	 * @return bool
-	 */
-	public static function get_agent_live_updates_enabled(): bool {
-		$enabled = '1' === self::sanitize_agent_live_updates( get_option( self::OPTION_AGENT_LIVE_UPDATES, '0' ) );
-
-		/**
-		 * Filter whether AI agents connected over MCP may update published and scheduled pages.
-		 *
-		 * @param bool $enabled Whether live pages may be updated by agents.
-		 */
-		return (bool) apply_filters( 'kayzart_agent_live_updates_enabled', $enabled );
-	}
-
-	/**
-	 * Title of the settings section for AI agents connected over MCP.
-	 *
-	 * Shared with the message agents receive, so it names what the person sees.
-	 *
-	 * @return string
-	 */
-	public static function get_agent_settings_section_title(): string {
-		return __( 'AI agents connected over MCP', 'kayzart-live-code-editor' );
-	}
-
-	/**
-	 * Label of the checkbox that lets agents update live pages.
-	 *
-	 * @return string
-	 */
-	public static function get_agent_live_updates_label(): string {
-		return __( 'Let connected AI agents update published and scheduled pages', 'kayzart-live-code-editor' );
-	}
-
-	/**
-	 * Explain that the section is about MCP agents, not AI Edit in the editor.
-	 */
-	public static function render_agents_section(): void {
-		printf(
-			'<p>%s</p>',
-			esc_html__( 'These settings apply only to AI agents you connect to this site through the MCP Adapter plugin, such as Claude Code. They do not change AI Edit in the Kayzart editor, where you review every change and save it yourself.', 'kayzart-live-code-editor' )
-		);
-	}
-
-	/**
-	 * Render the checkbox that lets agents update live pages.
-	 */
-	public static function render_agent_live_updates_field(): void {
-		$name = self::OPTION_AGENT_LIVE_UPDATES;
-		echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0" />';
-		echo '<label for="' . esc_attr( $name ) . '"><input type="checkbox" id="' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '" value="1"' . checked( self::get_agent_live_updates_enabled(), true, false ) . ' /> ';
-		echo esc_html( self::get_agent_live_updates_label() ) . '</label>';
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Off by default. While off, agents can change only draft, pending, and private pages, so nothing goes live without your review. When on, an agent\'s change to a published page is live as soon as it is saved. Every change is still kept as a revision and listed in the AI Edit history, where you can restore the previous version.', 'kayzart-live-code-editor' )
 		);
 	}
 
@@ -2710,7 +2604,6 @@ class Admin {
 			),
 			'tailwindEnabled'              => 'tailwind' === $editor_mode,
 			'setupRequired'                => get_post_meta( $post_id, '_kayzart_setup_required', true ) === '1',
-			'snapshotVersion'              => Rest_Save::current_version( $post_id ),
 			'restNonce'                    => wp_create_nonce( 'wp_rest' ),
 			'revisionsSupported'           => Snapshot::is_supported(),
 			'wpVersion'                    => (string) $GLOBALS['wp_version'],

@@ -24,10 +24,6 @@ type SaveCopyControllerDeps = {
   restUrl: string;
   postId: number;
   canEditJs: boolean;
-  /** Version of the saved sources the editor loaded, used to detect changes made elsewhere. */
-  initialSnapshotVersion?: string;
-  /** Asks whether to overwrite changes made outside the editor. Defaults to window.confirm. */
-  confirmOverwrite?: (message: string) => boolean;
   getHtmlModel: () => EditorModel | undefined;
   getCustomHeadModel: () => EditorModel | undefined;
   getCssModel: () => EditorModel | undefined;
@@ -38,8 +34,6 @@ type SaveCopyControllerDeps = {
   getCssByMode: () => CssByMode;
   getPendingSettingsState: () => {
     pendingSettingsUpdates: Record<string, unknown>;
-    /** Saved value of each pending setting, sent so a newer change made elsewhere is not overwritten. */
-    pendingSettingsBase?: Record<string, unknown>;
     hasUnsavedSettings: boolean;
     hasSettingsValidationErrors: boolean;
   };
@@ -219,28 +213,8 @@ function replaceModelContent(model: EditorModel, nextText: string) {
   );
 }
 
-/** How many times a save is retried after the person confirms overwriting outside changes. */
-const MAX_CONFLICT_RETRIES = 3;
-
-/** Replace the known saved values of pending settings with the ones the server reported. */
-function rebaseSettings(
-  base: Record<string, unknown> | undefined,
-  current: Record<string, unknown> | undefined
-): Record<string, unknown> | undefined {
-  if (!base || !current) {
-    return base;
-  }
-  const next: Record<string, unknown> = {};
-  Object.keys(base).forEach((key) => {
-    next[key] = Object.prototype.hasOwnProperty.call(current, key) ? current[key] : base[key];
-  });
-  return next;
-}
-
 export function createSaveCopyController(deps: SaveCopyControllerDeps) {
   let saveInFlight: Promise<{ ok: boolean; error?: string }> | null = null;
-  let snapshotVersion = deps.initialSnapshotVersion;
-  const confirmOverwrite = deps.confirmOverwrite ?? ((message: string) => window.confirm(message));
   let hasUnsavedChanges = false;
   let lastSaved: {
     html: string;
@@ -382,7 +356,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
     if (!getUnsavedFlags().hasAny) {
       return { ok: true };
     }
-    const { pendingSettingsUpdates, pendingSettingsBase, hasUnsavedSettings, hasSettingsValidationErrors } =
+    const { pendingSettingsUpdates, hasUnsavedSettings, hasSettingsValidationErrors } =
       deps.getPendingSettingsState();
     if (hasSettingsValidationErrors) {
       const validationErrorMessage = __('Fix settings errors before saving.', 'kayzart-live-code-editor');
@@ -398,7 +372,6 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
       return await saveInFlight;
     }
     const settingsUpdates = hasUnsavedSettings ? { ...pendingSettingsUpdates } : undefined;
-    const settingsBase = hasUnsavedSettings && pendingSettingsBase ? { ...pendingSettingsBase } : undefined;
     deps.onSaveStateChange?.(true);
     saveInFlight = (async () => {
       deps.createSnackbar('info', __('Saving...', 'kayzart-live-code-editor'), deps.noticeIds.save);
@@ -420,7 +393,7 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         }
       }
 
-      const saveParams = {
+      const result = await saveKayzArt({
         apiFetch: deps.apiFetch,
         restUrl: deps.restUrl,
         postId: deps.postId,
@@ -434,49 +407,9 @@ export function createSaveCopyController(deps: SaveCopyControllerDeps) {
         js: jsModel.getValue(),
         jsMode: deps.getJsMode(),
         settingsUpdates,
-        settingsBase,
-        baseVersion: snapshotVersion,
-      };
-      let attempt = saveParams;
-      let result = await saveKayzArt(attempt);
-
-      // Someone else (an AI agent, another tab) saved the page after this
-      // editor loaded it. Saving now would silently replace their work. A
-      // confirmed overwrite is retried against the version the conflict
-      // reported, not forced, so a further change made while the dialog was
-      // open is caught and asked about again.
-      let conflicts = 0;
-      while (!result.ok && result.conflict) {
-        conflicts += 1;
-        if (!result.conflictVersion || conflicts > MAX_CONFLICT_RETRIES) {
-          break;
-        }
-        const overwrite = confirmOverwrite(
-          __(
-            'This page was changed outside this editor after you opened it, for example by an AI agent. Replace those changes with what is in the editor? Choose Cancel to keep them. Their changes stay in the AI Edit history and revisions either way.',
-            'kayzart-live-code-editor'
-          )
-        );
-        if (!overwrite) {
-          const keptMessage = __(
-            'Not saved. Reload the editor to load the latest version of this page.',
-            'kayzart-live-code-editor'
-          );
-          deps.createSnackbar('error', keptMessage, deps.noticeIds.save, deps.noticeErrorMs);
-          return { ok: false, error: keptMessage };
-        }
-        attempt = {
-          ...attempt,
-          baseVersion: result.conflictVersion,
-          settingsBase: rebaseSettings(attempt.settingsBase, result.conflictSettings),
-        };
-        result = await saveKayzArt(attempt);
-      }
+      });
 
       if (result.ok) {
-        if (result.version) {
-          snapshotVersion = result.version;
-        }
         if (deps.canEditJs && typeof result.customHead === 'string' && result.customHead !== customHeadModel.getValue()) {
           replaceModelContent(customHeadModel, result.customHead);
         }

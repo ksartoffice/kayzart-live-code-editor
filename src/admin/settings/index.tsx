@@ -39,8 +39,6 @@ export type SettingsData = {
 
 export type PendingSettingsState = {
   updates: Record<string, unknown>;
-  /** Saved value of each updated setting, so the server can tell if it changed elsewhere first. */
-  base: Record<string, unknown>;
   hasUnsavedSettings: boolean;
   hasValidationErrors: boolean;
 };
@@ -297,7 +295,6 @@ function SettingsSidebar({
 
   const pendingSettingsState = useMemo<PendingSettingsState>(() => {
     const updates: Record<string, unknown> = {};
-    const base: Record<string, unknown> = {};
     const savedTemplateMode = resolveTemplateMode(settings.templateMode);
     const savedLiveHighlightEnabled = resolveLiveHighlightEnabled(settings.liveHighlightEnabled);
 
@@ -306,16 +303,13 @@ function SettingsSidebar({
 
     if (templateModeChanged) {
       updates.templateMode = templateMode;
-      base.templateMode = savedTemplateMode;
     }
     if (liveHighlightChanged) {
       updates.liveHighlightEnabled = liveHighlightEnabled;
-      base.liveHighlightEnabled = savedLiveHighlightEnabled;
     }
 
     return {
       updates,
-      base,
       hasUnsavedSettings:
         templateModeChanged ||
         liveHighlightChanged,

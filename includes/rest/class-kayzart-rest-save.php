@@ -19,104 +19,12 @@ class Rest_Save {
 	private const JS_MODE_VALUES = array( 'classic', 'module' );
 
 	/**
-	 * Save KayzArt post content and metadata, one save per page at a time.
-	 *
-	 * @param \WP_REST_Request $request REST request.
-	 * @return \WP_REST_Response
-	 */
-	public static function save( \WP_REST_Request $request ): \WP_REST_Response {
-		$post_id = absint( $request->get_param( 'post_id' ) );
-		if ( ! Save_Lock::acquire( $post_id ) ) {
-			return new \WP_REST_Response(
-				array(
-					'ok'    => false,
-					'error' => __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ),
-				),
-				409
-			);
-		}
-		try {
-			// The editor sends the version it last loaded or saved. Checking it
-			// only after the lock is held also catches a save that waited while
-			// an agent wrote the page. Clients that send no version (older
-			// callers, add-ons) save as before; force overwrites deliberately.
-			$base_version = $request->get_param( 'baseVersion' );
-			if (
-				is_string( $base_version ) && '' !== $base_version
-				&& ! rest_sanitize_boolean( $request->get_param( 'force' ) )
-				&& Post_Type::is_editor_enabled_post( $post_id )
-				&& (
-					! hash_equals( self::current_version( $post_id ), $base_version )
-					|| self::settings_changed_since( $post_id, $request )
-				)
-			) {
-				return new \WP_REST_Response(
-					array(
-						'ok'       => false,
-						'code'     => 'kayzart_page_changed',
-						'error'    => __( 'This page was changed outside this editor after you opened it, for example by an AI agent.', 'kayzart-live-code-editor' ),
-						'version'  => self::current_version( $post_id ),
-						'settings' => Rest_Settings::build_settings_payload( $post_id ),
-					),
-					409
-				);
-			}
-			return self::save_unlocked( $request );
-		} finally {
-			Save_Lock::release( $post_id );
-		}
-	}
-
-	/**
-	 * Whether a setting this save would write changed since the editor read it.
-	 *
-	 * Settings are not part of the source version: the editor writes some of
-	 * them immediately through the settings endpoint, which would otherwise
-	 * make its own next save look stale. Instead the editor sends, for each
-	 * setting in settingsUpdates, the saved value it last knew as
-	 * settingsBase, and only those fields are compared.
-	 *
-	 * @param int              $post_id Post ID.
-	 * @param \WP_REST_Request $request Save request.
-	 * @return bool
-	 */
-	private static function settings_changed_since( int $post_id, \WP_REST_Request $request ): bool {
-		$updates = $request->get_param( 'settingsUpdates' );
-		$base    = $request->get_param( 'settingsBase' );
-		if ( ! is_array( $updates ) || ! is_array( $base ) ) {
-			return false;
-		}
-		$current = Rest_Settings::build_settings_payload( $post_id );
-		foreach ( array( 'title', 'slug', 'status', 'templateMode', 'liveHighlightEnabled' ) as $key ) {
-			if ( ! array_key_exists( $key, $updates ) || ! array_key_exists( $key, $base ) || ! array_key_exists( $key, $current ) ) {
-				continue;
-			}
-			$known = 'liveHighlightEnabled' === $key ? rest_sanitize_boolean( $base[ $key ] ) : (string) $base[ $key ];
-			$now   = 'liveHighlightEnabled' === $key ? rest_sanitize_boolean( $current[ $key ] ) : (string) $current[ $key ];
-			if ( $known !== $now ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Version of the page's saved sources, as the editor tracks it.
-	 *
-	 * @param int $post_id Post ID.
-	 * @return string
-	 */
-	public static function current_version( int $post_id ): string {
-		return Snapshot::hash( Snapshot::for_post( $post_id ) );
-	}
-
-	/**
 	 * Save KayzArt post content and metadata.
 	 *
 	 * @param \WP_REST_Request $request REST request.
 	 * @return \WP_REST_Response
 	 */
-	private static function save_unlocked( \WP_REST_Request $request ): \WP_REST_Response {
+	public static function save( \WP_REST_Request $request ): \WP_REST_Response {
 
 		$post_id          = absint( $request->get_param( 'post_id' ) );
 		$html             = (string) $request->get_param( 'html' );
@@ -277,9 +185,9 @@ class Rest_Save {
 				return self::error_response( $compiled_css );
 			}
 		}
-		$custom_head_result = Custom_Head::sanitize( $custom_head );
-		$before_snapshot    = Snapshot::is_supported() ? Snapshot::for_post( $post_id ) : null;
-		$desired_snapshot   = Snapshot::normalize(
+		$custom_head_result           = Custom_Head::sanitize( $custom_head );
+		$before_snapshot              = Snapshot::is_supported() ? Snapshot::for_post( $post_id ) : null;
+		$desired_snapshot             = Snapshot::normalize(
 			array(
 				'html'       => Html_Document::build_editor_html( $content_html, $body_attrs ),
 				'customHead' => $custom_head_result['html'],
@@ -297,19 +205,8 @@ class Rest_Save {
 				),
 			)
 		);
-		$snapshot_changed   = is_array( $before_snapshot )
+		$snapshot_changed             = is_array( $before_snapshot )
 			&& Snapshot::hash( $before_snapshot ) !== Snapshot::hash( $desired_snapshot );
-		// Validation and Tailwind compilation can take a while. Write only if
-		// this request still owns the page's lock, renewing its lease.
-		if ( ! Save_Lock::confirm( $post_id ) ) {
-			return new \WP_REST_Response(
-				array(
-					'ok'    => false,
-					'error' => __( 'Another save of this page is in progress. Try again in a moment.', 'kayzart-live-code-editor' ),
-				),
-				409
-			);
-		}
 		$revision_insert_hook_removed = false;
 		$revision_update_hook_removed = false;
 
@@ -423,7 +320,6 @@ class Rest_Save {
 		return new \WP_REST_Response(
 			array(
 				'ok'                    => true,
-				'version'               => self::current_version( $post_id ),
 				'customHead'            => $custom_head_result['html'],
 				'customHeadRemovedTags' => $custom_head_result['removed'],
 				'settings'              => Rest_Settings::build_settings_payload( $post_id ),

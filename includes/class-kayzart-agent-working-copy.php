@@ -27,6 +27,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * something else), the copy is out of date and its next update starts over
  * from the page. Nothing is lost that way: every update is kept with its
  * snapshots in the AI Edit history.
+ *
+ * Each start begins a new chain. The proposals recorded on one chain build
+ * on each other, so merging the newest one merges them all.
  */
 final class Agent_Working_Copy {
 
@@ -42,6 +45,9 @@ final class Agent_Working_Copy {
 	/** Meta key holding the page version a working copy started from. */
 	const BASE_META = '_kayzart_agent_copy_base';
 
+	/** Meta key holding the chain the working copy's proposals belong to. */
+	const CHAIN_META = '_kayzart_agent_copy_chain';
+
 	/** Page meta that is not carried over to a working copy. */
 	const META_DENYLIST = array(
 		'_kayzart_setup_required',
@@ -51,6 +57,7 @@ final class Agent_Working_Copy {
 		self::SOURCE_META,
 		self::AGENT_META,
 		self::BASE_META,
+		self::CHAIN_META,
 	);
 
 	/**
@@ -221,6 +228,7 @@ final class Agent_Working_Copy {
 		update_post_meta( $copy_id, self::SOURCE_META, (string) $page_id );
 		update_post_meta( $copy_id, self::AGENT_META, $agent );
 		update_post_meta( $copy_id, self::BASE_META, $base );
+		update_post_meta( $copy_id, self::CHAIN_META, wp_generate_uuid4() );
 		clean_post_cache( $copy_id );
 
 		return array(
@@ -230,13 +238,99 @@ final class Agent_Working_Copy {
 	}
 
 	/**
-	 * Page version a working copy started from.
+	 * Chain the working copy's proposals belong to.
 	 *
 	 * @param int $copy_id Working copy ID.
 	 * @return string
 	 */
-	public static function base( int $copy_id ): string {
-		return (string) get_post_meta( $copy_id, self::BASE_META, true );
+	public static function chain( int $copy_id ): string {
+		return (string) get_post_meta( $copy_id, self::CHAIN_META, true );
+	}
+
+	/**
+	 * Settle working copies after a person saved the page with proposals
+	 * merged in the editor.
+	 *
+	 * The merged proposals, and the earlier ones on their chains, become
+	 * applied. A working copy that holds nothing beyond the saved page is
+	 * deleted. One the agent has added to since now continues from the saved
+	 * page, as long as the page was saved with the merged proposal unchanged.
+	 * Otherwise it is left out of date, and its next update starts over.
+	 *
+	 * @param int        $page_id      Page ID.
+	 * @param array<int> $activity_ids Merged proposal activities.
+	 * @return int Number of proposals marked applied.
+	 */
+	public static function merged( int $page_id, array $activity_ids ): int {
+		$store   = new Ai_Timeline_Store();
+		$result  = $store->mark_proposals_merged( $page_id, $activity_ids );
+		$version = self::version( $page_id );
+		foreach ( $result['newest'] as $proposal ) {
+			$copy_id = self::find_chain( $page_id, $proposal['chain'] );
+			if ( ! $copy_id ) {
+				continue;
+			}
+			if ( hash_equals( self::version( $copy_id ), $version ) ) {
+				self::delete( $copy_id );
+			} elseif ( '' !== $proposal['version'] && hash_equals( $proposal['version'], $version ) ) {
+				update_post_meta( $copy_id, self::BASE_META, $version );
+			}
+		}
+		return $result['count'];
+	}
+
+	/**
+	 * Discard a proposal's chain and the working copy holding it.
+	 *
+	 * @param int $page_id     Page ID.
+	 * @param int $activity_id Proposal activity.
+	 * @return bool False when the activity is not a pending proposal of the page.
+	 */
+	public static function discard( int $page_id, int $activity_id ): bool {
+		$chain = ( new Ai_Timeline_Store() )->discard_proposal_chain( $page_id, $activity_id );
+		if ( null === $chain ) {
+			return false;
+		}
+		$copy_id = self::find_chain( $page_id, $chain );
+		if ( $copy_id ) {
+			self::delete( $copy_id );
+		}
+		return true;
+	}
+
+	/**
+	 * The working copy of a page that holds a chain.
+	 *
+	 * @param int    $page_id Page ID.
+	 * @param string $chain   Chain.
+	 * @return int 0 when that chain's copy is gone or has started over.
+	 */
+	private static function find_chain( int $page_id, string $chain ): int {
+		if ( '' === $chain ) {
+			return 0;
+		}
+		$ids = get_posts(
+			array(
+				'post_type'        => array_values( get_post_types() ),
+				'post_status'      => self::STATUS,
+				'numberposts'      => 1,
+				'fields'           => 'ids',
+				'suppress_filters' => true,
+				'no_found_rows'    => true,
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Working copies are found by their page and chain.
+				'meta_query'       => array(
+					array(
+						'key'   => self::SOURCE_META,
+						'value' => (string) $page_id,
+					),
+					array(
+						'key'   => self::CHAIN_META,
+						'value' => $chain,
+					),
+				),
+			)
+		);
+		return empty( $ids ) ? 0 : (int) $ids[0];
 	}
 
 	/**

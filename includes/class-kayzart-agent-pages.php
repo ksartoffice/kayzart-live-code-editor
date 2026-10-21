@@ -795,7 +795,8 @@ class Agent_Pages {
 				'titleChange' => $title_change,
 				'proposal'    => $proposal,
 				'agentKey'    => $proposal ? self::agent_key() : '',
-				'base'        => $proposal ? Agent_Working_Copy::base( $written_id ) : '',
+				'chain'       => $proposal ? Agent_Working_Copy::chain( $written_id ) : '',
+				'version'     => $proposal ? Agent_Working_Copy::version( $written_id ) : '',
 			)
 		);
 	}

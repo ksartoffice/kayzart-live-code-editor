@@ -730,9 +730,16 @@ class Test_Abilities extends WP_UnitTestCase {
 				'html'     => '<p>Second</p>',
 			)
 		);
-		Agent_Working_Copy::delete( Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ) );
 		$store    = new Ai_Timeline_Store();
 		$activity = $store->get( $store->list_for_post( $page['id'] )['items'][1]['id'] );
+		wp_update_post(
+			array(
+				'ID'           => $page['id'],
+				'post_content' => '<p>Second</p>',
+			)
+		);
+		Agent_Working_Copy::merged( $page['id'], array( (int) $activity['id'] ) );
+		$this->assertSame( 0, Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() ), 'The working copy is gone after the merge.' );
 
 		$this->assertSame( '<p>First</p>', $store->get_snapshot( $activity, 'before' )['html'] );
 		$this->assertSame( '<p>Second</p>', $store->get_snapshot( $activity, 'after' )['html'] );
@@ -769,9 +776,14 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertSame( 'Created the draft.', $pending[0]['summary'], 'A proposal is not part of the page until it is merged.' );
 
 		$items = $store->list_for_post( $page['id'] )['items'];
-		$this->assertTrue( $store->update_application( (int) $items[1]['id'], 'applied' ) );
-		$merged  = Agent_Working_Copy::find( $page['id'], Agent_Pages::agent_key() );
-		$current = Snapshot::for_post( $merged );
+		wp_update_post(
+			array(
+				'ID'           => $page['id'],
+				'post_content' => '<h1>Welcome aboard</h1><p>Body</p>',
+			)
+		);
+		$this->assertSame( 1, Agent_Working_Copy::merged( $page['id'], array( (int) $items[1]['id'] ) ) );
+		$current = Snapshot::for_post( $page['id'] );
 
 		$context = $store->recent_context( $page['id'], $current, 1 );
 
@@ -1368,6 +1380,152 @@ class Test_Abilities extends WP_UnitTestCase {
 		wp_delete_post( $page['id'], true );
 
 		$this->assertNull( get_post( $copy_id ) );
+	}
+
+	public function test_saving_a_merged_proposal_applies_its_chain_and_removes_the_copy(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>', '<p>Three</p>' ) );
+		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
+		// The person merged the newest proposal and saved it unchanged.
+		wp_update_post(
+			array(
+				'ID'           => $page_id,
+				'post_content' => '<p>Three</p>',
+			)
+		);
+
+		$this->assertSame( 2, Agent_Working_Copy::merged( $page_id, array( $items[2]['id'] ) ) );
+
+		$store = new Ai_Timeline_Store();
+		$this->assertSame( 'applied', $store->get( $items[1]['id'] )['application_status'], 'An earlier proposal on the chain is included.' );
+		$this->assertSame( 'applied', $store->get( $items[2]['id'] )['application_status'] );
+		$this->assertNull( get_post( $copy_id ), 'Nothing is left in the copy beyond the saved page.' );
+		$this->assertSame( 0, Agent_Working_Copy::merged( $page_id, array( $items[2]['id'] ) ), 'Settling twice changes nothing.' );
+	}
+
+	public function test_a_copy_with_newer_proposals_continues_from_the_saved_page(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>', '<p>Three</p>' ) );
+		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
+		// The person merged the first proposal and saved it while the agent went on.
+		wp_update_post(
+			array(
+				'ID'           => $page_id,
+				'post_content' => '<p>Two</p>',
+			)
+		);
+
+		$this->assertSame( 1, Agent_Working_Copy::merged( $page_id, array( $items[1]['id'] ) ) );
+
+		$store = new Ai_Timeline_Store();
+		$this->assertSame( 'pending', $store->get( $items[2]['id'] )['application_status'] );
+		$this->assertSame( $copy_id, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ), 'The newer proposal stays current.' );
+		$this->assertSame( '<p>Three</p>', Agent_Pages::get_page( $page_id )['html'] );
+	}
+
+	public function test_a_merged_proposal_changed_before_saving_leaves_the_copy_out_of_date(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>', '<p>Three</p>' ) );
+		wp_update_post(
+			array(
+				'ID'           => $page_id,
+				'post_content' => '<p>Two, edited by the person</p>',
+			)
+		);
+
+		Agent_Working_Copy::merged( $page_id, array( $items[1]['id'] ) );
+
+		$this->assertSame( 'applied', ( new Ai_Timeline_Store() )->get( $items[1]['id'] )['application_status'] );
+		$this->assertSame( 0, Agent_Working_Copy::current( $page_id, Agent_Pages::agent_key() ) );
+		$this->assertSame( '<p>Two, edited by the person</p>', Agent_Pages::get_page( $page_id )['html'] );
+	}
+
+	public function test_discarding_a_proposal_discards_its_chain_and_copy(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>', '<p>Three</p>' ) );
+		$copy_id                 = Agent_Working_Copy::find( $page_id, Agent_Pages::agent_key() );
+
+		$this->assertTrue( Agent_Working_Copy::discard( $page_id, $items[1]['id'] ) );
+
+		$store = new Ai_Timeline_Store();
+		$this->assertSame( 'discarded', $store->get( $items[1]['id'] )['application_status'] );
+		$this->assertSame( 'discarded', $store->get( $items[2]['id'] )['application_status'] );
+		$this->assertNull( get_post( $copy_id ) );
+		$this->assertSame( 'saved', Agent_Pages::get_page( $page_id )['state'] );
+		$this->assertFalse( Agent_Working_Copy::discard( $page_id, $items[1]['id'] ), 'Only pending proposals can be discarded.' );
+		$this->assertFalse( Agent_Working_Copy::discard( $page_id, $items[0]['id'] ), 'A direct write is not a proposal.' );
+	}
+
+	public function test_proposal_status_changes_only_through_merge_or_discard(): void {
+		wp_set_current_user( $this->admin() );
+		list( , $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
+		$store           = new Ai_Timeline_Store();
+
+		$this->assertFalse( $store->update_application( $items[1]['id'], 'applied' ) );
+		$this->assertFalse( $store->update_application( $items[1]['id'], 'reverted' ) );
+		$this->assertSame( 'pending', $store->get( $items[1]['id'] )['application_status'] );
+	}
+
+	public function test_timeline_routes_for_proposals(): void {
+		wp_set_current_user( $this->admin() );
+		list( $page_id, $items ) = $this->page_with_proposals( array( '<p>Two</p>' ) );
+		$nonce                   = wp_create_nonce( 'wp_rest' );
+		do_action( 'rest_api_init' );
+
+		$state = new WP_REST_Request( 'GET', '/kayzart/v1/ai/timeline/state' );
+		$state->set_header( 'X-WP-Nonce', $nonce );
+		$state->set_param( 'post_id', $page_id );
+		$before = rest_get_server()->dispatch( $state )->get_data()['signature'];
+		$this->assertNotSame( '', $before );
+
+		$discard = new WP_REST_Request( 'POST', '/kayzart/v1/ai/timeline/' . $items[1]['id'] . '/discard' );
+		$discard->set_header( 'X-WP-Nonce', $nonce );
+		$response = rest_get_server()->dispatch( $discard );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'discarded', $response->get_data()['item']['applicationStatus'] );
+		$this->assertSame( 409, rest_get_server()->dispatch( $discard )->get_status() );
+		$this->assertNotSame( $before, rest_get_server()->dispatch( $state )->get_data()['signature'], 'The signature changes with the history.' );
+
+		$merged = new WP_REST_Request( 'POST', '/kayzart/v1/ai/timeline/merged' );
+		$merged->set_header( 'X-WP-Nonce', $nonce );
+		$merged->set_param( 'post_id', $page_id );
+		$merged->set_param( 'ids', array( $items[1]['id'] ) );
+		$response = rest_get_server()->dispatch( $merged );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 0, $response->get_data()['applied'], 'A discarded proposal is not applied later.' );
+
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		wp_set_current_user( $author );
+		$state->set_header( 'X-WP-Nonce', wp_create_nonce( 'wp_rest' ) );
+		$this->assertSame( 403, rest_get_server()->dispatch( $state )->get_status() );
+	}
+
+	/**
+	 * Create a page and save successive proposals to it.
+	 *
+	 * @param array<int,string> $htmls Proposed html, in order.
+	 * @return array{0:int,1:array} Page ID and its history items.
+	 */
+	private function page_with_proposals( array $htmls ): array {
+		$created = Agent_Pages::create_page(
+			array(
+				'title' => 'Proposals',
+				'html'  => '<p>One</p>',
+			)
+		);
+		$hash    = $created['page']['baseHash'];
+		foreach ( $htmls as $html ) {
+			$result = Agent_Pages::update_page(
+				array(
+					'id'       => $created['page']['id'],
+					'baseHash' => $hash,
+					'html'     => $html,
+				)
+			);
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+			$hash = $result['page']['baseHash'];
+		}
+		return array( $created['page']['id'], ( new Ai_Timeline_Store() )->list_for_post( $created['page']['id'] )['items'] );
 	}
 
 	private function admin(): int {

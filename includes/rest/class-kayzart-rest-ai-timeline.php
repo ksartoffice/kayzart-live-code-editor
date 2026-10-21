@@ -29,6 +29,33 @@ class Rest_Ai_Timeline {
 		);
 		register_rest_route(
 			'kayzart/v1',
+			'/ai/timeline/state',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( __CLASS__, 'state' ),
+				'permission_callback' => array( __CLASS__, 'post_permission' ),
+			)
+		);
+		register_rest_route(
+			'kayzart/v1',
+			'/ai/timeline/merged',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'merged' ),
+				'permission_callback' => array( __CLASS__, 'post_permission' ),
+			)
+		);
+		register_rest_route(
+			'kayzart/v1',
+			'/ai/timeline/(?P<activity_id>\d+)/discard',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'discard' ),
+				'permission_callback' => array( __CLASS__, 'activity_permission' ),
+			)
+		);
+		register_rest_route(
+			'kayzart/v1',
 			'/ai/timeline/(?P<activity_id>\d+)/snapshot',
 			array(
 				'methods'             => 'GET',
@@ -62,6 +89,45 @@ class Rest_Ai_Timeline {
 		$before  = absint( $request->get_param( 'before' ) );
 		$data    = ( new Ai_Timeline_Store() )->list_for_post( $post_id, $before );
 		return rest_ensure_response( array_merge( array( 'ok' => true ), $data ) );
+	}
+
+	/** Return a value that changes whenever the post timeline changes. */
+	public static function state( \WP_REST_Request $request ) {
+		return rest_ensure_response(
+			array(
+				'ok'        => true,
+				'signature' => ( new Ai_Timeline_Store() )->signature( absint( $request->get_param( 'post_id' ) ) ),
+			)
+		);
+	}
+
+	/** Settle agent proposals the person just saved merged. */
+	public static function merged( \WP_REST_Request $request ) {
+		$ids = $request->get_param( 'ids' );
+		if ( ! is_array( $ids ) ) {
+			return new \WP_Error( 'kayzart_ai_proposals_invalid', __( 'The merged proposals are invalid.', 'kayzart-live-code-editor' ), array( 'status' => 400 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'applied' => Agent_Working_Copy::merged( absint( $request->get_param( 'post_id' ) ), array_map( 'absint', $ids ) ),
+			)
+		);
+	}
+
+	/** Discard an agent proposal and the working copy holding it. */
+	public static function discard( \WP_REST_Request $request ) {
+		$store    = new Ai_Timeline_Store();
+		$activity = $store->get( absint( $request['activity_id'] ) );
+		if ( ! $activity || ! Agent_Working_Copy::discard( (int) $activity['post_id'], (int) $activity['id'] ) ) {
+			return new \WP_Error( 'kayzart_ai_proposal_not_pending', __( 'This proposal was already saved or discarded.', 'kayzart-live-code-editor' ), array( 'status' => 409 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'ok'   => true,
+				'item' => $store->to_response( $store->get( (int) $activity['id'] ) ),
+			)
+		);
 	}
 
 	/** Return a retained before or after snapshot. */

@@ -151,9 +151,10 @@ class Ai_Timeline_Store {
 	 * the activity.
 	 *
 	 * Details: summary, client, action (create or update), titleChange (before
-	 * and after, or null), proposal (bool), agentKey and base (the page version
-	 * the working copy started from). Titles are not part of the editor
-	 * snapshot, so a title change is kept with the activity too.
+	 * and after, or null), proposal (bool), agentKey, chain (of the working
+	 * copy) and version (of the working copy after the write). Titles are not
+	 * part of the editor snapshot, so a title change is kept with the
+	 * activity too.
 	 *
 	 * @param int      $post_id     Page the edit belongs to.
 	 * @param int      $user_id     User the agent authenticated as.
@@ -178,8 +179,9 @@ class Ai_Timeline_Store {
 		}
 		if ( ! empty( $details['proposal'] ) ) {
 			$context['proposal'] = array(
-				'agent' => (string) ( $details['agentKey'] ?? '' ),
-				'base'  => (string) ( $details['base'] ?? '' ),
+				'agent'   => (string) ( $details['agentKey'] ?? '' ),
+				'chain'   => (string) ( $details['chain'] ?? '' ),
+				'version' => (string) ( $details['version'] ?? '' ),
 			);
 		}
 		$table    = Ai_Setup::get_timeline_table_name();
@@ -255,6 +257,10 @@ class Ai_Timeline_Store {
 		if ( ! is_array( $row ) || ! in_array( (string) $row['activity_type'], array( 'ai_edit', 'agent_edit' ), true ) ) {
 			return false;
 		}
+		// A proposal becomes applied only when a person saves it merged.
+		if ( in_array( (string) $row['application_status'], array( 'pending', 'discarded' ), true ) ) {
+			return false;
+		}
 		$result = $wpdb->update(
 			Ai_Setup::get_timeline_table_name(),
 			array(
@@ -266,6 +272,117 @@ class Ai_Timeline_Store {
 			array( '%d' )
 		);
 		return false !== $result;
+	}
+
+	/**
+	 * Mark proposals a person saved merged, with the earlier pending ones on
+	 * their chains, as applied.
+	 *
+	 * @param int        $post_id Page ID.
+	 * @param array<int> $ids     Merged proposal activities.
+	 * @return array{count:int,newest:array<int,array{chain:string,version:string}>}
+	 */
+	public function mark_proposals_merged( int $post_id, array $ids ): array {
+		$ids     = array_map( 'intval', $ids );
+		$pending = $this->pending_proposals( $post_id );
+		$newest  = array();
+		foreach ( $pending as $id => $proposal ) {
+			if ( in_array( $id, $ids, true ) && ( ! isset( $newest[ $proposal['chain'] ] ) || $id > $newest[ $proposal['chain'] ]['id'] ) ) {
+				$newest[ $proposal['chain'] ] = array_merge( $proposal, array( 'id' => $id ) );
+			}
+		}
+		$applied = array();
+		foreach ( $pending as $id => $proposal ) {
+			if ( isset( $newest[ $proposal['chain'] ] ) && $id <= $newest[ $proposal['chain'] ]['id'] ) {
+				$applied[] = $id;
+			}
+		}
+		$this->set_proposal_status( $applied, 'applied' );
+		return array(
+			'count'  => count( $applied ),
+			'newest' => array_values( $newest ),
+		);
+	}
+
+	/**
+	 * Discard every pending proposal on a proposal's chain.
+	 *
+	 * @param int $post_id     Page ID.
+	 * @param int $activity_id A pending proposal on the chain.
+	 * @return string|null The chain, or null when the activity is not a pending proposal of the page.
+	 */
+	public function discard_proposal_chain( int $post_id, int $activity_id ) {
+		$pending = $this->pending_proposals( $post_id );
+		if ( ! isset( $pending[ $activity_id ] ) ) {
+			return null;
+		}
+		$chain     = $pending[ $activity_id ]['chain'];
+		$discarded = array();
+		foreach ( $pending as $id => $proposal ) {
+			if ( $proposal['chain'] === $chain ) {
+				$discarded[] = $id;
+			}
+		}
+		$this->set_proposal_status( $discarded, 'discarded' );
+		return $chain;
+	}
+
+	/**
+	 * Pending proposals of a page, keyed by activity ID.
+	 *
+	 * @param int $post_id Page ID.
+	 * @return array<int,array{chain:string,version:string}>
+	 */
+	private function pending_proposals( int $post_id ): array {
+		global $wpdb;
+		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT id, context_json FROM ' . Ai_Setup::get_timeline_table_name() . " WHERE post_id = %d AND activity_type = 'agent_edit' AND application_status = 'pending'", $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$result = array();
+		foreach ( (array) $rows as $row ) {
+			$context = self::decode_array( $row['context_json'] );
+			if ( isset( $context['proposal']['chain'] ) && '' !== (string) $context['proposal']['chain'] ) {
+				$result[ (int) $row['id'] ] = array(
+					'chain'   => (string) $context['proposal']['chain'],
+					'version' => isset( $context['proposal']['version'] ) ? (string) $context['proposal']['version'] : '',
+				);
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Set the application status of proposal activities.
+	 *
+	 * @param array<int> $ids    Activity IDs.
+	 * @param string     $status applied or discarded.
+	 */
+	private function set_proposal_status( array $ids, string $status ): void {
+		global $wpdb;
+		foreach ( $ids as $id ) {
+			$wpdb->update(
+				Ai_Setup::get_timeline_table_name(),
+				array(
+					'application_status' => $status,
+					'updated_at'         => self::now(),
+				),
+				array( 'id' => (int) $id ),
+				array( '%s', '%s' ),
+				array( '%d' )
+			);
+		}
+	}
+
+	/**
+	 * Short value that changes whenever a page's history changes, so the
+	 * editor can poll cheaply and reload the history only then.
+	 *
+	 * @param int $post_id Page ID.
+	 * @return string
+	 */
+	public function signature( int $post_id ): string {
+		global $wpdb;
+		// Statuses can change several times within updated_at's one-second resolution.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, MAX(id) AS last_id, MAX(updated_at) AS last_update, SUM(CRC32(CONCAT_WS(':', id, application_status, execution_status))) AS statuses FROM " . Ai_Setup::get_timeline_table_name() . ' WHERE post_id = %d', $post_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return is_array( $row ) ? implode( ':', array( (int) $row['total'], (int) $row['last_id'], (string) $row['last_update'], (string) $row['statuses'] ) ) : '';
 	}
 
 	/** Get one activity row. */
@@ -706,13 +823,12 @@ class Ai_Timeline_Store {
 	 */
 	private static function proposal_ref( array $row ) {
 		$context = self::decode_array( $row['context_json'] );
-		if ( ! isset( $context['proposal']['agent'], $context['proposal']['base'] ) ) {
+		if ( ! isset( $context['proposal']['agent'], $context['proposal']['chain'] ) ) {
 			return null;
 		}
-		$agent = (string) $context['proposal']['agent'];
 		return array(
-			'agent' => substr( hash( 'sha256', $agent ), 0, 16 ),
-			'chain' => substr( hash( 'sha256', $agent . '|' . (string) $context['proposal']['base'] ), 0, 16 ),
+			'agent' => substr( hash( 'sha256', (string) $context['proposal']['agent'] ), 0, 16 ),
+			'chain' => substr( hash( 'sha256', (string) $context['proposal']['chain'] ), 0, 16 ),
 		);
 	}
 

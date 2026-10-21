@@ -262,75 +262,58 @@ class Agent_Pages {
 			$args['s'] = sanitize_text_field( (string) $input['search'] );
 		}
 
-		// Return only attachments the caller may read, as /wp/v2/media does: a
-		// file attached to someone else's draft or private post stays hidden.
-		// Users who can read every post skip the per-attachment check.
-		if ( self::can_read_all_attachments() ) {
-			$query       = new \WP_Query(
+		// Count readable files without keeping the entire library in memory.
+		// Exact totals still require a scan, but only one batch and the
+		// requested page are retained. Permission checks stay per attachment.
+		$total       = 0;
+		$attachments = array();
+		$offset      = ( $page - 1 ) * $per_page;
+		$scan_page   = 1;
+		$batch_size  = 100;
+		do {
+			$query = new \WP_Query(
 				array_merge(
 					$args,
 					array(
-						'posts_per_page' => $per_page,
-						'paged'          => $page,
+						'posts_per_page'         => $batch_size,
+						'paged'                  => $scan_page++,
+						'fields'                 => 'ids',
+						'orderby'                => array(
+							'date' => 'DESC',
+							'ID'   => 'DESC',
+						),
+						'no_found_rows'          => true,
+						'cache_results'          => false,
+						'update_post_meta_cache' => false,
 					)
 				)
 			);
-			$attachments = $query->posts;
-			$total       = (int) $query->found_posts;
-		} else {
-			// Count readable files without keeping the entire library in memory.
-			// Exact totals still require a scan, but only one batch and the
-			// requested page are retained. Permission checks stay per attachment.
-			$total       = 0;
-			$attachments = array();
-			$offset      = ( $page - 1 ) * $per_page;
-			$scan_page   = 1;
-			$batch_size  = 100;
-			do {
-				$query = new \WP_Query(
-					array_merge(
-						$args,
-						array(
-							'posts_per_page'         => $batch_size,
-							'paged'                  => $scan_page++,
-							'fields'                 => 'ids',
-							'orderby'                => array(
-								'date' => 'DESC',
-								'ID'   => 'DESC',
-							),
-							'no_found_rows'          => true,
-							'cache_results'          => false,
-							'update_post_meta_cache' => false,
-						)
-					)
-				);
-				$ids   = array_map( 'intval', $query->posts );
-				$added = self::prime_scan_posts( $ids );
-				try {
-					$parents = array();
-					foreach ( $ids as $id ) {
-						$attachment = get_post( $id );
-						if ( $attachment instanceof \WP_Post && $attachment->post_parent > 0 ) {
-							$parents[] = (int) $attachment->post_parent;
-						}
-					}
-					$added = array_merge( $added, self::prime_scan_posts( array_unique( $parents ) ) );
-					foreach ( $ids as $id ) {
-						if ( self::can_read_attachment( $id ) ) {
-							if ( $total >= $offset && count( $attachments ) < $per_page ) {
-								$attachments[] = get_post( $id );
-							}
-							++$total;
-						}
-					}
-				} finally {
-					foreach ( $added as $id ) {
-						wp_cache_delete( $id, 'posts' );
+			$ids   = array_map( 'intval', $query->posts );
+			$added = self::prime_scan_posts( $ids );
+			try {
+				$parents = array();
+				foreach ( $ids as $id ) {
+					$attachment = get_post( $id );
+					if ( $attachment instanceof \WP_Post && $attachment->post_parent > 0 ) {
+						$parents[] = (int) $attachment->post_parent;
 					}
 				}
-				$batch_count = count( $ids );
-			} while ( $batch_count === $batch_size );
-		}
+				$added = array_merge( $added, self::prime_scan_posts( array_unique( $parents ) ) );
+				foreach ( $ids as $id ) {
+					if ( self::can_read_attachment( $id ) ) {
+						if ( $total >= $offset && count( $attachments ) < $per_page ) {
+							$attachments[] = get_post( $id );
+						}
+						++$total;
+					}
+				}
+			} finally {
+				foreach ( $added as $id ) {
+					wp_cache_delete( $id, 'posts' );
+				}
+			}
+			$batch_count = count( $ids );
+		} while ( $batch_count === $batch_size );
 
 		$items = array();
 		foreach ( $attachments as $attachment ) {
@@ -391,18 +374,15 @@ class Agent_Pages {
 	}
 
 	/**
-	 * Whether the current user may see an attachment, mirroring
-	 * WP_REST_Posts_Controller::check_read_permission(): a file attached to a
-	 * post is as readable as that post, and an unattached file is treated as
-	 * published.
+	 * Whether the current user may see an attachment. An inherited attachment
+	 * must respect its parent's post-type-specific capabilities, even when
+	 * read_post on the attachment itself succeeds through built-in post caps.
+	 * An unattached file is treated as published.
 	 *
 	 * @param int $attachment_id Attachment ID.
 	 * @return bool
 	 */
 	private static function can_read_attachment( int $attachment_id ): bool {
-		if ( current_user_can( 'read_post', $attachment_id ) ) {
-			return true;
-		}
 		$attachment = get_post( $attachment_id );
 		if ( ! $attachment instanceof \WP_Post || 'inherit' !== $attachment->post_status ) {
 			return false;
@@ -413,21 +393,6 @@ class Agent_Pages {
 		}
 		$status = get_post_status_object( $parent->post_status );
 		return ( $status && $status->public ) || current_user_can( 'read_post', $parent->ID );
-	}
-
-	/**
-	 * Whether the current user can read every attachment, including files
-	 * attached to other people's drafts and private posts and pages.
-	 *
-	 * @return bool
-	 */
-	private static function can_read_all_attachments(): bool {
-		foreach ( array( 'edit_others_posts', 'edit_others_pages', 'read_private_posts', 'read_private_pages' ) as $capability ) {
-			if ( ! current_user_can( $capability ) ) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**

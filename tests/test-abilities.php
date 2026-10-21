@@ -1014,6 +1014,71 @@ class Test_Abilities extends WP_UnitTestCase {
 		$this->assertNotContains( $secret, $ids, 'A file attached to someone else\'s draft stays hidden.' );
 	}
 
+	public function test_media_respects_private_custom_parent_permissions_even_for_editors(): void {
+		register_post_type(
+			'media_vault',
+			array(
+				'public'          => false,
+				'capability_type' => array( 'media_vault', 'media_vaults' ),
+				'map_meta_cap'    => true,
+			)
+		);
+		try {
+			$owner  = $this->admin();
+			$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+			get_userdata( $editor )->add_cap( \KayzArt\Ai_Setup::CAPABILITY );
+			$private = self::factory()->post->create( array( 'post_type' => 'media_vault', 'post_status' => 'private', 'post_author' => $owner ) );
+			$public  = self::factory()->post->create( array( 'post_type' => 'media_vault', 'post_status' => 'publish', 'post_author' => $owner ) );
+			$secret  = self::factory()->attachment->create_object(
+				array( 'file' => 'private-vault.jpg', 'post_mime_type' => 'image/jpeg', 'post_parent' => $private, 'post_author' => $editor )
+			);
+			$visible = array(
+				self::factory()->attachment->create_object( array( 'file' => 'public-vault.jpg', 'post_mime_type' => 'image/jpeg', 'post_parent' => $public, 'post_author' => $owner ) ),
+				self::factory()->attachment->create_object( array( 'file' => 'unattached.jpg', 'post_mime_type' => 'image/jpeg', 'post_author' => $owner ) ),
+			);
+			wp_set_current_user( $editor );
+			foreach ( array( 'edit_others_posts', 'edit_others_pages', 'read_private_posts', 'read_private_pages' ) as $capability ) {
+				$this->assertTrue( current_user_can( $capability ), 'Built-in capabilities do not grant access to private custom posts.' );
+			}
+			$this->assertFalse( current_user_can( 'read_post', $private ) );
+			$this->assertTrue( current_user_can( 'read_post', $secret ), 'Attachment ownership must not bypass its parent permissions.' );
+			$listed = array();
+			foreach ( array( 1, 2 ) as $page ) {
+				$result = wp_get_ability( 'kayzart/list-media' )->execute( array( 'perPage' => 1, 'page' => $page ) );
+				$this->assertIsArray( $result );
+				$this->assertSame( 2, $result['total'] );
+				$this->assertSame( 2, $result['totalPages'] );
+				$listed = array_merge( $listed, array_column( $result['media'], 'id' ) );
+			}
+			sort( $listed );
+			sort( $visible );
+			$this->assertSame( $visible, $listed );
+
+			get_userdata( $editor )->add_cap( 'read_private_media_vaults' );
+			wp_set_current_user( 0 );
+			wp_set_current_user( $editor );
+			$this->assertTrue( current_user_can( 'read_post', $private ) );
+			$allowed = Agent_Pages::list_media( array() );
+			$this->assertSame( 3, $allowed['total'] );
+			$this->assertContains( $secret, array_column( $allowed['media'], 'id' ) );
+
+			$deny_parent = static function ( $caps, $cap, $user_id, $args ) use ( $private ) {
+				return 'read_post' === $cap && (int) ( $args[0] ?? 0 ) === $private ? array( 'do_not_allow' ) : $caps;
+			};
+			add_filter( 'map_meta_cap', $deny_parent, 10, 4 );
+			try {
+				$denied = Agent_Pages::list_media( array() );
+				$this->assertSame( 2, $denied['total'] );
+				$this->assertNotContains( $secret, array_column( $denied['media'], 'id' ) );
+			} finally {
+				remove_filter( 'map_meta_cap', $deny_parent, 10 );
+			}
+		} finally {
+			wp_set_current_user( 0 );
+			unregister_post_type( 'media_vault' );
+		}
+	}
+
 	public function test_media_permissions_and_pagination_are_preserved_across_bounded_batches(): void {
 		$admin  = $this->admin();
 		$author = self::factory()->user->create( array( 'role' => 'author' ) );

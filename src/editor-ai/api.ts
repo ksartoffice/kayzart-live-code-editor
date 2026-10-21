@@ -7,6 +7,7 @@ import type {
   AiTimelineResponse,
   AiTimelineRestoreResponse,
   AiTimelineSnapshotResponse,
+  AiTimelineStateResponse,
 } from './contract';
 
 export class AiApiError extends Error {
@@ -124,6 +125,24 @@ export async function getTimeline(url: string, nonce: string, postId: number, be
   const response = await fetchJson<AiTimelineResponse>(target.toString(), nonce, { method: 'GET' });
   if (!Array.isArray(response.items)) throw new AiApiError('Invalid timeline response', 0, INVALID_RESPONSE_CODE);
   return response;
+}
+
+/** A value that changes whenever the post's history changes, for cheap polling. */
+export function getTimelineState(baseUrl: string, nonce: string, postId: number, signal?: AbortSignal) {
+  const url = new URL(`${baseUrl}state`, window.location.origin);
+  url.searchParams.set('post_id', String(postId));
+  return fetchJson<AiTimelineStateResponse>(url.toString(), nonce, { method: 'GET', cache: 'no-store', signal });
+}
+
+/** Tell the server which agent proposals were merged into the content just saved. */
+export function reportMergedProposals(baseUrl: string, nonce: string, postId: number, ids: number[]) {
+  return fetchJson<{ ok: boolean; applied: number }>(`${baseUrl}merged`, nonce, {
+    method: 'POST', body: JSON.stringify({ post_id: postId, ids }),
+  });
+}
+
+export function discardProposal(baseUrl: string, nonce: string, id: number) {
+  return fetchJson<{ ok: boolean; item: AiTimelineItem }>(`${baseUrl}${id}/discard`, nonce, { method: 'POST', body: '{}' });
 }
 
 export function getTimelineSnapshot(baseUrl: string, nonce: string, id: number, target: 'before' | 'after') {

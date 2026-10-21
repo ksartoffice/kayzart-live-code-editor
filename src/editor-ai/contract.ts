@@ -115,7 +115,8 @@ export type AiTimelineItem = {
   prompt: string | null;
   contexts: Array<{ lcId?: string; tagName?: string; text?: string }>;
   executionStatus: AiJobStatus | null;
-  applicationStatus: 'not_applied' | 'applied' | 'reverted' | null;
+  /** pending and discarded apply to agent proposals, which become applied once saved merged. */
+  applicationStatus: 'not_applied' | 'applied' | 'reverted' | 'pending' | 'discarded' | null;
   changedTargets: ChangedTarget[];
   changeStats: Partial<Record<ChangedTarget, ChangeStat>> | null;
   durationSeconds: number | null;
@@ -141,6 +142,12 @@ export type AiTimelineItem = {
   agentAction?: 'create' | 'update' | null;
   /** Title before and after an agent edit that renamed the page. */
   titleChange?: { before: string; after: string } | null;
+  /**
+   * Set when an agent saved the edit to its working copy as a proposal. agent
+   * groups an agent's proposals; chain groups those built on one working
+   * copy, where each includes the ones before it.
+   */
+  proposal?: { agent: string; chain: string } | null;
   canPoll: boolean;
   revisionAvailable: boolean;
   author: { id: number; name: string };
@@ -156,6 +163,7 @@ export type AiTimelineResponse = {
 };
 
 export type AiTimelineSnapshotResponse = { ok: boolean; snapshot: EditorSnapshot };
+export type AiTimelineStateResponse = { ok: boolean; signature: string };
 export type AiTimelineRestoreResponse = AiTimelineSnapshotResponse & { item: AiTimelineItem | null };
 
 export type AiJobStatusResponse = {

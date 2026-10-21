@@ -59,7 +59,7 @@ for (const mode of ['success', 'closed', 'malformed']) {
     const payload = JSON.parse((await page.locator('#kayzart-e2e-delivery').getAttribute('data-payload'))!);
     expect(Object.keys(payload).sort()).toEqual(['comment', 'locale', 'plugin_version', 'reason', 'submission_id', 'survey_version']);
     expect(payload.reason).toBe('cost');
-    expect(payload.plugin_version).toBe('3.4.2');
+    expect(payload.plugin_version).toBe('3.4.3');
   });
 }
 

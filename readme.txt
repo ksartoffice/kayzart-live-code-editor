@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.4.2
+Stable tag: 3.4.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,6 +139,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.4.3 =
+* Fix: Resolve Plugin Check warnings by unslashing and sanitizing the request method in the optional deactivation survey.
+
 = 3.4.2 =
 * Add: An optional one-question survey before individual deactivation on the Plugins screen. Send a reason or comment, skip it, or cancel. Nothing is sent without an explicit submission, and delivery failure never prevents deactivation.
 

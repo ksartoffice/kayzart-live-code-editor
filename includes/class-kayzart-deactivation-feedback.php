@@ -151,7 +151,8 @@ class Deactivation_Feedback {
 			wp_send_json_error( array( 'code' => 'forbidden' ), 403 );
 		}
 		check_ajax_referer( self::ACTION, 'nonce' );
-		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
+		if ( 'POST' !== $method ) {
 			wp_send_json_error( array( 'code' => 'method_not_allowed' ), 405 );
 		}
 		$payload = self::prepare_submission( wp_unslash( $_POST ) );

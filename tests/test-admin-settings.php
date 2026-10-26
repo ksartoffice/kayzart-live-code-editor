@@ -612,7 +612,7 @@ class Test_Admin_Settings extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'class="wrap kayzart-create-page"', $output );
 		$this->assertStringContainsString(
-			__( 'Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design.', 'kayzart-live-code-editor' ),
+			__( 'Start from a template, describe your page to AI, or begin with a blank page.', 'kayzart-live-code-editor' ),
 			$output
 		);
 		$this->assertStringContainsString( 'name="post_type" value="page" checked=', $output );

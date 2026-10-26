@@ -31,6 +31,7 @@ Write the page by hand, start from a template, drop in code from a designer, or 
 Freelancers, agencies, and developers who need a clean landing page fast and want full control over the result — without a child theme, a drag-and-drop builder, or a build pipeline. If you don't write code, you can still get a page: describe it and let the AI build it, ask for changes in plain language, and edit text, links, and images visually from the Elements panel. The difference is that when you do want the code, it is right there and it is yours.
 
 **What you can do**
+* Start with a bundled free service landing page in Japanese, without an AI connection or template server
 * Describe a page from Kayzart > Add new and have the AI build it as the editor opens
 * Edit your page with AI in plain language — it changes the actual HTML and CSS, inside WordPress
 * Keep JavaScript AI-safe: the AI reads your JS for context but never edits it
@@ -59,14 +60,20 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 == Installation ==
 1. Install and activate Kayzart from Plugins.
 2. To use AI on WordPress 7.0+, configure a provider in Connectors. On WordPress 5.9–6.9, add your OpenAI API key in Kayzart > Settings. The same settings screen shows whether AI editing is ready. AI editing is available by default to administrators and editors.
-3. Go to Kayzart > Add new. Enter an optional title and describe the page you want. Page type and CSS mode are set in Page settings on the same screen.
-4. Choose Generate with AI. The editor opens with the AI panel ready while the page is built; watch the activity log and review the result. To work from your own code instead, choose Start with a blank page.
+3. Go to Kayzart > Add new and choose From a template, Create with AI, or Start blank. Templates work without configuring AI.
+4. For a template, preview it, enter an optional title, and choose Create from this template. For AI, describe your page and choose Generate a page with AI; review the generated draft in the editor. For your own code, choose Start blank. Page type and CSS mode remain available for AI and blank pages.
 5. Keep refining by prompt or by hand — or paste your own HTML/CSS/JS from any source — while the live preview renders as you edit.
 6. Publish or update. Use Standalone mode for a clean, theme-free landing page.
 7. For an existing page, open Pages and choose Edit with Kayzart, or open the page in the block or classic editor and use the Kayzart card.
 8. Optional: Kayzart > Settings to enable Kayzart for posts or custom post types, and to set the default AI model, site-wide AI instructions, maximum AI turns, and maximum instruction length.
 
 == Frequently Asked Questions ==
+= How do the bundled free templates work? =
+Choose From a template in Kayzart > Add new, preview the Japanese service landing page at desktop or mobile width, then create a draft. The template uses TailwindCSS and Standalone mode. Select text or images in the preview and use Elements to replace them, or edit the HTML and CSS directly. Replace sample descriptions, links, and contact details before publishing. The template's sources, thumbnail, and placeholder image are bundled with the plugin; using them does not contact a template service or start an AI request.
+
+= Are the photos in the template thumbnail included in my page? =
+No. The thumbnail shows an example with a photograph. The detailed preview and your draft use a placeholder instead. On creation, Kayzart copies that placeholder into your WordPress media library for that page; replace it with your own photo and alternative text. Independently created template pages have separate placeholder attachments. Editing a created page does not change the original template, and a later template update does not overwrite your page. Creating a template page requires permission to create Pages and upload media, with Pages enabled in Kayzart settings.
+
 = What is Kayzart and what can I build with it? =
 Kayzart is an AI-assisted, live HTML/CSS/JavaScript editor for WordPress. You build clean, theme-independent landing pages: describe the page and let the AI write it, or write and paste your own HTML, CSS, and JavaScript — then watch the live preview render as you edit, and publish. No drag-and-drop builder, no child theme, no build pipeline. Use Standalone mode to keep the page free of your theme's header, footer, and styles, or Theme mode to render inside your theme.
 
@@ -74,7 +81,7 @@ Kayzart is an AI-assisted, live HTML/CSS/JavaScript editor for WordPress. You bu
 Go to Kayzart > Add new, enter an optional title, and describe the page you want in plain language — for example, a landing page for a new service with a hero section, features, pricing, and a contact form. Choose Generate with AI: the page is created, the editor opens with code hidden and the AI panel visible, and the AI begins building immediately. You review the result and nothing is published until you save.
 
 = How does Kayzart remember the editor layout? =
-When you open an existing Kayzart page, Kayzart restores your last code visibility, tools-panel state, selected tab, and panel width for that site, WordPress user, browser, and screen size. An AI-created page opens with code hidden and the AI panel visible; a blank page opens with code visible and the tools panel closed. Those entry-specific starting states do not overwrite your saved preference. Compact screens keep a separate layout and start with the tools panel closed until you choose otherwise.
+When you open an existing Kayzart page, Kayzart restores your last code visibility, tools-panel state, selected tab, and panel width for that site, WordPress user, browser, and screen size. An AI-created page opens with code hidden and the AI panel visible; a template page opens with code hidden and Elements visible; a blank page opens with code visible and the tools panel closed. Those entry-specific starting states do not overwrite your saved preference. Compact screens keep a separate layout and start with the tools panel closed until you choose otherwise.
 
 = I already have HTML/CSS/JS (hand-written, a template, or from an AI tool). How do I use it in WordPress? =
 Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs. You can also convert an existing WordPress page from the page list or edit screen; Kayzart keeps the existing post content as the initial HTML. If you have one complete HTML document, use the full HTML import feature to split it into the right fields. The live preview renders it immediately, and you can keep editing before you publish.
@@ -139,6 +146,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= Unreleased =
+* Add: A bundled free service landing page in Japanese. Preview it locally, create a draft without AI setup, and replace its text, images, and contact details in the editor.
+* Improve: Choose between a template, AI generation, and a blank page in Add new, keeping an unfinished AI instruction when switching to templates.
+
 = 3.4.3 =
 * Fix: Resolve Plugin Check warnings by unslashing and sanitizing the request method in the optional deactivation survey.
 

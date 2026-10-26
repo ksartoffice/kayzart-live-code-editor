@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "general-service-lp",
+  "version": "1.0.0",
+  "kind": "page",
+  "locale": "ja",
+  "cssMode": "tailwind",
+  "layoutMode": "standalone",
+  "files": {
+    "html": "index.html",
+    "css": "style.css",
+    "thumbnail": "thumbnail.webp"
+  },
+  "assets": [
+    {
+      "id": "main-visual",
+      "path": "images/landscape.png",
+      "mimeType": "image/png",
+      "width": 1600,
+      "height": 1000
+    }
+  ]
+}

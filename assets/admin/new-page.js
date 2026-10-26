@@ -126,6 +126,7 @@
           var data = await response.json();
           if (!response.ok || data.ok !== true || typeof data.ai?.available !== 'boolean') throw new Error('availability');
           ai = data.ai;
+          config.ai = ai;
           maxChars = Number(ai.maxPromptChars) || maxChars;
           var refreshedNonce = response.headers.get('X-WP-Nonce');
           if (refreshedNonce) config.restNonce = refreshedNonce;
@@ -152,6 +153,7 @@
           recheck.disabled = false;
           recheck.removeAttribute('aria-busy');
           updatePromptCount();
+          document.dispatchEvent(new Event('kayzart-ai-availability-changed'));
         }
       });
     }

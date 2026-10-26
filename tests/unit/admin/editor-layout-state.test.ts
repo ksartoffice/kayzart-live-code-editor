@@ -8,6 +8,11 @@ import {
 const namespace = 'kayzart.editorLayout.v1.site.4.user.12';
 
 describe('editor layout state', () => {
+  it('opens Elements with code collapsed for a template without changing the stored preference', () => {
+    const persisted = { version: 1 as const, settingsOpen: false, settingsTab: 'history', editorCollapsed: false };
+    expect(resolveInitialEditorLayout(persisted, 'template')).toMatchObject({ settingsOpen: true, settingsTab: 'elements', editorCollapsed: true });
+    expect(persisted).toEqual({ version: 1, settingsOpen: false, settingsTab: 'history', editorCollapsed: false });
+  });
   beforeEach(() => {
     window.localStorage.clear();
   });

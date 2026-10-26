@@ -54,6 +54,7 @@ for (const mode of ['direct', 'connectors', 'fallback']) {
       if (request.method() === 'POST') writes.push(request.url());
     });
     await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
+    await page.locator('[data-kayzart-start="ai"]').click();
     const prompt = page.locator('#kayzart-initial-ai-prompt');
     await prompt.fill('A cafe page with opening hours and directions.');
     await page.locator('#kayzart-create-title').fill('Onboarding cafe');

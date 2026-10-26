@@ -38,6 +38,9 @@ if ( file_exists( $kayzart_action_scheduler ) ) {
 
 require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-css-mode.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-template-library.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-template-page-creator.php';
+require_once KAYZART_PATH . 'includes/class-kayzart-template-admin.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-admin.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-feedback.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-deactivation-feedback.php';
@@ -110,6 +113,7 @@ add_action(
 
 		// Admin UI.
 		\KayzArt\Admin::init();
+		\KayzArt\Template_Admin::init();
 		\KayzArt\Feedback::init();
 		\KayzArt\Deactivation_Feedback::init();
 		\KayzArt\Review::init();

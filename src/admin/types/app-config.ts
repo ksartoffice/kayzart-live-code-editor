@@ -23,7 +23,7 @@ export type AppConfig = {
   settingsRestUrl: string;
   settingsData: SettingsData;
   legacyCodeVisibilityFallback?: 'code_visible' | 'code_hidden';
-  initialEntryMode?: 'ai' | 'blank' | '';
+  initialEntryMode?: 'ai' | 'blank' | 'template' | '';
   layoutStorageNamespace?: string;
   backUrl?: string;
   listUrl?: string;

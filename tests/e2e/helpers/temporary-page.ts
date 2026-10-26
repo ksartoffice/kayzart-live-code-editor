@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Response } from '@playwright/test';
 import { baseUrl } from './open-editor';
 
 async function currentRestNonce(page: Page): Promise<string> {
@@ -43,4 +43,50 @@ export async function deleteTemporaryPage(page: Page, postId: number): Promise<v
   const body = await response.text();
   expect(response.status(), body.slice(0, 500)).toBe(200);
   expect((JSON.parse(body) as { deleted?: boolean }).deleted).toBe(true);
+}
+
+/** Create through Add new and always collect the new page and its own media. */
+export async function withTemporaryTemplatePage(
+  page: Page,
+  title: string,
+  use: (postId: number) => Promise<void>
+): Promise<void> {
+  let createdId = 0;
+  const capture = (response: Response) => {
+    if (response.request().method() !== 'POST') return;
+    const location = response.headers().location;
+    if (!location) return;
+    const destination = new URL(location, baseUrl);
+    if (destination.searchParams.get('kayzart_entry') === 'template') {
+      createdId = Number(destination.searchParams.get('post_id')) || createdId;
+    }
+  };
+  page.on('response', capture);
+  try {
+    await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
+    await page.locator('[data-kayzart-start="template"]').click();
+    await page.locator('#kayzart-template-title').fill(title);
+    await page.locator('.kayzart-template-form button[type="submit"]').click();
+    await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
+    createdId = await page.evaluate(() => Number((window as any).KAYZART.post_id));
+    expect(createdId).toBeGreaterThan(0);
+    await use(createdId);
+  } finally {
+    page.off('response', capture);
+    if (createdId) {
+      try {
+        const nonce = await currentRestNonce(page);
+        const media = await page.request.get(new URL(`wp-json/wp/v2/media?parent=${createdId}&per_page=100&context=edit`, baseUrl).toString(), { headers: { 'X-WP-Nonce': nonce } });
+        expect(media.ok()).toBe(true);
+        for (const attachment of await media.json()) {
+          const freshNonce = await currentRestNonce(page);
+          const deleted = await page.request.delete(new URL(`wp-json/wp/v2/media/${attachment.id}?force=true`, baseUrl).toString(), { headers: { 'X-WP-Nonce': freshNonce } });
+          expect(deleted.ok()).toBe(true);
+          expect((await deleted.json()).deleted).toBe(true);
+        }
+      } finally {
+        await deleteTemporaryPage(page, createdId);
+      }
+    }
+  }
 }

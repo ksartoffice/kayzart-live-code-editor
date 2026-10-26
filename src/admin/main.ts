@@ -195,6 +195,13 @@ async function main() {
   const notices = createNotices({ wp });
   const { createSnackbar, mountNotices, removeNotice, syncNoticeOffset } = notices;
   mountNotices();
+  if (cfg.initialEntryMode === 'template') {
+    createSnackbar(
+      'info',
+      __('Your template is ready. Select text or an image in the preview to edit it in Elements. Replace the sample content and contact details before publishing.', 'kayzart-live-code-editor'),
+      'kayzart-template-start'
+    );
+  }
 
   const ui = buildEditorShell(mount);
   ui.resizer.setAttribute('role', 'separator');

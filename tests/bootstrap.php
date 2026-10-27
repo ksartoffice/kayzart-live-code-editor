@@ -35,6 +35,14 @@ function kayzart_manually_load_plugin() {
 }
 tests_add_filter( 'muplugins_loaded', 'kayzart_manually_load_plugin' );
 
+// The migration store can hide pre-4.0 unique-insert behavior. CI also runs the
+// AI integration tests against the production DBStore on both bundled versions.
+if ( 'db' === getenv( 'KAYZART_TEST_AS_STORE' ) ) {
+	tests_add_filter( 'action_scheduler_store_class', static function () {
+		return 'ActionScheduler_DBStore';
+	}, PHP_INT_MAX );
+}
+
 require $_tests_dir . '/includes/bootstrap.php';
 
 

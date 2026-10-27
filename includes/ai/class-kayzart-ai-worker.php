@@ -64,12 +64,13 @@ class Ai_Worker {
 		$stepwise  = 'stepwise' === Ai_Job_Store::row_execution_mode( $job );
 		$args      = $stepwise ? array( $job_uuid, 0, wp_generate_uuid4() ) : array( $job_uuid );
 		$hook      = $stepwise ? self::STEP_HOOK : self::RUN_HOOK;
-		$action_id = as_enqueue_async_action( $hook, $args, self::GROUP, true, 0 );
+		$unique    = Ai_Scheduler::supports_unique_job_actions();
+		$action_id = as_enqueue_async_action( $hook, $args, self::GROUP, $unique, 0 );
 		if ( 0 === (int) $action_id ) {
 			return false;
 		}
 		$deadline   = max( time() + 1, strtotime( (string) $job['deadline_at'] . ' UTC' ) );
-		$timeout_id = as_schedule_single_action( $deadline, self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP, true );
+		$timeout_id = as_schedule_single_action( $deadline, self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP, $unique );
 		if ( 0 === (int) $timeout_id ) {
 			if ( function_exists( 'as_unschedule_action' ) ) {
 				as_unschedule_action( $hook, $args, self::GROUP );
@@ -543,10 +544,10 @@ class Ai_Worker {
 	 * @param string $job_uuid Job UUID.
 	 */
 	public static function unschedule_job( string $job_uuid ): void {
-		if ( function_exists( 'as_unschedule_action' ) ) {
-			as_unschedule_action( self::RUN_HOOK, array( $job_uuid ), self::GROUP );
-			as_unschedule_action( self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP );
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( self::RUN_HOOK, array( $job_uuid ), self::GROUP );
 		}
+		self::unschedule_timeout( $job_uuid );
 		self::cancel_step_actions( $job_uuid );
 	}
 
@@ -582,8 +583,8 @@ class Ai_Worker {
 	 * @param string $job_uuid Job UUID.
 	 */
 	private static function unschedule_timeout( string $job_uuid ): void {
-		if ( function_exists( 'as_unschedule_action' ) ) {
-			as_unschedule_action( self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP );
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP );
 		}
 	}
 

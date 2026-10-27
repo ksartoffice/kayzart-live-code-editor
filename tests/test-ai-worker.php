@@ -243,6 +243,67 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 		$this->assertSame( Ai_Worker::RUN_HOOK, ActionScheduler::store()->fetch_action( $legacy_action['run_action_id'] )->get_hook() );
 	}
 
+	/** Cancel every duplicate action without affecting other jobs or groups.
+	 *
+	 * @dataProvider cancellation_execution_modes
+	 * @param string $mode Persisted execution mode.
+	 */
+	public function test_canceling_job_removes_all_duplicate_actions( string $mode ): void {
+		add_filter( 'kayzart_ai_execution_mode', static function () use ( $mode ) {
+			return $mode;
+		} );
+		$uuid      = $this->create_job( 'cancel-duplicates', 291 );
+		$other     = $this->create_job( 'cancel-duplicates-other', 292 );
+		$scheduled = Ai_Worker::enqueue( $uuid );
+		$untouched = Ai_Worker::enqueue( $other );
+		$this->assertIsArray( $scheduled );
+		$this->assertIsArray( $untouched );
+		$actions = array_values( $scheduled );
+		$worker  = ActionScheduler::store()->fetch_action( $scheduled['run_action_id'] );
+
+		// Reproduce the non-unique queue produced by AS 3.6.4, including after an upgrade.
+		for ( $copy = 0; $copy < 2; $copy++ ) {
+			$actions[] = as_enqueue_async_action( $worker->get_hook(), $worker->get_args(), Ai_Worker::GROUP, false, 0 );
+			$actions[] = as_schedule_single_action( time() + 600, Ai_Worker::TIMEOUT_HOOK, array( $uuid ), Ai_Worker::GROUP, false );
+		}
+		$other_group = array(
+			as_enqueue_async_action( $worker->get_hook(), $worker->get_args(), 'kayzart-ai-other', false, 0 ),
+			as_schedule_single_action( time() + 600, Ai_Worker::TIMEOUT_HOOK, array( $uuid ), 'kayzart-ai-other', false ),
+		);
+		foreach ( array_merge( $actions, array_values( $untouched ), $other_group ) as $id ) {
+			$this->assertGreaterThan( 0, $id );
+			$this->assertSame( ActionScheduler_Store::STATUS_PENDING, ActionScheduler::store()->get_status( $id ) );
+		}
+
+		try {
+			$this->store->request_cancel( $uuid );
+			Ai_Worker::unschedule_job( $uuid );
+
+			$this->assertSame( 'canceled', $this->store->get( $uuid )['status'] );
+			foreach ( $actions as $id ) {
+				$this->assertSame( ActionScheduler_Store::STATUS_CANCELED, ActionScheduler::store()->get_status( $id ) );
+			}
+			foreach ( array_merge( array_values( $untouched ), $other_group ) as $id ) {
+				$this->assertSame( ActionScheduler_Store::STATUS_PENDING, ActionScheduler::store()->get_status( $id ) );
+			}
+		} finally {
+			foreach ( $other_group as $id ) {
+				ActionScheduler::store()->cancel_action( $id );
+			}
+		}
+	}
+
+	/** Execution modes with different worker argument formats.
+	 *
+	 * @return array
+	 */
+	public function cancellation_execution_modes(): array {
+		return array(
+			'stepwise' => array( 'stepwise' ),
+			'legacy'   => array( 'legacy' ),
+		);
+	}
+
 	/** Permanent post deletion settles its job and removes queued actions. */
 	public function test_post_deletion_cancels_and_unschedules_the_active_job(): void {
 		$post_id = self::factory()->post->create(

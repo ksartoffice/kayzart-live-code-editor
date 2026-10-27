@@ -139,6 +139,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= Unreleased =
+* Fix: Keep the bundled AI job scheduler compatible with WordPress 5.9 and later, including admin screens and multiple queued jobs. Newer WordPress versions continue using Action Scheduler 4.0.
+
 = 3.4.3 =
 * Fix: Resolve Plugin Check warnings by unslashing and sanitizing the request method in the optional deactivation survey.
 

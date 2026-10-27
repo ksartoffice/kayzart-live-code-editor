@@ -4,8 +4,26 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "22508903e2d6a13d220e330d17414206",
+    "content-hash": "b7975970564df8150271f51784eaa042",
     "packages": [
+        {
+            "name": "kayzart/action-scheduler-legacy",
+            "version": "3.6.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/woocommerce/action-scheduler.git",
+                "reference": "e7dafe215be5ef823392204535ee2e241f99a8cb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/woocommerce/action-scheduler/zipball/e7dafe215be5ef823392204535ee2e241f99a8cb",
+                "reference": "e7dafe215be5ef823392204535ee2e241f99a8cb"
+            },
+            "type": "library",
+            "license": [
+                "GPL-3.0-or-later"
+            ]
+        },
         {
             "name": "tailwindphp/tailwindphp",
             "version": "v1.7.0.1",

@@ -31,10 +31,8 @@ if ( file_exists( $kayzart_autoload ) ) {
 	require_once $kayzart_autoload;
 }
 
-$kayzart_action_scheduler = KAYZART_PATH . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
-if ( file_exists( $kayzart_action_scheduler ) ) {
-	require_once $kayzart_action_scheduler;
-}
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-scheduler.php';
+\KayzArt\Ai_Scheduler::load();
 
 require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-css-mode.php';

@@ -544,10 +544,10 @@ class Ai_Worker {
 	 * @param string $job_uuid Job UUID.
 	 */
 	public static function unschedule_job( string $job_uuid ): void {
-		if ( function_exists( 'as_unschedule_action' ) ) {
-			as_unschedule_action( self::RUN_HOOK, array( $job_uuid ), self::GROUP );
-			as_unschedule_action( self::TIMEOUT_HOOK, array( $job_uuid ), self::GROUP );
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( self::RUN_HOOK, array( $job_uuid ), self::GROUP );
 		}
+		self::unschedule_timeout( $job_uuid );
 		self::cancel_step_actions( $job_uuid );
 	}
 

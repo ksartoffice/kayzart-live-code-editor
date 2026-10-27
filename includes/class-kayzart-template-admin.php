@@ -81,7 +81,8 @@ class Template_Admin {
 	/** Create from the nonce-verified form, preserving input on a recoverable error. */
 	public static function create_from_request(): void {
 		check_admin_referer( Admin::NEW_PAGE_NONCE_ACTION );
-		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
+		if ( 'POST' !== $method ) {
 			wp_die( esc_html__( 'Invalid request method.', 'kayzart-live-code-editor' ) );
 		}
 		$id      = sanitize_key( self::post_value( 'template_id' ) );
@@ -118,7 +119,8 @@ class Template_Admin {
 
 	/** Respond with an authenticated, read-only srcdoc document. */
 	public static function preview(): void {
-		if ( 'GET' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '';
+		if ( 'GET' !== $method ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid request method.', 'kayzart-live-code-editor' ) ), 405 );
 		}
 		check_admin_referer( self::PREVIEW_ACTION );

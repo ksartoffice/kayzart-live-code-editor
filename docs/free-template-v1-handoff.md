@@ -1,6 +1,14 @@
 # 無料テンプレート第1弾 引き継ぎメモ
 
-更新: 2026-10-26（Asia/Tokyo）。ユーザーから「帰る時間なので終了してほしい。明日再開できるように」と指示があり、実装を中断した。**作業はここで停止。自動的に再開しない。**
+更新: 2026-10-27（Asia/Tokyo）。ユーザーの再開指示を受け、残る実装・検証・配布物確認を実施した。**現在の結果は[実装・検証記録](free-template-v1-validation.md)が正本**。P1〜P4の機能は実装済み。残るのは別修正に分けたAction Schedulerの互換性対応、その後の最低環境E2E、PRレビュー・リリース手順。
+
+2026-10-27には、PHP全687件・JS全368件、実際の要素編集とCSSモード往復／再読込のE2E2件、AI導線の回帰E2E7件、日本語PC／スマホ表示、生成ZIPのPlugin Checkを確認した。CSSモード切り替えによる元ソース消失と、Plugin Checkの入口警告も修正済み。ZIPは検証用で公開していない。
+
+追加の環境: `core-7.1.3/`、`develop-7.1.3/wp-tests-config.php`、`prepend-7.1.3.php`、DB `tpl_713_unit`。ZIP確認専用の`package-site/`・DB `tpl_package_check`も作成済み。E2E用のAI fixtureは撤去し、テスト用の偽APIキーを削除、管理者ロケールを英語に戻した。
+
+2026-10-27の確認後、今回起動したHTTPサーバーを停止し、検証用MariaDBを正常終了した。テストのページ・添付は回収済み。ローカル環境を使う場合は下記手順で再起動する。
+
+**以下は2026-10-26の中断時点の記録。未完了表や「再開後の残作業」は当時のもので、現在の残作業としては扱わない。** 検証環境の場所・秘密情報を表示しない注意・別修正のユーザー判断は引き続き有効。
 
 ## 再開の入口
 
@@ -87,7 +95,7 @@
 
 ```powershell
 $templateRoot = 'C:/Users/Inagaki/AppData/Local/Temp/kayzart-template-v1-20261026'
-Start-Process 'C:/xampp8.2/mysql/bin/mysqld.exe' -ArgumentList '--no-defaults',"--datadir=$templateRoot/mysql",'--port=3318','--bind-address=127.0.0.1','--standalone' -WindowStyle Hidden
+Start-Process 'C:/xampp8.2/mysql/bin/mysqld.exe' -ArgumentList '--no-defaults',"--datadir=$templateRoot/mysql",'--port=3318','--bind-address=127.0.0.1','--standalone','--console' -WorkingDirectory "$templateRoot/mysql" -WindowStyle Hidden
 Start-Process 'C:/xampp8.2/php/php.exe' -ArgumentList '-S','127.0.0.1:8093','-t',"$templateRoot/site" -WindowStyle Hidden
 
 $templateTestEnv = Get-Content -LiteralPath "$templateRoot/env.json" -Raw | ConvertFrom-Json

@@ -3001,8 +3001,8 @@ msgstr "プレビューを読み込めませんでした。もう一度お試し
 msgid "Page template preview"
 msgstr "ページテンプレートのプレビュー"
 
-#: includes/class-kayzart-template-admin.php:85
-#: includes/class-kayzart-template-admin.php:122
+#: includes/class-kayzart-template-admin.php:86
+#: includes/class-kayzart-template-admin.php:124
 msgid "Invalid request method."
 msgstr "リクエストの方法が正しくありません。"
 
@@ -3067,27 +3067,27 @@ msgstr "テンプレートのページを完全に保存できませんでした
 msgid "The initial page revision could not be saved. Please try again."
 msgstr "ページの初期リビジョンを保存できませんでした。もう一度お試しください。"
 
-#: includes/class-kayzart-template-page-creator.php:202
+#: includes/class-kayzart-template-page-creator.php:206
 msgid "The template could not be imported. Check your media upload settings and try again."
 msgstr "テンプレートを取り込めませんでした。メディアのアップロード設定を確認して、もう一度お試しください。"
 
-#: includes/class-kayzart-template-page-creator.php:234
+#: includes/class-kayzart-template-page-creator.php:238
 msgid "The import did not finish and some draft files could not be removed. Check Pages and Media before trying again."
 msgstr "取り込みが完了せず、一部の下書きファイルを削除できませんでした。再度作成する前に固定ページ一覧とメディアを確認してください。"
 
-#: includes/class-kayzart-template-page-creator.php:251
+#: includes/class-kayzart-template-page-creator.php:255
 msgid "A temporary image file could not be created."
 msgstr "画像の一時ファイルを作成できませんでした。"
 
-#: includes/class-kayzart-template-page-creator.php:255
+#: includes/class-kayzart-template-page-creator.php:259
 msgid "The template image could not be copied."
 msgstr "テンプレート画像をコピーできませんでした。"
 
-#: includes/class-kayzart-template-page-creator.php:263
+#: includes/class-kayzart-template-page-creator.php:267
 msgid "Template image placeholder"
 msgstr "テンプレートのプレースホルダー画像"
 
-#: includes/class-kayzart-template-page-creator.php:272
+#: includes/class-kayzart-template-page-creator.php:276
 msgid "The imported template image could not be verified."
 msgstr "取り込んだテンプレート画像を確認できませんでした。"
 

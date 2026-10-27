@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-26T08:54:14+01:00\n"
+"POT-Creation-Date: 2026-10-27T01:14:24+01:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -1613,8 +1613,8 @@ msgstr ""
 msgid "Page template preview"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:85
-#: includes/class-kayzart-template-admin.php:122
+#: includes/class-kayzart-template-admin.php:86
+#: includes/class-kayzart-template-admin.php:124
 msgid "Invalid request method."
 msgstr ""
 
@@ -1679,27 +1679,27 @@ msgstr ""
 msgid "The initial page revision could not be saved. Please try again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:202
+#: includes/class-kayzart-template-page-creator.php:206
 msgid "The template could not be imported. Check your media upload settings and try again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:234
+#: includes/class-kayzart-template-page-creator.php:238
 msgid "The import did not finish and some draft files could not be removed. Check Pages and Media before trying again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:251
+#: includes/class-kayzart-template-page-creator.php:255
 msgid "A temporary image file could not be created."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:255
+#: includes/class-kayzart-template-page-creator.php:259
 msgid "The template image could not be copied."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:263
+#: includes/class-kayzart-template-page-creator.php:267
 msgid "Template image placeholder"
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:272
+#: includes/class-kayzart-template-page-creator.php:276
 msgid "The imported template image could not be verified."
 msgstr ""
 

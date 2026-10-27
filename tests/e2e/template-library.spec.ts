@@ -32,10 +32,12 @@ test('preview stays local and a template becomes an editable, publishable page',
 
   await withTemporaryTemplatePage(page, 'Temporary template page', async postId => {
     await expect(page.locator('.kayzart-settings')).toBeVisible();
+    await expect(page.locator('.kayzart-app')).toHaveClass(/is-editor-collapsed/);
     const initial = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
     expect(initial.html).toContain('/uploads/');
     expect(initial.html).not.toContain('assets/templates');
     expect(await page.evaluate(() => (window as any).KAYZART.initialCssByMode.normal)).toBeNull();
+    await expect(page.frameLocator('.kayzart-iframe').locator('h1')).toBeVisible();
     await page.screenshot({ path: 'test-results/template-editor.png' });
     const nonce = await page.evaluate(() => (window as any).KAYZART.restNonce);
     const uploaded = await page.request.post(new URL('wp-json/wp/v2/media', baseUrl).toString(), {
@@ -71,9 +73,44 @@ test('preview stays local and a template becomes an editable, publishable page',
       expect(await publicPage.locator('#home img').evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
       expect(await publicPage.locator('body').evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(246, 245, 240)');
       await publicPage.screenshot({ path: 'test-results/template-published.png', fullPage: true });
+      await publicPage.setViewportSize({ width: 390, height: 844 });
+      await expect(publicPage.locator('h1')).toBeVisible();
+      expect(await publicPage.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      const missingAnchors = await publicPage.locator('a[href^="#"]').evaluateAll(links => links.filter(link => !document.getElementById(link.getAttribute('href')!.slice(1))).length);
+      expect(missingAnchors).toBe(0);
     } finally {
       await publicPage.close();
     }
   });
   expect(jobs).toEqual([]);
+});
+
+test('mode switches preserve the template styles and source after reopening', async ({ page }) => {
+  test.setTimeout(90_000);
+  await login(page);
+  await withTemporaryTemplatePage(page, 'Temporary template mode check', async () => {
+    const source = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot().css);
+    await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+    const mode = page.getByRole('combobox', { name: 'CSS mode', exact: true });
+    await mode.selectOption('normal');
+    await page.getByRole('dialog').getByRole('button', { name: 'Switch mode', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorMode())).toBe('normal');
+    const compiled = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot().css);
+    expect(compiled).toContain('--color-ink');
+    expect(compiled).not.toContain('@import "tailwindcss"');
+    const preview = page.frameLocator('.kayzart-iframe');
+    await expect(preview.locator('body')).toHaveCSS('background-color', 'rgb(246, 245, 240)');
+    await mode.selectOption('tailwind');
+    await page.getByRole('dialog').getByRole('button', { name: 'Switch mode', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot().css)).toBe(source);
+    const saved = page.waitForResponse(response => response.url().includes('/kayzart/v1/save') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    await page.reload();
+    await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
+    const reopened = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
+    expect(reopened.css).toBe(source);
+    expect(await page.evaluate(() => (window as any).KAYZART.initialCssByMode.normal)).toBe(compiled);
+    await expect(preview.locator('body')).toHaveCSS('background-color', 'rgb(246, 245, 240)');
+  });
 });

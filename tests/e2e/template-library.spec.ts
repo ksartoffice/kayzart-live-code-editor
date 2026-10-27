@@ -22,12 +22,21 @@ test('preview stays local and a template becomes an editable, publishable page',
   await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
   await expect(page.locator('.kayzart-template-card')).toBeVisible();
   await expect(page.locator('.kayzart-template-photo-note')).toBeVisible();
+  await page.locator('[data-template-language]').selectOption('ja');
   await page.locator('[data-template-preview]').click();
   const frame = page.locator('#kayzart-template-preview iframe');
   await expect(frame).toHaveAttribute('sandbox', '');
   await expect(frame).toHaveAttribute('srcdoc', /images\/landscape\.png/);
   await page.locator('[data-template-width="mobile"]').click();
   await expect(frame).toHaveCSS('width', '390px');
+  await page.locator('[data-template-close]').click();
+  await page.locator('[data-template-preview]').click();
+  const desktop = page.locator('[data-template-width="desktop"]');
+  await expect(desktop).toBeFocused();
+  await expect(desktop).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-template-width="mobile"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(frame).toHaveAttribute('srcdoc', /images\/landscape\.png/);
+  await expect.poll(async () => (await frame.boundingBox())!.width).toBeGreaterThan(390);
   await page.locator('[data-template-close]').click();
 
   await withTemporaryTemplatePage(page, 'Temporary template page', async postId => {
@@ -113,4 +122,60 @@ test('mode switches preserve the template styles and source after reopening', as
     expect(await page.evaluate(() => (window as any).KAYZART.initialCssByMode.normal)).toBe(compiled);
     await expect(preview.locator('body')).toHaveCSS('background-color', 'rgb(246, 245, 240)');
   });
+});
+
+test('language selection changes the thumbnail, preview, and saved English page together', async ({ page }) => {
+  test.setTimeout(90_000);
+  page.setDefaultTimeout(15_000);
+  await login(page);
+  await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
+  const language = page.locator('[data-template-language]');
+  const thumbnail = page.locator('.kayzart-template-art img');
+  const preview = page.frameLocator('#kayzart-template-preview iframe');
+  await language.selectOption('en');
+  await expect(thumbnail).toHaveAttribute('src', /thumbnail\.en\.webp/);
+  expect(await language.evaluate(select => new FormData(document.querySelector<HTMLFormElement>('.kayzart-template-form')!).get('template_locale'))).toBe('en');
+  await page.locator('[data-template-preview]').click();
+  await expect(preview.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(preview.locator('h1')).toContainText('Your next step,');
+  await page.locator('[data-template-close]').click();
+  await language.selectOption('ja');
+  await expect(thumbnail).toHaveAttribute('src', /\/thumbnail\.webp/);
+  await page.locator('[data-template-preview]').click();
+  await expect(preview.locator('html')).toHaveAttribute('lang', 'ja');
+  await expect(preview.locator('h1')).toContainText('その想いを、');
+  await page.locator('[data-template-close]').click();
+  await language.selectOption('en');
+  await page.locator('[data-template-preview]').click();
+  await expect(preview.locator('h1')).toContainText('Your next step,');
+  await page.locator('[data-template-close]').click();
+  await withTemporaryTemplatePage(page, 'Temporary English template page', async postId => {
+    const initial = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
+    expect(initial.html).toContain('lang="en"');
+    expect(initial.html).toContain('Your next step,');
+    expect(initial.html).not.toContain('その想いを、');
+    await page.evaluate(() => {
+      const api = (window as any).KAYZART_EXTENSION_API;
+      const snapshot = api.getEditorSnapshot();
+      snapshot.html = snapshot.html.replace('Your next step,', 'A fresh start,');
+      if (!api.replaceEditorSnapshot(snapshot)) throw new Error('English snapshot was rejected');
+    });
+    const saved = page.waitForResponse(response => response.url().includes('/kayzart/v1/save') && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Save draft', exact: true }).click();
+    expect((await saved).ok()).toBe(true);
+    const nonce = await page.evaluate(() => (window as any).KAYZART.restNonce);
+    const published = await page.request.post(new URL(`wp-json/wp/v2/pages/${postId}`, baseUrl).toString(), { headers: { 'X-WP-Nonce': nonce }, data: { status: 'publish' } });
+    expect(published.ok()).toBe(true);
+    const publicPage = await page.context().newPage();
+    try {
+      await publicPage.goto((await published.json()).link);
+      await expect(publicPage.locator('div[lang="en"]')).toBeVisible();
+      await expect(publicPage.locator('h1')).toContainText('A fresh start,');
+      await publicPage.setViewportSize({ width: 390, height: 844 });
+      expect(await publicPage.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+      expect(await publicPage.locator('a[href^="#"]').evaluateAll(links => links.filter(link => !document.getElementById(link.getAttribute('href')!.slice(1))).length)).toBe(0);
+    } finally {
+      await publicPage.close();
+    }
+  }, 'en');
 });

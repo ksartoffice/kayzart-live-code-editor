@@ -11,13 +11,19 @@
     "css": "style.css",
     "thumbnail": "thumbnail.webp"
   },
+  "localizations": {
+    "en": {
+      "html": "index.en.html",
+      "thumbnail": "thumbnail.en.webp"
+    }
+  },
   "assets": [
     {
       "id": "main-visual",
       "path": "images/landscape.png",
       "mimeType": "image/png",
-      "width": 1600,
-      "height": 1000
+      "width": 768,
+      "height": 768
     }
   ]
 }

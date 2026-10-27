@@ -49,7 +49,8 @@ export async function deleteTemporaryPage(page: Page, postId: number): Promise<v
 export async function withTemporaryTemplatePage(
   page: Page,
   title: string,
-  use: (postId: number) => Promise<void>
+  use: (postId: number) => Promise<void>,
+  locale: 'ja' | 'en' = 'ja'
 ): Promise<void> {
   let createdId = 0;
   const capture = (response: Response) => {
@@ -65,6 +66,7 @@ export async function withTemporaryTemplatePage(
   try {
     await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
     await page.locator('[data-kayzart-start="template"]').click();
+    await page.locator('[data-template-language]').selectOption(locale);
     await page.locator('#kayzart-template-title').fill(title);
     await page.locator('.kayzart-template-form button[type="submit"]').click();
     await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
@@ -74,19 +76,24 @@ export async function withTemporaryTemplatePage(
   } finally {
     page.off('response', capture);
     if (createdId) {
-      try {
-        const nonce = await currentRestNonce(page);
-        const media = await page.request.get(new URL(`wp-json/wp/v2/media?parent=${createdId}&per_page=100&context=edit`, baseUrl).toString(), { headers: { 'X-WP-Nonce': nonce } });
-        expect(media.ok()).toBe(true);
-        for (const attachment of await media.json()) {
-          const freshNonce = await currentRestNonce(page);
-          const deleted = await page.request.delete(new URL(`wp-json/wp/v2/media/${attachment.id}?force=true`, baseUrl).toString(), { headers: { 'X-WP-Nonce': freshNonce } });
-          expect(deleted.ok()).toBe(true);
-          expect((await deleted.json()).deleted).toBe(true);
-        }
-      } finally {
-        await deleteTemporaryPage(page, createdId);
-      }
+      await deleteTemporaryTemplatePage(page, createdId);
     }
+  }
+}
+
+/** Collect a known temporary template page and its own media, including interrupted runs. */
+export async function deleteTemporaryTemplatePage(page: Page, postId: number): Promise<void> {
+  try {
+    const nonce = await currentRestNonce(page);
+    const media = await page.request.get(new URL(`wp-json/wp/v2/media?parent=${postId}&per_page=100&context=edit`, baseUrl).toString(), { headers: { 'X-WP-Nonce': nonce } });
+    expect(media.ok()).toBe(true);
+    for (const attachment of await media.json()) {
+      const freshNonce = await currentRestNonce(page);
+      const deleted = await page.request.delete(new URL(`wp-json/wp/v2/media/${attachment.id}?force=true`, baseUrl).toString(), { headers: { 'X-WP-Nonce': freshNonce } });
+      expect(deleted.ok()).toBe(true);
+      expect((await deleted.json()).deleted).toBe(true);
+    }
+  } finally {
+    await deleteTemporaryPage(page, postId);
   }
 }

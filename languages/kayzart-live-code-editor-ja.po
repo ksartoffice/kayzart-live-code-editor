@@ -585,7 +585,7 @@ msgid "Title"
 msgstr "タイトル"
 
 #: includes/class-kayzart-admin.php:2112
-#: includes/class-kayzart-template-admin.php:74
+#: includes/class-kayzart-template-admin.php:87
 msgid "Optional. You can rename the page later."
 msgstr "任意です。あとから変更できます。"
 
@@ -675,7 +675,7 @@ msgstr "ページを作成するとエディターが開きます。"
 #: includes/class-kayzart-admin.php:2176
 #: includes/class-kayzart-admin.php:2180
 #: includes/class-kayzart-admin.php:2182
-#: includes/class-kayzart-template-admin.php:75
+#: includes/class-kayzart-template-admin.php:88
 msgid "Creating…"
 msgstr "作成中…"
 
@@ -1312,7 +1312,7 @@ msgstr "投稿を表示"
 msgid "Preview"
 msgstr "プレビュー"
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 #: assets/dist/main.js:2494
 msgid "Desktop"
 msgstr "デスクトップ"
@@ -1321,7 +1321,7 @@ msgstr "デスクトップ"
 msgid "Tablet"
 msgstr "タブレット"
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 #: assets/dist/main.js:2496
 msgid "Mobile"
 msgstr "モバイル"
@@ -1411,7 +1411,7 @@ msgstr "元に戻す"
 msgid "Redo"
 msgstr "やり直す"
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 #: assets/dist/main.js:2787
 msgid "Close"
 msgstr "閉じる"
@@ -1946,7 +1946,7 @@ msgid "Edit the page content in Kayzart. You can continue to change WordPress pa
 msgstr "ページ本文は Kayzart で編集します。WordPress のページ設定はここで引き続き変更できます。"
 
 #: includes/class-kayzart-editor-bridge.php:119
-#: includes/class-kayzart-template-admin.php:74
+#: includes/class-kayzart-template-admin.php:87
 #: assets/admin/editor-bridge.js:311
 msgid "Page title"
 msgstr "ページタイトル"
@@ -2056,12 +2056,12 @@ msgid "Set up AI editing"
 msgstr "AI 編集を設定する"
 
 #: includes/class-kayzart-admin.php:2106
-#: includes/class-kayzart-template-admin.php:35
+#: includes/class-kayzart-template-admin.php:40
 msgid "Page details"
 msgstr "ページの詳細"
 
 #: includes/class-kayzart-admin.php:2107
-#: includes/class-kayzart-template-admin.php:35
+#: includes/class-kayzart-template-admin.php:40
 msgid "Name the page, then open the standard HTML/CSS/JS editor."
 msgstr "ページ名を入力して、通常の HTML/CSS/JS エディターを開きます。"
 
@@ -2941,68 +2941,68 @@ msgstr "作成方法が正しくありません。"
 msgid "Start from a template, describe your page to AI, or begin with a blank page."
 msgstr "テンプレートを選ぶ、AIにページを説明する、白紙から始める、のいずれかを選べます。"
 
-#: includes/class-kayzart-template-admin.php:35
+#: includes/class-kayzart-template-admin.php:40
 msgid "Choose how to start"
 msgstr "開始方法を選択"
 
-#: includes/class-kayzart-template-admin.php:37
+#: includes/class-kayzart-template-admin.php:42
 msgid "From a template"
 msgstr "テンプレートから"
 
-#: includes/class-kayzart-template-admin.php:38
+#: includes/class-kayzart-template-admin.php:43
 msgid "Create with AI"
 msgstr "AIで作成"
 
-#: includes/class-kayzart-template-admin.php:39
+#: includes/class-kayzart-template-admin.php:44
 msgid "Start blank"
 msgstr "白紙から"
 
-#: includes/class-kayzart-template-admin.php:46
+#: includes/class-kayzart-template-admin.php:51
 msgid "Page templates"
 msgstr "ページテンプレート"
 
-#: includes/class-kayzart-template-admin.php:47
+#: includes/class-kayzart-template-admin.php:52
 msgid "Your AI instruction is kept. Switch back to Create with AI to continue it."
 msgstr "AIへの指示は保持されています。「AIで作成」に戻ると続けられます。"
 
-#: includes/class-kayzart-template-admin.php:67
+#: includes/class-kayzart-template-admin.php:74
 msgid "Free"
 msgstr "無料"
 
-#: includes/class-kayzart-template-admin.php:69
+#: includes/class-kayzart-template-admin.php:82
 msgid "Photos are examples only. Your page will contain image placeholders for you to replace."
 msgstr "写真は使用イメージです。作成されるページには、差し替え用のプレースホルダー画像が入ります。"
 
-#: includes/class-kayzart-template-admin.php:70
+#: includes/class-kayzart-template-admin.php:83
 msgid "Preview template"
 msgstr "テンプレートをプレビュー"
 
-#: includes/class-kayzart-template-admin.php:75
+#: includes/class-kayzart-template-admin.php:88
 msgid "Create from this template"
 msgstr "このテンプレートで作成"
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 msgid "Template preview"
 msgstr "テンプレートのプレビュー"
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "This is the page you will start with. Replace the image placeholders with your own photos."
 msgstr "実際に作成されるページです。プレースホルダー画像をご自身の写真に差し替えてください。"
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "Loading preview…"
 msgstr "プレビューを読み込み中…"
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "Could not load the preview. Please try again."
 msgstr "プレビューを読み込めませんでした。もう一度お試しください。"
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "Page template preview"
 msgstr "ページテンプレートのプレビュー"
 
-#: includes/class-kayzart-template-admin.php:86
-#: includes/class-kayzart-template-admin.php:124
+#: includes/class-kayzart-template-admin.php:99
+#: includes/class-kayzart-template-admin.php:139
 msgid "Invalid request method."
 msgstr "リクエストの方法が正しくありません。"
 
@@ -3010,87 +3010,95 @@ msgstr "リクエストの方法が正しくありません。"
 msgid "General service landing page"
 msgstr "汎用サービスLP"
 
-#: includes/class-kayzart-template-library.php:26
-msgid "A complete introduction to your products or services, with features, pricing, FAQs, and a contact section. Page content is in Japanese."
-msgstr "特長・料金・よくある質問・お問い合わせ欄を備えた、商品やサービスの紹介ページです。本文は日本語です。"
-
-#: includes/class-kayzart-template-library.php:27
-msgid "Japanese"
-msgstr "日本語"
-
-#: includes/class-kayzart-template-library.php:40
+#: includes/class-kayzart-template-library.php:56
 msgid "Enable Pages in Kayzart settings to use page templates."
 msgstr "テンプレートを使用するには、Kayzartの設定で固定ページを有効にしてください。"
 
-#: includes/class-kayzart-template-library.php:44
+#: includes/class-kayzart-template-library.php:60
 msgid "You do not have permission to create pages."
 msgstr "固定ページを作成する権限がありません。"
 
-#: includes/class-kayzart-template-library.php:47
+#: includes/class-kayzart-template-library.php:63
 msgid "You need permission to upload media to use this template."
 msgstr "このテンプレートの使用には、メディアをアップロードする権限が必要です。"
 
-#: includes/class-kayzart-template-library.php:79
+#: includes/class-kayzart-template-library.php:96
 msgid "This template is not available."
 msgstr "このテンプレートは利用できません。"
 
-#: includes/class-kayzart-template-library.php:200
+#: includes/class-kayzart-template-library.php:230
 msgid "The bundled template could not be loaded. Please reinstall the current version of Kayzart."
 msgstr "同梱テンプレートを読み込めませんでした。現在のバージョンのKayzartを再インストールしてください。"
 
-#: includes/class-kayzart-template-page-creator.php:54
+#: includes/class-kayzart-template-page-creator.php:56
 msgid "An earlier attempt did not finish. Check your Pages before starting again."
 msgstr "前回の作成が完了していません。再度作成する前に固定ページ一覧を確認してください。"
 
-#: includes/class-kayzart-template-page-creator.php:73
+#: includes/class-kayzart-template-page-creator.php:83
 msgid "The creation request is invalid. Reload the page and try again."
 msgstr "作成リクエストが正しくありません。画面を再読み込みしてお試しください。"
 
-#: includes/class-kayzart-template-page-creator.php:92
+#: includes/class-kayzart-template-page-creator.php:102
 msgid "This site cannot import the template image. Check the allowed image types and upload limit."
 msgstr "このサイトではテンプレート画像を取り込めません。許可する画像形式とアップロード上限を確認してください。"
 
-#: includes/class-kayzart-template-page-creator.php:101
+#: includes/class-kayzart-template-page-creator.php:111
 msgid "This request is already being processed. Wait a moment and try again. If it was interrupted, check your Pages before reloading."
 msgstr "この作成リクエストは処理中です。少し待って再度お試しください。処理が中断された場合は、再読み込みする前に固定ページ一覧を確認してください。"
 
-#: includes/class-kayzart-template-page-creator.php:129
+#: includes/class-kayzart-template-page-creator.php:139
 msgid "New service page"
 msgstr "新しいサービスページ"
 
-#: includes/class-kayzart-template-page-creator.php:190
-#: includes/class-kayzart-template-page-creator.php:200
+#: includes/class-kayzart-template-page-creator.php:201
+#: includes/class-kayzart-template-page-creator.php:211
 msgid "The template page could not be saved completely. Please try again."
 msgstr "テンプレートのページを完全に保存できませんでした。もう一度お試しください。"
 
-#: includes/class-kayzart-template-page-creator.php:195
+#: includes/class-kayzart-template-page-creator.php:206
 msgid "The initial page revision could not be saved. Please try again."
 msgstr "ページの初期リビジョンを保存できませんでした。もう一度お試しください。"
 
-#: includes/class-kayzart-template-page-creator.php:206
+#: includes/class-kayzart-template-page-creator.php:217
 msgid "The template could not be imported. Check your media upload settings and try again."
 msgstr "テンプレートを取り込めませんでした。メディアのアップロード設定を確認して、もう一度お試しください。"
 
-#: includes/class-kayzart-template-page-creator.php:238
+#: includes/class-kayzart-template-page-creator.php:249
 msgid "The import did not finish and some draft files could not be removed. Check Pages and Media before trying again."
 msgstr "取り込みが完了せず、一部の下書きファイルを削除できませんでした。再度作成する前に固定ページ一覧とメディアを確認してください。"
 
-#: includes/class-kayzart-template-page-creator.php:255
+#: includes/class-kayzart-template-page-creator.php:266
 msgid "A temporary image file could not be created."
 msgstr "画像の一時ファイルを作成できませんでした。"
 
-#: includes/class-kayzart-template-page-creator.php:259
+#: includes/class-kayzart-template-page-creator.php:270
 msgid "The template image could not be copied."
 msgstr "テンプレート画像をコピーできませんでした。"
 
-#: includes/class-kayzart-template-page-creator.php:267
+#: includes/class-kayzart-template-page-creator.php:278
 msgid "Template image placeholder"
 msgstr "テンプレートのプレースホルダー画像"
 
-#: includes/class-kayzart-template-page-creator.php:276
+#: includes/class-kayzart-template-page-creator.php:287
 msgid "The imported template image could not be verified."
 msgstr "取り込んだテンプレート画像を確認できませんでした。"
 
 #: assets/dist/main.js:8428
 msgid "Your template is ready. Select text or an image in the preview to edit it in Elements. Replace the sample content and contact details before publishing."
 msgstr "テンプレートを読み込みました。プレビューの文章や画像を選ぶと、要素パネルで編集できます。公開前にサンプルの文章とお問い合わせ先を差し替えてください。"
+
+#: includes/class-kayzart-template-admin.php:76
+msgid "Page language"
+msgstr "ページの言語"
+
+#: includes/class-kayzart-template-library.php:26
+msgid "A complete introduction to your products or services, with features, pricing, FAQs, and a contact section."
+msgstr "特徴・料金・よくあるご質問・お問い合わせ欄を備えた、商品やサービス紹介用のランディングページです。"
+
+#: includes/class-kayzart-template-library.php:99
+msgid "Choose an available page language."
+msgstr "利用可能なページの言語を選択してください。"
+
+#: includes/class-kayzart-template-page-creator.php:63
+msgid "This request already created a page in another language. Reload the page to start a new request."
+msgstr "このリクエストでは別の言語のページを作成済みです。新しいページを作成するには、画面を再読み込みしてください。"

@@ -18,6 +18,7 @@ class Template_Page_Creator {
 	const COMPLETE_META = '_kayzart_template_creation_complete';
 	const ID_META       = '_kayzart_template_id';
 	const VERSION_META  = '_kayzart_template_version';
+	const LOCALE_META   = '_kayzart_template_locale';
 
 	/**
 	 * Find a previous attempt belonging to this user.
@@ -47,11 +48,19 @@ class Template_Page_Creator {
 	 *
 	 * @param int    $post_id Existing page ID.
 	 * @param string $id      Template ID.
+	 * @param string $locale  Content language.
 	 * @return int|\WP_Error
 	 */
-	private static function resume( int $post_id, string $id ) {
+	private static function resume( int $post_id, string $id, string $locale ) {
 		if ( ! current_user_can( 'edit_post', $post_id ) || get_post_meta( $post_id, self::ID_META, true ) !== $id || '1' !== get_post_meta( $post_id, self::COMPLETE_META, true ) ) {
 			return new \WP_Error( 'template_incomplete', __( 'An earlier attempt did not finish. Check your Pages before starting again.', 'kayzart-live-code-editor' ) );
+		}
+		$original_locale = get_post_meta( $post_id, self::LOCALE_META, true );
+		if ( '' === $original_locale ) {
+			$original_locale = 'ja';
+		}
+		if ( $original_locale !== $locale ) {
+			return new \WP_Error( 'template_request_conflict', __( 'This request already created a page in another language. Reload the page to start a new request.', 'kayzart-live-code-editor' ) );
 		}
 		return $post_id;
 	}
@@ -62,9 +71,10 @@ class Template_Page_Creator {
 	 * @param string $id         Allowlisted template ID.
 	 * @param string $request_id UUID retained across retries.
 	 * @param string $title      Requested page title.
+	 * @param string $locale     Content language.
 	 * @return int|\WP_Error
 	 */
-	public static function create( string $id, string $request_id, string $title ) {
+	public static function create( string $id, string $request_id, string $title, string $locale = 'ja' ) {
 		$reason = Template_Library::unavailable_reason();
 		if ( '' !== $reason ) {
 			return new \WP_Error( 'template_forbidden', $reason );
@@ -74,9 +84,9 @@ class Template_Page_Creator {
 		}
 		$existing = self::find_request( $request_id );
 		if ( $existing ) {
-			return self::resume( $existing, $id );
+			return self::resume( $existing, $id, $locale );
 		}
-		$template = Template_Library::get( $id );
+		$template = Template_Library::get( $id, $locale );
 		if ( is_wp_error( $template ) ) {
 			return $template;
 		}
@@ -96,7 +106,7 @@ class Template_Page_Creator {
 		if ( ! add_option( $lock, time(), '', false ) ) {
 			$existing = self::find_request( $request_id );
 			if ( $existing && '1' === get_post_meta( $existing, self::COMPLETE_META, true ) ) {
-				return self::resume( $existing, $id );
+				return self::resume( $existing, $id, $locale );
 			}
 			return new \WP_Error( 'template_busy', __( 'This request is already being processed. Wait a moment and try again. If it was interrupted, check your Pages before reloading.', 'kayzart-live-code-editor' ) );
 		}
@@ -111,7 +121,7 @@ class Template_Page_Creator {
 		try {
 			$existing = self::find_request( $request_id );
 			if ( $existing ) {
-				return self::resume( $existing, $id );
+				return self::resume( $existing, $id, $locale );
 			}
 			foreach ( $hooks as $hook ) {
 				$priority = has_action( $hook[0], $hook[1] );
@@ -131,6 +141,7 @@ class Template_Page_Creator {
 						self::REQUEST_META => $request_id,
 						self::ID_META      => $id,
 						self::VERSION_META => $template['version'],
+						self::LOCALE_META  => $template['locale'],
 					),
 				),
 				true

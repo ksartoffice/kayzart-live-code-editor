@@ -33,8 +33,8 @@ class Test_Template_Library extends WP_UnitTestCase {
 		parent::tearDown();
 	}
 
-	private function create_page( $request = null ) {
-		$result = Template_Page_Creator::create( 'general-service-lp', $request ?? wp_generate_uuid4(), 'Template test' );
+	private function create_page( $request = null, $locale = 'ja' ) {
+		$result = Template_Page_Creator::create( 'general-service-lp', $request ?? wp_generate_uuid4(), 'Template test', $locale );
 		if ( is_int( $result ) ) {
 			$this->created[] = $result;
 		}
@@ -49,6 +49,103 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$this->assertIsArray( $template );
 		$this->assertSame( 'ja', $template['locale'] );
 		$this->assertSame( 'tailwind', $template['cssMode'] );
+	}
+
+	public function test_default_content_language_uses_site_language_not_user_language(): void {
+		$site_locale = 'ja';
+		$site_language = static function () use ( &$site_locale ) { return $site_locale; };
+		add_filter( 'pre_option_WPLANG', $site_language );
+		try {
+			update_user_meta( get_current_user_id(), 'locale', 'en_US' );
+			$this->assertSame( 'ja', Template_Library::default_locale() );
+			update_user_meta( get_current_user_id(), 'locale', 'ja' );
+			foreach ( array( '', 'en_US', 'fr_FR' ) as $site_locale ) {
+				$this->assertSame( 'en', Template_Library::default_locale() );
+			}
+		} finally {
+			remove_filter( 'pre_option_WPLANG', $site_language );
+		}
+	}
+
+	public function test_english_variant_shares_the_design_and_has_only_english_copy(): void {
+		$ja = Template_Library::get( 'general-service-lp', 'ja' );
+		$en = Template_Library::get( 'general-service-lp', 'en' );
+		$this->assertIsArray( $en );
+		$this->assertSame( 'en', $en['locale'] );
+		$this->assertSame( $ja['css'], $en['css'] );
+		$this->assertSame( $ja['assets'], $en['assets'] );
+		$this->assertStringContainsString( 'lang="en"', $en['html'] );
+		$this->assertStringContainsString( 'Your next step,', $en['html'] );
+		$this->assertSame( 0, preg_match( '/[\x{3040}-\x{30ff}\x{4e00}-\x{9fff}]/u', $en['html'] ) );
+		preg_match_all( '/class="([^"]*)"/', $ja['html'], $ja_classes );
+		preg_match_all( '/class="([^"]*)"/', $en['html'], $en_classes );
+		$this->assertSame( $ja_classes[1], $en_classes[1] );
+		$this->assertSame( 'thumbnail.en.webp', $en['files']['thumbnail'] );
+	}
+
+	public function test_unsupported_locales_cannot_create_content_or_resolve_files(): void {
+		global $wpdb;
+		$before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" );
+		foreach ( array( '', '../en', 'en_US', 'fr', 'https://example.test/en' ) as $locale ) {
+			$this->assertWPError( Template_Library::get( 'general-service-lp', $locale ) );
+			$this->assertWPError( Template_Library::preview( 'general-service-lp', $locale ) );
+			$this->assertWPError( $this->create_page( null, $locale ) );
+		}
+		$this->assertSame( $before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" ) );
+	}
+
+	public function test_localized_preview_caches_do_not_mix_languages(): void {
+		$en = Template_Library::preview( 'general-service-lp', 'en' );
+		$ja = Template_Library::preview( 'general-service-lp', 'ja' );
+		$this->assertIsString( $en );
+		$this->assertStringContainsString( '<html lang="en">', $en );
+		$this->assertStringContainsString( 'Your next step,', $en );
+		$this->assertStringContainsString( '<html lang="ja">', $ja );
+		$this->assertStringNotContainsString( 'Your next step,', $ja );
+		$this->assertSame( $en, Template_Library::preview( 'general-service-lp', 'en' ) );
+	}
+
+	public function test_english_creation_and_retries_preserve_the_selected_language(): void {
+		$request = wp_generate_uuid4();
+		$id      = $this->create_page( $request, 'en' );
+		$this->assertIsInt( $id );
+		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
+		$this->assertStringContainsString( 'lang="en"', get_post( $id )->post_content );
+		$this->assertStringContainsString( 'Your next step,', get_post( $id )->post_content );
+		$this->assertStringContainsString( wp_upload_dir()['baseurl'], get_post( $id )->post_content );
+		$this->assertSame( $id, $this->create_page( $request, 'en' ) );
+		$conflict = $this->create_page( $request, 'ja' );
+		$this->assertWPError( $conflict );
+		$this->assertSame( 'template_request_conflict', $conflict->get_error_code() );
+		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
+		$this->assertStringContainsString( 'Your next step,', get_post( $id )->post_content );
+	}
+
+	public function test_language_selector_and_retry_keep_preview_and_form_in_sync(): void {
+		$original = get_option( 'WPLANG', '' );
+		update_option( 'WPLANG', 'en_US' );
+		set_transient( 'kayzart_template_retry_' . get_current_user_id(), array( 'locale' => 'ja', 'title' => 'Retry title' ) );
+		ob_start();
+		try {
+			KayzArt\Template_Admin::render( false );
+			$markup = ob_get_contents();
+		} finally {
+			ob_end_clean();
+			update_option( 'WPLANG', $original );
+		}
+		$this->assertMatchesRegularExpression( '/<option[^>]+value="ja"[^>]+selected/', $markup );
+		$this->assertStringContainsString( 'form="kayzart-template-form-general-service-lp"', $markup );
+		$this->assertStringContainsString( 'name="template_locale"', $markup );
+		$this->assertStringContainsString( 'template_locale=ja', $markup );
+		$this->assertStringContainsString( 'value="Retry title"', $markup );
+		preg_match_all( '/data-preview="([^"]+)"/', $markup, $urls );
+		$this->assertCount( 2, $urls[1] );
+		foreach ( $urls[1] as $url ) {
+			parse_str( wp_parse_url( html_entity_decode( $url, ENT_QUOTES, 'UTF-8' ), PHP_URL_QUERY ), $query );
+			$this->assertSame( 'general-service-lp', $query['template_id'] );
+			$this->assertContains( $query['template_locale'], array( 'ja', 'en' ) );
+			$this->assertNotFalse( wp_verify_nonce( $query['_wpnonce'], KayzArt\Template_Admin::PREVIEW_ACTION ) );
+		}
 	}
 
 	public function test_preview_is_isolated_local_and_has_no_database_content_side_effects(): void {
@@ -210,6 +307,7 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$method->setAccessible( true );
 		$method->invoke( null, get_post( $source ), $copy );
 		$this->assertSame( 'general-service-lp', get_post_meta( $copy, Template_Page_Creator::ID_META, true ) );
+		$this->assertSame( 'ja', get_post_meta( $copy, Template_Page_Creator::LOCALE_META, true ) );
 		$this->assertSame( '', get_post_meta( $copy, Template_Page_Creator::REQUEST_META, true ) );
 		$this->assertSame( '', get_post_meta( $copy, Template_Page_Creator::COMPLETE_META, true ) );
 	}

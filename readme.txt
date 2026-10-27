@@ -31,7 +31,7 @@ Write the page by hand, start from a template, drop in code from a designer, or 
 Freelancers, agencies, and developers who need a clean landing page fast and want full control over the result — without a child theme, a drag-and-drop builder, or a build pipeline. If you don't write code, you can still get a page: describe it and let the AI build it, ask for changes in plain language, and edit text, links, and images visually from the Elements panel. The difference is that when you do want the code, it is right there and it is yours.
 
 **What you can do**
-* Start with a bundled free service landing page in Japanese, without an AI connection or template server
+* Start with a bundled free service landing page in Japanese or English, without an AI connection or template server
 * Describe a page from Kayzart > Add new and have the AI build it as the editor opens
 * Edit your page with AI in plain language — it changes the actual HTML and CSS, inside WordPress
 * Keep JavaScript AI-safe: the AI reads your JS for context but never edits it
@@ -69,7 +69,7 @@ The admin editor bundle (assets/dist/) is compiled from the TypeScript/React sou
 
 == Frequently Asked Questions ==
 = How do the bundled free templates work? =
-Choose From a template in Kayzart > Add new, preview the Japanese service landing page at desktop or mobile width, then create a draft. The template uses TailwindCSS and Standalone mode. Select text or images in the preview and use Elements to replace them, or edit the HTML and CSS directly. Replace sample descriptions, links, and contact details before publishing. The template's sources, thumbnail, and placeholder image are bundled with the plugin; using them does not contact a template service or start an AI request.
+Choose From a template in Kayzart > Add new and select Japanese or English under Page language. The thumbnail, desktop/mobile preview, and new draft use the selected language. Japanese sites start with Japanese; other sites start with English, independently of the administrator's language. The template uses TailwindCSS and Standalone mode. Select text or images in the preview and use Elements to replace them, or edit the HTML and CSS directly. Replace sample descriptions, links, and contact details before publishing. Both language versions, thumbnails, and the placeholder image are bundled with the plugin; using them does not contact a template service or start an AI request. Changing the selection affects new pages only.
 
 = Are the photos in the template thumbnail included in my page? =
 No. The thumbnail shows an example with a photograph. The detailed preview and your draft use a placeholder instead. On creation, Kayzart copies that placeholder into your WordPress media library for that page; replace it with your own photo and alternative text. Independently created template pages have separate placeholder attachments. Editing a created page does not change the original template, and a later template update does not overwrite your page. Creating a template page requires permission to create Pages and upload media, with Pages enabled in Kayzart settings.
@@ -147,7 +147,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 
 == Changelog ==
 = Unreleased =
-* Add: A bundled free service landing page in Japanese. Preview it locally, create a draft without AI setup, and replace its text, images, and contact details in the editor.
+* Add: A bundled free service landing page in Japanese and English. Choose the page language, preview it locally, create a draft without AI setup, and replace its text, images, and contact details in the editor.
 * Improve: Choose between a template, AI generation, and a blank page in Add new, keeping an unfinished AI instruction when switching to templates.
 
 = 3.4.3 =

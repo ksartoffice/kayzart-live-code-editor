@@ -73,6 +73,16 @@
       });
     });
 
+    panel.querySelectorAll('[data-template-language]').forEach(function (select) {
+      select.addEventListener('change', function () {
+        var option = select.options[select.selectedIndex];
+        var card = select.closest('.kayzart-template-card');
+        if (!option || !card) return;
+        card.querySelector('.kayzart-template-art img').src = option.getAttribute('data-thumbnail');
+        card.querySelector('[data-template-preview]').setAttribute('data-template-preview', option.getAttribute('data-preview'));
+      });
+    });
+
     var dialog = document.getElementById('kayzart-template-preview');
     if (!dialog || typeof dialog.showModal !== 'function') return;
     var frame = dialog.querySelector('iframe');
@@ -87,19 +97,20 @@
       if (opener) opener.focus();
     });
     dialog.querySelector('[data-template-close]').addEventListener('click', function () { dialog.close(); });
-    dialog.querySelectorAll('[data-template-width]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        var mobile = button.getAttribute('data-template-width') === 'mobile';
-        frame.style.width = mobile ? '390px' : '100%';
-        dialog.querySelectorAll('[data-template-width]').forEach(function (item) {
-          item.setAttribute('aria-pressed', String(item === button));
-        });
+    function selectPreviewWidth(width) {
+      frame.style.width = width === 'mobile' ? '390px' : '100%';
+      dialog.querySelectorAll('[data-template-width]').forEach(function (button) {
+        button.setAttribute('aria-pressed', String(button.getAttribute('data-template-width') === width));
       });
+    }
+    dialog.querySelectorAll('[data-template-width]').forEach(function (button) {
+      button.addEventListener('click', function () { selectPreviewWidth(button.getAttribute('data-template-width')); });
     });
     panel.querySelectorAll('[data-template-preview]').forEach(function (button) {
       button.addEventListener('click', async function () {
         opener = button;
         var url = button.getAttribute('data-template-preview');
+        selectPreviewWidth('desktop');
         frame.removeAttribute('srcdoc');
         status.textContent = status.getAttribute('data-loading');
         if (!dialog.open) dialog.showModal();

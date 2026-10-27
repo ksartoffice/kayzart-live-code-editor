@@ -17,17 +17,33 @@ class Template_Library {
 	/**
 	 * Return translated summaries without compiling templates.
 	 *
-	 * @return array<string,array<string,string>>
+	 * @return array
 	 */
 	public static function catalog(): array {
 		return array(
 			'general-service-lp' => array(
 				'title'       => __( 'General service landing page', 'kayzart-live-code-editor' ),
-				'description' => __( 'A complete introduction to your products or services, with features, pricing, FAQs, and a contact section. Page content is in Japanese.', 'kayzart-live-code-editor' ),
-				'language'    => __( 'Japanese', 'kayzart-live-code-editor' ),
-				'thumbnail'   => KAYZART_URL . 'assets/templates/free/general-service-lp/thumbnail.webp',
+				'description' => __( 'A complete introduction to your products or services, with features, pricing, FAQs, and a contact section.', 'kayzart-live-code-editor' ),
+				'variants'    => array(
+					'ja' => array(
+						'label'     => '日本語',
+						'thumbnail' => KAYZART_URL . 'assets/templates/free/general-service-lp/thumbnail.webp',
+					),
+					'en' => array(
+						'label'     => 'English',
+						'thumbnail' => KAYZART_URL . 'assets/templates/free/general-service-lp/thumbnail.en.webp',
+					),
+				),
 			),
 		);
+	}
+
+	/** Select the initial content language from the site, not the administrator.
+	 *
+	 * @return string
+	 */
+	public static function default_locale(): string {
+		return preg_match( '/^ja(?:_|$)/', (string) get_option( 'WPLANG', '' ) ) ? 'ja' : 'en';
 	}
 
 	/**
@@ -71,12 +87,16 @@ class Template_Library {
 	/**
 	 * Load a package selected by ID, never a client-supplied path.
 	 *
-	 * @param string $id Template ID.
+	 * @param string $id     Template ID.
+	 * @param string $locale Content language.
 	 * @return array|\WP_Error
 	 */
-	public static function get( string $id ) {
+	public static function get( string $id, string $locale = 'ja' ) {
 		if ( ! isset( self::catalog()[ $id ] ) ) {
 			return new \WP_Error( 'unknown_template', __( 'This template is not available.', 'kayzart-live-code-editor' ) );
+		}
+		if ( ! isset( self::catalog()[ $id ]['variants'][ $locale ] ) ) {
+			return new \WP_Error( 'unsupported_template_locale', __( 'Choose an available page language.', 'kayzart-live-code-editor' ) );
 		}
 		$directory = KAYZART_PATH . 'assets/templates/free/' . $id;
 		$manifest  = self::resolve_file( $directory, 'manifest.json' );
@@ -87,6 +107,15 @@ class Template_Library {
 		$data = json_decode( file_get_contents( $manifest ), true );
 		if ( ! is_array( $data ) || 1 !== ( $data['schemaVersion'] ?? null ) || ( $data['id'] ?? null ) !== $id || 'page' !== ( $data['kind'] ?? null ) || 'tailwind' !== ( $data['cssMode'] ?? null ) || 'standalone' !== ( $data['layoutMode'] ?? null ) || 'ja' !== ( $data['locale'] ?? null ) || ! is_string( $data['version'] ?? null ) || ! preg_match( '/^\d+\.\d+\.\d+$/', $data['version'] ) || ! is_array( $data['files'] ?? null ) || ! is_array( $data['assets'] ?? null ) || count( $data['assets'] ) > 10 ) {
 			return self::invalid_package();
+		}
+		if ( $locale !== $data['locale'] ) {
+			$localized = $data['localizations'][ $locale ] ?? null;
+			if ( ! is_array( $localized ) ) {
+				return self::invalid_package();
+			}
+			$data['files']['html']      = $localized['html'] ?? null;
+			$data['files']['thumbnail'] = $localized['thumbnail'] ?? null;
+			$data['locale']             = $locale;
 		}
 		foreach ( array( 'html', 'css', 'thumbnail' ) as $kind ) {
 			$file = self::resolve_file( $directory, $data['files'][ $kind ] ?? null );
@@ -167,11 +196,12 @@ class Template_Library {
 	/**
 	 * Build an isolated, cacheable preview without creating a post.
 	 *
-	 * @param string $id Template ID.
+	 * @param string $id     Template ID.
+	 * @param string $locale Content language.
 	 * @return string|\WP_Error
 	 */
-	public static function preview( string $id ) {
-		$template = self::get( $id );
+	public static function preview( string $id, string $locale = 'ja' ) {
+		$template = self::get( $id, $locale );
 		if ( is_wp_error( $template ) ) {
 			return $template;
 		}
@@ -186,7 +216,7 @@ class Template_Library {
 		}
 		$image_source = KAYZART_URL . 'assets/templates/free/' . $id . '/images/';
 		$policy       = "default-src 'none'; style-src 'unsafe-inline'; img-src " . $image_source . "; base-uri 'none'; form-action 'none'";
-		$document     = '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' . esc_attr( $policy ) . '"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( self::catalog()[ $id ]['title'] ) . '</title><style>' . $prepared['compiled'] . '</style></head><body>' . $prepared['html'] . '</body></html>';
+		$document     = '<!doctype html><html lang="' . esc_attr( $template['locale'] ) . '"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' . esc_attr( $policy ) . '"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( self::catalog()[ $id ]['title'] ) . '</title><style>' . $prepared['compiled'] . '</style></head><body>' . $prepared['html'] . '</body></html>';
 		set_transient( $key, $document, DAY_IN_SECONDS );
 		return $document;
 	}

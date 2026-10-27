@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-27T01:14:24+01:00\n"
+"POT-Creation-Date: 2026-10-27T08:07:54+01:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -658,7 +658,7 @@ msgid "Describe your landing page"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:2106
-#: includes/class-kayzart-template-admin.php:35
+#: includes/class-kayzart-template-admin.php:40
 msgid "Page details"
 msgstr ""
 
@@ -667,7 +667,7 @@ msgid "Tell Kayzart what you want to build. AI will create the first draft when 
 msgstr ""
 
 #: includes/class-kayzart-admin.php:2107
-#: includes/class-kayzart-template-admin.php:35
+#: includes/class-kayzart-template-admin.php:40
 msgid "Name the page, then open the standard HTML/CSS/JS editor."
 msgstr ""
 
@@ -682,7 +682,7 @@ msgid "Landing page title"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:2112
-#: includes/class-kayzart-template-admin.php:74
+#: includes/class-kayzart-template-admin.php:87
 msgid "Optional. You can rename the page later."
 msgstr ""
 
@@ -766,7 +766,7 @@ msgstr ""
 #: includes/class-kayzart-admin.php:2176
 #: includes/class-kayzart-admin.php:2180
 #: includes/class-kayzart-admin.php:2182
-#: includes/class-kayzart-template-admin.php:75
+#: includes/class-kayzart-template-admin.php:88
 msgid "Creating…"
 msgstr ""
 
@@ -944,7 +944,7 @@ msgid "Edit the page content in Kayzart. You can continue to change WordPress pa
 msgstr ""
 
 #: includes/class-kayzart-editor-bridge.php:119
-#: includes/class-kayzart-template-admin.php:74
+#: includes/class-kayzart-template-admin.php:87
 #: assets/admin/editor-bridge.js:311
 msgid "Page title"
 msgstr ""
@@ -1538,83 +1538,87 @@ msgstr ""
 msgid "Tailwind candidates are not available."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:35
+#: includes/class-kayzart-template-admin.php:40
 msgid "Choose how to start"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:37
+#: includes/class-kayzart-template-admin.php:42
 msgid "From a template"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:38
+#: includes/class-kayzart-template-admin.php:43
 msgid "Create with AI"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:39
+#: includes/class-kayzart-template-admin.php:44
 msgid "Start blank"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:46
+#: includes/class-kayzart-template-admin.php:51
 msgid "Page templates"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:47
+#: includes/class-kayzart-template-admin.php:52
 msgid "Your AI instruction is kept. Switch back to Create with AI to continue it."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:67
+#: includes/class-kayzart-template-admin.php:74
 msgid "Free"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:69
+#: includes/class-kayzart-template-admin.php:76
+msgid "Page language"
+msgstr ""
+
+#: includes/class-kayzart-template-admin.php:82
 msgid "Photos are examples only. Your page will contain image placeholders for you to replace."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:70
+#: includes/class-kayzart-template-admin.php:83
 msgid "Preview template"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:75
+#: includes/class-kayzart-template-admin.php:88
 msgid "Create from this template"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 msgid "Template preview"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 #: assets/dist/main.js:2494
 msgid "Desktop"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 #: assets/dist/main.js:2496
 msgid "Mobile"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:77
+#: includes/class-kayzart-template-admin.php:90
 #: assets/dist/main.js:2787
 msgid "Close"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "This is the page you will start with. Replace the image placeholders with your own photos."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "Loading preview…"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "Could not load the preview. Please try again."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:78
+#: includes/class-kayzart-template-admin.php:91
 msgid "Page template preview"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:86
-#: includes/class-kayzart-template-admin.php:124
+#: includes/class-kayzart-template-admin.php:99
+#: includes/class-kayzart-template-admin.php:139
 msgid "Invalid request method."
 msgstr ""
 
@@ -1623,83 +1627,87 @@ msgid "General service landing page"
 msgstr ""
 
 #: includes/class-kayzart-template-library.php:26
-msgid "A complete introduction to your products or services, with features, pricing, FAQs, and a contact section. Page content is in Japanese."
+msgid "A complete introduction to your products or services, with features, pricing, FAQs, and a contact section."
 msgstr ""
 
-#: includes/class-kayzart-template-library.php:27
-msgid "Japanese"
-msgstr ""
-
-#: includes/class-kayzart-template-library.php:40
+#: includes/class-kayzart-template-library.php:56
 msgid "Enable Pages in Kayzart settings to use page templates."
 msgstr ""
 
-#: includes/class-kayzart-template-library.php:44
+#: includes/class-kayzart-template-library.php:60
 msgid "You do not have permission to create pages."
 msgstr ""
 
-#: includes/class-kayzart-template-library.php:47
+#: includes/class-kayzart-template-library.php:63
 msgid "You need permission to upload media to use this template."
 msgstr ""
 
-#: includes/class-kayzart-template-library.php:79
+#: includes/class-kayzart-template-library.php:96
 msgid "This template is not available."
 msgstr ""
 
-#: includes/class-kayzart-template-library.php:200
+#: includes/class-kayzart-template-library.php:99
+msgid "Choose an available page language."
+msgstr ""
+
+#: includes/class-kayzart-template-library.php:230
 msgid "The bundled template could not be loaded. Please reinstall the current version of Kayzart."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:54
+#: includes/class-kayzart-template-page-creator.php:56
 msgid "An earlier attempt did not finish. Check your Pages before starting again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:73
+#: includes/class-kayzart-template-page-creator.php:63
+msgid "This request already created a page in another language. Reload the page to start a new request."
+msgstr ""
+
+#: includes/class-kayzart-template-page-creator.php:83
 msgid "The creation request is invalid. Reload the page and try again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:92
+#: includes/class-kayzart-template-page-creator.php:102
 msgid "This site cannot import the template image. Check the allowed image types and upload limit."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:101
+#: includes/class-kayzart-template-page-creator.php:111
 msgid "This request is already being processed. Wait a moment and try again. If it was interrupted, check your Pages before reloading."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:129
+#: includes/class-kayzart-template-page-creator.php:139
 msgid "New service page"
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:190
-#: includes/class-kayzart-template-page-creator.php:200
+#: includes/class-kayzart-template-page-creator.php:201
+#: includes/class-kayzart-template-page-creator.php:211
 msgid "The template page could not be saved completely. Please try again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:195
+#: includes/class-kayzart-template-page-creator.php:206
 msgid "The initial page revision could not be saved. Please try again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:206
+#: includes/class-kayzart-template-page-creator.php:217
 msgid "The template could not be imported. Check your media upload settings and try again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:238
+#: includes/class-kayzart-template-page-creator.php:249
 msgid "The import did not finish and some draft files could not be removed. Check Pages and Media before trying again."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:255
+#: includes/class-kayzart-template-page-creator.php:266
 msgid "A temporary image file could not be created."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:259
+#: includes/class-kayzart-template-page-creator.php:270
 msgid "The template image could not be copied."
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:267
+#: includes/class-kayzart-template-page-creator.php:278
 msgid "Template image placeholder"
 msgstr ""
 
-#: includes/class-kayzart-template-page-creator.php:276
+#: includes/class-kayzart-template-page-creator.php:287
 msgid "The imported template image could not be verified."
 msgstr ""
 

@@ -35,7 +35,6 @@ jobs:
           --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
           --health-interval=10s --health-timeout=5s --health-retries=10
     env:
-      WP_CORE_DIR: ${{ runner.temp }}/kayzart-scheduler-browser
       WP_BASE_URL: http://127.0.0.1:8097
       WP_ADMIN_USER: kayzart_scheduler_test
       WP_ADMIN_PASS: disposable-ci-scheduler-only
@@ -60,6 +59,8 @@ jobs:
         run: |
           rm -f assets/dist/main.js assets/dist/main.js.map assets/dist/style.css
           npm run plugin-zip
+      - name: Set the disposable WordPress path
+        run: echo "WP_CORE_DIR=$RUNNER_TEMP/kayzart-scheduler-browser" >> "$GITHUB_ENV"
       - name: Prepare an isolated WordPress site from the ZIP
         run: |
           wp core download --version='${{ matrix.wp }}' --path="$WP_CORE_DIR"

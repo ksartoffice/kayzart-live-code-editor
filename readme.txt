@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.4.3
+Stable tag: 3.4.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -139,8 +139,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
-= Unreleased =
+= 3.4.4 =
 * Fix: Keep the bundled AI job scheduler compatible with WordPress 5.9 and later, including admin screens and multiple queued jobs. Newer WordPress versions continue using Action Scheduler 4.0.
+* Fix: Cancel all duplicate worker and deadline actions for a canceled AI job while preserving other jobs' scheduled actions.
 
 = 3.4.3 =
 * Fix: Resolve Plugin Check warnings by unslashing and sanitizing the request method in the optional deactivation survey.

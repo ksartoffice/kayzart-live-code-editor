@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.4.4
+Stable tag: 3.5.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -146,8 +146,8 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
-= Unreleased =
-* Add: New Japanese and English business landing pages, each with its own design and Google Fonts (Noto Sans JP for Japanese; Instrument Sans and Instrument Serif for English), and a bundled, library-free motion module. Change motion through HTML attributes while AI keeps JavaScript read-only. The template card explains external font loading before preview or creation. The previous Japanese and English sample templates are retired from the catalog; existing pages keep their saved content.
+= 3.5.0 =
+* Add: Start a page from a bundled template in Kayzart > Add new — a Japanese and an English business landing page, each with its own design and Google Fonts typography (Noto Sans JP; Instrument Sans and Instrument Serif). Templates are built with Tailwind CSS utilities, create a draft without an AI connection, and include a library-free motion module you adjust through HTML attributes while AI keeps JavaScript read-only. Each template card explains external font loading before preview or creation.
 * Improve: Choose between a template, AI generation, and a blank page in Add new, keeping an unfinished AI instruction when switching to templates.
 
 = 3.4.4 =

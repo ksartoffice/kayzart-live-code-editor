@@ -9,6 +9,8 @@
  * Examples: set data-kz-distance="4" to reduce motion; root "off" stops it.
  * Runtime states are held outside the HTML. Every effect is an enhancement:
  * without JS, observers, or Web Animations, the complete content stays visible.
+ * A reveal already on screen when the page loads is left as painted (no
+ * flash); reveals play as elements scroll in or are added/changed later.
  */
 export default function mountBusinessMotion({ root, onCleanup }) {
   const doc = root.nodeType === 9 ? root : root.ownerDocument;
@@ -18,6 +20,7 @@ export default function mountBusinessMotion({ root, onCleanup }) {
   const pointer = win.matchMedia('(hover: hover) and (pointer: fine)');
   const states = new Map();
   let alive = true;
+  let mounted = false;
   let syncFrame = 0;
   let pointerFrame = 0;
   let targetX = 0;
@@ -85,6 +88,8 @@ export default function mountBusinessMotion({ root, onCleanup }) {
       const state = { element, config: next, signature, animation: null };
       states.set(element, state);
       if (next.effect === 'reveal') {
+        // Hiding content the visitor can already see would make it flicker.
+        if (!mounted && onScreen(element)) continue;
         if (observer) observer.observe(element);
       } else if (next.effect === 'float') {
         animate(state);
@@ -93,7 +98,12 @@ export default function mountBusinessMotion({ root, onCleanup }) {
         state.animation.pause();
       }
     }
+    mounted = true;
     schedulePointer();
+  }
+  function onScreen(element) {
+    const rect = element.getBoundingClientRect();
+    return rect.bottom > 0 && rect.right > 0 && rect.top < win.innerHeight && rect.left < win.innerWidth;
   }
   function scheduleSync() {
     if (alive && !syncFrame) syncFrame = win.requestAnimationFrame(sync);

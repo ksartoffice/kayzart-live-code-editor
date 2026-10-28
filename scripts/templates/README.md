@@ -19,6 +19,10 @@ English design must be a separate package, not a translation of this one.
 
 Edit `index.html`, `style.css`, `motion.js`, and `manifest.json` directly.
 
+Quality floor for edits: no visible text below 11px; small text at least 4.5:1
+contrast on its background (the `subtle` token is tuned for the light sections);
+the dark button keeps `focus-visible:outline-ink` so keyboard focus stays visible.
+
 Both Business Motion packages are written with Tailwind CSS v4 utility classes in
 the HTML (compiled by the bundled TailwindPHP), so AI edits touch only HTML.
 `style.css` holds just the `@theme` tokens (paper, ink, accent, sky, muted, subtle,
@@ -62,7 +66,9 @@ created pages.
 - Invalid numeric strings use defaults; out-of-range numbers are clamped.
 
 MutationObserver tracks effects, their attributes, root changes, and removals.
-Web Animations hold visual state outside serialized HTML. Reveals run once per
+Web Animations hold visual state outside serialized HTML. A reveal that is already
+on screen when the module mounts is left as painted, because hiding visible content
+would flicker; other reveals play as they scroll in. Reveals run once per
 configuration, floats make one complete excursion, and pointer parallax runs
 only on fine-pointer devices. Reduced motion disables effects. Hidden documents
 pause motion. Cleanup cancels animations, observers, listeners, and queued frames.
@@ -78,7 +84,7 @@ the demonstration photo `business-motion-hero.png` in this directory. Include th
 prepared Google font head, render at 1200×900/device scale 1, await
 `document.fonts.ready`, emulate reduced motion, and export the initial viewport
 to WebP quality 85. Do not substitute another layout or alter the page copy.
-The current screenshot is 49,434 bytes. Check the placeholder layout at
+The current screenshot is 51,076 bytes. Check the placeholder layout at
 320/390/768/880/881/1024/1440px and also with JS or external fonts unavailable.
 
 `business-motion-hero.png` (1254×1254) is an original produced on 2026-10-28 with
@@ -120,7 +126,7 @@ readme External services text.
 
 The thumbnail is rendered the same way as the Japanese one, with the same
 `business-motion-hero.png` photo, waiting for both font families; it is
-55,736 bytes.
+56,604 bytes.
 
 ## Retired package production history
 

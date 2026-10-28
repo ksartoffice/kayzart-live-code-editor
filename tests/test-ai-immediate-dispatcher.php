@@ -313,6 +313,8 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 		$second_uuid = $this->create_job( 'immediate-chain-two', 28 );
 		$first       = Ai_Worker::enqueue( $first_uuid );
 		$second      = Ai_Worker::enqueue( $second_uuid );
+		$this->assertIsArray( $first );
+		$this->assertIsArray( $second );
 		$fakes       = array(
 			$first_uuid  => $this->successful_fake(),
 			$second_uuid => $this->successful_fake(),
@@ -350,6 +352,55 @@ class Test_Kayzart_Ai_Immediate_Dispatcher extends WP_UnitTestCase {
 		$this->assertNotFalse(
 			array_search( $second_uuid, array_column( $dispatched, Ai_Immediate_Dispatcher::HEADER_JOB_UUID ), true )
 		);
+		for ( $attempt = 0; $attempt < 8 && 'completed' !== $this->store->get( $second_uuid )['status']; $attempt++ ) {
+			$this->run_next_pending_action();
+		}
+		$this->assertSame( 'completed', $this->store->get( $second_uuid )['status'] );
+		$this->assertFalse( as_has_scheduled_action( Ai_Worker::TIMEOUT_HOOK, array( $first_uuid ), Ai_Worker::GROUP ) );
+		$this->assertFalse( as_has_scheduled_action( Ai_Worker::TIMEOUT_HOOK, array( $second_uuid ), Ai_Worker::GROUP ) );
+	}
+
+	/** A duplicate initial action cannot repeat provider work or retain deadlines. */
+	public function test_duplicate_initial_actions_are_harmless_after_completion(): void {
+		$uuid  = $this->create_job( 'duplicate-initial-action', 290 );
+		$first = Ai_Worker::enqueue( $uuid );
+		$this->assertIsArray( $first );
+		$duplicate = Ai_Worker::enqueue( $uuid );
+		if ( ! KayzArt\Ai_Scheduler::supports_unique_job_actions() ) {
+			$this->assertIsArray( $duplicate );
+		}
+		$fake = $this->successful_fake();
+		add_filter( 'kayzart_ai_client', static function () use ( $fake ) {
+			return $fake;
+		} );
+		add_filter( 'pre_http_request', array( $this, 'preempt_http' ) );
+		for ( $attempt = 0; $attempt < 10 && 'completed' !== $this->store->get( $uuid )['status']; $attempt++ ) {
+			$this->run_next_pending_action();
+		}
+		$this->assertSame( 'completed', $this->store->get( $uuid )['status'] );
+		$calls = count( $fake->calls() );
+		$this->assertGreaterThan( 0, $calls );
+		Ai_Worker::run_step( $uuid, 0, 'stale-delivery' );
+		Ai_Worker::run( $uuid );
+		$this->assertCount( $calls, $fake->calls() );
+		$this->assertFalse( as_has_scheduled_action( Ai_Worker::TIMEOUT_HOOK, array( $uuid ), Ai_Worker::GROUP ) );
+		$this->assertFalse( as_has_scheduled_action( Ai_Worker::STEP_HOOK, null, Ai_Worker::GROUP ) );
+	}
+
+	/** Canceling one queued job must leave another job's work and deadline intact. */
+	public function test_canceling_one_job_preserves_another_job(): void {
+		$first  = $this->create_job( 'cancel-queue-one', 291 );
+		$second = $this->create_job( 'cancel-queue-two', 292 );
+		$this->assertIsArray( Ai_Worker::enqueue( $first ) );
+		$scheduled = Ai_Worker::enqueue( $second );
+		$this->assertIsArray( $scheduled );
+		$this->store->request_cancel( $first );
+		Ai_Worker::unschedule_job( $first );
+		Ai_Worker::run_step( $first, 0, 'canceled-delivery' );
+		$this->assertSame( 'canceled', $this->store->get( $first )['status'] );
+		$this->assertFalse( as_has_scheduled_action( Ai_Worker::TIMEOUT_HOOK, array( $first ), Ai_Worker::GROUP ) );
+		$this->assertNotFalse( as_has_scheduled_action( Ai_Worker::TIMEOUT_HOOK, array( $second ), Ai_Worker::GROUP ) );
+		$this->assertSame( ActionScheduler_Store::STATUS_PENDING, ActionScheduler::store()->get_status( $scheduled['run_action_id'] ) );
 	}
 
 	/** Preempt a loopback request with a successful HTTP response.

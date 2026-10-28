@@ -1,0 +1,97 @@
+name: Scheduler Compatibility
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scheduler_browser:
+    name: Admin and scheduler (WP ${{ matrix.wp }} / PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { wp: "5.9", php: "7.4" }
+          - { wp: "6.7", php: "8.2" }
+          - { wp: "6.8", php: "8.3" }
+          - { wp: "latest", php: "8.4" }
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: wordpress_browser
+          MYSQL_ROOT_PASSWORD: root
+        ports: [3306/tcp]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      WP_BASE_URL: http://127.0.0.1:8097
+      WP_ADMIN_USER: kayzart_scheduler_test
+      WP_ADMIN_PASS: disposable-ci-scheduler-only
+      KAYZART_SCHEDULER_E2E: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2, wp-cli
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install build dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Build the distributable plugin
+        run: |
+          rm -f assets/dist/main.js assets/dist/main.js.map assets/dist/style.css
+          npm run plugin-zip
+      - name: Set the disposable WordPress path
+        run: echo "WP_CORE_DIR=$RUNNER_TEMP/kayzart-scheduler-browser" >> "$GITHUB_ENV"
+      - name: Prepare an isolated WordPress site from the ZIP
+        run: |
+          wp core download --version='${{ matrix.wp }}' --path="$WP_CORE_DIR"
+          wp config create --path="$WP_CORE_DIR" --dbname=wordpress_browser --dbuser=root --dbpass=root --dbhost=127.0.0.1:${{ job.services.mysql.ports['3306'] }}
+          wp config set DISABLE_WP_CRON true --raw --path="$WP_CORE_DIR"
+          wp config set WP_HTTP_BLOCK_EXTERNAL true --raw --path="$WP_CORE_DIR"
+          mkdir -p "$WP_CORE_DIR/wp-content/mu-plugins"
+          unzip -q kayzart-live-code-editor.zip -d "$WP_CORE_DIR/wp-content/plugins"
+          cp tests/e2e/fixtures/scheduler-compatibility.php "$WP_CORE_DIR/wp-content/mu-plugins/"
+          wp core install --path="$WP_CORE_DIR" --url="$WP_BASE_URL" --title='Scheduler regression' --admin_user="$WP_ADMIN_USER" --admin_password="$WP_ADMIN_PASS" --admin_email=test@example.test --skip-email
+          wp plugin activate kayzart-live-code-editor --path="$WP_CORE_DIR"
+          wp rewrite structure '/%postname%/' --path="$WP_CORE_DIR"
+      - name: Preserve and execute an action created by the former dependency
+        run: |
+          KAYZART_SCHEDULER_E2E_SEED_MODERN=1 wp eval-file tests/e2e/fixtures/scheduler-retained-action.php seed --path="$WP_CORE_DIR"
+          wp eval-file tests/e2e/fixtures/scheduler-retained-action.php verify --path="$WP_CORE_DIR"
+      - name: Open the real admin screens and save a temporary page
+        run: |
+          php -S 127.0.0.1:8097 -t "$WP_CORE_DIR" > "$RUNNER_TEMP/scheduler-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent "$WP_BASE_URL/wp-login.php" > /dev/null; then break; fi
+            sleep 1
+          done
+          npx playwright test tests/e2e/scheduler-compatibility.spec.ts --reporter=line
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduler-wp-${{ matrix.wp }}-php-${{ matrix.php }}
+          path: |
+            test-results/
+            ${{ runner.temp }}/scheduler-http.log

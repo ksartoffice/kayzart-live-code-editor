@@ -3,7 +3,7 @@
  * Plugin Name: Kayzart — AI Landing Page Builder with Real HTML
  * Plugin URI: https://wordpress.org/plugins/kayzart-live-code-editor/
  * Description: Build landing pages with AI inside WordPress — bring your own AI key. Real HTML/CSS you can edit live. No drag-and-drop, no builder lock-in.
- * Version: 3.4.3
+ * Version: 3.4.4
  * Requires at least: 5.9
  * Tested up to: 7.1
  * Requires PHP: 7.4
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'KAYZART_VERSION', '3.4.3' );
+define( 'KAYZART_VERSION', '3.4.4' );
 define( 'KAYZART_PATH', plugin_dir_path( __FILE__ ) );
 define( 'KAYZART_URL', plugin_dir_url( __FILE__ ) );
 
@@ -31,10 +31,8 @@ if ( file_exists( $kayzart_autoload ) ) {
 	require_once $kayzart_autoload;
 }
 
-$kayzart_action_scheduler = KAYZART_PATH . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
-if ( file_exists( $kayzart_action_scheduler ) ) {
-	require_once $kayzart_action_scheduler;
-}
+require_once KAYZART_PATH . 'includes/ai/class-kayzart-ai-scheduler.php';
+\KayzArt\Ai_Scheduler::load();
 
 require_once KAYZART_PATH . 'includes/class-kayzart-post-type.php';
 require_once KAYZART_PATH . 'includes/class-kayzart-css-mode.php';

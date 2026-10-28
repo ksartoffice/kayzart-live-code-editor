@@ -85,6 +85,11 @@ jobs:
       - name: Run PHPUnit
         run: vendor/bin/phpunit --configuration phpunit.xml.dist
 
+      - name: Run AI integration against the production scheduler store
+        env:
+          KAYZART_TEST_AS_STORE: db
+        run: vendor/bin/phpunit --configuration phpunit.xml.dist --filter "Test_Kayzart_Ai_Scheduler|Test_Kayzart_Ai_Worker|Test_Kayzart_Ai_Immediate_Dispatcher|Test_Kayzart_Rest_Ai"
+
   phpunit_php85:
     if: ${{ vars.ENABLE_PHP85 != 'false' }}
     name: PHPUnit (WP ${{ matrix.wp }} / PHP ${{ matrix.php }})
@@ -146,6 +151,11 @@ jobs:
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit --configuration phpunit.xml.dist
+
+      - name: Run AI integration against the production scheduler store
+        env:
+          KAYZART_TEST_AS_STORE: db
+        run: vendor/bin/phpunit --configuration phpunit.xml.dist --filter "Test_Kayzart_Ai_Scheduler|Test_Kayzart_Ai_Worker|Test_Kayzart_Ai_Immediate_Dispatcher|Test_Kayzart_Rest_Ai"
 
   phpunit_gate:
     name: phpunit_gate

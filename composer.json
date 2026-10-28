@@ -4,9 +4,29 @@
     "license": "GPL-2.0-or-later",
     "require": {
         "tailwindphp/tailwindphp": "1.7.0.1",
-        "woocommerce/action-scheduler": "4.0.0"
+        "woocommerce/action-scheduler": "4.0.0",
+        "kayzart/action-scheduler-legacy": "3.6.4"
     },
     "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "kayzart/action-scheduler-legacy",
+                "version": "3.6.4",
+                "type": "library",
+                "license": "GPL-3.0-or-later",
+                "dist": {
+                    "type": "zip",
+                    "url": "https://api.github.com/repos/woocommerce/action-scheduler/zipball/e7dafe215be5ef823392204535ee2e241f99a8cb",
+                    "reference": "e7dafe215be5ef823392204535ee2e241f99a8cb"
+                },
+                "source": {
+                    "type": "git",
+                    "url": "https://github.com/woocommerce/action-scheduler.git",
+                    "reference": "e7dafe215be5ef823392204535ee2e241f99a8cb"
+                }
+            }
+        },
         {
             "type": "vcs",
             "url": "https://github.com/ksartoffice/tailwindphp"

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "id": "business-motion-ja",
+  "version": "1.0.0",
+  "kind": "page",
+  "locale": "ja",
+  "cssMode": "tailwind",
+  "layoutMode": "standalone",
+  "files": { "html": "index.html", "css": "style.css", "js": "motion.js", "thumbnail": "thumbnail.webp" },
+  "jsMode": "module",
+  "fonts": [{ "provider": "google", "family": "Noto Sans JP", "weights": [400, 500, 700, 900] }],
+  "assets": [{ "id": "main-visual", "path": "images/landscape.png", "mimeType": "image/png", "width": 768, "height": 768 }]
+}

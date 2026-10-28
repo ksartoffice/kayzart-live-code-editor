@@ -130,7 +130,7 @@ class Rest_Ai {
 		$payload['agentPayload']['intent']            = Admin::matches_initial_ai_request( $payload['postId'], $initial_marker, $current_user )
 			? Ai_Prompt::INTENT_CREATE
 			: Ai_Prompt::INTENT_EDIT;
-		$payload['agentPayload']['availableFonts']    = Ai_Fonts::resolve_for_payload();
+		$payload['agentPayload']['availableFonts']    = Ai_Fonts::resolve_for_payload( $payload['agentPayload']['customHead'] ?? '' );
 		$payload['agentPayload']['canEditHead']       = $can_edit_head;
 		$recent_context_limit                         = Ai_Prompt::INTENT_CREATE === $payload['agentPayload']['intent'] ? 0 : 1;
 		$payload['agentPayload']['recentEditContext'] = ( new Ai_Timeline_Store() )->recent_context( $payload['postId'], $payload['agentPayload'], $recent_context_limit );

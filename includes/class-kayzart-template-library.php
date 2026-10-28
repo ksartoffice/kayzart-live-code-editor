@@ -1,6 +1,6 @@
 <?php
 /**
- * Bundled, offline page templates.
+ * Bundled page templates with declared optional Google Fonts.
  *
  * @package KayzArt
  */
@@ -15,12 +15,64 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Template_Library {
 
 	/**
+	 * Google Fonts a bundled template may declare, with the only axis values and
+	 * fallback stack allowed for each. Manifests can never name other families.
+	 */
+	const GOOGLE_FONTS = array(
+		'Noto Sans JP'     => array(
+			'axis'   => 'wght',
+			'values' => array( 400, 500, 700, 900 ),
+			'stack'  => '"Noto Sans JP", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif',
+		),
+		'Instrument Sans'  => array(
+			'axis'   => 'wght',
+			'values' => array( 400, 500, 600, 700 ),
+			'stack'  => '"Instrument Sans", "Helvetica Neue", Arial, sans-serif',
+		),
+		'Instrument Serif' => array(
+			'axis'   => 'ital',
+			'values' => array( 0, 1 ),
+			'stack'  => '"Instrument Serif", Georgia, "Times New Roman", serif',
+		),
+	);
+
+	/**
 	 * Return translated summaries without compiling templates.
 	 *
+	 * @param bool $include_retired Include read-only legacy packages.
 	 * @return array
 	 */
-	public static function catalog(): array {
-		return array(
+	public static function catalog( bool $include_retired = false ): array {
+		$current = array(
+			'business-motion-ja' => array(
+				'title'       => __( 'Business Motion — Japanese', 'kayzart-live-code-editor' ),
+				'description' => __( 'A bold business service page with expressive typography and motion you can adjust through HTML attributes.', 'kayzart-live-code-editor' ),
+				'fonts'       => 'Noto Sans JP',
+				'requiresJs'  => true,
+				'variants'    => array(
+					'ja' => array(
+						'label'     => '日本語',
+						'thumbnail' => KAYZART_URL . 'assets/templates/free/business-motion-ja/thumbnail.webp',
+					),
+				),
+			),
+			'business-motion-en' => array(
+				'title'       => __( 'Business Motion — English', 'kayzart-live-code-editor' ),
+				'description' => __( 'A bold English business service page with editorial typography and motion you can adjust through HTML attributes.', 'kayzart-live-code-editor' ),
+				'fonts'       => 'Instrument Sans, Instrument Serif',
+				'requiresJs'  => true,
+				'variants'    => array(
+					'en' => array(
+						'label'     => 'English',
+						'thumbnail' => KAYZART_URL . 'assets/templates/free/business-motion-en/thumbnail.webp',
+					),
+				),
+			),
+		);
+		if ( ! $include_retired ) {
+			return $current;
+		}
+		return $current + array(
 			'general-service-lp' => array(
 				'title'       => __( 'General service landing page', 'kayzart-live-code-editor' ),
 				'description' => __( 'A complete introduction to your products or services, with features, pricing, FAQs, and a contact section.', 'kayzart-live-code-editor' ),
@@ -38,12 +90,36 @@ class Template_Library {
 		);
 	}
 
+	/**
+	 * List content languages actually declared by the bundled catalog.
+	 *
+	 * @return array Language code to native label.
+	 */
+	public static function available_locales(): array {
+		$languages = array();
+		foreach ( self::catalog() as $summary ) {
+			foreach ( $summary['variants'] as $locale => $variant ) {
+				$languages[ $locale ] = $variant['label'];
+			}
+		}
+		return $languages;
+	}
+
 	/** Select the initial content language from the site, not the administrator.
 	 *
 	 * @return string
 	 */
 	public static function default_locale(): string {
-		return preg_match( '/^ja(?:_|$)/', (string) get_option( 'WPLANG', '' ) ) ? 'ja' : 'en';
+		$languages = self::available_locales();
+		$site      = str_replace( '-', '_', (string) get_option( 'WPLANG', '' ) );
+		if ( isset( $languages[ $site ] ) ) {
+			return $site;
+		}
+		$language = explode( '_', $site, 2 )[0];
+		if ( isset( $languages[ $language ] ) ) {
+			return $language;
+		}
+		return isset( $languages['en'] ) ? 'en' : ( array_key_first( $languages ) ?? 'en' );
 	}
 
 	/**
@@ -92,10 +168,10 @@ class Template_Library {
 	 * @return array|\WP_Error
 	 */
 	public static function get( string $id, string $locale = 'ja' ) {
-		if ( ! isset( self::catalog()[ $id ] ) ) {
+		if ( ! isset( self::catalog( true )[ $id ] ) ) {
 			return new \WP_Error( 'unknown_template', __( 'This template is not available.', 'kayzart-live-code-editor' ) );
 		}
-		if ( ! isset( self::catalog()[ $id ]['variants'][ $locale ] ) ) {
+		if ( ! isset( self::catalog( true )[ $id ]['variants'][ $locale ] ) ) {
 			return new \WP_Error( 'unsupported_template_locale', __( 'Choose an available page language.', 'kayzart-live-code-editor' ) );
 		}
 		$directory = KAYZART_PATH . 'assets/templates/free/' . $id;
@@ -105,7 +181,7 @@ class Template_Library {
 		}
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Read an allowlisted bundled file, never a remote resource.
 		$data = json_decode( file_get_contents( $manifest ), true );
-		if ( ! is_array( $data ) || 1 !== ( $data['schemaVersion'] ?? null ) || ( $data['id'] ?? null ) !== $id || 'page' !== ( $data['kind'] ?? null ) || 'tailwind' !== ( $data['cssMode'] ?? null ) || 'standalone' !== ( $data['layoutMode'] ?? null ) || 'ja' !== ( $data['locale'] ?? null ) || ! is_string( $data['version'] ?? null ) || ! preg_match( '/^\d+\.\d+\.\d+$/', $data['version'] ) || ! is_array( $data['files'] ?? null ) || ! is_array( $data['assets'] ?? null ) || count( $data['assets'] ) > 10 ) {
+		if ( ! is_array( $data ) || ! in_array( $data['schemaVersion'] ?? null, array( 1, 2 ), true ) || ( $data['id'] ?? null ) !== $id || 'page' !== ( $data['kind'] ?? null ) || 'tailwind' !== ( $data['cssMode'] ?? null ) || 'standalone' !== ( $data['layoutMode'] ?? null ) || ! isset( self::catalog( true )[ $id ]['variants'][ $data['locale'] ?? '' ] ) || ! is_string( $data['version'] ?? null ) || ! preg_match( '/^\d+\.\d+\.\d+$/', $data['version'] ) || ! is_array( $data['files'] ?? null ) || ! is_array( $data['assets'] ?? null ) || count( $data['assets'] ) > 10 ) {
 			return self::invalid_package();
 		}
 		if ( $locale !== $data['locale'] ) {
@@ -157,7 +233,61 @@ class Template_Library {
 		if ( preg_match( '~<(?:script|style|svg|form|input|iframe|object|link|video|audio)\b|\son\w+\s*=|\s(?:srcset|style)\s*=~i', $data['html'] ) || preg_match( '~</?style|url\s*\(|@import\s+(?!["\']tailwindcss["\']\s*;)~i', $data['css'] ) ) {
 			return self::invalid_package();
 		}
+		$script_mode        = $data['jsMode'] ?? 'classic';
+		$data['js']         = '';
+		$data['jsMode']     = 'classic';
+		$data['customHead'] = '';
+		if ( 2 === $data['schemaVersion'] ) {
+			if ( isset( $data['files']['js'] ) ) {
+				$script = self::resolve_file( $directory, $data['files']['js'] );
+				if ( is_wp_error( $script ) || filesize( $script ) > 65536 || 'module' !== $script_mode ) {
+					return self::invalid_package();
+				}
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- An allowlisted, developer-authored bundled module.
+				$data['js']     = file_get_contents( $script );
+				$data['jsMode'] = 'module';
+			}
+			$head = self::google_fonts_head( $data['fonts'] ?? array() );
+			if ( is_wp_error( $head ) ) {
+				return $head;
+			}
+			$data['customHead'] = $head;
+		}
 		return $data;
+	}
+
+	/**
+	 * Generate only the declared Google Fonts link, never arbitrary head HTML.
+	 *
+	 * @param mixed $fonts Manifest font declarations.
+	 * @return string|\WP_Error
+	 */
+	public static function google_fonts_head( $fonts ) {
+		if ( ! is_array( $fonts ) || count( $fonts ) > 2 ) {
+			return self::invalid_package();
+		}
+		$families = array();
+		foreach ( $fonts as $font ) {
+			$allowed = is_array( $font ) && is_string( $font['family'] ?? null ) ? ( self::GOOGLE_FONTS[ $font['family'] ] ?? null ) : null;
+			$key     = $allowed && 'ital' === $allowed['axis'] ? 'italic' : 'weights';
+			if ( ! $allowed || 'google' !== ( $font['provider'] ?? null ) || isset( $families[ $font['family'] ] ) || ! is_array( $font[ $key ] ?? null ) || empty( $font[ $key ] ) || array_diff_key( $font, array_flip( array( 'provider', 'family', $key ) ) ) ) {
+				return self::invalid_package();
+			}
+			foreach ( $font[ $key ] as $value ) {
+				if ( ! in_array( $value, $allowed['values'], true ) ) {
+					return self::invalid_package();
+				}
+			}
+			$values = array_unique( $font[ $key ] );
+			sort( $values, SORT_NUMERIC );
+			$families[ $font['family'] ] = 'family=' . str_replace( ' ', '+', $font['family'] ) . ':' . $allowed['axis'] . '@' . implode( ';', $values );
+		}
+		if ( empty( $families ) ) {
+			return '';
+		}
+		$url = 'https://fonts.googleapis.com/css2?' . implode( '&', $families ) . '&display=swap';
+		// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- Editable head source shared by saved pages and a sandbox srcdoc, not an admin enqueue.
+		return '<link rel="stylesheet" href="' . esc_attr( esc_url_raw( $url ) ) . '" referrerpolicy="no-referrer">';
 	}
 
 	/**
@@ -190,6 +320,9 @@ class Template_Library {
 			'css'        => $template['css'],
 			'candidates' => $candidates,
 			'compiled'   => $compiled,
+			'js'         => $template['js'] ?? '',
+			'jsMode'     => $template['jsMode'] ?? 'classic',
+			'customHead' => $template['customHead'] ?? '',
 		);
 	}
 
@@ -205,7 +338,7 @@ class Template_Library {
 		if ( is_wp_error( $template ) ) {
 			return $template;
 		}
-		$key    = 'kayzart_template_' . md5( KAYZART_VERSION . KAYZART_URL . determine_locale() . wp_json_encode( $template ) );
+		$key    = 'kayzart_template_' . md5( KAYZART_VERSION . KAYZART_URL . determine_locale() . wp_json_encode( $template ) . filemtime( KAYZART_PATH . 'includes/runtime.js' ) );
 		$cached = get_transient( $key );
 		if ( is_string( $cached ) ) {
 			return $cached;
@@ -215,8 +348,16 @@ class Template_Library {
 			return $prepared;
 		}
 		$image_source = KAYZART_URL . 'assets/templates/free/' . $id . '/images/';
-		$policy       = "default-src 'none'; style-src 'unsafe-inline'; img-src " . $image_source . "; base-uri 'none'; form-action 'none'";
-		$document     = '<!doctype html><html lang="' . esc_attr( $template['locale'] ) . '"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' . esc_attr( $policy ) . '"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( self::catalog()[ $id ]['title'] ) . '</title><style>' . $prepared['compiled'] . '</style></head><body>' . $prepared['html'] . '</body></html>';
+		$nonce        = wp_generate_password( 24, false, false );
+		$font_policy  = '' !== $prepared['customHead'] ? ' https://fonts.googleapis.com' : '';
+		$policy       = "default-src 'none'; style-src 'unsafe-inline'" . $font_policy . '; font-src https://fonts.gstatic.com; img-src ' . $image_source . "; script-src 'nonce-" . $nonce . "' blob:; base-uri 'none'; form-action 'none'";
+		$scripts      = '';
+		if ( '' !== $prepared['js'] ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reuse the same local module runtime as published pages.
+			$runtime = file_get_contents( KAYZART_PATH . 'includes/runtime.js' );
+			$scripts = '<script type="application/json" data-kayzart-js="1" data-kayzart-js-mode="module">' . esc_html( rawurlencode( $prepared['js'] ) ) . '</script><script nonce="' . esc_attr( $nonce ) . '">' . $runtime . '</script>';
+		}
+		$document = '<!doctype html><html lang="' . esc_attr( $template['locale'] ) . '"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="' . esc_attr( $policy ) . '"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( self::catalog( true )[ $id ]['title'] ) . '</title>' . $prepared['customHead'] . '<style>' . $prepared['compiled'] . '</style></head><body>' . $prepared['html'] . $scripts . '</body></html>';
 		set_transient( $key, $document, DAY_IN_SECONDS );
 		return $document;
 	}

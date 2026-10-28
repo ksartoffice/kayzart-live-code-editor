@@ -1,0 +1,14 @@
+Business Motion — Japanese service landing page — version 1.0.0
+Copyright 2026 K's Art Office
+
+The HTML, CSS, JavaScript, manifest, placeholder graphic, and thumbnail are
+distributed under the GNU General Public License, version 2 or later.
+https://www.gnu.org/licenses/gpl-2.0.html
+
+Noto Sans JP is loaded from Google Fonts, not bundled in this package.
+Its authors distribute it under the SIL Open Font License 1.1.
+https://fonts.google.com/noto/specimen/Noto+Sans+JP
+https://github.com/google/fonts/blob/main/ofl/notosansjp/OFL.txt
+
+The placeholder is an original grayscale graphic; production notes are in
+scripts/templates/README.md in the public source repository.

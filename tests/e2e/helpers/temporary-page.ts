@@ -66,9 +66,10 @@ export async function withTemporaryTemplatePage(
   try {
     await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
     await page.locator('[data-kayzart-start="template"]').click();
-    await page.locator('[data-template-language]').selectOption(locale);
-    await page.locator('#kayzart-template-title').fill(title);
-    await page.locator('.kayzart-template-form button[type="submit"]').click();
+    await page.locator('[data-template-language-filter]').selectOption(locale);
+    const card = page.locator('.kayzart-template-card:visible');
+    await card.locator('[name="post_title"]').fill(title);
+    await card.locator('.kayzart-template-form button[type="submit"]').click();
     await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
     createdId = await page.evaluate(() => Number((window as any).KAYZART.post_id));
     expect(createdId).toBeGreaterThan(0);

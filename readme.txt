@@ -31,7 +31,7 @@ Write the page by hand, start from a template, drop in code from a designer, or 
 Freelancers, agencies, and developers who need a clean landing page fast and want full control over the result — without a child theme, a drag-and-drop builder, or a build pipeline. If you don't write code, you can still get a page: describe it and let the AI build it, ask for changes in plain language, and edit text, links, and images visually from the Elements panel. The difference is that when you do want the code, it is right there and it is yours.
 
 **What you can do**
-* Start with a bundled free service landing page in Japanese or English, without an AI connection or template server
+* Start with a bundled business service template in Japanese or English, each with its own Google Fonts typography and motion configured through HTML attributes, without an AI connection or template server
 * Describe a page from Kayzart > Add new and have the AI build it as the editor opens
 * Edit your page with AI in plain language — it changes the actual HTML and CSS, inside WordPress
 * Keep JavaScript AI-safe: the AI reads your JS for context but never edits it
@@ -147,7 +147,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 
 == Changelog ==
 = Unreleased =
-* Add: A bundled free service landing page in Japanese and English. Choose the page language, preview it locally, create a draft without AI setup, and replace its text, images, and contact details in the editor.
+* Add: New Japanese and English business landing pages, each with its own design and Google Fonts (Noto Sans JP for Japanese; Instrument Sans and Instrument Serif for English), and a bundled, library-free motion module. Change motion through HTML attributes while AI keeps JavaScript read-only. The template card explains external font loading before preview or creation. The previous Japanese and English sample templates are retired from the catalog; existing pages keep their saved content.
 * Improve: Choose between a template, AI generation, and a blank page in Add new, keeping an unfinished AI instruction when switching to templates.
 
 = 3.4.4 =
@@ -323,6 +323,14 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 * Initial release.
 
 == External services ==
+**Google Fonts (bundled Business Motion templates)**
+
+The Business Motion templates use fonts from Google Fonts. The Japanese template uses Noto Sans JP (weights 400, 500, 700, and 900); the English template uses Instrument Sans (weights 400, 500, 600, and 700) and Instrument Serif (italic). Only these families can be declared by a bundled template. Each card identifies its fonts and explains the external connection before the Preview template and Create from this template buttons. There is no separate opt-in checkbox, confirmation dialog, account, or site-wide font setting. Opening the template list, installing, activating, or updating Kayzart does not contact Google Fonts or preconnect to Google.
+
+After you choose to preview a template, your browser requests a stylesheet from https://fonts.googleapis.com/ and font files from https://fonts.gstatic.com/. Pages you create from these templates make the same browser requests when displayed, including in the editor preview and on the published site. These requests expose normal connection information, such as the visitor's IP address and browser HTTP headers, to Google. The stylesheet link uses a no-referrer policy. Kayzart does not add tracking parameters, send the page text through the Google Fonts text parameter, or contact Google from the WordPress server for this feature. JavaScript for the template is bundled locally; no JavaScript library or analytics service is loaded. If fonts cannot load, the page uses system fallback fonts and remains usable. To remove Google Fonts from a created page, remove its Google Fonts stylesheet link from the custom head; the font stack will fall back to local fonts.
+
+Google Fonts: https://fonts.google.com/ — API documentation and terms: https://developers.google.com/fonts/docs/css2 and https://developers.google.com/terms — privacy policy: https://policies.google.com/privacy
+
 Kayzart sends AI requests only after a site administrator configures an AI connection and a permitted user requests an AI operation. Requests can include the user's instruction, page title, HTML, custom head markup, CSS, read-only JavaScript context, selected element context, available font names, and recent Kayzart AI edit context.
 
 On WordPress 5.9–6.9, and as a fallback on newer versions, requests are sent directly to the OpenAI Responses API using the site's API key and gpt-6-sol (or the model set with the `kayzart_ai_openai_model` filter). OpenAI terms: https://openai.com/policies/terms-of-use/ — privacy policy: https://openai.com/policies/privacy-policy/

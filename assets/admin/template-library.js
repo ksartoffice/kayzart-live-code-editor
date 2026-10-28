@@ -73,15 +73,36 @@
       });
     });
 
-    panel.querySelectorAll('[data-template-language]').forEach(function (select) {
-      select.addEventListener('change', function () {
-        var option = select.options[select.selectedIndex];
-        var card = select.closest('.kayzart-template-card');
-        if (!option || !card) return;
-        card.querySelector('.kayzart-template-art img').src = option.getAttribute('data-thumbnail');
-        card.querySelector('[data-template-preview]').setAttribute('data-template-preview', option.getAttribute('data-preview'));
+    var language = panel.querySelector('[data-template-language-filter]');
+    var cards = Array.from(panel.querySelectorAll('.kayzart-template-card')).map(function (card) {
+      return { element: card, variants: JSON.parse(card.getAttribute('data-template-variants') || '{}') };
+    });
+    function selectLocale(locale) {
+      var count = 0;
+      cards.forEach(function (card) {
+        var variant = card.variants[locale];
+        card.element.hidden = !variant;
+        if (!variant) return;
+        count++;
+        card.element.querySelector('.kayzart-template-art img').src = variant.thumbnail;
+        card.element.querySelector('[data-template-preview]').setAttribute('data-template-preview', variant.preview);
+        card.element.querySelector('[name="template_locale"]').value = locale;
+      });
+      var empty = panel.querySelector('[data-template-empty]');
+      if (empty) empty.hidden = count > 0;
+    }
+    // Each language has its own card; keep the typed page title when switching.
+    var titles = panel.querySelectorAll('.kayzart-template-form [name="post_title"]');
+    titles.forEach(function (title) {
+      title.addEventListener('input', function () {
+        titles.forEach(function (other) { if (other !== title) other.value = title.value; });
       });
     });
+    if (language) {
+      language.addEventListener('change', function () { selectLocale(language.value); });
+      window.addEventListener('pageshow', function () { selectLocale(language.value); });
+      selectLocale(language.value);
+    }
 
     var dialog = document.getElementById('kayzart-template-preview');
     if (!dialog || typeof dialog.showModal !== 'function') return;
@@ -94,6 +115,7 @@
     dialog.addEventListener('close', function () {
       if (request) request.abort();
       request = null;
+      frame.removeAttribute('srcdoc');
       if (opener) opener.focus();
     });
     dialog.querySelector('[data-template-close]').addEventListener('click', function () { dialog.close(); });

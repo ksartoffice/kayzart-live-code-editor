@@ -86,9 +86,15 @@ class Template_Page_Creator {
 		if ( $existing ) {
 			return self::resume( $existing, $id, $locale );
 		}
+		if ( ! isset( Template_Library::catalog()[ $id ] ) ) {
+			return new \WP_Error( 'unknown_template', __( 'This template is not available.', 'kayzart-live-code-editor' ) );
+		}
 		$template = Template_Library::get( $id, $locale );
 		if ( is_wp_error( $template ) ) {
 			return $template;
+		}
+		if ( ( '' !== $template['js'] || '' !== $template['customHead'] ) && ! current_user_can( 'unfiltered_html' ) ) {
+			return new \WP_Error( 'template_script_permission', __( 'You need permission to edit JavaScript and custom head markup to create this template.', 'kayzart-live-code-editor' ) );
 		}
 		$prepared = Template_Library::prepare( $template );
 		if ( is_wp_error( $prepared ) ) {
@@ -174,6 +180,9 @@ class Template_Page_Creator {
 				return $result;
 			}
 			Post_Type::enable_for_post( $post_id );
+			Custom_Head::save( $post_id, $prepared['customHead'] );
+			update_post_meta( $post_id, '_kayzart_js', wp_slash( $prepared['js'] ) );
+			update_post_meta( $post_id, '_kayzart_js_mode', $prepared['jsMode'] );
 			update_post_meta( $post_id, '_kayzart_css', wp_slash( $prepared['css'] ) );
 			update_post_meta( $post_id, '_kayzart_tailwind_css', wp_slash( $prepared['css'] ) );
 			delete_post_meta( $post_id, '_kayzart_normal_css' );
@@ -187,9 +196,9 @@ class Template_Page_Creator {
 				array(
 					'html'       => $prepared['html'],
 					'css'        => $prepared['css'],
-					'customHead' => '',
-					'js'         => '',
-					'jsMode'     => 'classic',
+					'customHead' => $prepared['customHead'],
+					'js'         => $prepared['js'],
+					'jsMode'     => $prepared['jsMode'],
 					'editorMode' => 'tailwind',
 					'cssByMode'  => array(
 						'normal'   => null,

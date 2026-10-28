@@ -34,7 +34,7 @@ class Test_Template_Library extends WP_UnitTestCase {
 	}
 
 	private function create_page( $request = null, $locale = 'ja' ) {
-		$result = Template_Page_Creator::create( 'general-service-lp', $request ?? wp_generate_uuid4(), 'Template test', $locale );
+		$result = Template_Page_Creator::create( 'business-motion-ja', $request ?? wp_generate_uuid4(), 'Template test', $locale );
 		if ( is_int( $result ) ) {
 			$this->created[] = $result;
 		}
@@ -42,13 +42,66 @@ class Test_Template_Library extends WP_UnitTestCase {
 	}
 
 	public function test_only_allowlisted_ids_can_be_loaded(): void {
-		$this->assertWPError( Template_Library::get( '../general-service-lp' ) );
+		$this->assertWPError( Template_Library::get( '../business-motion-ja' ) );
 		$this->assertWPError( Template_Library::get( 'https://example.test/template' ) );
 		$this->assertWPError( Template_Library::get( 'missing' ) );
-		$template = Template_Library::get( 'general-service-lp' );
+		$template = Template_Library::get( 'business-motion-ja' );
 		$this->assertIsArray( $template );
 		$this->assertSame( 'ja', $template['locale'] );
 		$this->assertSame( 'tailwind', $template['cssMode'] );
+	}
+
+	public function test_catalog_offers_only_new_design_and_schema_one_remains_readable(): void {
+		$this->assertSame( array( 'business-motion-ja', 'business-motion-en' ), array_keys( Template_Library::catalog() ) );
+		$this->assertSame( array( 'ja' => '日本語', 'en' => 'English' ), Template_Library::available_locales() );
+		$legacy = Template_Library::get( 'general-service-lp' );
+		$this->assertIsArray( $legacy );
+		$this->assertSame( 1, $legacy['schemaVersion'] );
+		$this->assertSame( '', $legacy['js'] );
+		$this->assertSame( '', $legacy['customHead'] );
+		$this->assertWPError( Template_Page_Creator::create( 'general-service-lp', wp_generate_uuid4(), 'Retired' ) );
+	}
+
+	public function test_font_declarations_cannot_supply_arbitrary_hosts_or_code(): void {
+		foreach ( array(
+			'not an array',
+			array( array( 'provider' => 'evil', 'family' => 'Noto Sans JP', 'weights' => array( 400 ) ) ),
+			array( array( 'provider' => 'google', 'family' => 'Other&text=page', 'weights' => array( 400 ) ) ),
+			array( array( 'provider' => 'google', 'family' => 'Noto Sans JP', 'weights' => array( '400;url(evil)' ) ) ),
+			array( array( 'provider' => 'google', 'family' => 'Instrument Sans', 'weights' => array( 900 ) ) ),
+			array( array( 'provider' => 'google', 'family' => 'Instrument Serif', 'weights' => array( 400 ) ) ),
+			array( array( 'provider' => 'google', 'family' => 'Instrument Serif', 'italic' => array( 1 ), 'text' => 'page' ) ),
+			array( array( 'provider' => 'google', 'family' => 'Instrument Sans', 'weights' => array( 400 ) ), array( 'provider' => 'google', 'family' => 'Instrument Sans', 'weights' => array( 600 ) ) ),
+			array( array( 'provider' => 'google', 'family' => 'Noto Sans JP', 'weights' => array( 400 ) ), array( 'provider' => 'google', 'family' => 'Instrument Sans', 'weights' => array( 400 ) ), array( 'provider' => 'google', 'family' => 'Instrument Serif', 'italic' => array( 1 ) ) ),
+		) as $fonts ) {
+			$this->assertWPError( Template_Library::google_fonts_head( $fonts ) );
+		}
+		$head = Template_Library::get( 'business-motion-ja' )['customHead'];
+		$this->assertStringContainsString( 'display=swap', $head );
+		$this->assertStringNotContainsString( 'text=', $head );
+	}
+
+	public function test_english_package_is_its_own_design_with_its_own_fonts(): void {
+		$en = Template_Library::get( 'business-motion-en', 'en' );
+		$this->assertIsArray( $en );
+		$this->assertSame( 'en', $en['locale'] );
+		$this->assertSame( 'module', $en['jsMode'] );
+		$this->assertSame( Template_Library::get( 'business-motion-ja' )['js'], $en['js'] );
+		$this->assertStringContainsString( 'lang="en"', $en['html'] );
+		$this->assertStringContainsString( 'Less busywork.', $en['html'] );
+		$this->assertSame( 0, preg_match( '/[\x{3040}-\x{30ff}\x{4e00}-\x{9fff}]/u', $en['html'] ) );
+		$this->assertStringContainsString( 'family=Instrument+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@1&amp;display=swap', $en['customHead'] );
+		$this->assertStringNotContainsString( 'Noto', $en['customHead'] );
+		$this->assertWPError( Template_Library::get( 'business-motion-en', 'ja' ) );
+		$this->assertWPError( Template_Library::get( 'business-motion-ja', 'en' ) );
+		$preview = Template_Library::preview( 'business-motion-en', 'en' );
+		$this->assertStringContainsString( '<html lang="en">', $preview );
+		$this->assertStringContainsString( 'business-motion-en/images/', $preview );
+		$id = Template_Page_Creator::create( 'business-motion-en', wp_generate_uuid4(), 'English template', 'en' );
+		$this->assertIsInt( $id );
+		$this->created[] = $id;
+		$this->assertSame( $en['customHead'], Snapshot::for_post( $id )['customHead'] );
+		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
 	}
 
 	public function test_default_content_language_uses_site_language_not_user_language(): void {
@@ -57,9 +110,11 @@ class Test_Template_Library extends WP_UnitTestCase {
 		add_filter( 'pre_option_WPLANG', $site_language );
 		try {
 			update_user_meta( get_current_user_id(), 'locale', 'en_US' );
-			$this->assertSame( 'ja', Template_Library::default_locale() );
+			foreach ( array( 'ja', 'ja_JP' ) as $site_locale ) {
+				$this->assertSame( 'ja', Template_Library::default_locale() );
+			}
 			update_user_meta( get_current_user_id(), 'locale', 'ja' );
-			foreach ( array( '', 'en_US', 'fr_FR' ) as $site_locale ) {
+			foreach ( array( '', 'en_US', 'en_GB', 'fr_FR' ) as $site_locale ) {
 				$this->assertSame( 'en', Template_Library::default_locale() );
 			}
 		} finally {
@@ -87,8 +142,8 @@ class Test_Template_Library extends WP_UnitTestCase {
 		global $wpdb;
 		$before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" );
 		foreach ( array( '', '../en', 'en_US', 'fr', 'https://example.test/en' ) as $locale ) {
-			$this->assertWPError( Template_Library::get( 'general-service-lp', $locale ) );
-			$this->assertWPError( Template_Library::preview( 'general-service-lp', $locale ) );
+			$this->assertWPError( Template_Library::get( 'business-motion-ja', $locale ) );
+			$this->assertWPError( Template_Library::preview( 'business-motion-ja', $locale ) );
 			$this->assertWPError( $this->create_page( null, $locale ) );
 		}
 		$this->assertSame( $before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" ) );
@@ -105,23 +160,38 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$this->assertSame( $en, Template_Library::preview( 'general-service-lp', 'en' ) );
 	}
 
-	public function test_english_creation_and_retries_preserve_the_selected_language(): void {
+	public function test_module_head_and_selected_language_survive_creation_and_retries(): void {
 		$request = wp_generate_uuid4();
-		$id      = $this->create_page( $request, 'en' );
+		$id = $this->create_page( $request );
 		$this->assertIsInt( $id );
-		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
-		$this->assertStringContainsString( 'lang="en"', get_post( $id )->post_content );
-		$this->assertStringContainsString( 'Good design.', get_post( $id )->post_content );
-		$this->assertStringContainsString( wp_upload_dir()['baseurl'], get_post( $id )->post_content );
-		$this->assertSame( $id, $this->create_page( $request, 'en' ) );
-		$conflict = $this->create_page( $request, 'ja' );
+		$snapshot = Snapshot::for_post( $id );
+		$template = Template_Library::get( 'business-motion-ja' );
+		$this->assertSame( 'module', $snapshot['jsMode'] );
+		$this->assertSame( $template['js'], $snapshot['js'] );
+		$this->assertSame( $template['customHead'], $snapshot['customHead'] );
+		$this->assertStringContainsString( 'data-kz-motion="on"', $snapshot['html'] );
+		$this->assertSame( $id, $this->create_page( $request ) );
+		$conflict = $this->create_page( $request, 'en' );
 		$this->assertWPError( $conflict );
 		$this->assertSame( 'template_request_conflict', $conflict->get_error_code() );
-		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
-		$this->assertStringContainsString( 'Good design.', get_post( $id )->post_content );
+		$this->assertSame( $snapshot, Snapshot::for_post( $id ) );
 	}
 
-	public function test_language_selector_and_retry_keep_preview_and_form_in_sync(): void {
+	public function test_ai_can_adjust_motion_attributes_without_rewriting_the_module_or_font_link(): void {
+		$id = $this->create_page();
+		$before = Snapshot::for_post( $id );
+		$after = $before;
+		$after['html'] = str_replace( 'data-kz-distance="12"', 'data-kz-distance="4"', $after['html'] );
+		KayzArt\Ai_Output_Policy::assert_safe_transition( $before, $after );
+		$this->assertNotSame( $before['html'], $after['html'] );
+		$this->assertSame( $before['js'], $after['js'] );
+		$this->assertSame( $before['customHead'], $after['customHead'] );
+		$after['js'] .= '\nalert(1);';
+		$this->expectException( KayzArt\Ai_Tool_Error::class );
+		KayzArt\Ai_Output_Policy::assert_safe_transition( $before, $after );
+	}
+
+	public function test_list_language_filter_and_retry_keep_preview_and_form_in_sync(): void {
 		$original = get_option( 'WPLANG', '' );
 		update_option( 'WPLANG', 'en_US' );
 		set_transient( 'kayzart_template_retry_' . get_current_user_id(), array( 'locale' => 'ja', 'title' => 'Retry title' ) );
@@ -134,15 +204,21 @@ class Test_Template_Library extends WP_UnitTestCase {
 			update_option( 'WPLANG', $original );
 		}
 		$this->assertMatchesRegularExpression( '/<option[^>]+value="ja"[^>]+selected/', $markup );
-		$this->assertStringContainsString( 'form="kayzart-template-form-general-service-lp"', $markup );
-		$this->assertStringContainsString( 'name="template_locale"', $markup );
+		$this->assertStringContainsString( 'type="hidden" name="template_locale" value="ja"', $markup );
+		$this->assertSame( 1, substr_count( $markup, '<select' ) );
+		$this->assertSame( 2, substr_count( $markup, '<article' ) );
+		$this->assertStringNotContainsString( 'id="kayzart-template-title"', $markup );
+		$this->assertStringContainsString( 'for="kayzart-template-title-business-motion-en"', $markup );
+		$this->assertSame( 1, preg_match_all( '/<article[^>]*\shidden>/', $markup ) );
+		$this->assertLessThan( strpos( $markup, '<article' ), strpos( $markup, '<select' ) );
 		$this->assertStringContainsString( 'template_locale=ja', $markup );
 		$this->assertStringContainsString( 'value="Retry title"', $markup );
-		preg_match_all( '/data-preview="([^"]+)"/', $markup, $urls );
-		$this->assertCount( 2, $urls[1] );
-		foreach ( $urls[1] as $url ) {
-			parse_str( wp_parse_url( html_entity_decode( $url, ENT_QUOTES, 'UTF-8' ), PHP_URL_QUERY ), $query );
-			$this->assertSame( 'general-service-lp', $query['template_id'] );
+		preg_match( '/data-template-variants="([^"]+)"/', $markup, $matches );
+		$variants = json_decode( html_entity_decode( $matches[1], ENT_QUOTES, 'UTF-8' ), true );
+		$this->assertCount( 1, $variants );
+		foreach ( $variants as $variant ) {
+			parse_str( wp_parse_url( $variant['preview'], PHP_URL_QUERY ), $query );
+			$this->assertSame( 'business-motion-ja', $query['template_id'] );
 			$this->assertContains( $query['template_locale'], array( 'ja', 'en' ) );
 			$this->assertNotFalse( wp_verify_nonce( $query['_wpnonce'], KayzArt\Template_Admin::PREVIEW_ACTION ) );
 		}
@@ -158,15 +234,17 @@ class Test_Template_Library extends WP_UnitTestCase {
 		};
 		add_filter( 'pre_http_request', $block, 10, 3 );
 		try {
-			$preview = Template_Library::preview( 'general-service-lp' );
+			$preview = Template_Library::preview( 'business-motion-ja' );
 			$this->assertIsString( $preview );
 			$this->assertStringContainsString( 'Content-Security-Policy', $preview );
 			$this->assertStringContainsString( 'images/landscape.png', $preview );
 			$this->assertStringContainsString( '--color-ink', $preview );
 			$this->assertStringNotContainsString( '{{asset:', $preview );
 			$this->assertStringNotContainsString( 'demo-workspace', $preview );
-			$this->assertStringNotContainsString( '<script', $preview );
-			$this->assertSame( $preview, Template_Library::preview( 'general-service-lp' ) );
+			$this->assertStringContainsString( 'data-kayzart-js-mode="module"', $preview );
+			$this->assertStringContainsString( 'script-src', $preview );
+			$this->assertStringContainsString( 'fonts.googleapis.com', $preview );
+			$this->assertSame( $preview, Template_Library::preview( 'business-motion-ja' ) );
 			$this->assertSame( $before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" ) );
 			$this->assertSame( array(), $calls );
 		} finally {
@@ -201,7 +279,7 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$request = wp_generate_uuid4();
 		$first   = $this->create_page( $request );
 		$this->assertIsInt( $first );
-		$this->assertSame( $first, Template_Page_Creator::create( 'general-service-lp', $request, 'Do not overwrite' ) );
+		$this->assertSame( $first, Template_Page_Creator::create( 'business-motion-ja', $request, 'Do not overwrite' ) );
 		$this->assertSame( 'Template test', get_the_title( $first ) );
 		$this->assertCount( 1, get_children( array( 'post_parent' => $first, 'post_type' => 'attachment' ) ) );
 	}
@@ -238,17 +316,19 @@ class Test_Template_Library extends WP_UnitTestCase {
 		} );
 		$this->assertWPError( $this->create_page() );
 		$this->assertSame( $before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" ) );
-		$this->assertFileExists( KAYZART_PATH . 'assets/templates/free/general-service-lp/images/landscape.png' );
+		$this->assertFileExists( KAYZART_PATH . 'assets/templates/free/business-motion-ja/images/landscape.png' );
 	}
 
-	public function test_editor_without_unfiltered_html_keeps_template_layout(): void {
+	public function test_module_creation_requires_unfiltered_html_without_side_effects(): void {
+		global $wpdb;
 		$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $editor );
 		wp_get_current_user()->add_cap( 'unfiltered_html', false );
-		$id = $this->create_page();
-		$this->assertIsInt( $id );
-		$this->assertStringContainsString( 'lg:grid-cols-2', get_post( $id )->post_content );
-		$this->assertStringNotContainsString( '<svg', get_post( $id )->post_content );
+		$before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" );
+		$result = $this->create_page();
+		$this->assertWPError( $result );
+		$this->assertSame( 'template_script_permission', $result->get_error_code() );
+		$this->assertSame( $before, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" ) );
 	}
 
 	public function test_creation_and_media_registration_do_not_make_http_requests(): void {
@@ -306,10 +386,27 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$method          = new ReflectionMethod( Admin::class, 'copy_kayzart_post_data' );
 		$method->setAccessible( true );
 		$method->invoke( null, get_post( $source ), $copy );
-		$this->assertSame( 'general-service-lp', get_post_meta( $copy, Template_Page_Creator::ID_META, true ) );
+		$this->assertSame( 'business-motion-ja', get_post_meta( $copy, Template_Page_Creator::ID_META, true ) );
 		$this->assertSame( 'ja', get_post_meta( $copy, Template_Page_Creator::LOCALE_META, true ) );
 		$this->assertSame( '', get_post_meta( $copy, Template_Page_Creator::REQUEST_META, true ) );
 		$this->assertSame( '', get_post_meta( $copy, Template_Page_Creator::COMPLETE_META, true ) );
+		$this->assertSame( Snapshot::for_post( $source )['js'], Snapshot::for_post( $copy )['js'] );
+		$this->assertSame( Snapshot::for_post( $source )['customHead'], Snapshot::for_post( $copy )['customHead'] );
+	}
+
+	public function test_revision_restore_recovers_motion_source_and_google_font_head(): void {
+		$id = $this->create_page();
+		if ( ! Snapshot::revisions_enabled( $id ) ) {
+			$this->markTestSkipped( 'Post-meta revision support is unavailable.' );
+		}
+		$original = Snapshot::for_post( $id );
+		$revision = (int) key( wp_get_post_revisions( $id ) );
+		update_post_meta( $id, '_kayzart_js', 'changed by hand' );
+		KayzArt\Custom_Head::save( $id, '' );
+		wp_restore_post_revision( $revision );
+		$this->assertSame( $original['js'], Snapshot::for_post( $id )['js'] );
+		$this->assertSame( $original['customHead'], Snapshot::for_post( $id )['customHead'] );
+		$this->assertSame( 'module', Snapshot::for_post( $id )['jsMode'] );
 	}
 
 	public function test_image_metadata_exception_also_collects_the_inserted_attachment(): void {

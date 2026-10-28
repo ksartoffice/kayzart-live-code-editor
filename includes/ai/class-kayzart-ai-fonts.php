@@ -48,13 +48,59 @@ class Ai_Fonts {
 	/**
 	 * Build the font information stored on an AI job payload.
 	 *
+	 * @param string $custom_head Current unsaved head, including template font links.
 	 * @return array{registered:array<int,array{name:string,fontFamily:string}>,systemStacks:array<string,string>}
 	 */
-	public static function resolve_for_payload(): array {
+	public static function resolve_for_payload( string $custom_head = '' ): array {
 		return array(
-			'registered'   => self::registered_families(),
+			'registered'   => self::normalize_list( array_merge( self::registered_families(), self::template_families( $custom_head ) ) ),
 			'systemStacks' => self::SYSTEM_STACKS,
 		);
+	}
+
+	/**
+	 * Recognize the already-loaded template font without requesting any URL.
+	 *
+	 * @param string $head Current head source.
+	 * @return array
+	 */
+	private static function template_families( string $head ): array {
+		if ( '' === trim( $head ) ) {
+			return array();
+		}
+		$document = new \DOMDocument( '1.0', 'UTF-8' );
+		$previous = libxml_use_internal_errors( true );
+		$document->loadHTML( '<?xml encoding="utf-8" ?><html><head>' . $head . '</head></html>', LIBXML_NONET );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous );
+		$found = array();
+		foreach ( $document->getElementsByTagName( 'link' ) as $link ) {
+			$url = wp_parse_url( $link->getAttribute( 'href' ) );
+			if ( ! is_array( $url ) || 'stylesheet' !== strtolower( $link->getAttribute( 'rel' ) ) || 'https' !== ( $url['scheme'] ?? '' ) || 'fonts.googleapis.com' !== ( $url['host'] ?? '' ) || '/css2' !== ( $url['path'] ?? '' ) || isset( $url['user'] ) || isset( $url['pass'] ) || isset( $url['port'] ) ) {
+				continue;
+			}
+			// Parse by hand: a CSS2 URL repeats "family", which parse_str() would collapse.
+			$families = array();
+			foreach ( explode( '&', $url['query'] ?? '' ) as $pair ) {
+				$pair = explode( '=', $pair, 2 );
+				if ( 'text' === $pair[0] ) {
+					$families = array();
+					break;
+				}
+				if ( 'family' !== $pair[0] || ! preg_match( '/^([A-Za-z ]+):(wght|ital)@(\d+(?:;\d+)*)$/', urldecode( $pair[1] ?? '' ), $match ) ) {
+					continue;
+				}
+				$allowed = Template_Library::GOOGLE_FONTS[ $match[1] ] ?? null;
+				if ( $allowed && $allowed['axis'] === $match[2] && ! array_diff( array_map( 'intval', explode( ';', $match[3] ) ), $allowed['values'] ) ) {
+					$families[] = array(
+						'name'       => $match[1],
+						'fontFamily' => $allowed['stack'],
+					);
+				}
+			}
+			$found = array_merge( $found, $families );
+		}
+		return $found;
 	}
 
 	/**

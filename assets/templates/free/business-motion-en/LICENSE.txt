@@ -1,0 +1,14 @@
+Business Motion — English service landing page — version 1.0.0
+Copyright 2026 K's Art Office
+
+The HTML, CSS, JavaScript, manifest, placeholder graphic, and thumbnail are
+distributed under the GNU General Public License, version 2 or later.
+https://www.gnu.org/licenses/gpl-2.0.html
+
+Instrument Sans and Instrument Serif are loaded from Google Fonts, not bundled
+in this package. Their authors distribute them under the SIL Open Font License 1.1.
+https://fonts.google.com/specimen/Instrument+Sans
+https://fonts.google.com/specimen/Instrument+Serif
+
+The placeholder is an original grayscale graphic; production notes are in
+scripts/templates/README.md in the public source repository.

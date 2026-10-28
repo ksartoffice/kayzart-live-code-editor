@@ -1,4 +1,17 @@
-Built-in image_gen, 2026-10-27. Final generation prompt:
+Built-in image_gen edit, 2026-10-28. Current final prompt:
+
+Edit target: the attached existing neutral grayscale image placeholder PNG. Make ONE precise composition correction only: move the entire framed mountain-and-sun pictogram downward so the exact bounding-box center of its outer rounded rectangular frame coincides with the canvas center, at x=50%, y=50%. The existing frame is roughly x=29%-71%, y=25%-58%; preserve its existing size and appearance, but place the full frame at approximately x=29%-71%, y=33.5%-66.5% so the top and bottom margins match. Keep equal horizontal margins, do not stretch the icon, and keep it level. Preserve the clean mountain peaks, circular sun, substantial strokes, neutral light-gray softly shaded background, and generous empty space. Keep a square canvas. Strictly achromatic grayscale: every red, green, and blue channel must match, no warm or cool tint. No text, no letters, no numbers, no logo, no watermark, no added objects, no new outer canvas border, no drop shadow, no tilt. The user wants the same quiet universal placeholder with the pictogram centered naturally, not a redesign. The old requirement for an empty lower 35% to accommodate an overlapping website badge has been removed.
+
+Edit target: assets/templates/free/general-service-lp/images/landscape.png
+(the previous 2026-10-27 artwork).
+Production processing: resample the generated square to 768 x 768, normalize
+to grayscale, and export PNG with lossless compression level 9. No lettering
+or other artwork is added during export. Final PNG: 182,484 bytes.
+Dark pictogram bounds: x=222..545, y=261..511 (threshold <160/255).
+Center: (383.5, 386), within 3px of the 768px canvas center.
+
+Historical source, superseded by the centered composition above:
+Built-in image_gen, 2026-10-27. Original generation prompt:
 
 Create ONE simple universal website image placeholder PNG. Square canvas, 1024 x 1024. Strictly neutral grayscale ONLY: pure light gray background, medium gray and dark gray pictogram, no hue whatsoever (no green, blue, beige or warm tint). NO TEXT at all: no letters, words, numbers, logos, watermark or decorative typography. Minimal flat UI graphic: one large easily recognizable picture/image icon, a softly rounded rectangular outline enclosing two simple mountain peaks and a circular sun. Use substantial clean strokes and solid simple shapes so the image icon remains clear at 320px display size. Background should be a very subtle neutral light-gray radial tonal change, not a busy scene. Place the entire icon within x=30%-70% and y=22%-58% of the canvas, horizontally centered and slightly above the vertical center, leaving the lower 35% completely empty so a website's badge can overlay that region without covering any of the icon. Ample empty margins, no outer border around the canvas, no inset frame extending toward canvas edges. No overlapping photo cards, no tilt, no shadows, no 3D, no paper texture, no patterns, no scenery. The graphic must instantly communicate 'image placeholder' while staying quiet and compatible with any template palette. A clean neutral design-system placeholder asset, not a styled illustration or actual photograph.
 

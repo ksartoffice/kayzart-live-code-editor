@@ -300,6 +300,9 @@ class Admin {
 	public static function action_create_new_page(): void {
 
 		self::verify_action_nonce( self::NEW_PAGE_NONCE_ACTION );
+		if ( 'template' === self::read_requested_start_mode() ) {
+			Template_Admin::create_from_request();
+		}
 		$post_type = sanitize_key( self::read_request_value( 'post_type' ) );
 		if ( '' === $post_type ) {
 			$post_type = Post_Type::PAGE_TYPE;
@@ -321,8 +324,11 @@ class Admin {
 	private static function read_requested_start_mode(): string {
 
 		$mode = sanitize_key( self::read_request_value( 'start_mode' ) );
-		if ( in_array( $mode, array( 'ai', 'blank' ), true ) ) {
+		if ( in_array( $mode, array( 'ai', 'blank', 'template' ), true ) ) {
 			return $mode;
+		}
+		if ( '' !== $mode ) {
+			wp_die( esc_html__( 'Invalid creation method.', 'kayzart-live-code-editor' ) );
 		}
 		// Backward compatibility for old create links and integrations: an
 		// instruction implies AI; otherwise opening a normal blank editor remains
@@ -480,6 +486,8 @@ class Admin {
 	 * @var array<int,string>
 	 */
 	const DUPLICATE_META_DENYLIST = array(
+		Template_Page_Creator::REQUEST_META,
+		Template_Page_Creator::COMPLETE_META,
 		'_kayzart_setup_required',
 		'_kayzart_screen',
 		self::INITIAL_AI_REQUEST_META_KEY,
@@ -2056,7 +2064,7 @@ class Admin {
 		echo '<header class="kayzart-create-page__header">';
 		echo '<span class="kayzart-create-page__eyebrow">' . esc_html__( 'Create with Kayzart', 'kayzart-live-code-editor' ) . '</span>';
 		echo '<h1>' . esc_html__( 'Add new', 'kayzart-live-code-editor' ) . '</h1>';
-		echo '<p>' . esc_html__( 'Create a landing page with AI. By default, it is created as an independent page that is not affected by your theme design.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '<p>' . esc_html__( 'Start from a template, describe your page to AI, or begin with a blank page.', 'kayzart-live-code-editor' ) . '</p>';
 		echo '</header>';
 
 		if ( 0 === count( $post_types ) ) {
@@ -2068,6 +2076,7 @@ class Admin {
 		$requested = isset( $_GET[ self::NEW_TYPE_PARAM ] ) ? sanitize_key( wp_unslash( (string) $_GET[ self::NEW_TYPE_PARAM ] ) ) : '';
 		$selected  = isset( $post_types[ $requested ] ) ? $requested : (string) array_key_first( $post_types );
 
+		Template_Admin::render( current_user_can( Ai_Setup::CAPABILITY ) && Ai_Onboarding::get_data()['available'] );
 		echo '<form class="kayzart-create-form" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="' . esc_attr( self::NEW_PAGE_ACTION ) . '" />';
 		wp_nonce_field( self::NEW_PAGE_NONCE_ACTION );
@@ -2526,7 +2535,7 @@ class Admin {
 		$initial_ai_request = self::get_initial_ai_request( $post_id );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The editor route nonce was validated by get_valid_editor_post_id().
 		$initial_entry_mode = isset( $_GET['kayzart_entry'] ) ? sanitize_key( wp_unslash( (string) $_GET['kayzart_entry'] ) ) : '';
-		if ( ! in_array( $initial_entry_mode, array( 'ai', 'blank' ), true ) ) {
+		if ( ! in_array( $initial_entry_mode, array( 'ai', 'blank', 'template' ), true ) ) {
 			$initial_entry_mode = '';
 		}
 		$data = array(
@@ -2645,6 +2654,13 @@ class Admin {
 
 		wp_enqueue_style( $handle );
 		wp_enqueue_script( $handle );
+		wp_enqueue_script(
+			'kayzart-template-library',
+			KAYZART_URL . 'assets/admin/template-library.js',
+			array( $handle ),
+			self::resolve_asset_version( KAYZART_PATH . 'assets/admin/template-library.js' ),
+			true
+		);
 		wp_add_inline_script(
 			$handle,
 			'window.KAYZART_NEW_PAGE = ' . wp_json_encode(

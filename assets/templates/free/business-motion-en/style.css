@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/* Design tokens: use them as bg-paper, text-ink, text-accent, bg-sky, text-muted, border-line, font-serif... */
+@theme {
+  --color-paper: #fffdf8;
+  --color-ink: #202322;
+  --color-accent: #ef5734;
+  --color-sky: #c9ddf1;
+  --color-muted: #5b605c;
+  --color-subtle: #646b61;
+  --color-line: #dadbd3;
+  --color-stone: #f0f0e9;
+  --color-mist: #c2c7bd;
+  --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+}
+
+/* Page container: 1200px max, with 20px / 24px / 48px side gutters. */
+@utility wrap {
+  width: min(1200px, calc(100% - 40px));
+  margin-inline: auto;
+  @variant sm { width: min(1200px, calc(100% - 48px)); }
+  @variant md { width: min(1200px, calc(100% - 96px)); }
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { background: var(--color-paper); }
+  a:focus-visible { outline: 2px solid currentColor; outline-offset: 6px; }
+  main[id], section[id] { scroll-margin-top: 32px; }
+  /* <em> in headings is the italic serif accent. */
+  em { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -.01em; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+}

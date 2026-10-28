@@ -12,6 +12,22 @@ use KayzArt\Ai_Fonts;
  */
 class Test_Kayzart_Ai_Fonts extends WP_UnitTestCase {
 
+	public function test_current_template_head_offers_its_font_without_loading_resources(): void {
+		$head = KayzArt\Template_Library::get( 'business-motion-ja' )['customHead'];
+		$fonts = Ai_Fonts::resolve_for_payload( $head );
+		$this->assertContains( 'Noto Sans JP', array_column( $fonts['registered'], 'name' ) );
+		$this->assertNotContains( 'Noto Sans JP', array_column( Ai_Fonts::resolve_for_payload()['registered'], 'name' ) );
+		$this->assertNotContains( 'Noto Sans JP', array_column( Ai_Fonts::resolve_for_payload( str_replace( 'fonts.googleapis.com', 'fonts.googleapis.com.evil.test', $head ) )['registered'], 'name' ) );
+
+		$english = KayzArt\Template_Library::get( 'business-motion-en', 'en' )['customHead'];
+		$names   = array_column( Ai_Fonts::resolve_for_payload( $english )['registered'], 'name' );
+		$this->assertContains( 'Instrument Sans', $names );
+		$this->assertContains( 'Instrument Serif', $names );
+		$this->assertNotContains( 'Noto Sans JP', $names );
+		$this->assertSame( array(), Ai_Fonts::resolve_for_payload( str_replace( '&amp;display=swap', '&amp;text=secret&amp;display=swap', $english ) )['registered'] );
+		$this->assertNotContains( 'Instrument Sans', array_column( Ai_Fonts::resolve_for_payload( str_replace( 'wght@400;500;600;700', 'wght@400;950', $english ) )['registered'], 'name' ) );
+	}
+
 	/**
 	 * Stylesheet active before a test switched themes.
 	 *

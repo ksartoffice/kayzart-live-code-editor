@@ -195,6 +195,13 @@ async function main() {
   const notices = createNotices({ wp });
   const { createSnackbar, mountNotices, removeNotice, syncNoticeOffset } = notices;
   mountNotices();
+  if (cfg.initialEntryMode === 'template') {
+    createSnackbar(
+      'info',
+      __('Your template is ready. Select text or an image in the preview to edit it in Elements. Replace the sample content and contact details before publishing.', 'kayzart-live-code-editor'),
+      'kayzart-template-start'
+    );
+  }
 
   const ui = buildEditorShell(mount);
   ui.resizer.setAttribute('role', 'separator');
@@ -2066,9 +2073,12 @@ async function main() {
     preview?.sendLiveHighlightUpdate(enabled);
   };
 
-  const setTailwindEnabled = (enabled: boolean) => {
+  const setTailwindEnabled = (enabled: boolean, nextCss?: string) => {
     tailwindEnabled = enabled;
     editorMode = enabled ? 'tailwind' : 'normal';
+    // Model changes synchronously notify consumers that save the active buffer.
+    // Switch the mode first so the replacement cannot overwrite the old source.
+    if (nextCss !== undefined) cssModel.resetValue(nextCss);
     ui.app.classList.toggle('is-tailwind', enabled);
     editorUiController?.syncTailwindState();
     toolbarApi?.update({ tailwindEnabled: enabled });
@@ -2248,8 +2258,7 @@ async function main() {
         return;
       }
       cssByMode = resolved.cssByMode;
-      cssModel.resetValue(resolved.css);
-      setTailwindEnabled(nextMode === 'tailwind');
+      setTailwindEnabled(nextMode === 'tailwind', resolved.css);
       notifyContentChange();
       syncUnsavedUi();
     } catch (error: unknown) {

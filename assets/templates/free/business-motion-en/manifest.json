@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "id": "business-motion-en",
+  "version": "1.0.0",
+  "kind": "page",
+  "locale": "en",
+  "cssMode": "tailwind",
+  "layoutMode": "standalone",
+  "files": { "html": "index.html", "css": "style.css", "js": "motion.js", "thumbnail": "thumbnail.webp" },
+  "jsMode": "module",
+  "fonts": [
+    { "provider": "google", "family": "Instrument Sans", "weights": [400, 500, 600, 700] },
+    { "provider": "google", "family": "Instrument Serif", "italic": [1] }
+  ],
+  "assets": [{ "id": "main-visual", "path": "images/landscape.png", "mimeType": "image/png", "width": 768, "height": 768 }]
+}

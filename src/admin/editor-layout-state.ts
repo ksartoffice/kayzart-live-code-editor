@@ -1,5 +1,5 @@
 export type EditorLayoutKind = 'desktop' | 'compact';
-export type InitialEntryMode = 'ai' | 'blank' | '';
+export type InitialEntryMode = 'ai' | 'blank' | 'template' | '';
 
 export type EditorLayoutState = {
   version: 1;
@@ -78,6 +78,9 @@ export const resolveInitialEditorLayout = (
   }
   if (entryMode === 'blank') {
     return { ...persisted, editorCollapsed: false, settingsOpen: false };
+  }
+  if (entryMode === 'template') {
+    return { ...persisted, editorCollapsed: true, settingsOpen: true, settingsTab: 'elements' };
   }
   return { ...persisted };
 };

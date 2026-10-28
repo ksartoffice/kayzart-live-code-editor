@@ -1,0 +1,11 @@
+General Service Landing Page — version 1.0.0
+Copyright 2026 K's Art Office
+
+The HTML, CSS, manifest, placeholder graphic, and template thumbnail are
+distributed under the GNU General Public License, version 2 or later.
+https://www.gnu.org/licenses/gpl-2.0.html
+
+The placeholder is an original graphic. The photograph shown in the thumbnail
+is a demonstration only and is not imported into pages. Source and production
+notes for the thumbnail are maintained in scripts/templates/README.md in the
+public source repository.

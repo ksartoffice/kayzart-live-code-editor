@@ -31,6 +31,7 @@
 /.phpunit.result.cache
 /.release-private.md
 /assets/dist/*.map
+/assets/templates/free/general-service-lp
 /.wordpress-tests-lib
 /.wordpress
 /vendor/bin/

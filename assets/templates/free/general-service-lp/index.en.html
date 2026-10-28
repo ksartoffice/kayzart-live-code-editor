@@ -1,88 +1,92 @@
 <div lang="en" class="bg-paper font-sans text-ink">
-  <header class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-7 lg:px-10">
-    <a href="#home" class="text-lg font-bold tracking-widest">YOUR SERVICE<span class="text-moss">.</span></a>
-    <nav aria-label="Page navigation" class="flex items-center gap-6 text-sm">
-      <a href="#service" class="hidden sm:inline">Services</a>
-      <a href="#flow" class="hidden sm:inline">How it works</a>
-      <a href="#contact" class="rounded-full border border-ink px-5 py-3 font-semibold">Contact us ↗</a>
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-10 focus:bg-white focus:p-4">Skip to content</a>
+  <header class="mx-auto flex max-w-6xl items-center justify-between gap-4 border-b border-line px-6 py-6 lg:px-10">
+    <a href="#home" class="text-lg font-bold tracking-tight">YOUR STUDIO<span class="text-accent">.</span></a>
+    <nav aria-label="Page navigation" class="flex items-center gap-7 text-sm font-medium">
+      <a href="#service" class="hidden hover:text-accent md:inline">Services</a>
+      <a href="#pricing" class="hidden hover:text-accent md:inline">Pricing</a>
+      <a href="#contact" class="inline-flex min-h-11 items-center gap-4 border-b border-ink py-2 hover:text-accent">Let’s talk <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
 
-  <main>
-    <section id="home" class="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-10 lg:grid-cols-2 lg:items-center lg:px-10 lg:pb-24 lg:pt-16">
-      <div>
-        <p class="mb-7 text-xs font-semibold tracking-widest text-moss">A LITTLE SUPPORT. A BIG NEXT STEP.</p>
-        <h1 class="text-4xl font-semibold leading-snug tracking-tight sm:text-5xl lg:text-6xl">Your next step,<br>made possible.</h1>
-        <p class="mt-7 max-w-md text-base leading-loose text-moss">You have an idea, but you're not sure where to begin. We're here to listen, find a clear way forward, and help you take that first step.</p>
-        <a href="#contact" class="mt-9 inline-flex items-center gap-8 rounded-full bg-ink px-7 py-4 text-sm font-semibold text-white">Let's talk <span aria-hidden="true">↗</span></a>
-        <p class="mt-5 text-xs text-moss">An example page for a service business.</p>
+  <main id="main">
+    <section id="home" class="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-12 lg:grid-cols-12 lg:items-center lg:gap-12 lg:px-10 lg:pb-20 lg:pt-20">
+      <div class="lg:col-span-7">
+        <p class="text-xs font-semibold tracking-[0.16em] text-accent">DESIGN FOR SMALL BUSINESSES</p>
+        <h1 class="mt-6 text-[clamp(1.875rem,9vw,2.25rem)] font-semibold leading-[1.4] tracking-tight sm:text-5xl lg:text-[3.5rem]">Good design.<br>A clearer story.<br><span class="text-accent">Your next chapter.</span></h1>
+        <p class="mt-6 max-w-lg text-base leading-loose text-muted">Websites, brands, and everyday communication.<br>We help independent businesses and small teams<br class="hidden sm:block"> turn what they do into a story people understand.</p>
+        <div class="mt-8 flex flex-wrap items-center gap-6">
+          <a href="#contact" class="inline-flex min-h-12 items-center justify-between gap-8 rounded bg-accent px-6 py-4 text-sm font-semibold text-white transition-colors hover:bg-ink">Talk about your project <span aria-hidden="true">↗</span></a>
+          <a href="#service" class="py-3 text-sm font-medium underline decoration-line underline-offset-8 hover:text-accent">Explore our services</a>
+        </div>
+        <p class="mt-5 text-xs leading-relaxed text-muted">Example content for a web & design studio</p>
       </div>
-      <div class="relative lg:pl-5">
-        <div class="overflow-hidden rounded-t-full rounded-b-3xl bg-white">
-          <img src="{{asset:main-visual}}" alt="" width="768" height="768" class="aspect-square w-full object-cover">
-        </div>
-        <div class="absolute bottom-5 left-0 rounded-2xl bg-lime px-6 py-5 shadow-sm sm:bottom-8">
-          <p class="text-xs tracking-wider">LET'S MAKE IT HAPPEN</p>
-          <p class="mt-2 text-sm font-semibold">One small step, together.</p>
-        </div>
+      <div class="lg:col-span-5">
+        <figure class="overflow-hidden rounded bg-surface">
+          <img src="{{asset:main-visual}}" alt="" width="768" height="768" class="aspect-[6/5] w-full object-cover">
+          <figcaption class="border-t border-line px-5 py-4 text-xs text-muted">YOUR STUDIO / A space to create</figcaption>
+        </figure>
+        <p class="mt-5 border-l-2 border-accent pl-4 text-sm font-medium leading-loose">Thoughtful before we make.<br>Supportive after we launch.</p>
       </div>
     </section>
 
-    <section id="about" class="border-y border-ink/15 bg-white/40">
-      <div class="mx-auto grid max-w-6xl gap-8 px-6 py-16 lg:grid-cols-3 lg:px-10 lg:py-20">
-        <div><p class="text-xs tracking-widest text-moss">OUR APPROACH</p><h2 class="mt-4 text-2xl font-semibold">What matters to us</h2></div>
-        <div class="lg:col-span-2"><p class="text-xl font-medium leading-loose sm:text-2xl">Your challenges are unique.<br class="hidden sm:block">Let's find what works for you.</p><p class="mt-5 leading-loose text-moss">It starts with a conversation. We take time to understand your goals and what's getting in the way, then suggest practical steps you can build on. From the first idea to putting it into action, we work alongside you.</p></div>
+    <section id="service" class="border-y border-line bg-white">
+      <div class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-24">
+        <div class="grid gap-5 lg:grid-cols-2 lg:items-end"><div><p class="text-xs font-semibold tracking-[0.16em] text-accent">01 / SERVICES</p><h2 class="mt-4 text-3xl font-semibold leading-snug sm:text-4xl">The right help.<br>Right where you need it.</h2></div><p class="max-w-md text-sm leading-loose text-muted lg:justify-self-end">Starting something new or improving what you have? We bring clarity to the brief, then take care of the design and the details.</p></div>
+        <div class="mt-10 divide-y divide-line border-y border-line">
+          <article class="grid gap-5 py-8 lg:grid-cols-12 lg:gap-8 lg:py-10"><div class="flex items-center gap-4 lg:col-span-5 lg:items-start"><span class="pt-1 text-xs text-accent">01</span><div><p class="text-[0.65rem] font-semibold tracking-[0.12em] text-muted">WEB DESIGN</p><h3 class="mt-2 text-xl font-semibold sm:text-2xl">Websites & landing pages</h3></div></div><div class="lg:col-span-7"><p class="text-sm leading-loose text-muted">A clear story and an obvious next step. From planning the content to designing and launching the page, we help you get it right.</p><p class="mt-4 text-xs leading-loose text-muted">Business websites / Landing pages / Redesigns</p></div></article>
+          <article class="grid gap-5 py-8 lg:grid-cols-12 lg:gap-8 lg:py-10"><div class="flex items-center gap-4 lg:col-span-5 lg:items-start"><span class="pt-1 text-xs text-accent">02</span><div><p class="text-[0.65rem] font-semibold tracking-[0.12em] text-muted">BRAND & CONTENT</p><h3 class="mt-2 text-xl font-semibold sm:text-2xl">Brand & communication</h3></div></div><div class="lg:col-span-7"><p class="text-sm leading-loose text-muted">A consistent look and voice, from your logo to your pitch deck. We make the everyday things you share feel like they belong together.</p><p class="mt-4 text-xs leading-loose text-muted">Identity / Business cards / Brochures / Presentations</p></div></article>
+          <article class="grid gap-5 py-8 lg:grid-cols-12 lg:gap-8 lg:py-10"><div class="flex items-center gap-4 lg:col-span-5 lg:items-start"><span class="pt-1 text-xs text-accent">03</span><div><p class="text-[0.65rem] font-semibold tracking-[0.12em] text-muted">ONGOING SUPPORT</p><h3 class="mt-2 text-xl font-semibold sm:text-2xl">Help beyond the launch</h3></div></div><div class="lg:col-span-7"><p class="text-sm leading-loose text-muted">Keep your website useful and your communication fresh. Get help with small updates, new content, and improvements as your business grows.</p><p class="mt-4 text-xs leading-loose text-muted">Website updates / Campaign graphics / Content support</p></div></article>
+        </div>
       </div>
     </section>
 
     <section id="features" class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-24">
-      <p class="text-xs tracking-widest text-moss">WHY WORK WITH US</p><h2 class="mt-4 text-3xl font-semibold">Move forward at your own pace.</h2>
-      <div class="mt-10 grid gap-7 md:grid-cols-3">
-        <article class="border-t border-ink/30 pt-6"><span class="text-sm text-moss">01 / LISTEN</span><h3 class="mt-5 text-xl font-semibold">We listen first.</h3><p class="mt-4 leading-loose text-moss">Your idea doesn't need to be fully formed. Through conversation, we'll help you work out what you need.</p></article>
-        <article class="border-t border-ink/30 pt-6"><span class="text-sm text-moss">02 / DESIGN</span><h3 class="mt-5 text-xl font-semibold">We keep it simple.</h3><p class="mt-4 leading-loose text-moss">We break complex challenges into clear choices, shaped around your goals and budget.</p></article>
-        <article class="border-t border-ink/30 pt-6"><span class="text-sm text-moss">03 / SUPPORT</span><h3 class="mt-5 text-xl font-semibold">We stay alongside you.</h3><p class="mt-4 leading-loose text-moss">Getting started is just the beginning. We help you review, improve, and keep moving forward.</p></article>
+      <p class="text-xs font-semibold tracking-[0.16em] text-accent">02 / OUR APPROACH</p><h2 class="mt-4 text-3xl font-semibold leading-snug sm:text-4xl">More than a good first impression.</h2>
+      <div class="mt-10 grid gap-8 md:grid-cols-3 md:gap-10">
+        <article class="border-t border-line pt-6"><p class="text-sm font-semibold text-accent">01</p><h3 class="mt-5 text-xl font-semibold">Start with the purpose</h3><p class="mt-4 text-sm leading-loose text-muted">Who is this for? What do they need to know? What happens next? We answer those questions together before opening a design file.</p></article>
+        <article class="border-t border-line pt-6"><p class="text-sm font-semibold text-accent">02</p><h3 class="mt-5 text-xl font-semibold">A scope you can see</h3><p class="mt-4 text-sm leading-loose text-muted">You know what we will make, what it will cost, and when it will be ready. Starting small is fine. We leave room for what comes next.</p></article>
+        <article class="border-t border-line pt-6"><p class="text-sm font-semibold text-accent">03</p><h3 class="mt-5 text-xl font-semibold">Made for everyday use</h3><p class="mt-4 text-sm leading-loose text-muted">Readable on a phone and practical to keep up to date. We think about the people visiting your site and the people looking after it.</p></article>
       </div>
     </section>
 
-    <section id="service" class="bg-ink text-paper">
+    <section id="pricing" class="bg-ink text-white">
       <div class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-24">
-        <div class="flex flex-wrap items-end justify-between gap-6"><div><p class="text-xs tracking-widest text-lime">WHAT WE DO</p><h2 class="mt-4 text-3xl font-semibold">Support where you need it.</h2></div><p class="max-w-sm text-sm leading-loose text-paper/70">Choose the services that fit your needs,<br>and we'll work out the right combination together.</p></div>
-        <div class="mt-10 grid gap-5 md:grid-cols-3">
-          <article class="rounded-2xl border border-white/20 p-7"><p class="text-xs tracking-widest text-lime">CONSULTING</p><h3 class="mt-6 text-xl font-semibold">Clarity &amp; direction</h3><p class="mt-4 text-sm leading-loose text-paper/75">Make sense of where you are and explore your options. A place to start when you need a clearer direction.</p></article>
-          <article class="rounded-2xl border border-white/20 p-7"><p class="text-xs tracking-widest text-lime">PLANNING &amp; PRODUCTION</p><h3 class="mt-6 text-xl font-semibold">Plans into action</h3><p class="mt-4 text-sm leading-loose text-paper/75">Turn your ideas into a practical plan, with hands-on support to help bring it to life.</p></article>
-          <article class="rounded-2xl border border-white/20 p-7"><p class="text-xs tracking-widest text-lime">ONGOING SUPPORT</p><h3 class="mt-6 text-xl font-semibold">Room to keep growing</h3><p class="mt-4 text-sm leading-loose text-paper/75">Regular conversations and reviews to support your day-to-day work and help you improve as you go.</p></article>
+        <div class="grid gap-5 lg:grid-cols-2 lg:items-end"><div><p class="text-xs font-semibold tracking-[0.16em] text-white/60">03 / PRICING</p><h2 class="mt-4 text-3xl font-semibold leading-snug sm:text-4xl">A starting point that fits.</h2></div><p class="max-w-md text-sm leading-loose text-white/70 lg:justify-self-end">A focused conversation, a new page, or ongoing help. Tell us what you need and we will put together a clear proposal.</p></div>
+        <div class="mt-10 grid gap-px overflow-hidden rounded border border-white/20 bg-white/20 md:grid-cols-3">
+          <article class="flex flex-col bg-ink p-7 lg:p-8"><h3 class="text-lg font-semibold">Clarity session</h3><p class="mt-3 text-xs leading-loose text-white/70">For a clearer brief before you begin</p><p class="mt-8 flex flex-wrap items-baseline gap-2"><span class="text-3xl font-semibold tracking-tight">$150</span><span class="text-xs text-white/70">/ session</span></p><ul class="mt-7 space-y-3 border-t border-white/20 pt-6 text-sm leading-relaxed text-white/80"><li>— 60-minute online conversation</li><li>— Goals and priorities mapped out</li><li>— Practical next steps</li></ul><a href="#contact" class="mt-8 inline-flex items-center justify-between gap-4 border-b border-white/40 pb-3 text-sm font-medium hover:text-white/70">Ask about this option <span aria-hidden="true">↗</span></a></article>
+          <article class="flex flex-col bg-ink p-7 lg:p-8"><h3 class="text-lg font-semibold">Website project</h3><p class="mt-3 text-xs leading-loose text-white/70">For a service that needs its own page</p><p class="mt-8 flex flex-wrap items-baseline gap-2"><span class="text-3xl font-semibold tracking-tight">$1,200</span><span class="text-xs text-white/70">and up</span></p><ul class="mt-7 space-y-3 border-t border-white/20 pt-6 text-sm leading-relaxed text-white/80"><li>— One page, planned, designed & built</li><li>— Responsive layouts for mobile</li><li>— Launch help and a handover</li></ul><a href="#contact" class="mt-8 inline-flex items-center justify-between gap-4 border-b border-white/40 pb-3 text-sm font-medium hover:text-white/70">Ask about this option <span aria-hidden="true">↗</span></a></article>
+          <article class="flex flex-col bg-ink p-7 lg:p-8"><h3 class="text-lg font-semibold">Ongoing support</h3><p class="mt-3 text-xs leading-loose text-white/70">For the small things that keep you moving</p><p class="mt-8 flex flex-wrap items-baseline gap-2"><span class="text-3xl font-semibold tracking-tight">$250</span><span class="text-xs text-white/70">/ month</span></p><ul class="mt-7 space-y-3 border-t border-white/20 pt-6 text-sm leading-relaxed text-white/80"><li>— Regular website updates</li><li>— Graphics and announcements</li><li>— A monthly review and planning call</li></ul><a href="#contact" class="mt-8 inline-flex items-center justify-between gap-4 border-b border-white/40 pb-3 text-sm font-medium hover:text-white/70">Ask about this option <span aria-hidden="true">↗</span></a></article>
         </div>
+        <p class="mt-5 text-xs leading-loose text-white/60">Prices and packages are sample content for this template, not an actual offer or service agreement.</p>
       </div>
     </section>
 
-    <section id="pricing" class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:px-10 lg:py-24">
-      <div><p class="text-xs tracking-widest text-moss">PRICING</p><h2 class="mt-4 text-3xl font-semibold">Clear pricing.<br>Built around your needs.</h2><p class="mt-5 max-w-md leading-loose text-moss">Tell us about your goals, timing, and budget. We'll put together a proposal, so you can review the scope and cost before you decide to go ahead.</p></div>
-      <div class="rounded-2xl border border-ink/20 bg-white/60 p-8 sm:p-10"><p class="text-sm font-medium">A plan that fits</p><p class="mt-5 text-3xl font-semibold">A quote for your project</p><ul class="mt-7 space-y-4 border-t border-ink/15 pt-6 text-sm text-moss"><li>Services shaped around your goals</li><li>A clear scope and timeline</li><li>Costs and terms agreed before we begin</li></ul><a href="#contact" class="mt-8 inline-flex text-sm font-semibold underline underline-offset-4">Tell us what you have in mind ↗</a></div>
-    </section>
-
-    <section id="flow" class="border-y border-ink/15 bg-white/40">
-      <div class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-20"><p class="text-xs tracking-widest text-moss">HOW IT WORKS</p><h2 class="mt-4 text-3xl font-semibold">A simple way to get started</h2>
-        <ol class="mt-10 grid gap-8 md:grid-cols-3">
-          <li><span class="text-4xl font-light text-moss">01</span><h3 class="mt-5 text-lg font-semibold">Get in touch</h3><p class="mt-3 text-sm leading-loose text-moss">Tell us what you're thinking about and when you'd like to begin.</p></li>
-          <li><span class="text-4xl font-light text-moss">02</span><h3 class="mt-5 text-lg font-semibold">Explore the possibilities</h3><p class="mt-3 text-sm leading-loose text-moss">We'll talk through your needs and share a proposal covering the work, cost, and next steps.</p></li>
-          <li><span class="text-4xl font-light text-moss">03</span><h3 class="mt-5 text-lg font-semibold">Make a start</h3><p class="mt-3 text-sm leading-loose text-moss">Once you're happy with the plan, we'll get to work together.</p></li>
+    <section id="flow" class="mx-auto max-w-6xl px-6 py-16 lg:px-10 lg:py-24">
+      <div class="grid gap-8 lg:grid-cols-12 lg:gap-12"><div class="lg:col-span-4"><p class="text-xs font-semibold tracking-[0.16em] text-accent">04 / HOW IT WORKS</p><h2 class="mt-4 text-3xl font-semibold leading-snug sm:text-4xl">From the first hello<br>to what comes next.</h2></div>
+        <ol class="divide-y divide-line border-y border-line lg:col-span-8">
+          <li class="flex gap-5 py-6 sm:gap-7"><span class="pt-1 text-sm font-semibold text-accent">01</span><div><h3 class="text-lg font-semibold">Tell us what you have in mind</h3><p class="mt-3 text-sm leading-loose text-muted">Share your goals, what is getting in the way, and your timing. You do not need a finished brief to get in touch.</p></div></li>
+          <li class="flex gap-5 py-6 sm:gap-7"><span class="pt-1 text-sm font-semibold text-accent">02</span><div><h3 class="text-lg font-semibold">Agree on the plan</h3><p class="mt-3 text-sm leading-loose text-muted">Review the scope, price, and timeline. We agree on the details together before any work begins.</p></div></li>
+          <li class="flex gap-5 py-6 sm:gap-7"><span class="pt-1 text-sm font-semibold text-accent">03</span><div><h3 class="text-lg font-semibold">Make, review, refine</h3><p class="mt-3 text-sm leading-loose text-muted">See the work as it takes shape and share your feedback. We also help you plan the copy and images you need.</p></div></li>
+          <li class="flex gap-5 py-6 sm:gap-7"><span class="pt-1 text-sm font-semibold text-accent">04</span><div><h3 class="text-lg font-semibold">Launch and hand over</h3><p class="mt-3 text-sm leading-loose text-muted">We check the details, help you go live, and show you how things work. Ongoing help is available if you need it.</p></div></li>
         </ol>
       </div>
     </section>
 
-    <section id="faq" class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-3 lg:px-10 lg:py-24">
-      <div><p class="text-xs tracking-widest text-moss">QUESTIONS</p><h2 class="mt-4 text-3xl font-semibold">A few things you might ask</h2></div>
-      <div class="space-y-7 lg:col-span-2">
-        <article class="border-b border-ink/15 pb-7"><h3 class="font-semibold">Can we talk before I know exactly what I need?</h3><p class="mt-3 text-sm leading-loose text-moss">Of course. We can start with your challenges and goals, then work out the next steps together.</p></article>
-        <article class="border-b border-ink/15 pb-7"><h3 class="font-semibold">Can you help with a small project?</h3><p class="mt-3 text-sm leading-loose text-moss">Let us know what you have in mind. We'll explain what we can offer and suggest a practical way forward.</p></article>
-        <article class="border-b border-ink/15 pb-7"><h3 class="font-semibold">Will I know the cost before we begin?</h3><p class="mt-3 text-sm leading-loose text-moss">Yes. We'll share a quote before you commit, so you can review the details and make an informed decision.</p></article>
+    <section id="faq" class="border-y border-line bg-white">
+      <div class="mx-auto grid max-w-6xl gap-8 px-6 py-16 lg:grid-cols-12 lg:gap-12 lg:px-10 lg:py-20"><div class="lg:col-span-4"><p class="text-xs font-semibold tracking-[0.16em] text-accent">05 / QUESTIONS</p><h2 class="mt-4 text-3xl font-semibold leading-snug">A few things<br>you might ask.</h2></div>
+        <div class="divide-y divide-line lg:col-span-8">
+          <article class="py-6 first:pt-0"><h3 class="text-base font-semibold leading-loose">Can we talk before I know exactly what I need?</h3><p class="mt-3 text-sm leading-loose text-muted">Absolutely. Start with what you want to improve. We can work out what you need and what to do first, together.</p></article>
+          <article class="py-6 first:pt-0"><h3 class="text-base font-semibold leading-loose">What if I do not have copy or photographs yet?</h3><p class="mt-3 text-sm leading-loose text-muted">We will help you plan what is needed. If you would like help creating copy or arranging photography, we will discuss the scope and cost separately.</p></article>
+          <article class="py-6 first:pt-0"><h3 class="text-base font-semibold leading-loose">Will I be able to make updates myself?</h3><p class="mt-3 text-sm leading-loose text-muted">We plan around the changes you expect to make and explain how to manage them at handover. Ongoing support is also an option.</p></article>
+        </div>
       </div>
     </section>
 
-    <section id="contact" class="mx-4 rounded-3xl bg-lime sm:mx-6 lg:mx-auto lg:max-w-6xl">
-      <div class="grid gap-8 px-7 py-14 sm:px-12 lg:grid-cols-2 lg:items-center lg:py-20"><div><p class="text-xs tracking-widest">LET'S TALK</p><h2 class="mt-5 text-3xl font-semibold leading-snug sm:text-4xl">It starts with a conversation.</h2><p class="mt-5 leading-loose">A quick question or a bigger idea.<br>We'd love to hear what you have in mind.</p></div><div class="rounded-2xl border border-ink/20 bg-white/40 p-7"><p class="text-sm font-semibold">Contact details (example)</p><p class="mt-4 text-sm leading-loose">A place for your business name, contact details, and opening hours.</p><p class="mt-4 text-xs leading-relaxed text-moss">This is an example service page. The descriptions are sample content, not actual service terms.</p></div></div>
+    <section id="contact" class="bg-accent text-white">
+      <div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-12 lg:items-center lg:gap-12 lg:px-10 lg:py-20"><div class="lg:col-span-7"><p class="text-xs font-semibold tracking-[0.16em] text-white/70">LET’S MAKE SOMETHING GOOD.</p><h2 class="mt-5 text-3xl font-semibold leading-snug sm:text-4xl">What would you<br>like to make next?</h2><p class="mt-5 max-w-md text-sm leading-loose text-white/80">Tell us a little about your project, your timing, and the budget you have in mind. We can work out the next step together.</p></div><div class="border-t border-white/40 pt-6 lg:col-span-5"><p class="text-sm font-semibold">Contact details (example)</p><p class="mt-5 text-2xl font-medium tracking-tight">hello@example.com</p><p class="mt-3 text-sm leading-loose text-white/80">YOUR STUDIO / Web & design</p><p class="mt-6 text-xs leading-loose text-white/70">This page introduces a fictional studio.<br>The example address does not accept enquiries.</p></div></div>
     </section>
   </main>
 
-  <footer class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-6 py-10 text-xs text-moss lg:px-10"><p class="font-semibold tracking-widest">YOUR SERVICE.</p><p>Service landing page / Sample content</p><a href="#home">Back to top ↑</a></footer>
+  <footer class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-6 py-8 text-xs text-muted lg:px-10"><p class="text-sm font-bold tracking-tight text-ink">YOUR STUDIO.</p><p>Service landing page / Sample content</p><a href="#home" class="py-2 hover:text-accent">Back to top ↑</a></footer>
 </div>

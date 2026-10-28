@@ -5,6 +5,20 @@ Edit `index.html` (Japanese), `index.en.html` (English), `style.css`, and `manif
 `Tailwind_Compiler` as the plugin to render both the placeholder preview and the
 photographic demonstration. No external resources are needed at runtime.
 
+## Service introduction example (2026-10-28)
+
+The free template uses a fictional small web and design studio as its concrete
+example. Its structure remains reusable: services, approach, pricing, process,
+questions, and contact details. Replace the sample copy for another business;
+no industry-specific integration is required. Prices and the reserved
+`hello@example.com` address are explicitly examples, with no outgoing mail link.
+
+The layout uses warm paper, charcoal, and a blue accent, with a typographic hero,
+numbered service rows, and three packages showing their scope. The image is a
+smaller 6:5 rectangle instead of the previous large arch and overlapping badge.
+The neutral placeholder remains the imported asset. Japanese and English share
+the layout and CSS; both photographic thumbnails must be recaptured after edits.
+
 ## Photograph and screenshot
 
 `demo-workspace.png` is an original image produced on 2026-10-26 with the built-in
@@ -58,8 +72,9 @@ Created pages record the selected locale and keep an independent HTML/CSS copy.
 
 `images/landscape.png` is a 768 × 768, 162,784-byte neutral grayscale placeholder,
 with one bold picture pictogram and no text. It uses no template-specific color.
-Its icon sits above the lower 35% to stay clear of the hero badge at mobile widths;
-there is no inset border that gets cut off by the arch-shaped display mask.
+Its icon sits above the lower 35%, originally to stay clear of the old hero badge.
+The current rectangular 6:5 display crops the square asset slightly at the top
+and bottom; the complete pictogram stays visible. There is no text or inset border.
 
 The artwork was generated on 2026-10-27 with the built-in `image_gen` tool, then
 resampled to 768px and normalized to grayscale for the distributed PNG. Every

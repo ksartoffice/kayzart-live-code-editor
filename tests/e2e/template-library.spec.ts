@@ -137,27 +137,27 @@ test('language selection changes the thumbnail, preview, and saved English page 
   expect(await language.evaluate(select => new FormData(document.querySelector<HTMLFormElement>('.kayzart-template-form')!).get('template_locale'))).toBe('en');
   await page.locator('[data-template-preview]').click();
   await expect(preview.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(preview.locator('h1')).toContainText('Your next step,');
+  await expect(preview.locator('h1')).toContainText('Good design.');
   await page.locator('[data-template-close]').click();
   await language.selectOption('ja');
   await expect(thumbnail).toHaveAttribute('src', /\/thumbnail\.webp/);
   await page.locator('[data-template-preview]').click();
   await expect(preview.locator('html')).toHaveAttribute('lang', 'ja');
-  await expect(preview.locator('h1')).toContainText('その想いを、');
+  await expect(preview.locator('h1')).toContainText('伝わるデザインで、');
   await page.locator('[data-template-close]').click();
   await language.selectOption('en');
   await page.locator('[data-template-preview]').click();
-  await expect(preview.locator('h1')).toContainText('Your next step,');
+  await expect(preview.locator('h1')).toContainText('Good design.');
   await page.locator('[data-template-close]').click();
   await withTemporaryTemplatePage(page, 'Temporary English template page', async postId => {
     const initial = await page.evaluate(() => (window as any).KAYZART_EXTENSION_API.getEditorSnapshot());
     expect(initial.html).toContain('lang="en"');
-    expect(initial.html).toContain('Your next step,');
-    expect(initial.html).not.toContain('その想いを、');
+    expect(initial.html).toContain('Good design.');
+    expect(initial.html).not.toContain('伝わるデザインで、');
     await page.evaluate(() => {
       const api = (window as any).KAYZART_EXTENSION_API;
       const snapshot = api.getEditorSnapshot();
-      snapshot.html = snapshot.html.replace('Your next step,', 'A fresh start,');
+      snapshot.html = snapshot.html.replace('Good design.', 'A fresh start,');
       if (!api.replaceEditorSnapshot(snapshot)) throw new Error('English snapshot was rejected');
     });
     const saved = page.waitForResponse(response => response.url().includes('/kayzart/v1/save') && response.request().method() === 'POST');

@@ -75,7 +75,7 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$this->assertSame( $ja['css'], $en['css'] );
 		$this->assertSame( $ja['assets'], $en['assets'] );
 		$this->assertStringContainsString( 'lang="en"', $en['html'] );
-		$this->assertStringContainsString( 'Your next step,', $en['html'] );
+		$this->assertStringContainsString( 'Good design.', $en['html'] );
 		$this->assertSame( 0, preg_match( '/[\x{3040}-\x{30ff}\x{4e00}-\x{9fff}]/u', $en['html'] ) );
 		preg_match_all( '/class="([^"]*)"/', $ja['html'], $ja_classes );
 		preg_match_all( '/class="([^"]*)"/', $en['html'], $en_classes );
@@ -99,9 +99,9 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$ja = Template_Library::preview( 'general-service-lp', 'ja' );
 		$this->assertIsString( $en );
 		$this->assertStringContainsString( '<html lang="en">', $en );
-		$this->assertStringContainsString( 'Your next step,', $en );
+		$this->assertStringContainsString( 'Good design.', $en );
 		$this->assertStringContainsString( '<html lang="ja">', $ja );
-		$this->assertStringNotContainsString( 'Your next step,', $ja );
+		$this->assertStringNotContainsString( 'Good design.', $ja );
 		$this->assertSame( $en, Template_Library::preview( 'general-service-lp', 'en' ) );
 	}
 
@@ -111,14 +111,14 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$this->assertIsInt( $id );
 		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
 		$this->assertStringContainsString( 'lang="en"', get_post( $id )->post_content );
-		$this->assertStringContainsString( 'Your next step,', get_post( $id )->post_content );
+		$this->assertStringContainsString( 'Good design.', get_post( $id )->post_content );
 		$this->assertStringContainsString( wp_upload_dir()['baseurl'], get_post( $id )->post_content );
 		$this->assertSame( $id, $this->create_page( $request, 'en' ) );
 		$conflict = $this->create_page( $request, 'ja' );
 		$this->assertWPError( $conflict );
 		$this->assertSame( 'template_request_conflict', $conflict->get_error_code() );
 		$this->assertSame( 'en', get_post_meta( $id, Template_Page_Creator::LOCALE_META, true ) );
-		$this->assertStringContainsString( 'Your next step,', get_post( $id )->post_content );
+		$this->assertStringContainsString( 'Good design.', get_post( $id )->post_content );
 	}
 
 	public function test_language_selector_and_retry_keep_preview_and_form_in_sync(): void {
@@ -284,7 +284,7 @@ class Test_Template_Library extends WP_UnitTestCase {
 		global $wpdb;
 		$before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts}" );
 		$break  = static function ( $data ) {
-			if ( 'page' === $data['post_type'] && false !== strpos( $data['post_content'], 'YOUR SERVICE' ) ) {
+			if ( 'page' === $data['post_type'] && '' !== $data['post_content'] ) {
 				$data['post_content'] = '<p>Fixture rejected save</p>';
 			}
 			return $data;

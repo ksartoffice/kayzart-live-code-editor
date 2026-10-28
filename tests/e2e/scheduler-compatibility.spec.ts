@@ -21,7 +21,7 @@ test('authenticated admin screens render with the compatible scheduler', async (
   await login(page);
   for (const [path, marker] of [
     ['wp-admin/', '#dashboard-widgets-wrap'],
-    ['wp-admin/admin.php?page=kayzart-new', '.kayzart-create-form'],
+    ['wp-admin/admin.php?page=kayzart-new', '.kayzart-start-methods'],
     ['wp-admin/admin.php?page=kayzart-settings', 'form[action="options.php"]'],
   ]) {
     const response = await page.goto(new URL(path, baseUrl).toString());
@@ -39,7 +39,7 @@ for (const order of ['before', 'after']) {
     await login(page);
     const response = await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
     expect(response!.status()).toBe(200);
-    await expect(page.locator('.kayzart-create-form')).toBeVisible();
+    await expect(page.locator('.kayzart-start-methods')).toBeVisible();
     await expectScheduler(page);
   });
 }

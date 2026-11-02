@@ -26,7 +26,7 @@ test('preview stays local and a template becomes an editable, publishable page',
   await page.locator('[data-template-language-filter]').selectOption('ja');
   await expect(visibleCard).toHaveCount(1);
   await expect(visibleCard.locator('.kayzart-template-photo-note')).toBeVisible();
-  await expect(visibleCard.locator('.kayzart-template-font-note')).toContainText('Noto Sans JP');
+  await expect(visibleCard.locator('.kayzart-template-card__body > .kayzart-template-font-note')).toContainText('Noto Sans JP');
   await visibleCard.locator('[data-template-preview]').click();
   const frame = page.locator('#kayzart-template-preview iframe');
   await expect(frame).toHaveAttribute('sandbox', 'allow-scripts');
@@ -47,7 +47,7 @@ test('preview stays local and a template becomes an editable, publishable page',
   await page.locator('[data-template-language-filter]').selectOption('en');
   const englishCard = page.locator('.kayzart-template-card:visible');
   await expect(englishCard).toHaveCount(1);
-  await expect(englishCard.locator('.kayzart-template-font-note')).toContainText('Instrument Sans, Instrument Serif');
+  await expect(englishCard.locator('.kayzart-template-card__body > .kayzart-template-font-note')).toContainText('Instrument Sans, Instrument Serif');
   await expect(englishCard.locator('[name="template_locale"]')).toHaveValue('en');
   await englishCard.locator('[data-template-preview]').click();
   await expect(frame).toHaveAttribute('srcdoc', /Less busywork\./);
@@ -127,11 +127,13 @@ test('declared motion responds to live HTML edits and survives saving and publis
   await expect(page.locator('[data-template-language-filter]')).toHaveValue('en');
   await expect(page.locator('[data-template-language-filter] option')).toHaveCount(2);
   await expect(page.locator('.kayzart-template-card select')).toHaveCount(0);
-  await page.locator('.kayzart-template-card:visible [name="post_title"]').fill('Kept title');
-  await page.locator('[data-template-language-filter]').selectOption('ja');
-  await expect(page.locator('.kayzart-template-card:visible [name="post_title"]')).toHaveValue('Kept title');
   expect(google).toEqual([]);
   await page.locator('.kayzart-template-card:visible [data-template-preview]').click();
+  await page.locator('#kayzart-template-preview [name="post_title"]').fill('Kept title');
+  await page.locator('[data-template-close]').click();
+  await page.locator('[data-template-language-filter]').selectOption('ja');
+  await page.locator('.kayzart-template-card:visible [data-template-preview]').click();
+  await expect(page.locator('#kayzart-template-preview [name="post_title"]')).toHaveValue('Kept title');
   const detail = page.frameLocator('#kayzart-template-preview iframe');
   await expect(detail.locator('h1')).toContainText('終止符を。');
   await expect.poll(() => detail.locator('[data-kz-effect="float"]').evaluate(el => el.getAnimations().length)).toBe(1);
@@ -229,4 +231,55 @@ test('mode switches preserve the template styles and source after reopening', as
     expect(await page.evaluate(() => (window as any).KAYZART.initialCssByMode.normal)).toBe(compiled);
     await expect(preview.locator('body')).toHaveCSS('background-color', 'rgb(255, 253, 248)');
   });
+});
+
+
+test('template grid keeps cards compact and details accessible across screen sizes', async ({ page }) => {
+  await login(page);
+  await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
+  await page.locator('[data-kayzart-start="template"]').click();
+  await page.locator('[data-template-language-filter]').selectOption('ja');
+  // Additional cards only exercise layout; no templates or posts are installed.
+  await page.evaluate(() => {
+    const grid = document.querySelector('.kayzart-template-grid')!;
+    const source = grid.querySelector<HTMLElement>('.kayzart-template-card:not([hidden])')!;
+    for (let index = 0; index < 3; index++) {
+      const clone = source.cloneNode(true) as HTMLElement;
+      clone.querySelector('[data-template-detail]')?.remove();
+      clone.querySelector('h2')!.textContent = `Layout example ${index + 1}`;
+      clone.setAttribute('data-layout-fixture', '');
+      grid.appendChild(clone);
+    }
+  });
+  for (const width of [390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const cards = await page.locator('.kayzart-template-card:visible').evaluateAll(elements => elements.map(element => {
+      const box = element.getBoundingClientRect();
+      return { width: box.width, left: box.left, top: box.top };
+    }));
+    expect(cards).toHaveLength(4);
+    expect(cards.every(card => card.width <= 360.5 && card.width > 200)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    if (width === 1440) {
+      expect(cards[1].left).toBeGreaterThan(cards[0].left);
+      expect(cards[2].top).toBe(cards[0].top);
+      expect(cards[3].top).toBeGreaterThan(cards[0].top);
+    }
+    await page.screenshot({ path: `test-results/template-grid-${width}.png`, fullPage: true });
+  }
+  await page.locator('[data-layout-fixture]').evaluateAll(elements => elements.forEach(element => element.remove()));
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const opener = page.locator('.kayzart-template-card:visible [data-template-preview]');
+    await opener.click();
+    const dialog = page.locator('#kayzart-template-preview');
+    await expect(dialog.locator('.kayzart-template-form')).toBeVisible();
+    await dialog.locator('[name="post_title"]').fill('Layout check');
+    await expect(dialog.locator('button[type="submit"]')).toBeEnabled();
+    await expect(dialog.locator('iframe')).toHaveAttribute('srcdoc', /終止符を/);
+    await page.screenshot({ path: `test-results/template-detail-${width}.png` });
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(opener).toBeFocused();
+  }
 });

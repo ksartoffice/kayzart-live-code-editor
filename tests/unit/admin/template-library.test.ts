@@ -8,27 +8,28 @@ const variants = {
   en: { thumbnail: '/thumbnail.en.webp', preview: '/preview?template_locale=en' },
 };
 
-function render(defaultMode = 'template', cardVariants: Array<Record<string, typeof variants.ja>> = [variants], defaultLocale = 'ja') {
+function render(defaultMode = 'template', cardVariants: Array<Record<string, typeof variants.ja>> = [variants], defaultLocale = 'ja', retryIndex = -1, supportsDialog = true) {
   document.body.innerHTML = `
     <div class="kayzart-start-methods" data-default-start="${defaultMode}">
       <button data-kayzart-start="template">Template</button><button data-kayzart-start="ai">AI</button><button data-kayzart-start="blank">Blank</button>
     </div>
     <section id="kayzart-template-panel"><p id="kayzart-template-kept-input" hidden>AI input is kept</p>
       <label for="language-filter">Template language</label><select id="language-filter" data-template-language-filter>${Array.from(new Set(['ja', 'en', ...cardVariants.flatMap(card => Object.keys(card))])).map(locale => `<option value="${locale}" ${locale === defaultLocale ? 'selected' : ''}>${locale}</option>`).join('')}</select>
-      ${cardVariants.map((locales, index) => `<article class="kayzart-template-card" data-template-variants='${JSON.stringify(locales)}'><div class="kayzart-template-art"><img src="/thumbnail.webp"></div>
-      <form id="template-form-${index}" class="kayzart-template-form"><input type="hidden" name="template_locale" value="ja"><input name="start_mode" value="template"><input name="request_id" value="request"><input name="post_title" value="Template title"><button type="submit" data-loading-label="Creating">Create</button></form>
-      <button data-template-preview="/preview?template_locale=ja">Preview</button></article>`).join('')}
+      ${cardVariants.map((locales, index) => `<article class="kayzart-template-card" data-template-variants='${JSON.stringify(locales)}' ${index === retryIndex ? "data-template-retry" : ""}><div class="kayzart-template-art"><img src="/thumbnail.webp"></div>
+      <div class="kayzart-template-card__body"><h2>Template ${index}</h2><div data-template-detail hidden><p>Details ${index}</p><form id="template-form-${index}" class="kayzart-template-form"><input type="hidden" name="template_locale" value="ja"><input name="start_mode" value="template"><input name="request_id" value="${index === 0 ? "request" : `request-${index}`}"><input name="post_title" value="Template title"><button type="submit" data-loading-label="Creating">Create</button></form></div>
+      <button data-template-preview="/preview?template_locale=ja">Preview</button></div></article>`).join('')}
       <p data-template-empty hidden>No templates yet</p>
     </section>
     <form class="kayzart-create-form"><div id="kayzart-ai-setup-card"></div><a id="kayzart-ai-open-settings"></a>
       <div class="kayzart-create-field"><textarea id="kayzart-initial-ai-prompt">Existing AI instruction</textarea></div>
       <button id="kayzart-generate-ai">Generate</button><button id="kayzart-create-blank">Blank</button>
     </form>
-    <dialog id="kayzart-template-preview"><button data-template-close>Close</button><button data-template-width="desktop" aria-pressed="true">Desktop</button><button data-template-width="mobile" aria-pressed="false">Mobile</button><p data-template-preview-status data-loading="Loading" data-error="Retry"></p><iframe sandbox></iframe></dialog>`;
+    <dialog id="kayzart-template-preview"><h2 id="kayzart-template-preview-title">Preview</h2><div data-template-detail-slot></div><button data-template-close>Close</button><button data-template-width="desktop" aria-pressed="true">Desktop</button><button data-template-width="mobile" aria-pressed="false">Mobile</button><p data-template-preview-status data-loading="Loading" data-error="Retry"></p><iframe sandbox></iframe></dialog>`;
   (window as any).KAYZART_NEW_PAGE = { ai: { available: false, canSetUp: true } };
   const dialog = document.querySelector('dialog')!;
   dialog.showModal = () => { dialog.open = true; };
   dialog.close = () => { dialog.open = false; dialog.dispatchEvent(new Event('close')); };
+  if (!supportsDialog) dialog.showModal = undefined as any;
   window.eval(script);
 }
 
@@ -200,4 +201,76 @@ describe('bundled template UI', () => {
     expect(desktop.getAttribute('aria-pressed')).toBe('true');
     expect(mobile.getAttribute('aria-pressed')).toBe('false');
   });
+  it('moves the selected details and original form into the dialog and returns them on close', async () => {
+    render('template', [{ ja: variants.ja }, { ja: variants.ja }]);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { document: '<p>Preview</p>' } }) }));
+    const cards = document.querySelectorAll<HTMLElement>('.kayzart-template-card');
+    const originalForm = cards[1].querySelector('form')!;
+    const button = cards[1].querySelector<HTMLButtonElement>('[data-template-preview]')!;
+    button.click();
+    const dialog = document.querySelector('dialog')!;
+    expect(dialog.querySelector('form')).toBe(originalForm);
+    expect(dialog.querySelector('[data-template-detail]')!.hasAttribute('hidden')).toBe(false);
+    expect(dialog.querySelector('h2')!.textContent).toBe('Template 1');
+    expect(new FormData(originalForm).get('request_id')).toBe('request-1');
+    expect(cards[0].querySelector('form')).not.toBeNull();
+    const title = originalForm.querySelector<HTMLInputElement>('[name="post_title"]')!;
+    title.value = 'Shared page title';
+    title.dispatchEvent(new Event('input'));
+    document.querySelector<HTMLButtonElement>('[data-template-close]')!.click();
+    expect(cards[1].querySelector('form')).toBe(originalForm);
+    expect(cards[1].querySelector<HTMLElement>('[data-template-detail]')!.hidden).toBe(true);
+    expect(document.activeElement).toBe(button);
+    cards[0].querySelector<HTMLButtonElement>('[data-template-preview]')!.click();
+    expect(dialog.querySelector<HTMLInputElement>('[name="post_title"]')!.value).toBe('Shared page title');
+  });
+
+  it('restores a moved form after pageshow without enabling a permission-disabled submit', () => {
+    render();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})));
+    document.querySelector<HTMLButtonElement>('[data-template-preview]')!.click();
+    const form = document.querySelector<HTMLFormElement>('dialog form')!;
+    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    window.dispatchEvent(new Event('pageshow'));
+    expect(form.hasAttribute('aria-busy')).toBe(false);
+    expect(form.querySelector<HTMLButtonElement>('button')!.disabled).toBe(false);
+    form.querySelector<HTMLButtonElement>('button')!.disabled = true;
+    window.dispatchEvent(new Event('pageshow'));
+    expect(form.querySelector<HTMLButtonElement>('button')!.disabled).toBe(true);
+  });
+
+  it('keeps creation available on preview failure and ignores a response after closing', async () => {
+    render();
+    let resolvePreview!: (response: any) => void;
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(() => new Promise(resolve => { resolvePreview = resolve; })));
+    const button = document.querySelector<HTMLButtonElement>('[data-template-preview]')!;
+    button.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-template-preview-status]')!.textContent).toBe('Retry'));
+    expect(document.querySelector<HTMLButtonElement>('dialog form button')!.disabled).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-template-close]')!.click();
+    button.click();
+    document.querySelector<HTMLButtonElement>('[data-template-close]')!.click();
+    resolvePreview({ ok: true, json: async () => ({ success: true, data: { document: '<p>Late</p>' } }) });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.querySelector('iframe')!.hasAttribute('srcdoc')).toBe(false);
+  });
+
+  it('reopens the template selected by a failed creation request', () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})));
+    render('template', [{ ja: variants.ja }, { ja: variants.ja }], 'ja', 1);
+    expect(document.querySelector('dialog')!.open).toBe(true);
+    expect(document.querySelector('dialog form')!.id).toBe('template-form-1');
+  });
+
+  it('exposes the creation form inline when native dialogs are unavailable', () => {
+    render('template', [variants], 'ja', -1, false);
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    document.querySelector<HTMLButtonElement>('[data-template-preview]')!.click();
+    expect(document.querySelector<HTMLElement>('[data-template-detail]')!.hidden).toBe(false);
+    expect(document.querySelector('.kayzart-template-card form')).not.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
 });

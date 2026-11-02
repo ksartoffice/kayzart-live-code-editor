@@ -64,55 +64,67 @@ class Template_Admin {
 		}
 		echo '</select></div>';
 		$has_templates = false;
+		echo '<div class="kayzart-template-grid">';
 		foreach ( Template_Library::catalog() as $id => $summary ) {
-			$create_reason = ! empty( $summary['requiresJs'] ) && ! current_user_can( 'unfiltered_html' ) ? __( 'You need permission to edit JavaScript and custom head markup to create this template.', 'kayzart-live-code-editor' ) : $reason;
+			$create_reason = ! empty( $summary['requiresUnfilteredHtml'] ) && ! current_user_can( 'unfiltered_html' ) ? __( 'You need permission to edit JavaScript and custom head markup to create this template.', 'kayzart-live-code-editor' ) : $reason;
 			$available     = isset( $summary['variants'][ $locale ] );
 			$has_templates = $has_templates || $available;
 			$card_locale   = $available ? $locale : array_key_first( $summary['variants'] );
-			$preview_base  = add_query_arg(
-				array(
-					'action'      => self::PREVIEW_ACTION,
-					'template_id' => $id,
-				),
-				admin_url( 'admin.php' )
-			);
+			$is_retry      = ( $retry['template_id'] ?? '' ) === $id && isset( $summary['variants'][ $locale ] );
 			$variants      = array();
 			foreach ( $summary['variants'] as $variant_locale => $variant ) {
 				$variants[ $variant_locale ] = array(
 					'thumbnail' => $variant['thumbnail'],
 					'preview'   => add_query_arg(
 						array(
+							'action'          => self::PREVIEW_ACTION,
+							'template_id'     => $id,
 							'template_locale' => $variant_locale,
 							'_wpnonce'        => wp_create_nonce( self::PREVIEW_ACTION ),
 						),
-						$preview_base
+						admin_url( 'admin.php' )
 					),
 				);
 			}
-			$preview_url = $variants[ $card_locale ]['preview'];
-			echo '<article class="kayzart-template-card" data-template-variants="' . esc_attr( wp_json_encode( $variants ) ) . '"' . ( $available ? '' : ' hidden' ) . '>';
+			echo '<article class="kayzart-template-card" data-template-id="' . esc_attr( $id ) . '" data-template-tier="' . esc_attr( $summary['tier'] ) . '" data-template-source="' . esc_attr( $summary['source'] ) . '" data-template-variants="' . esc_attr( wp_json_encode( $variants ) ) . '"' . ( $is_retry ? ' data-template-retry' : '' ) . ( $available ? '' : ' hidden' ) . '>';
 			echo '<div class="kayzart-template-art"><img src="' . esc_url( $variants[ $card_locale ]['thumbnail'] ) . '" alt="' . esc_attr( $summary['title'] ) . '" width="1200" height="900"></div>';
-			echo '<div class="kayzart-template-card__body"><p><span class="kayzart-create-badge">' . esc_html__( 'Free', 'kayzart-live-code-editor' ) . '</span></p>';
+			echo '<div class="kayzart-template-card__body"><p><span class="kayzart-create-badge">' . esc_html( 'free' === $summary['tier'] ? __( 'Free', 'kayzart-live-code-editor' ) : __( 'Paid', 'kayzart-live-code-editor' ) ) . '</span></p>';
 			echo '<h2>' . esc_html( $summary['title'] ) . '</h2><p>' . esc_html( $summary['description'] ) . '</p>';
 			echo '<p class="kayzart-template-photo-note">' . esc_html__( 'The thumbnail photo is an example. Your page includes image placeholders you can replace with your own images.', 'kayzart-live-code-editor' ) . '</p>';
-			if ( ! empty( $summary['fonts'] ) ) {
-				/* translators: %s: names of the fonts declared by this template. */
-				echo '<div class="kayzart-template-font-note"><p>' . esc_html( sprintf( __( 'Fonts: %s — Google Fonts', 'kayzart-live-code-editor' ), $summary['fonts'] ) ) . '</p><p>' . esc_html__( 'The preview and pages created from this template load fonts from Google servers when displayed.', 'kayzart-live-code-editor' ) . ' <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Google Privacy Policy', 'kayzart-live-code-editor' ) . '</a></p></div>';
+			self::render_font_note( $summary );
+			echo '<button class="button" type="button" data-template-preview="' . esc_url( $variants[ $card_locale ]['preview'] ) . '" aria-haspopup="dialog"' . disabled( '' !== $reason, true, false ) . '>' . esc_html__( 'Details and preview', 'kayzart-live-code-editor' ) . '</button>';
+			echo '<div data-template-detail hidden><p>' . esc_html( $summary['description'] ) . '</p>';
+			/* translators: %s: installed template version. */
+			echo '<p class="kayzart-template-version">' . esc_html( sprintf( __( 'Version: %s', 'kayzart-live-code-editor' ), $summary['version'] ) ) . '</p>';
+			self::render_font_note( $summary );
+			if ( $is_retry && ! empty( $retry['message'] ) ) {
+				echo '<div class="notice notice-error inline" role="alert"><p>' . esc_html( $retry['message'] ) . '</p></div>';
 			}
-			if ( '' !== $create_reason && $create_reason !== $reason ) {
-				echo '<p class="kayzart-template-photo-note">' . esc_html( $create_reason ) . '</p>';
+			if ( '' !== $create_reason ) {
+				echo '<p class="notice notice-warning inline">' . esc_html( $create_reason ) . '</p>';
 			}
-			echo '<button class="button" type="button" data-template-preview="' . esc_url( $preview_url ) . '"' . disabled( '' !== $reason, true, false ) . '>' . esc_html__( 'Preview template', 'kayzart-live-code-editor' ) . '</button>';
 			echo '<form id="kayzart-template-form-' . esc_attr( $id ) . '" class="kayzart-template-form" method="post" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
-			echo '<input type="hidden" name="action" value="' . esc_attr( Admin::NEW_PAGE_ACTION ) . '"><input type="hidden" name="start_mode" value="template"><input type="hidden" name="template_id" value="' . esc_attr( $id ) . '"><input type="hidden" name="request_id" value="' . esc_attr( $retry['request_id'] ?? wp_generate_uuid4() ) . '">';
-			echo '<input type="hidden" name="template_locale" value="' . esc_attr( $card_locale ) . '">';
-			echo '<input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ) ) . '">';
+			echo '<input type="hidden" name="action" value="' . esc_attr( Admin::NEW_PAGE_ACTION ) . '"><input type="hidden" name="start_mode" value="template"><input type="hidden" name="template_id" value="' . esc_attr( $id ) . '"><input type="hidden" name="request_id" value="' . esc_attr( $is_retry && wp_is_uuid( $retry['request_id'] ?? '', 4 ) ? $retry['request_id'] : wp_generate_uuid4() ) . '">';
+			echo '<input type="hidden" name="template_locale" value="' . esc_attr( $card_locale ) . '"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( Admin::NEW_PAGE_NONCE_ACTION ) ) . '">';
 			echo '<label for="kayzart-template-title-' . esc_attr( $id ) . '">' . esc_html__( 'Page title', 'kayzart-live-code-editor' ) . '</label><input id="kayzart-template-title-' . esc_attr( $id ) . '" name="post_title" type="text" value="' . esc_attr( $retry['title'] ?? '' ) . '" placeholder="' . esc_attr__( 'Optional. You can rename the page later.', 'kayzart-live-code-editor' ) . '">';
-			echo '<button class="button button-primary button-large" type="submit" data-loading-label="' . esc_attr__( 'Creating…', 'kayzart-live-code-editor' ) . '"' . disabled( '' !== $create_reason, true, false ) . '>' . esc_html__( 'Create from this template', 'kayzart-live-code-editor' ) . '</button></form></div></article>';
+			echo '<button class="button button-primary button-large" type="submit" data-loading-label="' . esc_attr__( 'Creating…', 'kayzart-live-code-editor' ) . '"' . disabled( '' !== $create_reason || empty( $summary['hasPackage'] ), true, false ) . '>' . esc_html__( 'Create from this template', 'kayzart-live-code-editor' ) . '</button></form></div></div></article>';
 		}
-		echo '<p class="kayzart-template-empty" data-template-empty role="status"' . ( $has_templates ? ' hidden' : '' ) . '>' . esc_html__( 'No templates are available in this language yet.', 'kayzart-live-code-editor' ) . '</p>';
-		echo '</section><dialog id="kayzart-template-preview" aria-labelledby="kayzart-template-preview-title" aria-describedby="kayzart-template-preview-description"><header><h2 id="kayzart-template-preview-title">' . esc_html__( 'Template preview', 'kayzart-live-code-editor' ) . '</h2><div class="kayzart-template-preview-actions"><div class="kayzart-template-widths" role="group" aria-labelledby="kayzart-template-preview-title"><button type="button" class="kayzart-template-width" data-template-width="desktop" aria-pressed="true"><span class="dashicons dashicons-desktop" aria-hidden="true"></span>' . esc_html__( 'Desktop', 'kayzart-live-code-editor' ) . '</button><button type="button" class="kayzart-template-width" data-template-width="mobile" aria-pressed="false"><span class="dashicons dashicons-smartphone" aria-hidden="true"></span>' . esc_html__( 'Mobile', 'kayzart-live-code-editor' ) . '</button></div><button type="button" class="kayzart-template-close" data-template-close><span class="dashicons dashicons-no-alt" aria-hidden="true"></span>' . esc_html__( 'Close', 'kayzart-live-code-editor' ) . '</button></div></header>';
-		echo '<p id="kayzart-template-preview-description">' . esc_html__( 'This preview includes the template motion and loads its fonts from Google Fonts.', 'kayzart-live-code-editor' ) . '</p><p data-template-preview-status role="status" data-loading="' . esc_attr__( 'Loading preview…', 'kayzart-live-code-editor' ) . '" data-error="' . esc_attr__( 'Could not load the preview. Please try again.', 'kayzart-live-code-editor' ) . '"></p><div class="kayzart-template-viewport"><iframe sandbox="allow-scripts" title="' . esc_attr__( 'Page template preview', 'kayzart-live-code-editor' ) . '"></iframe></div></dialog>';
+		echo '</div><p class="kayzart-template-empty" data-template-empty role="status"' . ( $has_templates ? ' hidden' : '' ) . '>' . esc_html__( 'No templates are available in this language yet.', 'kayzart-live-code-editor' ) . '</p>';
+		echo '</section><dialog id="kayzart-template-preview" aria-labelledby="kayzart-template-preview-title" aria-describedby="kayzart-template-preview-description"><header><h2 id="kayzart-template-preview-title">' . esc_html__( 'Template preview', 'kayzart-live-code-editor' ) . '</h2><div class="kayzart-template-preview-actions"><div class="kayzart-template-widths" role="group" aria-label="' . esc_attr__( 'Template preview', 'kayzart-live-code-editor' ) . '"><button type="button" class="kayzart-template-width" data-template-width="desktop" aria-pressed="true"><span class="dashicons dashicons-desktop" aria-hidden="true"></span>' . esc_html__( 'Desktop', 'kayzart-live-code-editor' ) . '</button><button type="button" class="kayzart-template-width" data-template-width="mobile" aria-pressed="false"><span class="dashicons dashicons-smartphone" aria-hidden="true"></span>' . esc_html__( 'Mobile', 'kayzart-live-code-editor' ) . '</button></div><button type="button" class="kayzart-template-close" data-template-close><span class="dashicons dashicons-no-alt" aria-hidden="true"></span>' . esc_html__( 'Close', 'kayzart-live-code-editor' ) . '</button></div></header>';
+		echo '<p id="kayzart-template-preview-description">' . esc_html__( 'The thumbnail photo is an example. Your page includes image placeholders you can replace with your own images.', 'kayzart-live-code-editor' ) . '</p><div class="kayzart-template-detail-layout"><div class="kayzart-template-detail-sidebar" data-template-detail-slot></div><div class="kayzart-template-preview-body"><p data-template-preview-status role="status" data-loading="' . esc_attr__( 'Loading preview…', 'kayzart-live-code-editor' ) . '" data-error="' . esc_attr__( 'Could not load the preview. Please try again.', 'kayzart-live-code-editor' ) . '"></p><div class="kayzart-template-viewport"><iframe sandbox="allow-scripts" title="' . esc_attr__( 'Page template preview', 'kayzart-live-code-editor' ) . '"></iframe></div></div></div></dialog>';
+	}
+
+	/**
+	 * Disclose external fonts before any preview action and in template details.
+	 *
+	 * @param array $summary Public template summary.
+	 */
+	private static function render_font_note( array $summary ): void {
+		if ( empty( $summary['fonts'] ) ) {
+			return;
+		}
+		/* translators: %s: names of the fonts declared by this template. */
+		echo '<div class="kayzart-template-font-note"><p>' . esc_html( sprintf( __( 'Fonts: %s — Google Fonts', 'kayzart-live-code-editor' ), $summary['fonts'] ) ) . '</p><p>' . esc_html__( 'The preview and pages created from this template load fonts from Google servers when displayed.', 'kayzart-live-code-editor' ) . ' <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Google Privacy Policy', 'kayzart-live-code-editor' ) . '</a></p></div>';
 	}
 
 	/** Create from the nonce-verified form, preserving input on a recoverable error. */
@@ -131,10 +143,11 @@ class Template_Admin {
 			set_transient(
 				'kayzart_template_retry_' . get_current_user_id(),
 				array(
-					'message'    => $result->get_error_message(),
-					'title'      => $title,
-					'locale'     => $locale,
-					'request_id' => wp_is_uuid( $request, 4 ) ? $request : wp_generate_uuid4(),
+					'message'     => $result->get_error_message(),
+					'template_id' => $id,
+					'title'       => $title,
+					'locale'      => $locale,
+					'request_id'  => wp_is_uuid( $request, 4 ) ? $request : wp_generate_uuid4(),
 				),
 				5 * MINUTE_IN_SECONDS
 			);

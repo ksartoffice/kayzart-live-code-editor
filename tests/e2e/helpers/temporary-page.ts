@@ -68,8 +68,10 @@ export async function withTemporaryTemplatePage(
     await page.locator('[data-kayzart-start="template"]').click();
     await page.locator('[data-template-language-filter]').selectOption(locale);
     const card = page.locator('.kayzart-template-card:visible');
-    await card.locator('[name="post_title"]').fill(title);
-    await card.locator('.kayzart-template-form button[type="submit"]').click();
+    await card.locator('[data-template-preview]').click();
+    const detail = page.locator('#kayzart-template-preview');
+    await detail.locator('[name="post_title"]').fill(title);
+    await detail.locator('.kayzart-template-form button[type="submit"]').click();
     await page.waitForFunction(() => Boolean((window as any).KAYZART_EXTENSION_API?.getEditorSnapshot));
     createdId = await page.evaluate(() => Number((window as any).KAYZART.post_id));
     expect(createdId).toBeGreaterThan(0);

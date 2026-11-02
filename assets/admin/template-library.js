@@ -20,6 +20,8 @@
 
     function select(next) {
       mode = next;
+      var createPage = panel.closest('.kayzart-create-page');
+      if (createPage) createPage.classList.toggle('is-template-start', mode === 'template');
       panel.hidden = mode !== 'template';
       editorForm.hidden = mode === 'template';
       methods.querySelectorAll('[data-kayzart-start]').forEach(function (button) {
@@ -48,7 +50,8 @@
     if (prompt) prompt.addEventListener('input', function () { select(mode); });
     select(mode);
 
-    panel.querySelectorAll('.kayzart-template-form').forEach(function (form) {
+    var forms = Array.from(panel.querySelectorAll('.kayzart-template-form'));
+    forms.forEach(function (form) {
       form.addEventListener('submit', function (event) {
         if (form.getAttribute('aria-busy') === 'true') {
           event.preventDefault();
@@ -63,7 +66,7 @@
       });
     });
     window.addEventListener('pageshow', function () {
-      panel.querySelectorAll('form[aria-busy="true"]').forEach(function (form) {
+      forms.filter(function (form) { return form.getAttribute('aria-busy') === 'true'; }).forEach(function (form) {
         form.removeAttribute('aria-busy');
         form.querySelectorAll('[data-original-label]').forEach(function (button) {
           button.disabled = false;
@@ -75,7 +78,7 @@
 
     var language = panel.querySelector('[data-template-language-filter]');
     var cards = Array.from(panel.querySelectorAll('.kayzart-template-card')).map(function (card) {
-      return { element: card, variants: JSON.parse(card.getAttribute('data-template-variants') || '{}') };
+      return { element: card, detail: card.querySelector('[data-template-detail]') || card, variants: JSON.parse(card.getAttribute('data-template-variants') || '{}') };
     });
     function selectLocale(locale) {
       var count = 0;
@@ -86,7 +89,7 @@
         count++;
         card.element.querySelector('.kayzart-template-art img').src = variant.thumbnail;
         card.element.querySelector('[data-template-preview]').setAttribute('data-template-preview', variant.preview);
-        card.element.querySelector('[name="template_locale"]').value = locale;
+        card.detail.querySelector('[name="template_locale"]').value = locale;
       });
       var empty = panel.querySelector('[data-template-empty]');
       if (empty) empty.hidden = count > 0;
@@ -99,23 +102,41 @@
       });
     });
     if (language) {
-      language.addEventListener('change', function () { selectLocale(language.value); });
+      language.addEventListener('change', function () {
+        if (dialog && dialog.open) dialog.close();
+        selectLocale(language.value);
+      });
       window.addEventListener('pageshow', function () { selectLocale(language.value); });
       selectLocale(language.value);
     }
 
     var dialog = document.getElementById('kayzart-template-preview');
-    if (!dialog || typeof dialog.showModal !== 'function') return;
+    if (!dialog || typeof dialog.showModal !== 'function') {
+      // Keep page creation accessible in browsers without native dialogs.
+      cards.forEach(function (card) {
+        card.element.querySelector('[data-template-preview]').addEventListener('click', function () {
+          card.detail.hidden = false;
+        });
+      });
+      return;
+    }
     var frame = dialog.querySelector('iframe');
     var status = dialog.querySelector('[data-template-preview-status]');
     var opener = null;
     var request = null;
     var documents = new Map();
+    var detailSlot = dialog.querySelector('[data-template-detail-slot]');
+    var activeCard = null;
 
     dialog.addEventListener('close', function () {
       if (request) request.abort();
       request = null;
       frame.removeAttribute('srcdoc');
+      if (activeCard) {
+        activeCard.detail.hidden = true;
+        activeCard.element.querySelector('.kayzart-template-card__body').appendChild(activeCard.detail);
+        activeCard = null;
+      }
       if (opener) opener.focus();
     });
     dialog.querySelector('[data-template-close]').addEventListener('click', function () { dialog.close(); });
@@ -131,6 +152,17 @@
     panel.querySelectorAll('[data-template-preview]').forEach(function (button) {
       button.addEventListener('click', async function () {
         opener = button;
+        var card = cards.find(function (item) { return item.element.contains(button); });
+        if (detailSlot && card && card.detail !== card.element) {
+          if (activeCard && activeCard !== card) {
+            activeCard.detail.hidden = true;
+            activeCard.element.querySelector('.kayzart-template-card__body').appendChild(activeCard.detail);
+          }
+          activeCard = card;
+          detailSlot.appendChild(card.detail);
+          card.detail.hidden = false;
+          dialog.querySelector('#kayzart-template-preview-title').textContent = card.element.querySelector('h2').textContent;
+        }
         var url = button.getAttribute('data-template-preview');
         selectPreviewWidth('desktop');
         frame.removeAttribute('srcdoc');
@@ -156,6 +188,8 @@
         }
       });
     });
+    var retry = panel.querySelector('[data-template-retry] [data-template-preview]:not(:disabled)');
+    if (retry) retry.click();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });

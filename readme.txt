@@ -148,7 +148,6 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 == Changelog ==
 = 3.5.1 =
 * Improve: Browse bundled templates in a compact card grid. Open details and preview to enter a page title and create a draft, keeping your input when switching templates or languages.
-* Improve: Register local template packages independently of their storage path, using shared metadata, previews, and page creation. Existing pages remain unchanged.
 
 = 3.5.0 =
 * Add: Start a page from a bundled template in Kayzart > Add new — a Japanese and an English business landing page, each with its own design and Google Fonts typography (Noto Sans JP; Instrument Sans and Instrument Serif). Templates are built with Tailwind CSS utilities, create a draft without an AI connection, and include a library-free motion module you adjust through HTML attributes while AI keeps JavaScript read-only. Each template card explains external font loading before preview or creation.

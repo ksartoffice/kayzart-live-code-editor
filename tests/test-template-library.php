@@ -143,7 +143,11 @@ class Test_Template_Library extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-template-detail-slot', $html );
 		$this->assertMatchesRegularExpression( '/data-template-id="business-motion-en"[^>]*data-template-retry/', $html );
 		$this->assertSame( 1, substr_count( $html, 'name="request_id" value="' . $request . '"' ) );
-		$this->assertStringNotContainsString( KAYZART_PATH, $html );
+		// CI loads the plugin outside WP_PLUGIN_DIR, so WordPress can include the
+		// checkout path in its synthetic public URL. That is not a filesystem field.
+		$markup_without_plugin_urls = str_replace( KAYZART_URL, '[plugin-url]/', $html );
+		$this->assertStringNotContainsString( KAYZART_PATH, $markup_without_plugin_urls );
+		$this->assertStringNotContainsString( wp_normalize_path( KAYZART_PATH ), $markup_without_plugin_urls );
 		$this->assertStringNotContainsString( 'data-template-upload', $html );
 	}
 

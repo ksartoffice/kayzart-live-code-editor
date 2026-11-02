@@ -2965,13 +2965,9 @@ msgstr "ページテンプレート"
 msgid "Your AI instruction is kept. Switch back to Create with AI to continue it."
 msgstr "AIへの指示は保持されています。「AIで作成」に戻ると続けられます。"
 
-#: includes/class-kayzart-template-admin.php:95
+#: includes/class-kayzart-template-admin.php:91
 msgid "Free"
 msgstr "無料"
-
-#: includes/class-kayzart-template-admin.php:105
-msgid "Preview template"
-msgstr "テンプレートをプレビュー"
 
 #: includes/class-kayzart-template-admin.php:111
 msgid "Create from this template"
@@ -2993,33 +2989,33 @@ msgstr "プレビューを読み込めませんでした。もう一度お試し
 msgid "Page template preview"
 msgstr "ページテンプレートのプレビュー"
 
-#: includes/class-kayzart-template-admin.php:123
-#: includes/class-kayzart-template-admin.php:163
+#: includes/class-kayzart-template-admin.php:136
+#: includes/class-kayzart-template-admin.php:177
 msgid "Invalid request method."
 msgstr "リクエストの方法が正しくありません。"
 
-#: includes/class-kayzart-template-library.php:77
+#: includes/class-kayzart-template-registry.php:56
 msgid "General service landing page"
 msgstr "汎用サービスLP"
 
-#: includes/class-kayzart-template-library.php:132
+#: includes/class-kayzart-template-library.php:155
 msgid "Enable Pages in Kayzart settings to use page templates."
 msgstr "テンプレートを使用するには、Kayzartの設定で固定ページを有効にしてください。"
 
-#: includes/class-kayzart-template-library.php:136
+#: includes/class-kayzart-template-library.php:159
 msgid "You do not have permission to create pages."
 msgstr "固定ページを作成する権限がありません。"
 
-#: includes/class-kayzart-template-library.php:139
+#: includes/class-kayzart-template-library.php:162
 msgid "You need permission to upload media to use this template."
 msgstr "このテンプレートの使用には、メディアをアップロードする権限が必要です。"
 
-#: includes/class-kayzart-template-library.php:172
+#: includes/class-kayzart-template-library.php:195
 #: includes/class-kayzart-template-page-creator.php:90
 msgid "This template is not available."
 msgstr "このテンプレートは利用できません。"
 
-#: includes/class-kayzart-template-library.php:371
+#: includes/class-kayzart-template-library.php:399
 msgid "The bundled template could not be loaded. Please reinstall the current version of Kayzart."
 msgstr "同梱テンプレートを読み込めませんでした。現在のバージョンのKayzartを再インストールしてください。"
 
@@ -3088,11 +3084,11 @@ msgstr "テンプレートの言語"
 msgid "No templates are available in this language yet."
 msgstr "この言語のテンプレートはまだありません。"
 
-#: includes/class-kayzart-template-library.php:78
+#: includes/class-kayzart-template-registry.php:57
 msgid "A complete introduction to your products or services, with features, pricing, FAQs, and a contact section."
 msgstr "特徴・料金・よくあるご質問・お問い合わせ欄を備えた、商品やサービス紹介用のランディングページです。"
 
-#: includes/class-kayzart-template-library.php:175
+#: includes/class-kayzart-template-library.php:198
 msgid "Choose an available page language."
 msgstr "利用可能なページの言語を選択してください。"
 
@@ -3100,47 +3096,62 @@ msgstr "利用可能なページの言語を選択してください。"
 msgid "This request already created a page in another language. Reload the page to start a new request."
 msgstr "このリクエストでは別の言語のページを作成済みです。新しいページを作成するには、画面を再読み込みしてください。"
 
-#: includes/class-kayzart-template-library.php:48
+#: includes/class-kayzart-template-registry.php:34
 msgid "Business Motion — Japanese"
 msgstr "Business Motion — 日本語"
 
-#: includes/class-kayzart-template-library.php:49
+#: includes/class-kayzart-template-registry.php:35
 msgid "A bold business service page with expressive typography and motion you can adjust through HTML attributes."
 msgstr "大胆な文字組みと動きを備えた、企業向けサービス紹介ページです。動きはHTML属性で調整できます。"
 
-#: includes/class-kayzart-template-admin.php:68
+#: includes/class-kayzart-template-admin.php:69
 #: includes/class-kayzart-template-page-creator.php:97
 msgid "You need permission to edit JavaScript and custom head markup to create this template."
 msgstr "このテンプレートの作成には、JavaScriptとカスタムheadを編集できる権限が必要です。"
 
-#: includes/class-kayzart-template-admin.php:97
+#: includes/class-kayzart-template-admin.php:115
 msgid "The thumbnail photo is an example. Your page includes image placeholders you can replace with your own images."
 msgstr "サムネイルの写真は見本です。作成されるページには、ご自身の画像に差し替えられるプレースホルダーが入ります。"
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:100
+#: includes/class-kayzart-template-admin.php:128
 #, php-format
 msgid "Fonts: %s — Google Fonts"
 msgstr "使用フォント：%s — Google Fonts"
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:100
+#: includes/class-kayzart-template-admin.php:128
 msgid "The preview and pages created from this template load fonts from Google servers when displayed."
 msgstr "プレビューと作成したページの表示時に、Googleのサーバーからフォントを読み込みます。"
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:100
+#: includes/class-kayzart-template-admin.php:94
+#: includes/class-kayzart-template-admin.php:128
 msgid "Google Privacy Policy"
 msgstr "Googleのプライバシーポリシー"
 
-#: includes/class-kayzart-template-admin.php:115
-msgid "This preview includes the template motion and loads its fonts from Google Fonts."
-msgstr "テンプレートの動きをプレビューし、Google Fontsからフォントを読み込みます。"
-
-#: includes/class-kayzart-template-library.php:60
+#: includes/class-kayzart-template-registry.php:45
 msgid "Business Motion — English"
 msgstr "Business Motion — 英語"
 
-#: includes/class-kayzart-template-library.php:61
+#: includes/class-kayzart-template-registry.php:46
 msgid "A bold English business service page with editorial typography and motion you can adjust through HTML attributes."
 msgstr "英文のエディトリアルな文字組みと動きを備えた、企業向けサービス紹介ページです。動きはHTML属性で調整できます。"
+
+#: includes/class-kayzart-template-admin.php:96
+msgid "Details and preview"
+msgstr "詳細・プレビュー"
+
+#: includes/class-kayzart-template-admin.php:91
+msgid "Paid"
+msgstr "有料"
+
+#. translators: %s: installed template version.
+#: includes/class-kayzart-template-admin.php:99
+#, php-format
+msgid "Version: %s"
+msgstr "バージョン: %s"
+
+#: includes/class-kayzart-template-admin.php:94
+msgid "Preview connects to Google Fonts."
+msgstr "プレビュー時にGoogle Fontsへ接続します。"

@@ -41,6 +41,116 @@ class Test_Template_Library extends WP_UnitTestCase {
 		return $result;
 	}
 
+	/** Exercise a new package outside the bundled folder with no UI or loader changes. */
+	public function test_registered_package_uses_its_own_location_for_catalog_preview_and_creation(): void {
+		$directory = sys_get_temp_dir() . '/kayzart-registry-' . wp_generate_uuid4();
+		wp_mkdir_p( $directory );
+		$registry = new ReflectionProperty( KayzArt\Template_Registry::class, 'entries' );
+		$registry->setAccessible( true );
+		$entries  = KayzArt\Template_Registry::entries();
+		$original = $registry->getValue();
+		$source   = KAYZART_PATH . 'assets/templates/free/business-motion-en/';
+		$files    = array( 'manifest.json', 'index.html', 'index.fr.html', 'style.css', 'motion.js', 'thumb.webp', 'pixel.png' );
+		try {
+			copy( $source . 'thumbnail.webp', $directory . '/thumb.webp' );
+			copy( $source . 'images/landscape.png', $directory . '/pixel.png' );
+			copy( $source . 'motion.js', $directory . '/motion.js' );
+			file_put_contents( $directory . '/index.html', '<section class="p-4"><h1>Registered fixture</h1><img src="{{asset:fixture}}" alt="Fixture"></section>' );
+			file_put_contents( $directory . '/index.fr.html', '<section class="p-4"><h1>Exemple français</h1><img src="{{asset:fixture}}" alt="Exemple"></section>' );
+			file_put_contents( $directory . '/style.css', '@import "tailwindcss";' );
+			$manifest = array(
+				'schemaVersion' => 2,
+				'id' => 'registered-fixture',
+				'version' => '1.2.3',
+				'kind' => 'page',
+				'locale' => 'en',
+				'cssMode' => 'tailwind',
+				'layoutMode' => 'standalone',
+				'files' => array( 'html' => 'index.html', 'css' => 'style.css', 'js' => 'motion.js', 'thumbnail' => 'thumb.webp' ),
+				'jsMode' => 'module',
+				'localizations' => array( 'fr' => array( 'html' => 'index.fr.html', 'thumbnail' => 'thumb.webp' ) ),
+				'assets' => array( array( 'id' => 'fixture', 'path' => 'pixel.png', 'mimeType' => 'image/png', 'width' => 768, 'height' => 768 ) ),
+			);
+			file_put_contents( $directory . '/manifest.json', wp_json_encode( $manifest ) );
+			$this->assertArrayNotHasKey( 'registered-fixture', Template_Library::catalog() );
+			$entries['registered-fixture'] = array(
+				'title' => 'Registered fixture', 'description' => 'Only registration and files were added.',
+				'directory' => $directory, 'baseUrl' => content_url( '/fixture-package/' ),
+				'locales' => array( 'en' => 'English', 'fr' => 'Français' ),
+				'source' => 'bundled', 'tier' => 'paid', 'sortOrder' => 5, 'retired' => false,
+			);
+			$changed = $original;
+			$changed[ determine_locale() ] = $entries;
+			$registry->setValue( null, $changed );
+			$catalog = Template_Library::catalog();
+			$this->assertSame( 'registered-fixture', array_key_first( $catalog ) );
+			$this->assertSame( '1.2.3', $catalog['registered-fixture']['version'] );
+			$this->assertSame( 'paid', $catalog['registered-fixture']['tier'] );
+			$this->assertTrue( $catalog['registered-fixture']['hasPackage'] );
+			$this->assertArrayNotHasKey( 'directory', $catalog['registered-fixture'] );
+			$this->assertSame( content_url( '/fixture-package/thumb.webp' ), $catalog['registered-fixture']['variants']['fr']['thumbnail'] );
+			$this->assertArrayHasKey( 'fr', Template_Library::available_locales() );
+			$template = Template_Library::get( 'registered-fixture', 'fr' );
+			$this->assertSame( wp_normalize_path( $directory . '/pixel.png' ), wp_normalize_path( $template['assets'][0]['file'] ) );
+			$this->assertStringContainsString( 'Exemple français', $template['html'] );
+			$preview = Template_Library::preview( 'registered-fixture', 'fr' );
+			$this->assertStringContainsString( 'img-src ' . content_url( '/fixture-package/pixel.png' ), $preview );
+			$this->assertStringNotContainsString( 'assets/templates/free/registered-fixture', $preview );
+			$id = Template_Page_Creator::create( 'registered-fixture', wp_generate_uuid4(), 'Registered page', 'fr' );
+			$this->assertIsInt( $id );
+			$this->created[] = $id;
+			$this->assertSame( 'registered-fixture', get_post_meta( $id, Template_Page_Creator::ID_META, true ) );
+			$this->assertSame( '1.2.3', get_post_meta( $id, Template_Page_Creator::VERSION_META, true ) );
+			$this->assertStringContainsString( '/uploads/', get_post( $id )->post_content );
+
+			// Font-only packages need the same permission as custom head import.
+			unset( $manifest['files']['js'] );
+			$manifest['fonts'] = array( array( 'provider' => 'google', 'family' => 'Noto Sans JP', 'weights' => array( 400 ) ) );
+			file_put_contents( $directory . '/manifest.json', wp_json_encode( $manifest ) );
+			$summary = Template_Library::catalog()['registered-fixture'];
+			$this->assertFalse( $summary['requiresJs'] );
+			$this->assertTrue( $summary['requiresUnfilteredHtml'] );
+			$this->assertSame( 'Noto Sans JP', $summary['fonts'] );
+
+			// A malformed registration cannot remove unrelated healthy templates.
+			$manifest['files']['thumbnail'] = '../outside.webp';
+			unset( $manifest['localizations'] );
+			file_put_contents( $directory . '/manifest.json', wp_json_encode( $manifest ) );
+			$this->assertArrayNotHasKey( 'registered-fixture', Template_Library::catalog() );
+			$this->assertArrayHasKey( 'business-motion-ja', Template_Library::catalog() );
+			$this->assertWPError( Template_Library::get( 'registered-fixture', 'fr' ) );
+		} finally {
+			$registry->setValue( null, $original );
+			foreach ( $files as $file ) {
+				if ( file_exists( $directory . '/' . $file ) ) {
+					unlink( $directory . '/' . $file );
+				}
+			}
+			rmdir( $directory );
+		}
+	}
+
+	public function test_retry_details_preserve_identity_without_exposing_package_paths(): void {
+		$request = wp_generate_uuid4();
+		set_transient( 'kayzart_template_retry_' . get_current_user_id(), array(
+			'template_id' => 'business-motion-en', 'locale' => 'en', 'title' => 'Retry title',
+			'message' => 'Retry message', 'request_id' => $request,
+		) );
+		ob_start();
+		KayzArt\Template_Admin::render( false );
+		$html = ob_get_clean();
+		$this->assertStringContainsString( 'kayzart-template-grid', $html );
+		$this->assertStringContainsString( 'data-template-detail-slot', $html );
+		$this->assertMatchesRegularExpression( '/data-template-id="business-motion-en"[^>]*data-template-retry/', $html );
+		$this->assertSame( 1, substr_count( $html, 'name="request_id" value="' . $request . '"' ) );
+		// CI loads the plugin outside WP_PLUGIN_DIR, so WordPress can include the
+		// checkout path in its synthetic public URL. That is not a filesystem field.
+		$markup_without_plugin_urls = str_replace( KAYZART_URL, '[plugin-url]/', $html );
+		$this->assertStringNotContainsString( KAYZART_PATH, $markup_without_plugin_urls );
+		$this->assertStringNotContainsString( wp_normalize_path( KAYZART_PATH ), $markup_without_plugin_urls );
+		$this->assertStringNotContainsString( 'data-template-upload', $html );
+	}
+
 	public function test_only_allowlisted_ids_can_be_loaded(): void {
 		$this->assertWPError( Template_Library::get( '../business-motion-ja' ) );
 		$this->assertWPError( Template_Library::get( 'https://example.test/template' ) );

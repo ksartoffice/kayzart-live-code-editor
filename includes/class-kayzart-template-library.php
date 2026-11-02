@@ -43,51 +43,74 @@ class Template_Library {
 	 * @return array
 	 */
 	public static function catalog( bool $include_retired = false ): array {
-		$current = array(
-			'business-motion-ja' => array(
-				'title'       => __( 'Business Motion — Japanese', 'kayzart-live-code-editor' ),
-				'description' => __( 'A bold business service page with expressive typography and motion you can adjust through HTML attributes.', 'kayzart-live-code-editor' ),
-				'fonts'       => 'Noto Sans JP',
-				'requiresJs'  => true,
-				'variants'    => array(
-					'ja' => array(
-						'label'     => '日本語',
-						'thumbnail' => KAYZART_URL . 'assets/templates/free/business-motion-ja/thumbnail.webp',
-					),
-				),
-			),
-			'business-motion-en' => array(
-				'title'       => __( 'Business Motion — English', 'kayzart-live-code-editor' ),
-				'description' => __( 'A bold English business service page with editorial typography and motion you can adjust through HTML attributes.', 'kayzart-live-code-editor' ),
-				'fonts'       => 'Instrument Sans, Instrument Serif',
-				'requiresJs'  => true,
-				'variants'    => array(
-					'en' => array(
-						'label'     => 'English',
-						'thumbnail' => KAYZART_URL . 'assets/templates/free/business-motion-en/thumbnail.webp',
-					),
-				),
-			),
+		$catalog = array();
+		$entries = Template_Registry::entries();
+		uasort(
+			$entries,
+			static function ( $first, $second ) {
+				return $first['sortOrder'] <=> $second['sortOrder'];
+			}
 		);
-		if ( ! $include_retired ) {
-			return $current;
+		foreach ( $entries as $id => $entry ) {
+			if ( ! $include_retired && $entry['retired'] ) {
+				continue;
+			}
+			$data = self::manifest( $id, $entry );
+			if ( is_wp_error( $data ) ) {
+				continue;
+			}
+			$variants = array();
+			foreach ( $entry['locales'] as $locale => $label ) {
+				$relative = $locale === $data['locale'] ? $data['files']['thumbnail'] ?? null : $data['localizations'][ $locale ]['thumbnail'] ?? null;
+				if ( is_wp_error( self::resolve_file( $entry['directory'], $relative ) ) ) {
+					continue;
+				}
+				$variants[ $locale ] = array(
+					'label'     => $label,
+					'thumbnail' => $entry['baseUrl'] . $relative,
+				);
+			}
+			if ( ! $variants ) {
+				continue;
+			}
+			$fonts          = 2 === $data['schemaVersion'] ? ( $data['fonts'] ?? array() ) : array();
+			$catalog[ $id ] = array(
+				'title'                  => $entry['title'],
+				'description'            => $entry['description'],
+				'source'                 => $entry['source'],
+				'tier'                   => $entry['tier'],
+				'hasPackage'             => true,
+				'version'                => $data['version'],
+				'fonts'                  => implode( ', ', array_column( $fonts, 'family' ) ),
+				'requiresJs'             => 2 === $data['schemaVersion'] && isset( $data['files']['js'] ),
+				'requiresUnfilteredHtml' => ( 2 === $data['schemaVersion'] && isset( $data['files']['js'] ) ) || ! empty( $fonts ),
+				'variants'               => $variants,
+			);
 		}
-		return $current + array(
-			'general-service-lp' => array(
-				'title'       => __( 'General service landing page', 'kayzart-live-code-editor' ),
-				'description' => __( 'A complete introduction to your products or services, with features, pricing, FAQs, and a contact section.', 'kayzart-live-code-editor' ),
-				'variants'    => array(
-					'ja' => array(
-						'label'     => '日本語',
-						'thumbnail' => KAYZART_URL . 'assets/templates/free/general-service-lp/thumbnail.webp',
-					),
-					'en' => array(
-						'label'     => 'English',
-						'thumbnail' => KAYZART_URL . 'assets/templates/free/general-service-lp/thumbnail.en.webp',
-					),
-				),
-			),
-		);
+		return $catalog;
+	}
+
+	/**
+	 * Read bounded package metadata without loading source or compiling CSS.
+	 *
+	 * @param string $id    Registered template ID.
+	 * @param array  $entry Trusted registration.
+	 * @return array|\WP_Error
+	 */
+	private static function manifest( string $id, array $entry ) {
+		$manifest = self::resolve_file( $entry['directory'], 'manifest.json' );
+		if ( is_wp_error( $manifest ) || filesize( $manifest ) > 32768 ) {
+			return self::invalid_package();
+		}
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Read registered local metadata only.
+		$data = json_decode( file_get_contents( $manifest ), true );
+		if ( ! is_array( $data ) || ! in_array( $data['schemaVersion'] ?? null, array( 1, 2 ), true ) || ( $data['id'] ?? null ) !== $id || 'page' !== ( $data['kind'] ?? null ) || 'tailwind' !== ( $data['cssMode'] ?? null ) || 'standalone' !== ( $data['layoutMode'] ?? null ) || ! isset( $entry['locales'][ $data['locale'] ?? '' ] ) || ! is_string( $data['version'] ?? null ) || ! preg_match( '/^\d+\.\d+\.\d+$/', $data['version'] ) || ! is_array( $data['files'] ?? null ) || ! is_array( $data['assets'] ?? null ) || count( $data['assets'] ) > 10 ) {
+			return self::invalid_package();
+		}
+		if ( 2 === $data['schemaVersion'] && is_wp_error( self::google_fonts_head( $data['fonts'] ?? array() ) ) ) {
+			return self::invalid_package();
+		}
+		return $data;
 	}
 
 	/**
@@ -174,15 +197,11 @@ class Template_Library {
 		if ( ! isset( self::catalog( true )[ $id ]['variants'][ $locale ] ) ) {
 			return new \WP_Error( 'unsupported_template_locale', __( 'Choose an available page language.', 'kayzart-live-code-editor' ) );
 		}
-		$directory = KAYZART_PATH . 'assets/templates/free/' . $id;
-		$manifest  = self::resolve_file( $directory, 'manifest.json' );
-		if ( is_wp_error( $manifest ) || filesize( $manifest ) > 32768 ) {
-			return self::invalid_package();
-		}
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Read an allowlisted bundled file, never a remote resource.
-		$data = json_decode( file_get_contents( $manifest ), true );
-		if ( ! is_array( $data ) || ! in_array( $data['schemaVersion'] ?? null, array( 1, 2 ), true ) || ( $data['id'] ?? null ) !== $id || 'page' !== ( $data['kind'] ?? null ) || 'tailwind' !== ( $data['cssMode'] ?? null ) || 'standalone' !== ( $data['layoutMode'] ?? null ) || ! isset( self::catalog( true )[ $id ]['variants'][ $data['locale'] ?? '' ] ) || ! is_string( $data['version'] ?? null ) || ! preg_match( '/^\d+\.\d+\.\d+$/', $data['version'] ) || ! is_array( $data['files'] ?? null ) || ! is_array( $data['assets'] ?? null ) || count( $data['assets'] ) > 10 ) {
-			return self::invalid_package();
+		$entry     = Template_Registry::entries()[ $id ];
+		$directory = $entry['directory'];
+		$data      = self::manifest( $id, $entry );
+		if ( is_wp_error( $data ) ) {
+			return $data;
 		}
 		if ( $locale !== $data['locale'] ) {
 			$localized = $data['localizations'][ $locale ] ?? null;
@@ -221,7 +240,7 @@ class Template_Library {
 			}
 			$seen[ $asset['id'] ] = true;
 			$asset['file']        = $file;
-			$asset['url']         = KAYZART_URL . 'assets/templates/free/' . $id . '/' . $asset['path'];
+			$asset['url']         = $entry['baseUrl'] . $asset['path'];
 		}
 		unset( $asset );
 		preg_match_all( '~<img\b[^>]*\bsrc\s*=\s*(["\'])(.*?)\1~i', $data['html'], $image_sources );
@@ -347,7 +366,16 @@ class Template_Library {
 		if ( is_wp_error( $prepared ) ) {
 			return $prepared;
 		}
-		$image_source = KAYZART_URL . 'assets/templates/free/' . $id . '/images/';
+		$image_source = implode(
+			' ',
+			array_map(
+				static function ( $asset ) {
+					return $asset['url'];
+				},
+				$template['assets']
+			)
+		);
+		$image_source = '' !== $image_source ? $image_source : "'none'";
 		$nonce        = wp_generate_password( 24, false, false );
 		$font_policy  = '' !== $prepared['customHead'] ? ' https://fonts.googleapis.com' : '';
 		$policy       = "default-src 'none'; style-src 'unsafe-inline'" . $font_policy . '; font-src https://fonts.gstatic.com; img-src ' . $image_source . "; script-src 'nonce-" . $nonce . "' blob:; base-uri 'none'; form-action 'none'";

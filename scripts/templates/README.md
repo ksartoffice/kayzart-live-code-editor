@@ -1,5 +1,8 @@
 # Bundled template assets
 
+For the 3.5.1 card grid, registration fields, and adding another package, see
+[Template library 3.5.1](../../docs/template-library-351.md).
+
 ## Current package: Business Motion (2026-10-28)
 
 `assets/templates/free/business-motion-ja/` is the distributed source of truth.
@@ -14,8 +17,8 @@ matches the copy height, so the text-to-image space is only the grid gap.
 The hero image and the approach section image both reference `{{asset:main-visual}}`,
 so a created page imports one placeholder copy. Only the catalog thumbnail shows a
 demonstration photo in the hero image.
-The catalog no longer offers the old Japanese or English design. A future
-English design must be a separate package, not a translation of this one.
+The catalog offers Business Motion Japanese and English as separate packages
+with their own designs. The retired general-service-lp is excluded from release ZIPs.
 
 Edit `index.html`, `style.css`, `motion.js`, and `manifest.json` directly.
 

@@ -25,9 +25,11 @@ test('preview stays local and a template becomes an editable, publishable page',
   const visibleCard = page.locator('.kayzart-template-card:visible');
   await page.locator('[data-template-language-filter]').selectOption('ja');
   await expect(visibleCard).toHaveCount(1);
-  await expect(visibleCard.locator('.kayzart-template-photo-note')).toBeVisible();
-  await expect(visibleCard.locator('.kayzart-template-card__body > .kayzart-template-font-note')).toContainText('Noto Sans JP');
+  await expect(visibleCard.locator('.kayzart-template-connection-note')).toContainText('Google Fonts');
+  await expect(visibleCard.locator('.kayzart-template-card__body > .kayzart-template-font-note')).toHaveCount(0);
   await visibleCard.locator('[data-template-preview]').click();
+  await expect(page.locator('#kayzart-template-preview-description')).toContainText('placeholder');
+  await expect(page.locator('#kayzart-template-preview .kayzart-template-font-note')).toContainText('Noto Sans JP');
   const frame = page.locator('#kayzart-template-preview iframe');
   await expect(frame).toHaveAttribute('sandbox', 'allow-scripts');
   await expect(frame).toHaveAttribute('srcdoc', /images\/landscape\.png/);
@@ -47,9 +49,11 @@ test('preview stays local and a template becomes an editable, publishable page',
   await page.locator('[data-template-language-filter]').selectOption('en');
   const englishCard = page.locator('.kayzart-template-card:visible');
   await expect(englishCard).toHaveCount(1);
-  await expect(englishCard.locator('.kayzart-template-card__body > .kayzart-template-font-note')).toContainText('Instrument Sans, Instrument Serif');
+  expect((await englishCard.boundingBox())!.height).toBeLessThanOrEqual(540);
+  await expect(englishCard.locator('.kayzart-template-connection-note')).toContainText('Google Fonts');
   await expect(englishCard.locator('[name="template_locale"]')).toHaveValue('en');
   await englishCard.locator('[data-template-preview]').click();
+  await expect(page.locator('#kayzart-template-preview .kayzart-template-font-note')).toContainText('Instrument Sans, Instrument Serif');
   await expect(frame).toHaveAttribute('srcdoc', /Less busywork\./);
   await expect(frame).toHaveAttribute('srcdoc', /family=Instrument\+Sans/);
   await expect(frame).toHaveAttribute('srcdoc', /business-motion-en\/images\/landscape\.png/);
@@ -255,10 +259,11 @@ test('template grid keeps cards compact and details accessible across screen siz
     await page.setViewportSize({ width, height: 1000 });
     const cards = await page.locator('.kayzart-template-card:visible').evaluateAll(elements => elements.map(element => {
       const box = element.getBoundingClientRect();
-      return { width: box.width, left: box.left, top: box.top };
+      return { width: box.width, height: box.height, left: box.left, top: box.top };
     }));
     expect(cards).toHaveLength(4);
     expect(cards.every(card => card.width <= 360.5 && card.width > 200)).toBe(true);
+    expect(cards.every(card => card.height <= 540)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     if (width === 1440) {
       expect(cards[1].left).toBeGreaterThan(cards[0].left);

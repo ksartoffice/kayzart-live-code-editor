@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-02T07:33:37+01:00\n"
+"POT-Creation-Date: 2026-11-02T08:07:29+01:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: kayzart-live-code-editor\n"
@@ -682,7 +682,7 @@ msgid "Landing page title"
 msgstr ""
 
 #: includes/class-kayzart-admin.php:2112
-#: includes/class-kayzart-template-admin.php:109
+#: includes/class-kayzart-template-admin.php:110
 msgid "Optional. You can rename the page later."
 msgstr ""
 
@@ -766,7 +766,7 @@ msgstr ""
 #: includes/class-kayzart-admin.php:2176
 #: includes/class-kayzart-admin.php:2180
 #: includes/class-kayzart-admin.php:2182
-#: includes/class-kayzart-template-admin.php:110
+#: includes/class-kayzart-template-admin.php:111
 msgid "Creating…"
 msgstr ""
 
@@ -944,7 +944,7 @@ msgid "Edit the page content in Kayzart. You can continue to change WordPress pa
 msgstr ""
 
 #: includes/class-kayzart-editor-bridge.php:119
-#: includes/class-kayzart-template-admin.php:109
+#: includes/class-kayzart-template-admin.php:110
 #: assets/admin/editor-bridge.js:311
 msgid "Page title"
 msgstr ""
@@ -1579,78 +1579,82 @@ msgstr ""
 msgid "Paid"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:93
-#: includes/class-kayzart-template-admin.php:114
-msgid "The thumbnail photo is an example. Your page includes image placeholders you can replace with your own images."
+#: includes/class-kayzart-template-admin.php:94
+msgid "Preview connects to Google Fonts."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:95
+#. translators: %s: names of the fonts declared by this template.
+#: includes/class-kayzart-template-admin.php:94
+#: includes/class-kayzart-template-admin.php:128
+msgid "Google Privacy Policy"
+msgstr ""
+
+#: includes/class-kayzart-template-admin.php:96
 msgid "Details and preview"
 msgstr ""
 
 #. translators: %s: installed template version.
-#: includes/class-kayzart-template-admin.php:98
+#: includes/class-kayzart-template-admin.php:99
 #, php-format
 msgid "Version: %s"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:110
+#: includes/class-kayzart-template-admin.php:111
 msgid "Create from this template"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:112
+#: includes/class-kayzart-template-admin.php:113
 msgid "No templates are available in this language yet."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 msgid "Template preview"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 #: assets/dist/main.js:2494
 msgid "Desktop"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 #: assets/dist/main.js:2496
 msgid "Mobile"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 #: assets/dist/main.js:2787
 msgid "Close"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
+msgid "The thumbnail photo is an example. Your page includes image placeholders you can replace with your own images."
+msgstr ""
+
+#: includes/class-kayzart-template-admin.php:115
 msgid "Loading preview…"
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
 msgid "Could not load the preview. Please try again."
 msgstr ""
 
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
 msgid "Page template preview"
 msgstr ""
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:127
+#: includes/class-kayzart-template-admin.php:128
 #, php-format
 msgid "Fonts: %s — Google Fonts"
 msgstr ""
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:127
+#: includes/class-kayzart-template-admin.php:128
 msgid "The preview and pages created from this template load fonts from Google servers when displayed."
 msgstr ""
 
-#. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:127
-msgid "Google Privacy Policy"
-msgstr ""
-
-#: includes/class-kayzart-template-admin.php:135
-#: includes/class-kayzart-template-admin.php:176
+#: includes/class-kayzart-template-admin.php:136
+#: includes/class-kayzart-template-admin.php:177
 msgid "Invalid request method."
 msgstr ""
 

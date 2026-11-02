@@ -585,7 +585,7 @@ msgid "Title"
 msgstr "タイトル"
 
 #: includes/class-kayzart-admin.php:2112
-#: includes/class-kayzart-template-admin.php:109
+#: includes/class-kayzart-template-admin.php:110
 msgid "Optional. You can rename the page later."
 msgstr "任意です。あとから変更できます。"
 
@@ -675,7 +675,7 @@ msgstr "ページを作成するとエディターが開きます。"
 #: includes/class-kayzart-admin.php:2176
 #: includes/class-kayzart-admin.php:2180
 #: includes/class-kayzart-admin.php:2182
-#: includes/class-kayzart-template-admin.php:110
+#: includes/class-kayzart-template-admin.php:111
 msgid "Creating…"
 msgstr "作成中…"
 
@@ -1312,7 +1312,7 @@ msgstr "投稿を表示"
 msgid "Preview"
 msgstr "プレビュー"
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 #: assets/dist/main.js:2494
 msgid "Desktop"
 msgstr "デスクトップ"
@@ -1321,7 +1321,7 @@ msgstr "デスクトップ"
 msgid "Tablet"
 msgstr "タブレット"
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 #: assets/dist/main.js:2496
 msgid "Mobile"
 msgstr "モバイル"
@@ -1411,7 +1411,7 @@ msgstr "元に戻す"
 msgid "Redo"
 msgstr "やり直す"
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 #: assets/dist/main.js:2787
 msgid "Close"
 msgstr "閉じる"
@@ -1946,7 +1946,7 @@ msgid "Edit the page content in Kayzart. You can continue to change WordPress pa
 msgstr "ページ本文は Kayzart で編集します。WordPress のページ設定はここで引き続き変更できます。"
 
 #: includes/class-kayzart-editor-bridge.php:119
-#: includes/class-kayzart-template-admin.php:109
+#: includes/class-kayzart-template-admin.php:110
 #: assets/admin/editor-bridge.js:311
 msgid "Page title"
 msgstr "ページタイトル"
@@ -2969,28 +2969,28 @@ msgstr "AIへの指示は保持されています。「AIで作成」に戻る�
 msgid "Free"
 msgstr "無料"
 
-#: includes/class-kayzart-template-admin.php:110
+#: includes/class-kayzart-template-admin.php:111
 msgid "Create from this template"
 msgstr "このテンプレートで作成"
 
-#: includes/class-kayzart-template-admin.php:113
+#: includes/class-kayzart-template-admin.php:114
 msgid "Template preview"
 msgstr "テンプレートのプレビュー"
 
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
 msgid "Loading preview…"
 msgstr "プレビューを読み込み中…"
 
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
 msgid "Could not load the preview. Please try again."
 msgstr "プレビューを読み込めませんでした。もう一度お試しください。"
 
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
 msgid "Page template preview"
 msgstr "ページテンプレートのプレビュー"
 
-#: includes/class-kayzart-template-admin.php:135
-#: includes/class-kayzart-template-admin.php:176
+#: includes/class-kayzart-template-admin.php:136
+#: includes/class-kayzart-template-admin.php:177
 msgid "Invalid request method."
 msgstr "リクエストの方法が正しくありません。"
 
@@ -3080,7 +3080,7 @@ msgstr "テンプレートを読み込みました。プレビューの文章や
 msgid "Template language"
 msgstr "テンプレートの言語"
 
-#: includes/class-kayzart-template-admin.php:112
+#: includes/class-kayzart-template-admin.php:113
 msgid "No templates are available in this language yet."
 msgstr "この言語のテンプレートはまだありません。"
 
@@ -3109,24 +3109,24 @@ msgstr "大胆な文字組みと動きを備えた、企業向けサービス紹
 msgid "You need permission to edit JavaScript and custom head markup to create this template."
 msgstr "このテンプレートの作成には、JavaScriptとカスタムheadを編集できる権限が必要です。"
 
-#: includes/class-kayzart-template-admin.php:93
-#: includes/class-kayzart-template-admin.php:114
+#: includes/class-kayzart-template-admin.php:115
 msgid "The thumbnail photo is an example. Your page includes image placeholders you can replace with your own images."
 msgstr "サムネイルの写真は見本です。作成されるページには、ご自身の画像に差し替えられるプレースホルダーが入ります。"
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:127
+#: includes/class-kayzart-template-admin.php:128
 #, php-format
 msgid "Fonts: %s — Google Fonts"
 msgstr "使用フォント：%s — Google Fonts"
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:127
+#: includes/class-kayzart-template-admin.php:128
 msgid "The preview and pages created from this template load fonts from Google servers when displayed."
 msgstr "プレビューと作成したページの表示時に、Googleのサーバーからフォントを読み込みます。"
 
 #. translators: %s: names of the fonts declared by this template.
-#: includes/class-kayzart-template-admin.php:127
+#: includes/class-kayzart-template-admin.php:94
+#: includes/class-kayzart-template-admin.php:128
 msgid "Google Privacy Policy"
 msgstr "Googleのプライバシーポリシー"
 
@@ -3138,7 +3138,7 @@ msgstr "Business Motion — 英語"
 msgid "A bold English business service page with editorial typography and motion you can adjust through HTML attributes."
 msgstr "英文のエディトリアルな文字組みと動きを備えた、企業向けサービス紹介ページです。動きはHTML属性で調整できます。"
 
-#: includes/class-kayzart-template-admin.php:95
+#: includes/class-kayzart-template-admin.php:96
 msgid "Details and preview"
 msgstr "詳細・プレビュー"
 
@@ -3147,7 +3147,11 @@ msgid "Paid"
 msgstr "有料"
 
 #. translators: %s: installed template version.
-#: includes/class-kayzart-template-admin.php:98
+#: includes/class-kayzart-template-admin.php:99
 #, php-format
 msgid "Version: %s"
 msgstr "バージョン: %s"
+
+#: includes/class-kayzart-template-admin.php:94
+msgid "Preview connects to Google Fonts."
+msgstr "プレビュー時にGoogle Fontsへ接続します。"

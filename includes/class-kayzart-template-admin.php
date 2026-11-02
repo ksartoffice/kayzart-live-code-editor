@@ -88,12 +88,12 @@ class Template_Admin {
 			}
 			echo '<article class="kayzart-template-card" data-template-id="' . esc_attr( $id ) . '" data-template-tier="' . esc_attr( $summary['tier'] ) . '" data-template-source="' . esc_attr( $summary['source'] ) . '" data-template-variants="' . esc_attr( wp_json_encode( $variants ) ) . '"' . ( $is_retry ? ' data-template-retry' : '' ) . ( $available ? '' : ' hidden' ) . '>';
 			echo '<div class="kayzart-template-art"><img src="' . esc_url( $variants[ $card_locale ]['thumbnail'] ) . '" alt="' . esc_attr( $summary['title'] ) . '" width="1200" height="900"></div>';
-			echo '<div class="kayzart-template-card__body"><div class="kayzart-template-card__heading"><h2>' . esc_html( $summary['title'] ) . '</h2><span class="kayzart-create-badge">' . esc_html( 'free' === $summary['tier'] ? __( 'Free', 'kayzart-live-code-editor' ) : __( 'Paid', 'kayzart-live-code-editor' ) ) . '</span></div>';
+			echo '<div class="kayzart-template-card__body"><div class="kayzart-template-card__heading"><h2 id="kayzart-template-name-' . esc_attr( $id ) . '">' . esc_html( $summary['title'] ) . '</h2><span class="kayzart-create-badge">' . esc_html( 'free' === $summary['tier'] ? __( 'Free', 'kayzart-live-code-editor' ) : __( 'Paid', 'kayzart-live-code-editor' ) ) . '</span></div>';
 			echo '<p class="kayzart-template-card__description">' . esc_html( $summary['description'] ) . '</p>';
 			if ( ! empty( $summary['fonts'] ) ) {
 				echo '<p class="kayzart-template-connection-note">' . esc_html__( 'Preview connects to Google Fonts.', 'kayzart-live-code-editor' ) . ' <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Google Privacy Policy', 'kayzart-live-code-editor' ) . '</a></p>';
 			}
-			echo '<button class="button" type="button" data-template-preview="' . esc_url( $variants[ $card_locale ]['preview'] ) . '" aria-haspopup="dialog"' . disabled( '' !== $reason, true, false ) . '>' . esc_html__( 'Details and preview', 'kayzart-live-code-editor' ) . '</button>';
+			echo '<button id="kayzart-template-open-' . esc_attr( $id ) . '" class="button" type="button" aria-labelledby="kayzart-template-name-' . esc_attr( $id ) . ' kayzart-template-open-' . esc_attr( $id ) . '" aria-controls="kayzart-template-preview" data-template-preview="' . esc_url( $variants[ $card_locale ]['preview'] ) . '" aria-haspopup="dialog"' . disabled( '' !== $reason, true, false ) . '>' . esc_html__( 'Details and preview', 'kayzart-live-code-editor' ) . '</button>';
 			echo '<div data-template-detail hidden><p>' . esc_html( $summary['description'] ) . '</p>';
 			/* translators: %s: installed template version. */
 			echo '<p class="kayzart-template-version">' . esc_html( sprintf( __( 'Version: %s', 'kayzart-live-code-editor' ), $summary['version'] ) ) . '</p>';

@@ -239,6 +239,7 @@ test('mode switches preserve the template styles and source after reopening', as
 
 
 test('template grid keeps cards compact and details accessible across screen sizes', async ({ page }) => {
+  test.setTimeout(90_000);
   await login(page);
   await page.goto(new URL('wp-admin/admin.php?page=kayzart-new', baseUrl).toString());
   await page.locator('[data-kayzart-start="template"]').click();
@@ -275,9 +276,11 @@ test('template grid keeps cards compact and details accessible across screen siz
   await page.locator('[data-layout-fixture]').evaluateAll(elements => elements.forEach(element => element.remove()));
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    const opener = page.locator('.kayzart-template-card:visible [data-template-preview]');
-    await opener.click();
+    const card = page.locator('.kayzart-template-card:visible');
+    const opener = card.locator('[data-template-preview]');
     const dialog = page.locator('#kayzart-template-preview');
+    // Hit the visual image area, including the button's stretched hit target.
+    await card.click({ position: { x: 40, y: 40 } });
     await expect(dialog.locator('.kayzart-template-form')).toBeVisible();
     await dialog.locator('[name="post_title"]').fill('Layout check');
     await expect(dialog.locator('button[type="submit"]')).toBeEnabled();
@@ -286,5 +289,42 @@ test('template grid keeps cards compact and details accessible across screen siz
     await page.keyboard.press('Escape');
     await expect(dialog).not.toBeVisible();
     await expect(opener).toBeFocused();
+    await expect(opener).toHaveAccessibleName(/Business Motion.*Details and preview/);
+    await expect(card).not.toHaveAttribute('tabindex');
+
+    const titlePosition = await card.evaluate(element => {
+      const cardBox = element.getBoundingClientRect();
+      const titleBox = element.querySelector('h2')!.getBoundingClientRect();
+      return { x: titleBox.left - cardBox.left + 20, y: titleBox.top - cardBox.top + titleBox.height / 2 };
+    });
+    await card.click({ position: titlePosition });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    const box = (await card.boundingBox())!;
+    await card.click({ position: { x: box.width - 24, y: box.height - 12 } });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+
+    for (const key of ['Enter', 'Space']) {
+      await opener.focus();
+      await page.keyboard.press(key);
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).not.toBeVisible();
+      await expect(opener).toBeFocused();
+    }
+    // The policy link stays above the hit target and never opens details.
+    const popupOpened = page.waitForEvent('popup');
+    await card.locator('.kayzart-template-connection-note a').click();
+    const popup = await popupOpened;
+    await popup.close();
+    await expect(dialog).not.toBeVisible();
+    // Expanding the hit target must not bypass the disabled button.
+    await opener.evaluate((button: HTMLButtonElement) => { button.disabled = true; });
+    await card.click({ position: { x: 40, y: 40 } });
+    await expect(dialog).not.toBeVisible();
+    await opener.evaluate((button: HTMLButtonElement) => { button.disabled = false; });
   }
 });

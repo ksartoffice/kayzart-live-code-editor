@@ -4,15 +4,12 @@
 /.gitattributes
 /.nvmrc
 /.distignore
-/AGENTS.md
-/STYLEGUIDE.md
+/*.md
 /node_modules
 /tests
 /bin
 /scripts
 /docs
-/overview.md
-/tailwindphp.md
 /.vscode
 /.idea
 /package.json
@@ -29,7 +26,6 @@
 /.env
 /.env.example
 /.phpunit.result.cache
-/.release-private.md
 /assets/dist/*.map
 /assets/templates/free/general-service-lp
 /.wordpress-tests-lib

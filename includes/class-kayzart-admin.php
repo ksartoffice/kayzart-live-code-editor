@@ -1068,8 +1068,7 @@ class Admin {
 	/**
 	 * Build the Kayzart settings page URL.
 	 *
-	 * Single source of truth for the settings URL; kayzart-pro resolves its
-	 * license tab link through this method.
+	 * Shared URL builder for settings tabs.
 	 *
 	 * @param string $tab Optional tab ID.
 	 * @return string

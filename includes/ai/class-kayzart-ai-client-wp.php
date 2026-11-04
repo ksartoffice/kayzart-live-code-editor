@@ -165,7 +165,7 @@ class Ai_Client_Wp implements Ai_Client_Interface {
 			$status    = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 0;
 			$retryable = 408 === $status || 429 === $status || $status >= 500;
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The retryable flag is a boolean, not output.
-			throw new Ai_Client_Exception( esc_html( $result->get_error_message() ), $retryable );
+			throw new Ai_Client_Exception( esc_html( $result->get_error_message() ), $retryable, esc_html( (string) $result->get_error_code() ) );
 		}
 
 		return $result;

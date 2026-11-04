@@ -160,6 +160,58 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 		$this->assertNull( $this->store->get( $uuid )['lock_key'] );
 	}
 
+	/**
+	 * Both worker modes expose billing guidance and stop without retrying.
+	 *
+	 * @dataProvider billing_worker_modes
+	 * @param string $mode Worker execution mode.
+	 */
+	public function test_billing_failure_reaches_job_response( string $mode ): void {
+		add_filter(
+			'kayzart_ai_execution_mode',
+			static function () use ( $mode ) {
+				return $mode;
+			}
+		);
+		$client = new class() extends Ai_Client_Fake {
+			/** Simulate the error text preserved by the WordPress AI Client.
+			 *
+			 * @param array $messages Messages.
+			 * @param array $tools Tools.
+			 * @param array $options Options.
+			 * @return array
+			 * @throws \KayzArt\Ai_Client_Exception Always, for the billing failure.
+			 */
+			public function generate( array $messages, array $tools, array $options = array() ): array {
+				throw new \KayzArt\Ai_Client_Exception( 'Too Many Requests (429) - You have no credits remaining.', true );
+			}
+		};
+		add_filter(
+			'kayzart_ai_client',
+			static function () use ( $client ) {
+				return $client;
+			}
+		);
+		$uuid = $this->create_job( 'worker-billing-' . $mode );
+		if ( 'stepwise' === $mode ) {
+			Ai_Worker::run_step( $uuid );
+		} else {
+			Ai_Worker::run( $uuid );
+		}
+		$job      = $this->store->get( $uuid );
+		$response = $this->store->to_response( $job );
+		$this->assertSame( 'error', $response['status'] );
+		$this->assertSame( 'The AI provider has no credits remaining. Check the provider billing settings.', $response['error']['message'] );
+		$this->assertFalse( $response['error']['retryable'] );
+		$this->assertNull( $job['lock_key'] );
+		$this->assertEmpty( as_get_scheduled_actions( array( 'hook' => Ai_Worker::STEP_HOOK, 'status' => 'pending' ), 'ids' ) );
+	}
+
+	/** Supported background worker modes. */
+	public static function billing_worker_modes(): array {
+		return array( array( 'legacy' ), array( 'stepwise' ) );
+	}
+
 	/** Canceled pending jobs cannot subsequently run. */
 	public function test_canceled_pending_job_cannot_be_claimed_or_completed(): void {
 		$uuid = $this->create_job( 'worker-cancel' );

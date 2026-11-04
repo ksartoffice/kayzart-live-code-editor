@@ -399,8 +399,15 @@ msgstr "削除されたユーザー"
 msgid "The AI job payload is invalid."
 msgstr "AI ジョブのデータが不正です。"
 
-#: includes/ai/class-kayzart-ai-worker.php:149
-#: includes/ai/class-kayzart-ai-worker.php:378
+#: includes/ai/class-kayzart-ai-client-exception.php:64
+msgid "The AI provider has no credits remaining. Check the provider billing settings."
+msgstr "AI プロバイダーの利用残高が不足しています。プロバイダーの請求設定を確認してください。"
+
+#: includes/ai/class-kayzart-ai-client-exception.php:67
+msgid "The AI provider billing or usage limit has been reached. Check the provider billing settings and usage limits."
+msgstr "AI プロバイダーの請求または利用上限に達しています。プロバイダーの請求設定と利用上限を確認してください。"
+
+#: includes/ai/class-kayzart-ai-client-exception.php:69
 msgid "The AI provider request failed."
 msgstr "AI プロバイダーへのリクエストが失敗しました。"
 

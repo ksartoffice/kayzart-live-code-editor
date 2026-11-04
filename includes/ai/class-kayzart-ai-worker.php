@@ -146,7 +146,7 @@ class Ai_Worker {
 			$store->mark_canceled( $job_uuid );
 		} catch ( Ai_Client_Exception $error ) {
 			error_log( 'Kayzart AI client error: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$store->mark_error( $job_uuid, __( 'The AI provider request failed.', 'kayzart-live-code-editor' ), $error->is_retryable() );
+			$store->mark_error( $job_uuid, $error->get_user_message(), $error->is_retryable() );
 		} catch ( Ai_Agent_Error $error ) {
 			$store->mark_error( $job_uuid, self::agent_error_message( $error, $payload ), $error->is_retryable() );
 		} catch ( \Throwable $error ) {
@@ -375,7 +375,7 @@ class Ai_Worker {
 				);
 			} else {
 				error_log( 'Kayzart AI client error: ' . $error->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				$store->mark_error( $job_uuid, __( 'The AI provider request failed.', 'kayzart-live-code-editor' ), $error->is_retryable() );
+				$store->mark_error( $job_uuid, $error->get_user_message(), $error->is_retryable() );
 				self::finish_job_actions( $job_uuid );
 				self::performance_log(
 					$job,

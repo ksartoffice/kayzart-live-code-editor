@@ -17,6 +17,44 @@ require_once __DIR__ . '/doubles/class-kayzart-ai-client-fake.php';
 class Test_Kayzart_Ai_Client extends WP_UnitTestCase {
 
 	/**
+	 * Known billing failures have actionable, safe messages and cannot be retried.
+	 *
+	 * @dataProvider billing_failures
+	 * @param string $message Provider message.
+	 * @param string $code Structured provider code.
+	 * @param string $expected Expected public message.
+	 */
+	public function test_billing_failures_are_actionable( string $message, string $code, string $expected ): void {
+		$error = new Ai_Client_Exception( $message, true, $code );
+		$this->assertFalse( $error->is_retryable() );
+		$this->assertSame( $expected, $error->get_user_message() );
+		$this->assertSame( $message, $error->getMessage() );
+	}
+
+	/** Provider error formats from direct OpenAI and WordPress Connectors. */
+	public static function billing_failures(): array {
+		$credits = 'The AI provider has no credits remaining. Check the provider billing settings.';
+		$quota   = 'The AI provider billing or usage limit has been reached. Check the provider billing settings and usage limits.';
+		return array(
+			'direct credit code'     => array( 'Provider detail', 'credit_balance_exhausted', $credits ),
+			'connector credit text'  => array( 'Too Many Requests (429) - You have no credits remaining. Add credits to continue using the API.', 'prompt_client_error', $credits ),
+			'low credit text'        => array( 'Your credit balance is too low to access the API.', '', $credits ),
+			'legacy quota code'      => array( 'Provider detail', 'insufficient_quota', $quota ),
+			'connector quota text'   => array( 'You exceeded your current quota, please check your plan and billing details.', '', $quota ),
+			'organization spending' => array( 'Provider detail', 'organization_spend_limit_exceeded', $quota ),
+			'project spending'      => array( 'Provider detail', 'project_spend_limit_exceeded', $quota ),
+			'organization usage'    => array( 'Provider detail', 'organization_usage_limit_exceeded', $quota ),
+		);
+	}
+
+	/** A temporary rate limit keeps retry behavior and hides raw details. */
+	public function test_rate_limit_remains_retryable_and_generic(): void {
+		$error = new Ai_Client_Exception( 'Too Many Requests (429) - Rate limit reached for private-project.', true, 'rate_limit_exceeded' );
+		$this->assertTrue( $error->is_retryable() );
+		$this->assertSame( 'The AI provider request failed.', $error->get_user_message() );
+	}
+
+	/**
 	 * Message helpers produce the documented normalized shapes.
 	 */
 	public function test_message_helpers_shapes(): void {

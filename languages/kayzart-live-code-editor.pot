@@ -201,8 +201,15 @@ msgstr ""
 msgid "The AI job payload is invalid."
 msgstr ""
 
-#: includes/ai/class-kayzart-ai-worker.php:149
-#: includes/ai/class-kayzart-ai-worker.php:378
+#: includes/ai/class-kayzart-ai-client-exception.php:64
+msgid "The AI provider has no credits remaining. Check the provider billing settings."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-client-exception.php:67
+msgid "The AI provider billing or usage limit has been reached. Check the provider billing settings and usage limits."
+msgstr ""
+
+#: includes/ai/class-kayzart-ai-client-exception.php:69
 msgid "The AI provider request failed."
 msgstr ""
 

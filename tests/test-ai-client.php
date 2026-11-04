@@ -40,18 +40,35 @@ class Test_Kayzart_Ai_Client extends WP_UnitTestCase {
 			'connector credit text'  => array( 'Too Many Requests (429) - You have no credits remaining. Add credits to continue using the API.', 'prompt_client_error', $credits ),
 			'low credit text'        => array( 'Your credit balance is too low to access the API.', '', $credits ),
 			'legacy quota code'      => array( 'Provider detail', 'insufficient_quota', $quota ),
-			'connector quota text'   => array( 'You exceeded your current quota, please check your plan and billing details.', '', $quota ),
+			'structured quota text'  => array( 'You exceeded your current quota, please check your plan and billing details.', 'insufficient_quota', $quota ),
 			'organization spending' => array( 'Provider detail', 'organization_spend_limit_exceeded', $quota ),
 			'project spending'      => array( 'Provider detail', 'project_spend_limit_exceeded', $quota ),
 			'organization usage'    => array( 'Provider detail', 'organization_usage_limit_exceeded', $quota ),
 		);
 	}
 
-	/** A temporary rate limit keeps retry behavior and hides raw details. */
-	public function test_rate_limit_remains_retryable_and_generic(): void {
-		$error = new Ai_Client_Exception( 'Too Many Requests (429) - Rate limit reached for private-project.', true, 'rate_limit_exceeded' );
+	/**
+	 * Ambiguous throttling must not be treated as a hard billing failure.
+	 *
+	 * @dataProvider transient_limit_failures
+	 * @param string $message Provider message.
+	 * @param string $code Structured provider code, when available.
+	 */
+	public function test_transient_limit_remains_retryable_and_generic( string $message, string $code ): void {
+		$error = new Ai_Client_Exception( $message, true, $code );
 		$this->assertTrue( $error->is_retryable() );
 		$this->assertSame( 'The AI provider request failed.', $error->get_user_message() );
+	}
+
+	/** Rate and quota messages that can describe temporary Gemini throttling. */
+	public static function transient_limit_failures(): array {
+		$quota = 'You exceeded your current quota, please check your plan and billing details.';
+		return array(
+			'rate limit'          => array( 'Too Many Requests (429) - Rate limit reached for private-project.', 'rate_limit_exceeded' ),
+			'connector quota'     => array( 'Too Many Requests (429) - ' . $quota, 'prompt_client_error' ),
+			'quota without code'  => array( $quota, '' ),
+			'Gemini quota code'   => array( $quota, 'RESOURCE_EXHAUSTED' ),
+		);
 	}
 
 	/**

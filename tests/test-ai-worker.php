@@ -439,8 +439,8 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 		$this->assertNull( $job['step_lease_token'] );
 	}
 
-	/** Retryable provider failures retain the checkpoint and succeed on attempt three. */
-	public function test_step_worker_retries_retryable_provider_failure_twice(): void {
+	/** Ambiguous Gemini quota failures retain backoff and succeed on attempt three. */
+	public function test_step_worker_retries_ambiguous_quota_failure_twice(): void {
 		$client = new class() implements \KayzArt\Ai_Client_Interface {
 			/** Number of provider calls.
 			 *
@@ -465,7 +465,7 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 				unset( $messages, $tools, $options );
 				++$this->calls;
 				if ( $this->calls < 3 ) {
-					throw new \KayzArt\Ai_Client_Exception( 'Temporary provider failure.', true );
+					throw new \KayzArt\Ai_Client_Exception( 'Too Many Requests (429) - You exceeded your current quota, please check your plan and billing details.', true, 'prompt_client_error' );
 				}
 				return array(
 					'toolCalls' => array(
@@ -495,6 +495,10 @@ class Test_Kayzart_Ai_Worker extends WP_UnitTestCase {
 
 		Ai_Worker::run_step( $uuid, 0, 'attempt-one' );
 		$this->assertSame( 1, (int) $this->store->get( $uuid )['step_attempt'] );
+		$this->assertSame( 'running', $this->store->get( $uuid )['status'] );
+		$retry_actions = as_get_scheduled_actions( array( 'hook' => Ai_Worker::STEP_HOOK, 'group' => Ai_Worker::GROUP, 'status' => 'pending' ) );
+		$this->assertCount( 1, $retry_actions );
+		$this->assertSame( $uuid, reset( $retry_actions )->get_args()[0] );
 		Ai_Worker::run_step( $uuid, 0, 'attempt-two' );
 		$this->assertSame( 2, (int) $this->store->get( $uuid )['step_attempt'] );
 		Ai_Worker::run_step( $uuid, 0, 'attempt-three' );

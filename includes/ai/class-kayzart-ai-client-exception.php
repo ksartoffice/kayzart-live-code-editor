@@ -44,11 +44,11 @@ class Ai_Client_Exception extends \Exception {
 	public function __construct( string $message, bool $retryable = false, string $provider_code = '' ) {
 		parent::__construct( $message );
 		// WordPress currently preserves the provider message but drops its error
-		// code. Match explicit billing wording as a fallback; HTTP 429 alone also
-		// covers temporary rate limits and must remain retryable.
+		// code. Only explicit credit-balance wording is safe to match: quota
+		// messages can also describe temporary throttling, including on Gemini.
 		if ( 'credit_balance_exhausted' === $provider_code || false !== stripos( $message, 'no credits remaining' ) || false !== stripos( $message, 'credit balance is too low' ) ) {
 			$this->billing_error = 'credits';
-		} elseif ( in_array( $provider_code, array( 'insufficient_quota', 'organization_spend_limit_exceeded', 'project_spend_limit_exceeded', 'organization_usage_limit_exceeded' ), true ) || false !== stripos( $message, 'exceeded your current quota' ) ) {
+		} elseif ( in_array( $provider_code, array( 'insufficient_quota', 'organization_spend_limit_exceeded', 'project_spend_limit_exceeded', 'organization_usage_limit_exceeded' ), true ) ) {
 			$this->billing_error = 'quota';
 		}
 		$this->retryable = '' === $this->billing_error && $retryable;

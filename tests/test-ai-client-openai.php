@@ -335,6 +335,27 @@ class Test_Kayzart_Ai_Client_OpenAI extends WP_UnitTestCase {
 		}
 	}
 
+	/** Direct requests preserve the provider billing code even with unfamiliar wording. */
+	public function test_credit_balance_failure_is_not_retryable(): void {
+		update_option( 'kayzart_openai_api_key', 'sk-test-secret' );
+		add_filter(
+			'pre_http_request',
+			static function () {
+				return array(
+					'body'     => '{"error":{"code":"credit_balance_exhausted","message":"Provider billing detail"}}',
+					'response' => array( 'code' => 429 ),
+				);
+			}
+		);
+		try {
+			( new Ai_Client_OpenAI() )->generate( array( Ai_Message::user( 'test' ) ), array() );
+			$this->fail( 'Expected an AI client exception.' );
+		} catch ( Ai_Client_Exception $error ) {
+			$this->assertFalse( $error->is_retryable() );
+			$this->assertSame( 'The AI provider has no credits remaining. Check the provider billing settings.', $error->get_user_message() );
+		}
+	}
+
 	/** Sites can swap the direct model; unusable filter values keep the default. */
 	public function test_model_filter_overrides_request_model(): void {
 		$this->assertSame( Ai_Client_OpenAI::MODEL, Ai_Client_OpenAI::model() );

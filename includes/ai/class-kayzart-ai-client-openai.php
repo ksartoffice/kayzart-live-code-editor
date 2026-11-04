@@ -102,8 +102,11 @@ class Ai_Client_OpenAI implements Ai_Client_Interface {
 		$status = (int) wp_remote_retrieve_response_code( $response );
 		$body   = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $status < 200 || $status >= 300 ) {
+			$provider_error   = is_array( $body ) && isset( $body['error'] ) && is_array( $body['error'] ) ? $body['error'] : array();
+			$provider_code    = isset( $provider_error['code'] ) && is_string( $provider_error['code'] ) ? $provider_error['code'] : '';
+			$provider_message = isset( $provider_error['message'] ) && is_string( $provider_error['message'] ) ? $provider_error['message'] : '';
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- The retryable flag is a boolean, not output.
-			throw new Ai_Client_Exception( 'OpenAI rejected the request with HTTP ' . esc_html( (string) $status ) . '.', 408 === $status || 429 === $status || $status >= 500 );
+			throw new Ai_Client_Exception( 'OpenAI rejected the request with HTTP ' . esc_html( (string) $status ) . '. ' . esc_html( $provider_message ), 408 === $status || 429 === $status || $status >= 500, esc_html( $provider_code ) );
 		}
 		if ( ! is_array( $body ) || ! isset( $body['output'] ) || ! is_array( $body['output'] ) ) {
 			throw new Ai_Client_Exception( 'OpenAI returned an invalid response.', true );

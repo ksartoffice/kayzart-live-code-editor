@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.5.1
+Stable tag: 3.5.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -146,6 +146,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.5.2 =
+* Fix: AI editing now explains when the provider has no credits remaining or has reached a billing or usage limit, with guidance to check the provider settings. These failures stop immediately instead of retrying; temporary rate limits still retry.
+
 = 3.5.1 =
 * Improve: Browse bundled templates in a compact card grid. Open details and preview to enter a page title and create a draft, keeping your input when switching templates or languages.
 

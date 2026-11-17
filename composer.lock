@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b7975970564df8150271f51784eaa042",
+    "content-hash": "2d2acbbf0e6f070c3d50fc5bae5402a7",
     "packages": [
         {
             "name": "kayzart/action-scheduler-legacy",
@@ -26,19 +26,21 @@
         },
         {
             "name": "tailwindphp/tailwindphp",
-            "version": "v1.7.0.1",
+            "version": "v1.8.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ksartoffice/tailwindphp.git",
-                "reference": "86f3b81525947a21d80ed2de315b2767c22085ab"
+                "reference": "9366b064385013fc78603297cc45c9933397a705"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/86f3b81525947a21d80ed2de315b2767c22085ab",
-                "reference": "86f3b81525947a21d80ed2de315b2767c22085ab",
+                "url": "https://api.github.com/repos/ksartoffice/tailwindphp/zipball/9366b064385013fc78603297cc45c9933397a705",
+                "reference": "9366b064385013fc78603297cc45c9933397a705",
                 "shasum": ""
             },
             "require": {
+                "ext-ctype": "*",
+                "ext-mbstring": "*",
                 "php": "^7.4 || ^8.0"
             },
             "require-dev": {
@@ -89,6 +91,7 @@
                     "src/utilities.php",
                     "src/variants.php",
                     "src/design-system.php",
+                    "src/compat/legacy-utilities.php",
                     "src/apply.php",
                     "src/at-import.php",
                     "src/css-functions.php",
@@ -117,6 +120,7 @@
             "scripts": {
                 "extract": [
                     "@php test-coverage/extract-run-tests.php utilities",
+                    "@php test-coverage/extract-run-tests.php legacy-utilities",
                     "@php test-coverage/extract-run-tests.php variants",
                     "@php test-coverage/extract-index-tests.php",
                     "@php test-coverage/extract-css-functions-tests.php",
@@ -150,7 +154,7 @@
                 ],
                 "extract-and-test": [
                     "@extract-all",
-                    "@php vendor/bin/phpunit"
+                    "phpunit"
                 ],
                 "update-and-test": [
                     "@update-all",
@@ -163,18 +167,18 @@
                     "@update-plugins"
                 ],
                 "update-tailwind": [
-                    "@php scripts/update-tailwind.php"
+                    "node scripts/update-tailwind.ts"
                 ],
                 "update-libs": [
-                    "@php scripts/update-libs.php"
+                    "node scripts/update-libs.ts"
                 ],
                 "update-plugins": [
-                    "@php scripts/update-plugins.php"
+                    "node scripts/update-plugins.ts"
                 ],
                 "versions": [
-                    "@php scripts/update-tailwind.php --check",
-                    "@php scripts/update-libs.php --check",
-                    "@php scripts/update-plugins.php --check"
+                    "node scripts/update-tailwind.ts --check",
+                    "node scripts/update-libs.ts --check",
+                    "node scripts/update-plugins.ts --check"
                 ],
                 "bench": [
                     "@php scripts/benchmark.php"
@@ -217,7 +221,7 @@
                 "issues": "https://github.com/inline0/tailwindphp/issues",
                 "source": "https://github.com/inline0/tailwindphp"
             },
-            "time": "2026-09-16T04:18:29+00:00"
+            "time": "2026-11-17T01:06:47+00:00"
         },
         {
             "name": "woocommerce/action-scheduler",

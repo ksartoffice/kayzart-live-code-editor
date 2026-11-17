@@ -39,3 +39,4 @@
 /vendor/**/.php-cs-fixer.php
 /vendor/**/AGENTS.md
 /vendor/**/ARCHITECTURE.md
+/vendor/**/FORK.md

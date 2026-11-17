@@ -86,7 +86,7 @@ jobs:
             if curl --fail --silent "$WP_BASE_URL/wp-login.php" > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/e2e/scheduler-compatibility.spec.ts --reporter=line
+          npx playwright test tests/e2e/scheduler-compatibility.spec.ts tests/e2e/tailwind-compiler.spec.ts --reporter=line
       - name: Upload failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

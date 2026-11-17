@@ -216,4 +216,47 @@ class KayzArt_Tailwind_Compiler_Test extends WP_UnitTestCase {
 		$this->assertIsString( $generated );
 		$this->assertStringContainsString( '.flex', $generated );
 	}
+
+	/**
+	 * The upgraded compiler keeps legacy class names working through Kayzart.
+	 */
+	public function test_generate_preserves_legacy_utilities(): void {
+		$generated = Tailwind_Compiler::generate(
+			array( 'flex-grow', 'flex-shrink-0', 'bg-gradient-to-r', 'start-4', 'end-2', 'max-w-screen-xl', 'overflow-ellipsis', 'decoration-slice' ),
+			'@import "tailwindcss";'
+		);
+
+		$this->assertIsString( $generated );
+		foreach ( array( 'flex-grow: 1;', 'flex-shrink: 0;', 'linear-gradient(', 'inset-inline-start:', 'inset-inline-end:', 'max-width: var(--breakpoint-xl);', 'text-overflow: ellipsis;', 'box-decoration-break: slice;' ) as $declaration ) {
+			$this->assertStringContainsString( $declaration, $generated );
+		}
+	}
+
+	/**
+	 * Data attribute variants must reach the selector serializer intact.
+	 */
+	public function test_generate_serializes_has_data_variants_with_custom_theme(): void {
+		$generated = Tailwind_Compiler::generate(
+			array( 'has-data-[slot=icon]:pl-2', 'bg-brand' ),
+			'@import "tailwindcss"; @theme { --color-brand: #123456; }'
+		);
+
+		$this->assertIsString( $generated );
+		$this->assertStringContainsString( ':has([data-slot="icon"])', $generated );
+		$this->assertStringContainsString( 'padding-left:', $generated );
+		$this->assertStringContainsString( '--color-brand: #123456;', $generated );
+		$this->assertStringContainsString( 'background-color: var(--color-brand);', $generated );
+	}
+
+	/**
+	 * Invalid legacy breakpoint modifiers must not emit a rule or theme value.
+	 */
+	public function test_generate_rejects_modified_legacy_breakpoint_aliases(): void {
+		$generated = Tailwind_Compiler::generate(
+			array( 'max-w-screen-xl/foo', 'max-w-screen-custom/[foo]' ),
+			'@theme { --breakpoint-xl: 80rem; --breakpoint-custom: 96rem; } @tailwind utilities;'
+		);
+
+		$this->assertSame( '', $generated );
+	}
 }

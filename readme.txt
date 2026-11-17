@@ -359,4 +359,5 @@ This plugin bundles third-party libraries:
 * Lucide - ISC License - https://github.com/lucide-icons/lucide
 * parse5 - MIT License - https://github.com/inikulin/parse5
 * TailwindPHP - MIT License - https://github.com/ksartoffice/tailwindphp
+* Symfony Polyfill (ctype, iconv, mbstring) - MIT License - https://github.com/symfony/polyfill
 * Action Scheduler - GPL-3.0-or-later - https://actionscheduler.org

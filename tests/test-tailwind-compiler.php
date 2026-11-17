@@ -259,4 +259,28 @@ class KayzArt_Tailwind_Compiler_Test extends WP_UnitTestCase {
 
 		$this->assertSame( '', $generated );
 	}
+
+	/**
+	 * Composer's runtime polyfills support hosts without native text extensions.
+	 */
+	public function test_runtime_works_without_native_text_extensions(): void {
+		$command = array( PHP_BINARY, '-n' );
+		$mode    = '--without-native-mbstring';
+		if ( PHP_VERSION_ID >= 80000 ) {
+			// PHP 8 removes disabled functions, so the bundled fallbacks can load.
+			$command[] = '-d';
+			$command[] = 'disable_functions=ctype_alnum,ctype_alpha,ctype_cntrl,ctype_digit,ctype_graph,ctype_lower,ctype_print,ctype_punct,ctype_space,ctype_upper,ctype_xdigit,iconv,iconv_get_encoding,iconv_set_encoding,iconv_mime_decode,iconv_mime_decode_headers,iconv_mime_encode,iconv_strlen,iconv_strpos,iconv_strrpos,iconv_substr';
+			$mode      = '--without-native-text';
+		}
+		$command[] = __DIR__ . '/fixtures/tailwind-runtime-smoke.php';
+		$command[] = dirname( __DIR__ );
+		$command[] = $mode;
+		$process   = proc_open( $command, array( 0 => array( 'pipe', 'r' ), 1 => array( 'pipe', 'w' ), 2 => array( 'redirect', 1 ) ), $pipes );
+		$this->assertIsResource( $process );
+		fclose( $pipes[0] );
+		$output = stream_get_contents( $pipes[1] );
+		fclose( $pipes[1] );
+		$this->assertSame( 0, proc_close( $process ), $output );
+		$this->assertStringContainsString( 'Tailwind production runtime OK', $output );
+	}
 }

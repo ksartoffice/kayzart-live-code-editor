@@ -77,6 +77,8 @@ jobs:
         run: |
           KAYZART_SCHEDULER_E2E_SEED_MODERN=1 wp eval-file tests/e2e/fixtures/scheduler-retained-action.php seed --path="$WP_CORE_DIR"
           wp eval-file tests/e2e/fixtures/scheduler-retained-action.php verify --path="$WP_CORE_DIR"
+      - name: Compile from the ZIP without native mbstring
+        run: php -n tests/fixtures/tailwind-runtime-smoke.php "$WP_CORE_DIR/wp-content/plugins/kayzart-live-code-editor" --without-native-mbstring
       - name: Open the real admin screens and save a temporary page
         run: |
           php -S 127.0.0.1:8097 -t "$WP_CORE_DIR" > "$RUNNER_TEMP/scheduler-http.log" 2>&1 &

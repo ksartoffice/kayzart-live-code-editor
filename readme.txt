@@ -147,8 +147,7 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 
 == Changelog ==
 = 3.5.3 =
-* Fix: Generate correct selectors for attribute-based Tailwind variants such as has-data-*.
-* Improve: Update the bundled Tailwind compiler while preserving legacy classes and support for PHP 7.4+ hosts without mbstring or ctype.
+* Improve: Update TailwindPHP to v1.8.4.1.
 
 = 3.5.2 =
 * Fix: AI editing now explains when the provider has no credits remaining or has reached a billing or usage limit, with guidance to check the provider settings. These failures stop immediately instead of retrying; temporary rate limits still retry.

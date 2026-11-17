@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.5.2
+Stable tag: 3.5.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,7 +22,7 @@ The AI is told which fonts your site can actually render — the families regist
 
 For safety, the AI edits markup and styles only — your JavaScript is read-only context it can read but never change, so AI editing can't inject or rewrite scripts on your page.
 
-On WordPress 7.0 and later, Kayzart uses the WordPress AI Client and your configured Connector. On WordPress 5.9 through 6.9, it connects directly to OpenAI with the API key you configure in Kayzart and uses gpt-6-sol. WordPress 7.0 sites configure the provider in Connectors rather than in Kayzart; a direct key saved before the upgrade keeps working and stays manageable until you remove it. There is no per-edit fee to Kayzart and no Kayzart server in the loop. AI editing is available by default to administrators and editors.
+On WordPress 7.0 and later, Kayzart uses the WordPress AI Client and your configured Connector. On WordPress 5.9 through 6.9, it connects directly to OpenAI with the API key you configure in Kayzart and uses gpt-6-sol. WordPress 7.0 sites configure the provider in Connectors rather than in Kayzart; a direct key saved before the upgrade keeps working and stays manageable until you remove it. There is no per-edit fee to Kayzart; requests use the site's AI connection. AI editing is available by default to administrators and editors.
 
 **Or bring the code yourself**
 Write the page by hand, start from a template, drop in code from a designer, or paste what an AI tool gave you — then ask the built-in AI to refine it. The source doesn't matter — Kayzart is where that code becomes a page you can preview, keep editing, and ship in minutes, without a child theme and without fighting your theme's header, footer, and styles.
@@ -90,7 +90,7 @@ Create a landing page, then paste the HTML, CSS, and JavaScript into their tabs.
 Yes. In the editor's AI tab, describe the change you want and the AI edits your page's HTML and CSS directly — you don't copy code back and forth from a chatbot. You can also select an element in the preview and ask the AI to change just that part. Each request runs as a background job you can watch or cancel, and the result is applied to your editor tabs for you to review. Nothing is published until you save. For safety, the AI edits markup and styles only and treats your JavaScript as read-only context, so it can't add or rewrite scripts. AI editing works on every supported WordPress version after an AI connection is configured.
 
 = How do I set up AI editing? What does it cost? =
-On WordPress 7.0 and later, configure a provider such as OpenAI, Anthropic, or Google through WordPress Connectors. On WordPress 5.9–6.9, enter an OpenAI API key in Kayzart > Settings; it is stored as a non-autoloaded WordPress option unless you provide KAYZART_OPENAI_API_KEY as an environment variable or PHP constant. WordPress 7.0 does not offer the direct key field, because Connectors holds one provider for every plugin on the site. A key saved before the upgrade keeps running your edits until a Connector is ready, and can be replaced or removed in Kayzart > Settings; once removed it cannot be entered again. There is no Kayzart account, per-edit Kayzart fee, or Kayzart server in the loop; you pay your selected provider for usage.
+On WordPress 7.0 and later, configure a provider such as OpenAI, Anthropic, or Google through WordPress Connectors. On WordPress 5.9–6.9, enter an OpenAI API key in Kayzart > Settings; it is stored as a non-autoloaded WordPress option unless you provide KAYZART_OPENAI_API_KEY as an environment variable or PHP constant. WordPress 7.0 does not offer the direct key field, because Connectors holds one provider for every plugin on the site. A key saved before the upgrade keeps running your edits until a Connector is ready, and can be replaced or removed in Kayzart > Settings; once removed it cannot be entered again. There is no Kayzart account or per-edit Kayzart fee; you pay your selected provider for usage.
 
 = Who can use AI editing, and can I turn it off? =
 Access is controlled by a dedicated capability. Administrators and editors receive it on activation. Sites using standard WordPress capability-management tools can grant or remove it for other roles or individual users. Users without permission don't see the AI features at all. Site owners can also disable the feature entirely with a filter.
@@ -132,7 +132,7 @@ Theme mode renders your Kayzart content inside the active theme's template, so t
 HTML is stored in the post content; CSS, JavaScript, Tailwind/template modes, and other Kayzart settings are stored in post meta.
 
 = Does Kayzart send usage data to its own servers? =
-No usage data is sent automatically. Kayzart includes an optional administrator survey under Kayzart > Settings > Feedback, and an optional one-question survey when you individually deactivate it from the regular Plugins screen. Answers are sent only when you explicitly choose to send them. Both can be skipped and neither includes the site URL, administrator email address, API key, page content, usage history, or a persistent installation identifier. AI editing also does not pass through a Kayzart server; it continues to use the AI connection configured by the site.
+No usage data is sent automatically. Kayzart includes an optional administrator survey under Kayzart > Settings > Feedback, and an optional one-question survey when you individually deactivate it from the regular Plugins screen. Answers are sent only when you explicitly choose to send them. Both can be skipped and neither includes the site URL, administrator email address, API key, page content, usage history, or a persistent installation identifier. AI editing uses the AI connection configured by the site.
 
 == Screenshots ==
 1. Describe the page you want on the create screen, then pick TailwindCSS or Normal HTML/CSS mode.
@@ -146,6 +146,9 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.5.3 =
+* Improve: Update TailwindPHP to v1.8.4.1.
+
 = 3.5.2 =
 * Fix: AI editing now explains when the provider has no credits remaining or has reached a billing or usage limit, with guidance to check the provider settings. These failures stop immediately instead of retrying; temporary rate limits still retry.
 
@@ -359,4 +362,5 @@ This plugin bundles third-party libraries:
 * Lucide - ISC License - https://github.com/lucide-icons/lucide
 * parse5 - MIT License - https://github.com/inikulin/parse5
 * TailwindPHP - MIT License - https://github.com/ksartoffice/tailwindphp
+* Symfony Polyfill (ctype, iconv, mbstring) - MIT License - https://github.com/symfony/polyfill
 * Action Scheduler - GPL-3.0-or-later - https://actionscheduler.org

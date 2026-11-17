@@ -2,8 +2,6 @@
 /**
  * Recoverable/terminal error raised by AI edit tools.
  *
- * Mirrors the AgentError type from the legacy kayzart-server implementation.
- *
  * @package KayzArt
  */
 

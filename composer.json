@@ -3,7 +3,10 @@
     "description": "Live HTML/CSS/JS editor with real-time preview for WordPress.",
     "license": "GPL-2.0-or-later",
     "require": {
-        "tailwindphp/tailwindphp": "1.7.0.1",
+        "symfony/polyfill-ctype": "^1.33",
+        "symfony/polyfill-iconv": "^1.33",
+        "symfony/polyfill-mbstring": "^1.33",
+        "tailwindphp/tailwindphp": "1.8.4.1",
         "woocommerce/action-scheduler": "4.0.0",
         "kayzart/action-scheduler-legacy": "3.6.4"
     },

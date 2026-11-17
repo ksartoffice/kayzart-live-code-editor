@@ -2,10 +2,7 @@
 /**
  * System and user prompt construction for the AI agent loop.
  *
- * Faithful PHP port of `SYSTEM_PROMPT` and `buildUserPrompt` (plus the
- * leading-context formatting helpers) from the legacy kayzart-server
- * (`src/ai-jobs.ts`). This builds prompt strings only and performs no network
- * access, so it is deterministic and easy to test.
+ * Builds prompt strings and leading context without network access.
  *
  * The request payload is an associative array with these keys:
  *   editorMode        string  'normal' | 'tailwind'

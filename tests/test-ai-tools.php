@@ -2,9 +2,8 @@
 /**
  * Unit tests for the pure AI edit tools.
  *
- * These tests exercise the faithful PHP port of the legacy kayzart-server
- * tool implementations. The tools have no WordPress dependencies, so the
- * assertions here focus on snapshot manipulation and the base-hash port.
+ * The tools have no WordPress dependencies. These assertions focus on
+ * snapshot manipulation and base-hash calculation.
  *
  * @package KayzArt
  */

@@ -2,10 +2,9 @@
 /**
  * The AI edit agent loop.
  *
- * Faithful PHP port of `runAgentLoop`/`runFinalizationTurns` from the legacy
- * kayzart-server (`src/ai-jobs.ts`). It drives a multi-turn tool-calling loop
- * against an {@see Ai_Client_Interface}, applying edits to an in-memory
- * snapshot via {@see Ai_Tools}, until the model returns a final summary or the
+ * Drives a multi-turn tool-calling loop against an {@see Ai_Client_Interface},
+ * applying edits to an in-memory snapshot via {@see Ai_Tools}, until the model
+ * returns a final summary or the
  * turn limit is reached.
  *
  * The loop owns its conversation history in normalized {@see Ai_Message} form

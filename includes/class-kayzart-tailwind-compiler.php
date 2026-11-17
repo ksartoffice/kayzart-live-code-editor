@@ -82,10 +82,9 @@ class Tailwind_Compiler {
 	 * truncating that candidate and silently dropping every later class in the
 	 * attribute.
 	 *
-	 * This is deliberately more correct than TailwindPHP's own extractor, which
-	 * still carries the narrow pattern. Tailwind_Compiler::generate() therefore
-	 * hands candidates to the compiler directly instead of letting it re-extract
-	 * them from HTML.
+	 * The editor sends these candidates directly to preview and save requests.
+	 * Compiling that same validated list keeps both paths consistent without
+	 * re-extracting candidates from an intermediate HTML document.
 	 *
 	 * Kept in sync by hand with src/admin/logic/tailwind-candidates.ts.
 	 *
@@ -148,11 +147,9 @@ class Tailwind_Compiler {
 			return self::error( 'kayzart_tailwind_css_too_large', __( 'Tailwind CSS input exceeds the maximum size.', 'kayzart-live-code-editor' ) );
 		}
 
-		// tw::generate() re-extracts candidates from an HTML string with the
-		// narrow `["\']([^"\']+)["\']` pattern, so round-tripping through
-		// `<div class="...">` would truncate any candidate containing a quote
-		// and drop everything after it. compile() is the same code path minus
-		// that extraction step, so it takes the candidate list as-is.
+		// Compile the validated list directly so preview and save use exactly
+		// the editor's candidates, including quoted arbitrary values. Avoid an
+		// HTML round-trip or a second pass through a dependency's extractor.
 		//
 		// The source expression replicates generate()'s own handling: it
 		// defaults only on an exactly empty string, and appends the newline

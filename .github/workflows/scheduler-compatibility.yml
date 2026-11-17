@@ -77,6 +77,8 @@ jobs:
         run: |
           KAYZART_SCHEDULER_E2E_SEED_MODERN=1 wp eval-file tests/e2e/fixtures/scheduler-retained-action.php seed --path="$WP_CORE_DIR"
           wp eval-file tests/e2e/fixtures/scheduler-retained-action.php verify --path="$WP_CORE_DIR"
+      - name: Compile from the ZIP without native mbstring
+        run: php -n tests/fixtures/tailwind-runtime-smoke.php "$WP_CORE_DIR/wp-content/plugins/kayzart-live-code-editor" --without-native-mbstring
       - name: Open the real admin screens and save a temporary page
         run: |
           php -S 127.0.0.1:8097 -t "$WP_CORE_DIR" > "$RUNNER_TEMP/scheduler-http.log" 2>&1 &
@@ -86,7 +88,7 @@ jobs:
             if curl --fail --silent "$WP_BASE_URL/wp-login.php" > /dev/null; then break; fi
             sleep 1
           done
-          npx playwright test tests/e2e/scheduler-compatibility.spec.ts --reporter=line
+          npx playwright test tests/e2e/scheduler-compatibility.spec.ts tests/e2e/tailwind-compiler.spec.ts --reporter=line
       - name: Upload failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

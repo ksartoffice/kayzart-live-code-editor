@@ -2,10 +2,8 @@
 /**
  * Pure snapshot-editing tools for the AI agent loop.
  *
- * Faithful PHP port of the tool implementations from the legacy
- * kayzart-server (`src/ai-jobs.ts`). Every method here operates on an
- * in-memory snapshot array and performs no WordPress, database or network
- * access, so it is fully unit-testable in isolation.
+ * Every method operates on an in-memory snapshot array without WordPress,
+ * database or network access, so it is fully unit-testable in isolation.
  *
  * Snapshot shape:
  *   array{

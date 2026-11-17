@@ -2,9 +2,6 @@
 /**
  * Tool schema definitions and edit-target policy for the AI agent loop.
  *
- * Faithful PHP port of `buildToolDefinitions`, `resolveEditPolicy` and
- * `hasExplicitCssEditIntent` from the legacy kayzart-server (`src/ai-jobs.ts`).
- *
  * The tool definitions are returned in a provider-agnostic array form
  * (`type`/`name`/`description`/`parameters`). The AI client wrapper converts
  * them into the concrete `FunctionDeclaration` objects the SDK expects.

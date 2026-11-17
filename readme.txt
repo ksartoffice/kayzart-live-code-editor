@@ -4,7 +4,7 @@ Tags: landing page, ai editor, custom html, tailwind, live preview
 Requires at least: 5.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.5.2
+Stable tag: 3.5.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -146,6 +146,10 @@ No usage data is sent automatically. Kayzart includes an optional administrator 
 9. Set the default AI model, turn and instruction limits, and check the AI requirements in Settings.
 
 == Changelog ==
+= 3.5.3 =
+* Fix: Generate correct selectors for attribute-based Tailwind variants such as has-data-*.
+* Improve: Update the bundled Tailwind compiler while preserving legacy classes and support for PHP 7.4+ hosts without mbstring or ctype.
+
 = 3.5.2 =
 * Fix: AI editing now explains when the provider has no credits remaining or has reached a billing or usage limit, with guidance to check the provider settings. These failures stop immediately instead of retrying; temporary rate limits still retry.
 
